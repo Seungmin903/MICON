@@ -1,0 +1,589 @@
+<title>음색 매칭 설명서</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f6f7f4; --surface:#ffffff; --ink:#1f2833; --muted:#5b6672;
+  --line:#d9ded8; --blue:#2f6fb7; --blue-soft:#e3edf7; --orange:#c65a2e; --orange-soft:#f7e9e0;
+  --good:#2e7d4f; --warn:#a3612a; --chip:#eef0ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181d; --surface:#1d232a; --ink:#e8eae6; --muted:#9aa4ad;
+    --line:#333b44; --blue:#6ea8e8; --blue-soft:#203043; --orange:#e08a5e; --orange-soft:#3d2a1e;
+    --good:#6fbf8f; --warn:#d9a05e; --chip:#262d35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181d; --surface:#1d232a; --ink:#e8eae6; --muted:#9aa4ad;
+  --line:#333b44; --blue:#6ea8e8; --blue-soft:#203043; --orange:#e08a5e; --orange-soft:#3d2a1e;
+  --good:#6fbf8f; --warn:#d9a05e; --chip:#262d35;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',sans-serif;
+  line-height:1.75;margin:0;font-size:16px}
+main{max-width:720px;margin:0 auto;padding:56px 20px 96px}
+h1,h2{font-family:'Gowun Batang',serif;text-wrap:balance;line-height:1.35}
+h1{font-size:34px;margin:0 0 8px}
+h2{font-size:23px;margin:64px 0 4px}
+.eyebrow{font-size:12.5px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;
+  font-weight:500;margin-bottom:10px}
+.lede{color:var(--muted);margin:0 0 8px}
+.qtag{display:inline-block;font-size:12.5px;font-weight:700;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:1px 12px;margin-bottom:2px}
+.meta-strip{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:10px 16px;flex:1;min-width:130px}
+.stat b{display:block;font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500}
+.stat span{font-size:12.5px;color:var(--muted)}
+p{margin:14px 0}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:.92em}
+.rail{margin:28px 0;padding:0;list-style:none}
+.rail li{position:relative;padding:0 0 26px 34px;border-left:2px solid var(--line);margin-left:9px}
+.rail li:last-child{border-left-color:transparent;padding-bottom:0}
+.rail li::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;
+  border-radius:50%;background:var(--blue);border:2px solid var(--bg)}
+.rail .t{font-weight:700}
+.rail .d{color:var(--muted);font-size:14.5px}
+.time{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+  background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:1px 8px;
+  margin-left:8px;white-space:nowrap}
+.flow{display:flex;gap:8px;align-items:stretch;margin:24px 0;flex-wrap:wrap}
+.flow .cell{flex:1;min-width:106px;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;padding:12px 10px;text-align:center}
+.flow .cell b{display:block;font-size:14px}
+.flow .cell span{font-size:12.5px;color:var(--muted);line-height:1.5;display:block;margin-top:4px}
+.flow .arrow{align-self:center;color:var(--muted);flex:0}
+.vecbox{font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--chip);
+  border-radius:8px;padding:10px 14px;overflow-x:auto;white-space:nowrap}
+table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14.5px;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:9px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12.5px;letter-spacing:.06em;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:none}
+td.num{font-family:'IBM Plex Mono',monospace;font-size:13.5px;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.mixbars{margin:26px 0}
+.mixrow{margin:14px 0}
+.mixrow .lbl{font-size:13.5px;color:var(--muted);margin-bottom:6px}
+.bar{display:flex;height:34px;border-radius:8px;overflow:hidden;font-size:13px;font-weight:700}
+.bar .a{background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center}
+.bar .b{background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center}
+.legend{display:flex;gap:18px;font-size:13.5px;margin-top:10px;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:22px 0}
+.card.blue{border-left:4px solid var(--blue);border-radius:0 12px 12px 0}
+.card.orange{border-left:4px solid var(--orange);border-radius:0 12px 12px 0}
+.card h3{margin:0 0 6px;font-size:16.5px}
+.card p{margin:8px 0;font-size:14.5px}
+.honest{background:var(--orange-soft);border:1px solid var(--line);border-radius:12px;padding:16px 22px;margin:22px 0}
+.honest b{color:var(--warn)}
+.pass{color:var(--good);font-weight:700}
+.fail{color:var(--warn);font-weight:700}
+ul{padding-left:22px}li{margin:6px 0}
+.foot{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--muted)}
+
+/* 쉬운 말 사전 */
+button.term{all:unset;cursor:pointer;color:inherit;font:inherit;
+  border-bottom:1.5px dotted var(--blue);padding-bottom:1px}
+button.term::after,.term-sample::after{content:"?";font-size:.68em;font-weight:700;
+  color:var(--blue);vertical-align:super;margin-left:2px}
+button.term:hover,button.term:focus-visible{background:var(--blue-soft);outline:none}
+.term-sample{border-bottom:1.5px dotted var(--blue);padding-bottom:1px}
+.hint{font-size:13.5px;color:var(--muted);margin:10px 0 0}
+#gscrim{position:fixed;inset:0;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;
+  transition:opacity .22s;z-index:40}
+#gscrim.open{opacity:1;pointer-events:auto}
+#gpanel{position:fixed;top:0;right:0;height:100%;width:min(390px,94vw);background:var(--surface);
+  border-left:1px solid var(--line);transform:translateX(105%);transition:transform .22s ease;
+  z-index:50;overflow-y:auto;padding:26px 28px 40px;box-shadow:-14px 0 40px rgba(0,0,0,.15)}
+#gpanel.open{transform:none}
+#gpanel h3{font-family:'Gowun Batang',serif;font-size:21px;margin:0 0 12px}
+#gpanel p{font-size:14.5px;margin:10px 0}
+#gpanel .eg{background:var(--chip);border:1px solid var(--line);border-radius:8px;
+  padding:10px 14px;font-size:13.5px;margin:12px 0}
+#gpanel .backref{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);
+  padding-top:10px;margin-top:18px}
+#gclose{all:unset;cursor:pointer;position:absolute;top:14px;right:16px;font-size:22px;
+  color:var(--muted);line-height:1;padding:6px}
+#gclose:hover,#gclose:focus-visible{color:var(--ink)}
+@media (max-width:640px){
+  #gpanel{top:auto;bottom:0;right:0;left:0;width:100%;height:auto;max-height:72vh;
+    border-left:none;border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+    transform:translateY(105%)}
+}
+@media (prefers-reduced-motion:reduce){#gpanel,#gscrim{transition:none}}
+figure.spec{margin:18px 0 6px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:16px 16px 6px}
+figure.spec figcaption{font-size:13px;color:var(--muted);margin:10px 4px 8px;line-height:1.6;font-weight:400}
+</style>
+
+<main>
+<div class="eyebrow">노래 추천 서비스 · 음색 축 실험 보고 · 2026-08-29</div>
+<h1>음색 매칭 설명서</h1>
+<p class="lede">팀원들이 물어본 다섯 가지 질문에, 전부 측정한 숫자로 답합니다.
+전문 용어는 최대한 걷어냈어요.</p>
+<p class="hint">그래도 남은 전문 용어에는 <span class="term-sample">이런 점선과 물음표</span>가
+붙어 있어요 — 누르면 쉬운 말 설명이 열립니다.</p>
+
+<div class="meta-strip">
+  <div class="stat"><b>845</b><span>처리된 트랙</span></div>
+  <div class="stat"><b>91.2%</b><span>같은 가수 top-5 재발견율</span></div>
+  <div class="stat"><b>~6시간</b><span>800곡 전체 처리(실측)</span></div>
+  <div class="stat"><b>8문항</b><span>남은 관문: 청취 세션</span></div>
+</div>
+
+<h2>1. 전체 파이프라인, 그리고 실제로 걸린 시간</h2>
+<p>노래 한 곡이 추천 풀에 들어오기까지의 컨베이어 벨트입니다. 시간은 이번에 800곡을
+실제로 돌리며 관측한 값이에요 (RTX 4070 노트북 기준).</p>
+<ul class="rail">
+  <li><span class="t">① 변환</span><span class="time">순식간 (전체 몇 분)</span>
+    <div class="d">mp3를 표준 음원 파일(<button class="term" data-term="hz">44.1kHz</button> wav)로 통일합니다.</div></li>
+  <li><span class="t">② 반주 제거</span><span class="time">곡당 8초 · 711곡 ≈ 1.7시간</span>
+    <div class="d">AI(<button class="term" data-term="demucs">Demucs</button>)가 반주를 걷어내고 목소리만 남깁니다. <button class="term" data-term="gpu">GPU</button>가 필요한 가장 무거운 단계.</div></li>
+  <li><span class="t">③ 조각내기</span><span class="time">지문 촬영에 포함</span>
+    <div class="d">5초 조각으로 자르고, 간주·숨 구간(노래가 60% 미만인 조각)은 버립니다.
+    남은 조각 중 곡 전체에서 고르게 24개를 뽑아요.</div></li>
+  <li><span class="t">④ 지문 촬영</span><span class="time">분리보다 훨씬 짧음</span>
+    <div class="d">조각마다 "목소리 지문" 1장씩 촬영합니다 (아래 2절). 곡 = 지문 24장짜리 사진첩.</div></li>
+  <li><span class="t">⑤ 품질 메모</span><span class="time">분당 3곡 · 711곡 ≈ 4시간</span>
+    <div class="d">조각별 음높이·음량·순도를 기록합니다. 음높이 계산이 느려서 의외의 최대 병목.</div></li>
+  <li><span class="t">⑥ 문지기 심사</span><span class="time">순식간</span>
+    <div class="d">여러 목소리가 섞인 곡을 걸러냅니다 (6절). 통과하면 추천 풀 입장.</div></li>
+</ul>
+<p>새 곡이 더 들어오면? 명령 하나로 <b>새 곡만 골라서</b> 같은 벨트를 태웁니다.
+이미 처리한 곡은 다시 계산하지 않아요.</p>
+
+<h2>2. 지문 1장이 만들어지는 원리</h2>
+<span class="qtag">질문 3 — 말소리로 학습한 모델에 노래를 넣어도 되나?</span>
+<p>지문을 찍는 기계는 <button class="term" data-term="ecapa">ECAPA-TDNN</button>이라는 <button class="term" data-term="nn">신경망</button>인데, 원래는 <b>전화 통화 목소리로
+"이 사람이 그 사람 맞나"를 판별하도록</b> 수천 명의 말소리로 훈련된 모델입니다.
+5초짜리 소리가 들어가면 이런 일이 벌어져요:</p>
+<div class="flow">
+  <div class="cell"><b>5초 소리</b><span>목소리 조각</span></div>
+  <div class="arrow">→</div>
+  <div class="cell"><b>주파수 무늬</b><span>시간×음높이의 얼룩 그림으로 변환</span></div>
+  <div class="arrow">→</div>
+  <div class="cell"><b>신경망 요약</b><span>"누구 목소리인지"에 관한 단서만 압축</span></div>
+  <div class="arrow">→</div>
+  <div class="cell"><b>숫자 192개</b><span>= 지문 1장</span></div>
+</div>
+<div class="vecbox">[ 0.12, -0.87, 0.31, 0.05, -0.44, … 총 192개 ]  ← 이게 목소리 지문의 실체</div>
+<p>가운데 "신경망 요약" 상자 안에서 벌어지는 일을 한 단계 더 열어보면:</p>
+<ul>
+<li><b>주파수 무늬 만들기</b> — 5초 소리를 80줄짜리 얼룩 그림(<button class="term" data-term="mel">멜 스펙트로그램</button>)으로 바꿉니다.
+  가로가 시간, 세로가 음높이대, 밝기가 그 순간 그 높이의 에너지예요. 대략 이렇게 생겼습니다:
+  <figure class="spec">
+  <svg viewBox="0 0 640 380" role="img" aria-label="멜 스펙트로그램 예시: 시간에 따라 물결치는 여러 겹의 밝은 가로 줄무늬" style="width:100%;height:auto">
+    <rect x="56" y="16" width="560" height="290" rx="8" fill="#171b21"/>
+    <defs>
+      <path id="h0" d="M76 268 C110 262 132 248 166 252 C198 256 214 238 246 236 C276 234 292 250 322 248 C338 247 352 242 362 244 M404 248 C436 252 456 232 488 228 C518 225 546 242 574 238 C588 236 596 236 604 235" fill="none"/>
+    </defs>
+    <rect x="160" y="20" width="9" height="282" fill="#e8d9b8" opacity=".07"/>
+    <rect x="316" y="20" width="9" height="282" fill="#e8d9b8" opacity=".07"/>
+    <rect x="486" y="20" width="9" height="282" fill="#e8d9b8" opacity=".07"/>
+    <g stroke-linecap="round">
+      <use href="#h0" stroke="#ffd166" stroke-width="7" opacity=".95"/>
+      <use href="#h0" transform="translate(0,-44)" stroke="#f2c14e" stroke-width="6" opacity=".78"/>
+      <use href="#h0" transform="translate(0,-80)" stroke="#f2c14e" stroke-width="5" opacity=".62"/>
+      <use href="#h0" transform="translate(0,-110)" stroke="#f2c14e" stroke-width="4.5" opacity=".5"/>
+      <use href="#h0" transform="translate(0,-134)" stroke="#f2c14e" stroke-width="4" opacity=".4"/>
+      <use href="#h0" transform="translate(0,-154)" stroke="#f2c14e" stroke-width="3.5" opacity=".32"/>
+      <use href="#h0" transform="translate(0,-170)" stroke="#f2c14e" stroke-width="3" opacity=".25"/>
+      <use href="#h0" transform="translate(0,-183)" stroke="#f2c14e" stroke-width="2.5" opacity=".19"/>
+    </g>
+    <g font-family="'Noto Sans KR',sans-serif" font-size="12.5" fill="#cfc4a8">
+      <text x="76" y="42">겹겹의 밝은 줄 = 배음 (아래로 갈수록 밝음)</text>
+      <line x1="120" y1="50" x2="138" y2="76" stroke="#cfc4a8" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+      <text x="383" y="298" text-anchor="middle">숨 쉬는 구간 = 깜깜함</text>
+      <line x1="383" y1="286" x2="383" y2="258" stroke="#cfc4a8" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+    </g>
+    <g font-family="'Noto Sans KR',sans-serif" font-size="12" fill="var(--muted)">
+      <text x="48" y="32" text-anchor="end">높은 음</text>
+      <text x="48" y="302" text-anchor="end">낮은 음</text>
+      <text x="58" y="330">0초</text>
+      <text x="614" y="330" text-anchor="end">5초</text>
+      <text x="336" y="330" text-anchor="middle">시간 →</text>
+      <text x="336" y="358" text-anchor="middle">세로 = 음높이 (멜 눈금 = 사람 귀 기준) · 밝기 = 그 순간 소리의 세기</text>
+    </g>
+  </svg>
+  <figcaption><b>멜 스펙트로그램 예시</b> (실제 데이터가 아니라 이해를 돕는 그림입니다).
+  소리를 사진처럼 펼친 것으로, 한 음을 불러도 줄이 여러 겹인 건 <b>배음</b> —
+  기본 음 위에 자동으로 같이 울리는 위층 음들 — 때문이에요. 이 줄무늬의 간격·굵기·밝기
+  패턴이 울림통 모양을 따라 사람마다 달라서, 신경망은 이 "무늬의 생김새"를 보고
+  누구 목소리인지 알아냅니다.</figcaption>
+  </figure></li>
+<li><b>여러 배율로 훑기</b> — 짧게·길게 다른 폭의 필터 수백 개가 이 그림을 훑으며
+  "울림통의 공명 패턴" 같은 흔적을 찾습니다 (TDNN 층).</li>
+<li><b>중요한 순간에 집중</b> — 5초 안에서도 정보가 많은 구간(모음이 길게 나오는 곳 등)에
+  가중치를 더 주는 <button class="term" data-term="attn">어텐션</button> 장치가 있어요.</li>
+<li><b>시간을 지우기</b> — 찾아낸 특징들의 시간 축을 <b>평균 + 들쭉날쭉함(<button class="term" data-term="std">표준편차</button>)</b> 두 가지로
+  요약합니다(<button class="term" data-term="pool">통계 풀링</button>). 그래서 입력이 5초든 20초든 결과는 항상 같은 크기의 지문 1장.</li>
+<li><b>훈련 방법</b> — 7천여 명이 말하는 음성(<button class="term" data-term="vox">VoxCeleb</button>)으로 "이 목소리, 누구게?" 퀴즈를
+  수백만 번 풀게 했어요. 퀴즈를 잘 풀려면 말의 내용·배경음·마이크 차이는 버리고
+  <b>사람을 구분하는 단서만</b> 남겨야 하니, 그 과정에서 지문 찍는 법을 스스로 익힌 겁니다.</li>
+</ul>
+<p>이 숫자 192개는 <b><button class="term" data-term="dim">192차원</button> 공간의 좌표</b>예요. 목소리가 닮은 두 사람은 이 공간에서
+가까운 점에 찍히고, 유사도는 두 점(벡터)이 이루는 <b>각도</b>로 잽니다(<button class="term" data-term="cos">코사인 유사도</button> —
+1에 가까울수록 닮음). 각 숫자가 "콧소리 정도" 같은 뜻을 갖진 않아요. 신경망이 스스로
+찾아낸, 사람은 읽을 수 없는 압축 좌표입니다.</p>
+<p><b>노래에서도 통하는 이유</b>: 노래를 불러도 성대 굵기, 목·코·입 울림통의 모양 같은
+발성 기관의 물리적 특성은 그대로거든요. 실제로 시험을 쳐봤습니다 —
+7명의 가수(여성: 아이유·웬디·설윤·경서 / 남성: 첸·존박·규현)가 부른
+<b>같은 곡(밤편지) 커버</b>를 놓고 "같은 곡을 부른 남남"과
+"다른 곡을 부른 본인"을 구분시키는 시험. 곡이 같으니 멜로디·가사·반주로는 못 맞히고
+순수하게 목소리로만 풀어야 해요.</p>
+<div class="tablewrap"><table>
+<tr><th>모델</th><th>배운 것</th><th>구분 간격</th><th>판정</th></tr>
+<tr><td>ECAPA (화자 인식)</td><td>말소리</td><td class="num">+0.127</td><td class="pass">합격</td></tr>
+<tr><td>MERT (음악 이해)</td><td>음악</td><td class="num">+0.014</td><td class="fail">동전 수준</td></tr>
+<tr><td>MuQ (음악 이해)</td><td>음악</td><td class="num">+0.007</td><td class="fail">동전 수준</td></tr>
+<tr><td>singer_id (가수 인식)</td><td>노래</td><td class="num">—</td><td class="fail">환경에 압도돼 탈락</td></tr>
+<tr><td>WavLM-SV (화자 인식, 2022)</td><td>말소리</td><td class="num">+0.086</td><td class="fail">가창에서 붕괴 (재발견 7/46)</td></tr>
+</table></div>
+<p>맨 아랫줄은 "같은 화자 인식 과의 더 최신 모델이면 더 좋지 않냐"는 반문에 대한 답입니다.
+직접 붙여보니 WavLM 기반 검증 모델(base-plus 변형)은 말소리 벤치마크에서는 ECAPA보다
+강하지만 <b>가창에서는 무너졌어요</b> (스케일 무관 지표 <button class="term" data-term="auc">AUC</button> 0.712 vs ECAPA 0.902).
+최신이 항상 이기는 게 아니라, 가창이라는 낯선 도메인에서는 직접 측정해봐야 안다는 것 —
+이 실험의 방법론 그 자체입니다.</p>
+<p>대가가 하나 있습니다. 음높이가 지문에 살짝 섞여 들어가서, 같은 사람이라도 고음곡과
+저음곡의 지문이 좀 다르게 찍혀요 (측정: 교차 음역 유사도가 피치와 <button class="term" data-term="rho">상관 ρ</button>≈−0.95).
+그래서 "부를 수 있는 음역인가"는 별도의 음역 필터가 담당합니다.</p>
+
+<h2>3. 민감도 — 창법 변화까지 감지하나?</h2>
+<span class="qtag">질문 1 — 화자 인식으로 민감도까지 잡아낼 수 있나?</span>
+<p>잡아냅니다. 단, <b>음색 정체성이 1차 신호, 민감도는 2차 신호</b>예요. 전부 실측값으로:</p>
+<div class="tablewrap"><table>
+<tr><th>비교</th><th>유사도</th><th>읽는 법</th></tr>
+<tr><td>같은 사람, 여리게 ↔ 세게</td><td class="num">0.691</td><td>1.0이 아니다 = 창법 변화를 감지함</td></tr>
+<tr><td>같은 사람, 저음역 ↔ 고음역</td><td class="num">0.816</td><td>음역별 목소리 차이도 감지함</td></tr>
+<tr><td>서로 다른 사람 (최고치)</td><td class="num">0.551</td><td>창법이 바뀌어도 본인이 남남보다 항상 높음</td></tr>
+<tr><td>솔라의 곡간 (카멜레온 사례)</td><td class="num">0.305</td><td>곡마다 창법을 갈아끼우면 여기까지 떨어짐</td></tr>
+</table></div>
+<p>즉 창법이 판을 뒤집지는 못하지만(계열 판정은 유지), 세부 순위는 움직입니다.
+극단 사례인 솔라의 "Golden은 솔라 본인보다 에일리 같다"는 모델 판정은
+블라인드 청취에서 사람 귀도 동의했어요. 아직 못 한 것: 창법 변화와 음높이 변화를
+따로 떼어 재는 통제 실험 (청취 세션 때 같은 소절을 3가지 창법으로 녹음해서 진행 예정).</p>
+
+<h2>4. 민감도 0.6 + 음색 정체성 0.4 — 왜 두 개고, 왜 6:4인가</h2>
+<span class="qtag">질문 2 — 음색 정체성과 민감도를 몇 대 몇으로 섞나?</span>
+<p>용어부터 (팀 용어집 기준): <b>음색 정체성</b>은 곡·창법·환경을 벗겨낸 그 사람 고유의
+목소리, <b>민감도(조건부 음색)</b>는 부르는 곡과 창법에 따라 변하는 부분입니다.
+사용자 녹음이 들어오면 추천 후보 곡마다 이 두 축을 각각 잽니다:</p>
+<div class="card blue">
+  <h3><span class="dot" style="background:var(--blue)"></span>민감도 점수 (곡 단위) — "그 곡을 부를 때의 목소리"와 비교</h3>
+  <p>사용자 지문 24장과 <b>그 곡</b>의 지문 24장을 전부 짝지어(24×24쌍) 유사도를 내고 평균합니다.
+  가수가 그 곡에서 실제로 낸 목소리 — 음색 정체성에 그 곡의 조건(창법·음역·표현)이 얹힌 소리 —
+  와의 매칭이라, 민감도 정보가 살아 있는 점수예요. 같은 가수라도 곡마다 점수가 다릅니다.
+  솔라의 Golden과 발라드가 다른 점수를 받는 이유.</p>
+</div>
+<div class="card orange">
+  <h3><span class="dot" style="background:var(--orange)"></span>음색 정체성 점수 (가수 단위) — "그 가수의 평소 목소리"와 비교</h3>
+  <p>그 가수의 <b>모든 곡</b> 지문을 평균 낸 <button class="term" data-term="centroid">대표 지문(centroid)</button>과 비교합니다. 곡마다의
+  곡마다의 조건·편곡 우연이 평균에서 상쇄되고 순수한 음색 정체성만 남은, 안정된 기준점이에요.
+  같은 가수의 곡이면 모두 같은 점수를 받습니다.</p>
+</div>
+<p><b>왜 둘 다 필요한가</b>: 민감도 점수만 쓰면 트랙 하나의 우연(화음 잔류, 녹음 상태)에
+추천이 휘둘리고, 정체성 점수만 쓰면 "같은 가수도 곡마다 목소리가 다르다"는 정보(3절)를
+전부 버리게 됩니다. 민감도가 "이 곡"을 맞추고, 정체성이 흔들림을 잡아주는 역할 분담이에요.</p>
+<p>실제 예 — 지유림 집 녹음의 추천 상위권 (845트랙 카탈로그):</p>
+<div class="tablewrap"><table>
+<tr><th>후보 곡</th><th>민감도</th><th>음색 정체성</th><th>읽는 법</th></tr>
+<tr><td>경서 · 밤편지</td><td class="num">0.345</td><td class="num">0.612</td><td>둘 다 최상위 → 종합 1위</td></tr>
+<tr><td>이하이 · Rose</td><td class="num">0.313</td><td class="num">0.615</td><td>가수 전체가 잘 맞는 케이스</td></tr>
+<tr><td>백예린 · Antifreeze</td><td class="num">0.276</td><td class="num">0.490</td><td>이 곡의 창법이 특히 잘 맞는 케이스</td></tr>
+<tr><td>설윤 · 밤편지</td><td class="num">0.247</td><td class="num">0.435</td><td>같은 곡이어도 목소리가 덜 닮으면 하위</td></tr>
+</table></div>
+<p><b>이번에 잡은 사고</b>: 두 점수를 그냥 0.6/0.4로 더하면 안 됐어요. 정체성 점수의
+퍼지는 폭(<button class="term" data-term="std">표준편차</button>)이 민감도 점수의 2배라서, 명목 60:40이 실제 영향력으로는
+<b>43:57로 뒤집혀</b> 있었습니다 — 설계 의도("곡별 목소리를 더 믿는다")와 정반대로요.</p>
+<div class="mixbars">
+  <div class="mixrow"><div class="lbl">설계 의도 (명목 가중치)</div>
+    <div class="bar"><div class="a" style="width:60%">민감도 60</div><div class="b" style="width:40%">정체성 40</div></div></div>
+  <div class="mixrow"><div class="lbl">교정 전 실제 영향력 — 뒤집혀 있었음</div>
+    <div class="bar"><div class="a" style="width:43%">민감도 43</div><div class="b" style="width:57%">정체성 57</div></div></div>
+  <div class="mixrow"><div class="lbl">교정 후 (각 점수를 표준화한 뒤 혼합)</div>
+    <div class="bar"><div class="a" style="width:60%">민감도 60</div><div class="b" style="width:40%">정체성 40</div></div></div>
+  <div class="legend"><span><span class="dot" style="background:var(--blue)"></span>민감도 점수 (곡 단위)</span>
+  <span><span class="dot" style="background:var(--orange)"></span>음색 정체성 점수 (가수 단위)</span></div>
+</div>
+<p>지금은 각 점수를 <button class="term" data-term="znorm">표준화(z-정규화)</button>한 뒤 섞어서 6:4가 진짜 6:4로 작동합니다.
+6:4라는 값 자체는 아직 잠정 휴리스틱이고, 출시 후 사용자 행동 로그로 학습해 교체할 계획이에요.</p>
+
+<h2>5. 듀엣 · 랩 · 코러스 · 피처링 처리</h2>
+<span class="qtag">질문 4</span>
+<p>원칙: <b>두 목소리가 섞인 곡의 평균 지문은 이 세상 누구의 목소리도 아니다.</b>
+그런 곡이 "당신과 닮았어요"로 나가면 엉터리 추천이 되므로, 문지기 셋이 심사합니다.</p>
+<ul>
+<li><b>문지기 1 · 이름 검사</b> — 파일명에 쉼표·&amp;·Feat가 있으면 제외. 845곡 중 109곡.</li>
+<li><b>문지기 2 · 소리 검사</b> — 지문 24장이 서로 안 닮은 곡(= 딴 목소리가 낀 곡)에
+  "저신뢰" 딱지. 198곡. 이 딱지 트랙을 풀에서 빼면 같은 가수 재발견율이 74→79%로 올라가는 것 확인.</li>
+<li><b>문지기 3 · 그룹 명단</b> — 곡마다 부르는 멤버가 바뀌는 팀(아이돌 등)은 수동 명단으로 제외.
+  단 이름만 보고 빼지 않고 소리로 재판정합니다. "빅마마" 표기 곡은 알고 보니 멤버 솔로 녹음이라
+  남겼어요 — <b>라벨은 거짓말해도 소리는 거짓말 못 한다</b>가 이번 실험의 반복 교훈.</li>
+<li><b>랩은 안 뺐습니다</b> — 래퍼는 한 명이 일관되게 부르니 지문이 멀쩡하고, 측정 결과
+  노래하는 사용자의 추천 상위 30곡에 랩 0곡. 거리가 알아서 격리해요. (랩 대부분은
+  Feat 표기 때문에 문지기 1이 이미 걸러냄)</li>
+</ul>
+<div class="honest"><b>알려진 구멍 (정직 공지)</b> — 파일명에 표기도 없고 분량도 짧은 피처링은
+문지기 셋 다 놓칩니다. 실측 사례: Justin Bieber 'Baby'의 무표기 랩 파트가 소리 검사까지 통과
+(짧은 구간이라 24조각 표집에 안 걸린 것으로 추정). 완전 해결은 외부 곡 크레딧 DB 조회인데,
+빈도가 낮아 v1은 알고 감수합니다.</div>
+
+<h2>6. 규모를 키웠을 때 버티나</h2>
+<span class="qtag">질문 5의 나머지 절반</span>
+<p>134곡 → 845곡으로 6배 늘려서 스트레스 테스트를 했습니다. "어떤 곡의 최근접 이웃이
+같은 가수의 다른 곡인가"(자기 재발견) 기준으로:</p>
+<div class="tablewrap"><table>
+<tr><th>조건</th><th>1위로 재발견</th><th>5위 안 재발견</th></tr>
+<tr><td>문지기 통과 풀 (614곡)</td><td class="num">74.3%</td><td class="num">87.9%</td></tr>
+<tr><td>+ 저신뢰 딱지 제외 (537곡)</td><td class="num">78.8%</td><td class="num">91.2%</td></tr>
+</table></div>
+<p>1위 자리는 갤러리가 붐빌수록 닮은꼴들에게 종종 내주지만(잔나비 곡의 1위 이웃이
+크러쉬가 되는 식 — 오류가 아니라 실제로 닮은 목소리), 추천이 실제로 쓰는 건 상위권
+리스트라 5위 안 91%면 신호가 건강합니다. 덤: 지문들을 지도로 펼치면 성별 라벨을 준 적이
+없는데도 남/여 대륙이 저절로 형성되고, 허스키한 여성 보컬(이영현·BMK)은 경계 너머에
+찍힙니다 — 모델이 성별이 아니라 소리를 듣고 있다는 증거예요.</p>
+<div class="card">
+<svg viewBox="0 0 640 460" role="img" style="width:100%;height:auto"><circle cx="431.0" cy="243.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="89.0" cy="212.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="382.1" cy="36.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="386.2" cy="40.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="386.6" cy="27.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="386.6" cy="27.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="388.1" cy="38.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="379.9" cy="27.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="393.2" cy="36.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="383.1" cy="20.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="389.4" cy="46.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="390.2" cy="24.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="48.0" cy="226.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="546.9" cy="184.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="37.5" cy="146.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="437.4" cy="372.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="498.2" cy="164.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="302.6" cy="131.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="143.0" cy="219.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="235.8" cy="141.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="236.0" cy="141.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="77.3" cy="255.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="77.6" cy="253.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="107.9" cy="195.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="332.5" cy="98.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="233.4" cy="187.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="217.9" cy="181.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="228.4" cy="179.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="232.4" cy="184.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="115.6" cy="141.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="124.1" cy="142.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="119.4" cy="141.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="182.5" cy="124.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="186.3" cy="265.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="106.1" cy="233.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="90.2" cy="255.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="343.4" cy="225.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="246.4" cy="246.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="463.0" cy="241.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="324.3" cy="295.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="312.0" cy="112.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="310.1" cy="107.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="151.2" cy="137.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="149.9" cy="139.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="511.0" cy="329.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="332.0" cy="321.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="503.8" cy="315.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="312.2" cy="143.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="317.3" cy="138.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="317.8" cy="143.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="375.0" cy="117.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="368.6" cy="126.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="372.4" cy="127.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="58.3" cy="161.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="58.0" cy="161.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="89.6" cy="145.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="155.8" cy="241.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="484.2" cy="70.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="486.4" cy="72.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="185.3" cy="130.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="358.0" cy="213.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="388.4" cy="261.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="39.5" cy="152.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="533.0" cy="263.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="267.4" cy="52.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="176.1" cy="127.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="462.5" cy="244.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="326.4" cy="388.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="326.5" cy="389.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="527.2" cy="177.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="328.8" cy="77.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="553.9" cy="77.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="553.9" cy="77.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="344.1" cy="165.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="334.4" cy="168.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="335.6" cy="162.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="338.3" cy="176.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="535.1" cy="150.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="425.1" cy="326.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="374.2" cy="280.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="168.1" cy="200.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="161.5" cy="265.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="313.7" cy="124.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="75.2" cy="176.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="79.2" cy="181.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="84.7" cy="181.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="81.7" cy="156.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="96.3" cy="300.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="100.9" cy="303.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="95.1" cy="207.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="81.0" cy="211.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="96.0" cy="199.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="208.3" cy="225.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="136.6" cy="116.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="494.8" cy="97.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="342.3" cy="340.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="125.3" cy="116.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="479.0" cy="118.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="517.5" cy="87.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="219.5" cy="188.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="212.2" cy="184.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="316.3" cy="374.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="317.7" cy="368.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="188.6" cy="174.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="41.0" cy="149.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="39.6" cy="163.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="203.8" cy="193.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="92.9" cy="217.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="324.6" cy="228.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="320.8" cy="234.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="322.7" cy="237.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="234.8" cy="304.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="136.0" cy="117.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="306.2" cy="186.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="101.3" cy="148.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="276.1" cy="239.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="317.9" cy="137.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="274.9" cy="239.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="189.6" cy="297.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="42.7" cy="282.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="429.2" cy="148.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="379.8" cy="248.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="430.4" cy="167.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="539.6" cy="205.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="477.0" cy="248.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="393.5" cy="161.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.1" cy="204.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="486.3" cy="186.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.4" cy="191.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="487.4" cy="192.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="485.3" cy="189.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="492.4" cy="206.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="381.7" cy="316.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="368.1" cy="313.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="372.4" cy="308.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="478.0" cy="238.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="375.2" cy="314.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="191.9" cy="218.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="98.9" cy="138.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="311.0" cy="85.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="333.3" cy="105.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="329.8" cy="103.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="327.6" cy="98.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="327.5" cy="91.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="387.9" cy="154.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="266.8" cy="165.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="323.8" cy="163.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="59.7" cy="277.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="512.2" cy="322.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="347.0" cy="205.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="336.1" cy="204.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="352.9" cy="206.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="336.1" cy="202.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="341.8" cy="208.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="344.3" cy="203.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="315.8" cy="87.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="353.4" cy="237.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="318.2" cy="178.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="121.6" cy="167.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="423.7" cy="256.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="538.6" cy="296.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="352.6" cy="87.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="332.9" cy="314.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="310.9" cy="196.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="314.1" cy="206.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="313.8" cy="198.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="312.3" cy="207.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="310.1" cy="201.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="299.4" cy="154.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="401.3" cy="278.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="65.1" cy="195.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="122.0" cy="196.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="326.6" cy="366.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="456.2" cy="323.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="99.5" cy="174.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="280.8" cy="168.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="314.2" cy="306.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="320.7" cy="302.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="79.5" cy="196.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="82.6" cy="196.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="85.6" cy="190.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="431.8" cy="381.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="422.5" cy="333.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="45.6" cy="207.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="284.5" cy="136.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="543.0" cy="204.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="524.7" cy="215.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="528.3" cy="217.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="527.7" cy="210.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="544.0" cy="308.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="346.7" cy="189.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="346.2" cy="188.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="509.7" cy="228.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="511.2" cy="89.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="509.7" cy="89.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="247.9" cy="103.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="248.4" cy="103.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="452.3" cy="67.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="293.7" cy="122.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="173.7" cy="124.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="173.7" cy="120.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="257.6" cy="205.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="308.3" cy="249.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="534.9" cy="113.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="403.6" cy="181.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="404.2" cy="181.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="99.9" cy="317.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="100.2" cy="327.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="374.6" cy="186.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="247.5" cy="211.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="334.9" cy="224.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="321.5" cy="193.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="103.5" cy="231.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="95.0" cy="244.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="95.0" cy="244.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="174.4" cy="220.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="287.5" cy="143.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="517.7" cy="193.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="491.5" cy="300.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="516.8" cy="161.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="485.3" cy="273.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="493.6" cy="320.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="493.9" cy="320.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="55.1" cy="148.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="399.3" cy="319.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="329.3" cy="209.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="530.1" cy="198.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="352.2" cy="250.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="357.3" cy="227.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="355.7" cy="248.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="301.7" cy="351.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="166.5" cy="280.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="326.1" cy="253.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="300.7" cy="155.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="489.4" cy="75.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="467.6" cy="136.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="62.3" cy="181.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="51.7" cy="156.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="429.6" cy="308.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="521.5" cy="152.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="89.0" cy="324.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="392.2" cy="350.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="398.7" cy="347.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="396.5" cy="344.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="391.9" cy="350.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="308.4" cy="345.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="363.8" cy="285.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="344.9" cy="232.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="486.2" cy="337.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="466.7" cy="390.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="409.7" cy="198.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="498.3" cy="416.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="42.4" cy="283.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="304.2" cy="350.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="68.9" cy="282.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="173.1" cy="162.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="68.0" cy="207.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="38.0" cy="187.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="433.1" cy="109.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="31.1" cy="160.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="305.4" cy="295.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="90.3" cy="161.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="390.5" cy="334.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="38.5" cy="179.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="394.0" cy="310.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="44.0" cy="199.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="39.1" cy="188.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="50.2" cy="169.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="173.0" cy="166.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="36.2" cy="154.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="83.4" cy="167.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="287.0" cy="311.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="295.4" cy="321.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="295.1" cy="316.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="290.6" cy="317.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="294.7" cy="318.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="46.7" cy="156.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="280.2" cy="175.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="443.2" cy="391.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="75.1" cy="143.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="79.4" cy="302.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="138.3" cy="223.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="66.9" cy="158.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="267.4" cy="52.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="63.5" cy="174.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="117.5" cy="162.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="358.4" cy="346.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="257.9" cy="298.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="351.5" cy="432.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="350.2" cy="431.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="357.3" cy="427.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="357.1" cy="423.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="356.5" cy="419.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="356.4" cy="436.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="134.8" cy="168.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="160.2" cy="211.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="57.2" cy="190.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="75.5" cy="135.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="160.0" cy="158.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="138.7" cy="292.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="503.4" cy="272.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="446.3" cy="308.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="473.2" cy="144.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="457.6" cy="100.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="569.4" cy="169.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="179.8" cy="198.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="198.6" cy="290.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="135.8" cy="193.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="136.7" cy="192.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="476.9" cy="291.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="482.0" cy="288.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="525.8" cy="307.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="107.3" cy="312.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="566.8" cy="214.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="541.1" cy="179.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="521.0" cy="300.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="501.3" cy="345.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="469.2" cy="213.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="389.6" cy="218.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="487.1" cy="144.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="200.6" cy="277.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="544.2" cy="346.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="306.9" cy="264.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="469.4" cy="159.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="349.3" cy="173.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="259.9" cy="259.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="445.5" cy="419.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="435.7" cy="419.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="447.0" cy="440.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="438.5" cy="431.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="433.9" cy="424.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="445.9" cy="435.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="439.4" cy="419.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="440.0" cy="437.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="451.6" cy="425.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="442.6" cy="427.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="128.1" cy="315.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="564.0" cy="257.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="523.3" cy="288.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="523.0" cy="287.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="216.5" cy="249.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="212.2" cy="249.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="439.1" cy="381.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="187.8" cy="248.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="541.0" cy="231.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="506.7" cy="140.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="505.0" cy="140.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="606.0" cy="223.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="606.6" cy="223.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="357.4" cy="318.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="392.8" cy="320.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="483.1" cy="375.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="383.2" cy="104.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="389.2" cy="241.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="383.7" cy="216.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="384.6" cy="103.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="581.4" cy="317.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="464.8" cy="310.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="154.0" cy="171.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="152.2" cy="171.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="161.9" cy="173.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="503.8" cy="198.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="507.8" cy="194.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="504.8" cy="191.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="540.3" cy="277.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="539.8" cy="278.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="404.8" cy="228.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="589.4" cy="141.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="582.1" cy="140.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="596.5" cy="146.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="573.9" cy="143.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="495.5" cy="125.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="586.4" cy="138.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="597.5" cy="147.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="417.4" cy="365.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="415.8" cy="373.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="604.5" cy="273.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="474.6" cy="344.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="474.8" cy="344.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.6" cy="263.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="476.0" cy="188.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="264.0" cy="217.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="484.9" cy="310.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="333.2" cy="232.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="294.6" cy="221.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="569.6" cy="227.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="153.8" cy="198.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="168.6" cy="192.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="152.2" cy="265.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="145.6" cy="264.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="416.7" cy="194.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="416.8" cy="195.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="424.1" cy="190.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="350.3" cy="267.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="550.2" cy="195.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="421.5" cy="283.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="506.3" cy="234.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="332.8" cy="259.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="343.9" cy="258.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="337.3" cy="258.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="329.9" cy="256.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="409.1" cy="342.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="381.6" cy="145.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="448.6" cy="145.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="524.6" cy="247.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="530.6" cy="249.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="526.1" cy="247.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="536.2" cy="249.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="395.7" cy="97.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="495.6" cy="268.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="451.1" cy="408.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="402.8" cy="257.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="402.5" cy="256.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="176.3" cy="231.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="102.3" cy="185.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="100.1" cy="266.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="465.8" cy="414.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="471.9" cy="422.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="460.9" cy="396.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="464.4" cy="402.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="465.5" cy="406.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="471.5" cy="419.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="469.2" cy="408.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="470.6" cy="409.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="99.1" cy="158.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="370.9" cy="206.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="369.4" cy="200.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="165.6" cy="294.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="186.6" cy="285.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="185.2" cy="284.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="360.4" cy="241.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="308.3" cy="267.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="583.1" cy="210.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="532.0" cy="190.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="531.6" cy="185.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="512.1" cy="221.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="564.1" cy="259.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="442.3" cy="336.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="503.7" cy="259.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="454.5" cy="160.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="290.8" cy="219.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="386.6" cy="202.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="133.0" cy="158.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="267.0" cy="274.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="393.7" cy="220.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="207.7" cy="244.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="460.9" cy="228.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="511.8" cy="247.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="536.7" cy="166.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="526.4" cy="168.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="427.2" cy="135.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="145.9" cy="261.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="448.2" cy="310.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="453.2" cy="317.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="131.4" cy="158.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="369.1" cy="269.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="360.5" cy="271.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="371.3" cy="268.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="443.0" cy="269.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="538.8" cy="219.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.7" cy="136.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="112.4" cy="179.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="143.5" cy="163.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="356.7" cy="293.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="169.4" cy="264.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="557.2" cy="164.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="557.4" cy="169.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="558.1" cy="171.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="502.9" cy="220.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="602.2" cy="271.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="116.3" cy="337.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="116.4" cy="337.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="169.9" cy="334.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="151.0" cy="287.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="156.0" cy="273.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="449.4" cy="148.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="442.8" cy="353.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="452.9" cy="366.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="447.9" cy="360.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="455.0" cy="363.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="339.5" cy="307.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="446.5" cy="358.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="453.9" cy="370.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="552.4" cy="220.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="342.7" cy="242.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="447.7" cy="404.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="92.3" cy="172.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="52.0" cy="264.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="51.0" cy="259.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="47.2" cy="259.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="44.5" cy="259.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="54.3" cy="252.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="447.2" cy="280.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="508.3" cy="204.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="511.7" cy="198.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="387.0" cy="186.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="387.0" cy="184.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="84.0" cy="203.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="103.3" cy="164.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="107.8" cy="162.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="484.0" cy="250.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="377.6" cy="94.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="497.1" cy="248.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="240.6" cy="240.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="239.3" cy="239.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="528.2" cy="330.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="360.0" cy="170.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="372.2" cy="168.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="343.2" cy="159.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="367.9" cy="170.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="327.7" cy="90.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="365.9" cy="184.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="363.3" cy="178.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="362.0" cy="189.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="356.8" cy="175.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="358.5" cy="168.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="445.3" cy="179.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="369.4" cy="189.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="362.4" cy="185.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="431.7" cy="207.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="533.0" cy="346.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="255.1" cy="212.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="333.0" cy="272.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="147.1" cy="153.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="432.0" cy="401.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="132.7" cy="279.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="495.5" cy="360.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="501.2" cy="358.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="500.5" cy="358.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="493.5" cy="365.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="139.4" cy="176.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="103.9" cy="195.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="444.7" cy="333.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="98.6" cy="278.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="51.7" cy="196.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="149.6" cy="277.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="582.0" cy="295.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="116.5" cy="215.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="127.5" cy="213.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="122.8" cy="215.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="367.6" cy="155.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="392.5" cy="198.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="479.9" cy="211.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="387.1" cy="229.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="512.5" cy="174.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="550.6" cy="278.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="88.4" cy="270.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="523.0" cy="200.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="443.2" cy="295.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="173.8" cy="182.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="142.4" cy="276.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="498.1" cy="164.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="599.3" cy="188.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="83.4" cy="223.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="202.1" cy="257.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="156.6" cy="345.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="156.7" cy="345.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="409.6" cy="143.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="415.5" cy="140.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="406.3" cy="130.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="412.1" cy="150.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="404.2" cy="135.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="403.0" cy="138.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="410.2" cy="136.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="398.5" cy="133.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="375.2" cy="101.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="394.8" cy="252.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="150.4" cy="240.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="91.8" cy="289.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="108.2" cy="303.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="112.1" cy="297.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="111.2" cy="302.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="112.7" cy="298.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="106.1" cy="294.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="69.7" cy="188.5" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="20.1" cy="226.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="22.2" cy="232.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="23.2" cy="236.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="20.0" cy="227.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="551.5" cy="310.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="468.1" cy="306.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="187.6" cy="186.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="349.1" cy="341.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="349.3" cy="274.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="475.7" cy="180.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="533.0" cy="240.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="399.5" cy="216.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="289.7" cy="280.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="273.2" cy="266.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="460.3" cy="266.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="136.8" cy="268.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="488.9" cy="375.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="370.7" cy="139.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="159.2" cy="190.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="161.3" cy="189.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="149.6" cy="184.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="145.1" cy="272.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="412.6" cy="168.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="403.9" cy="164.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="412.4" cy="167.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="104.5" cy="212.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="471.9" cy="260.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="262.5" cy="200.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="412.4" cy="376.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="216.1" cy="274.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="563.6" cy="247.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="563.4" cy="243.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="419.8" cy="303.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="511.8" cy="278.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="560.1" cy="197.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="210.0" cy="236.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="206.3" cy="261.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="410.4" cy="389.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="418.7" cy="139.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="178.2" cy="321.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="170.2" cy="328.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="174.0" cy="325.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="179.7" cy="321.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="188.5" cy="276.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="345.3" cy="90.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="599.4" cy="185.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="607.4" cy="322.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="607.2" cy="321.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="607.5" cy="319.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="405.1" cy="414.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="393.6" cy="412.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="401.4" cy="413.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="396.7" cy="413.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="572.4" cy="352.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="572.5" cy="352.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="203.4" cy="280.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="455.8" cy="202.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="456.4" cy="202.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="571.8" cy="310.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="129.9" cy="310.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="127.3" cy="180.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="129.1" cy="253.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="126.9" cy="181.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="403.3" cy="322.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="343.2" cy="293.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="580.4" cy="228.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="501.5" cy="289.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="456.7" cy="249.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="447.8" cy="244.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="447.3" cy="244.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="542.5" cy="122.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="539.8" cy="120.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="547.1" cy="125.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="455.5" cy="137.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="157.0" cy="254.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="256.6" cy="225.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="489.9" cy="184.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="495.2" cy="210.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="407.2" cy="295.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="322.9" cy="267.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="460.6" cy="284.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="445.9" cy="281.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="454.9" cy="280.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="459.2" cy="279.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="455.4" cy="287.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="121.3" cy="236.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="289.0" cy="254.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="250.1" cy="223.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="252.6" cy="218.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="247.3" cy="230.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="494.7" cy="131.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="150.4" cy="216.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="416.9" cy="278.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="498.5" cy="391.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="110.6" cy="172.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="550.9" cy="155.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="384.4" cy="283.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="577.7" cy="229.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="564.3" cy="278.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="67.4" cy="301.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="66.7" cy="312.5" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="67.7" cy="303.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="68.0" cy="314.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="138.9" cy="254.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="336.2" cy="243.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="580.1" cy="275.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="574.8" cy="276.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="515.4" cy="114.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="508.0" cy="114.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="556.6" cy="305.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="480.3" cy="203.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="191.4" cy="234.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="229.0" cy="267.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="92.6" cy="191.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="186.4" cy="218.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="189.7" cy="168.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="422.1" cy="316.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="348.2" cy="154.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="507.7" cy="291.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="474.2" cy="274.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="591.1" cy="193.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="542.2" cy="380.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="542.3" cy="380.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="181.1" cy="247.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="166.4" cy="239.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="165.8" cy="239.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="151.7" cy="163.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="95.7" cy="188.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="174.4" cy="248.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="590.5" cy="263.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="431.2" cy="207.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="391.3" cy="232.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="393.1" cy="230.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="366.0" cy="370.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="401.5" cy="292.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="497.2" cy="225.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="509.5" cy="253.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="493.0" cy="284.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="493.2" cy="285.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.0" cy="282.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="72.1" cy="260.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="149.2" cy="230.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="150.0" cy="228.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="551.1" cy="287.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="408.2" cy="229.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="71.4" cy="227.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="65.4" cy="226.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="66.5" cy="224.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="395.1" cy="175.7" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="383.0" cy="231.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="620.0" cy="175.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="620.0" cy="175.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="573.1" cy="122.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="587.0" cy="219.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="592.8" cy="176.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="565.6" cy="105.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="479.7" cy="128.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="445.8" cy="115.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="445.6" cy="119.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="442.7" cy="113.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="443.8" cy="124.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="479.0" cy="129.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="164.5" cy="213.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="516.2" cy="221.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="540.7" cy="258.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="501.3" cy="179.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="593.9" cy="250.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="584.4" cy="246.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="586.4" cy="251.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="590.1" cy="251.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="174.7" cy="263.1" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="575.7" cy="198.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="542.1" cy="331.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="540.6" cy="325.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="350.3" cy="284.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="606.5" cy="244.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="517.9" cy="241.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="557.8" cy="328.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="154.0" cy="291.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="525.4" cy="346.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="210.3" cy="267.7" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="462.7" cy="112.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="461.8" cy="109.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="461.6" cy="106.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="297.8" cy="232.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="107.8" cy="280.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="416.4" cy="219.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="416.5" cy="219.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="104.2" cy="121.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="103.6" cy="123.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="498.3" cy="254.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="527.0" cy="278.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="586.1" cy="278.7" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="567.5" cy="315.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="202.8" cy="73.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="202.2" cy="74.2" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="207.2" cy="70.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="206.6" cy="72.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="234.4" cy="271.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="239.1" cy="272.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="383.4" cy="380.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="507.0" cy="294.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="106.2" cy="181.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="362.2" cy="277.2" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="142.8" cy="203.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="397.0" cy="234.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="432.9" cy="277.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="342.1" cy="277.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="518.0" cy="267.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="516.9" cy="262.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="518.4" cy="266.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="549.2" cy="253.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="137.2" cy="148.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="547.7" cy="268.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="341.4" cy="144.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="173.8" cy="292.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="172.5" cy="287.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="173.8" cy="297.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="456.2" cy="127.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="517.7" cy="209.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="90.6" cy="175.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="363.1" cy="314.4" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="104.0" cy="204.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="96.8" cy="272.8" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="529.3" cy="340.2" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="519.4" cy="181.1" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="521.7" cy="225.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="574.9" cy="206.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="574.4" cy="206.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="352.7" cy="152.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="428.7" cy="187.8" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="133.3" cy="295.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="434.8" cy="347.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="550.8" cy="231.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="550.1" cy="233.8" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="381.5" cy="351.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="381.4" cy="173.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="404.0" cy="375.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="490.8" cy="388.3" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="489.9" cy="386.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="117.3" cy="267.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="116.8" cy="263.6" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="120.7" cy="273.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="510.5" cy="303.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="398.5" cy="197.0" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="167.6" cy="227.3" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="223.4" cy="258.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="453.2" cy="340.6" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="489.7" cy="240.9" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="483.3" cy="233.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="483.7" cy="231.1" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="80.4" cy="284.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="73.6" cy="285.3" r="1.6" fill="var(--muted)" opacity=".35"/><circle cx="508.5" cy="279.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="367.9" cy="224.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="467.2" cy="188.6" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="498.5" cy="119.5" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="565.0" cy="287.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="149.7" cy="312.0" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="153.4" cy="307.9" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="151.6" cy="308.4" r="2.4" fill="var(--orange)" opacity=".75"/><circle cx="530.4" cy="176.4" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="603.2" cy="329.9" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="393.6" cy="161.0" r="2.4" fill="var(--blue)" opacity=".75"/><circle cx="476.2" cy="325.5" r="2.4" fill="var(--blue)" opacity=".75"/><text x="423.6" y="299.0" font-size="15" text-anchor="middle" fill="var(--ink)">★</text><text x="134.4" y="236.3" font-size="15" text-anchor="middle" fill="var(--ink)">★</text><text x="90.6" y="314.9" font-size="15" text-anchor="middle" fill="var(--ink)">★</text><text x="137.4" y="240.7" font-size="15" text-anchor="middle" fill="var(--ink)">★</text><text x="137.6" y="239.2" font-size="15" text-anchor="middle" fill="var(--ink)">★</text></svg>
+<p style="font-size:13px;color:var(--muted);margin-top:10px">845트랙 지문 공간 (<button class="term" data-term="tsne">t-SNE</button> 2D).
+파랑·주황 = 라벨 없이 저절로 갈라진 두 대륙, 회색 = 문지기 제외분(그룹·듀엣·라이브),
+★ = 팀원 폰 녹음 5건 — 각자 자기 계열 대륙 안에 찍힘.
+<b>읽기 주의</b>: 192차원을 2장 평면에 누른 그림이라 지구본→종이지도처럼 왜곡이 있습니다
+(가까운 이웃 보존율 39% 실측). 대륙·군집 같은 큰 지형은 진짜지만, "이 두 점이 붙어 있네"
+같은 쌍별 판정은 이 그림이 아니라 원공간 수치로 합니다. 확대·검색되는 인터랙티브판:
+timbre_eval/vector_map.html</p>
+</div>
+
+<h2>7. 선행 연구와의 관계</h2>
+<p>정직하게 먼저: 아래 연구들을 <b>참조해서 설계한 게 아닙니다.</b> 실험을 독립적으로
+설계한 뒤 문헌을 확인해 보니 각 분야의 표준 접근과 수렴해 있었어요. "이 연구 기반"이
+아니라 "표준 방법론과의 수렴을 사후 확인"이 정확한 표현입니다. 가장 중요한 둘부터:</p>
+
+<div class="card orange">
+  <h3>소스-필터 이론 (음성과학의 표준 분해)</h3>
+  <p>목소리 = <b>소스</b>(성대의 떨림 — 숨 섞임, 긁힘, 세기 같은 발성 양태)
+  × <b>필터</b>(목·입·코 울림통의 모양이 만드는 공명 패턴). 반세기 넘게 쓰여온 음성학의
+  기본 모델인데, 우리 팀 용어와 대응합니다 — <b>필터 ≈ 음색 정체성</b>(울림통 모양은
+  해부학이라 곡을 바꿔도 그대로), <b>소스 ≈ 민감도</b>(발성을 어떻게 하느냐라 창법 따라 변함).
+  즉 우리 분해는 임의 발명이 아니라 음성학의 표준 분해와 같은 축이에요.
+  단, 대응이지 등가는 아닙니다 — 성구 전환처럼 양쪽에 걸치는 현상이 있어서 "같다"까지
+  말하면 과장.</p>
+</div>
+<div class="card blue">
+  <h3>화자 임베딩의 정적/동적 분석 (2025)</h3>
+  <p>화자 임베딩이 주로 <b>정적 특징</b>(음색·피치 대역)을 잡고 <b>동적 요소</b>(리듬,
+  표현의 타이밍)는 놓친다는 분석 연구. 우리가 자체 실험으로 기록한 한계 —
+  "피치가 지문에 얽혀 있다", "창법 축이 완전히 분리 안 된다" — 와 같은 진단을
+  학계가 독립적으로 내린 셈이라, 우리의 우회 설계(음역 필터 분리, 조건부 음색은 v2로)가
+  임베딩의 알려진 성질에 대한 합리적 대응이었다는 근거가 됩니다.</p>
+</div>
+<p>그 외 세 가지, 짧게: <b>①심리음향 고전(<button class="term" data-term="mds">MDS</button>)</b> — 음색의 표준 정의 자체가 "높이와
+크기를 빼고 남는 것"이고, 사람의 쌍별 유사도 판단으로 음색 공간을 검증하는 전통(Grey 1977
+계열)이 있어요. 우리 <button class="term" data-term="afc">2AFC</button> 청취 세션이 정확히 이 방법론입니다(방향만 반대 — 그들은 사람
+판단으로 공간을 만들었고, 우리는 기계의 공간을 사람 판단으로 검증). <b>②MIR 보컬 음색
+검색(2000년대)</b> — 반주에 오염되지 않는 보컬 유사도 검색이라는 문제 정의가 우리와 동일.
+그땐 분리 기술이 없어 통계 모델로 풀었고 우리는 Demucs로 물리적으로 분리하는, 도구 세대
+차이. <b>③SVSNet</b> — 사람의 유사도 평가 대량으로 학습한 자동 채점기. 우리 청취 데이터가
+쌓이면 갈 수 있는 종착지 형태.</p>
+
+<div class="card">
+  <h3>차기 맞대결 후보: 노래로 직접 학습한 가수 인코더 (IRCAM, ISMIR 2023)</h3>
+  <p>재녹음 커버 2.5만 트랙(940시간, 44.1kHz)으로 가수 정체성 인코더를 <button class="term" data-term="ssl">자기지도 학습</button>한 연구. 핵심 아이디어는 <b>"무엇을 무시할지"를 퀴즈 출제 방식으로 가르치는 것</b>:
+  같은 녹음의 다른 구간(=다른 가사)을 "같은 가수"로 출제해 가사를 무시하게 만들고,
+  <button class="term" data-term="formant">포먼트</button>(울림통 공명)는 고정한 채 피치만 바꾼 가짜 버전을 "같은 가수"로 출제해
+  피치를 무시하게 만들었어요. 우리의 최대 약점(피치 얽힘)을 모델 제작 단계에서
+  정면으로 푼 설계입니다.</p>
+  <p>단, 결과를 정확히 읽으면 만능이 아니에요 — 일부 가창 데이터셋(M4Singer)에서는
+  말소리 화자 모델을 근소하게 이겼지만 다른 셋(NUS-48E)에서는 오히려 뒤졌고, 특수 창법
+  모음(VocalSet)에서는 양쪽 다 약했습니다. 비교 대상에 우리의 ECAPA는 없었고요.
+  그래서 "갈아탈 근거"가 아니라 "우리 하니스에 넣어 직접 재봐야 할 1순위 후보"가
+  정확한 위치입니다 (코드·모델 공개, 44.1kHz라 우리가 16kHz로 버리는 고역도 살림 —
+  논문 자체도 44.1kHz 입력이 가창 성능을 일관되게 올렸다고 보고).</p>
+</div>
+
+<h2>8. 남은 관문</h2>
+<p>여기까지의 모든 결론은 <b>모델끼리의 상대 비교</b>로 얻었습니다. 마지막 남은 질문은
+하나 — "모델이 가깝다고 하는 두 목소리를, 사람 귀도 닮았다고 듣는가."
+이건 계산으로 답할 수 없어서 블라인드 청취 세션을 준비했어요:</p>
+<ul>
+<li>8문항 × 4명. 문항마다 기준 목소리 → A → B (각 20초)를 듣고 더 닮은 쪽 선택</li>
+<li>모델이 가장 자신 있어 하는 판정 4개 + 예비 테스트에서 사람이 모델을 뒤집은 쌍 3개 재검 + 함정 검증용 컨트롤 1개</li>
+<li>32응답 중 22개 이상이 모델과 일치하면 <button class="term" data-term="sig">통계적으로 유의</button> (동전 던지기 가설 기각)</li>
+</ul>
+<p>통과하면 음색 축 논쟁은 종결, 실서비스 통합으로 넘어갑니다. 참가자는 여러분이에요.</p>
+
+<div class="foot">재현: timbre_eval/ 폴더의 스크립트로 전 수치 재현 가능 · 상세 인수인계는 HANDOFF.md ·
+개별 소수값은 표본이 작아 <button class="term" data-term="ci">신뢰구간</button> 없이 단독 인용 금지 (방향·순위가 결론의 근거)</div>
+</main>
+
+<div id="gscrim"></div>
+<aside id="gpanel" role="dialog" aria-modal="true" aria-labelledby="gtitle" tabindex="-1">
+  <button id="gclose" aria-label="닫기">&times;</button>
+  <div class="eyebrow">쉬운 말 사전</div>
+  <h3 id="gtitle"></h3>
+  <div id="gbody"></div>
+  <div class="backref">본문의 점선 용어를 누르면 언제든 다시 열려요 · ESC 키나 바깥을 눌러 닫기</div>
+</aside>
+
+<div hidden id="gdata">
+  <div id="g-mel" data-title="멜 스펙트로그램">
+    <p>소리를 <b>사진 한 장</b>으로 바꾼 거예요. 가로는 시간, 세로는 음높이, 밝기는
+    "그 순간 그 높이의 소리가 얼마나 큰가". 음표 대신 빛 얼룩으로 그려진 악보라고
+    생각하면 됩니다.</p>
+    <p>'멜(mel)'은 세로 눈금의 이름이에요. 사람 귀는 낮은 음끼리의 차이는 잘 듣고
+    아주 높은 음끼리의 차이는 잘 못 들어서, 기계식 눈금 대신 <b>사람 귀 기준 눈금</b>을
+    쓴 겁니다.</p>
+    <div class="eg">2절의 검은 그림이 대략적인 예시예요. 겹겹의 밝은 줄무늬가 목소리의
+    배음이고, 그 무늬의 생김새가 사람마다 다릅니다.</div>
+  </div>
+  <div id="g-hz" data-title="44.1kHz (샘플링)">
+    <p>소리는 공기의 떨림이라 끊김이 없는데, 컴퓨터는 이걸 <b>1초에 44,100번 점을 찍어</b>
+    기록해요. 그 횟수가 44.1kHz. 점을 촘촘히 찍을수록 원래 소리에 가깝게 저장됩니다.</p>
+    <div class="eg">영화가 1초에 24장의 사진인 것처럼, 이 음원은 1초에 44,100개의
+    '소리 점'입니다.</div>
+  </div>
+  <div id="g-demucs" data-title="Demucs (반주 제거 AI)">
+    <p>완성된 노래에서 목소리·드럼·베이스·나머지 악기를 <b>도로 분리해내는 AI</b>예요.
+    여러 재료를 갈아 만든 주스에서 딸기만 다시 꺼내는 것처럼 원래는 불가능해 보이는
+    일인데, 수많은 곡의 "섞기 전 / 섞은 후"를 보면서 분리하는 법을 배웠습니다.</p>
+  </div>
+  <div id="g-gpu" data-title="GPU">
+    <p>원래 게임 그래픽을 그리려고 만든 <b>계산 전용 보조 칩</b>이에요. 단순한 계산을
+    수천 개 동시에 하는 데 특화돼 있어서, 같은 계산을 엄청나게 반복하는 AI 작업에 딱
+    맞습니다. 일꾼 1명(CPU)이 아니라 일꾼 수천 명이 동시에 달라붙는 셈이에요.</p>
+  </div>
+  <div id="g-ecapa" data-title="ECAPA-TDNN">
+    <p>우리가 쓰는 <b>목소리 지문 기계의 이름</b>이에요. 수천 명의 말소리로
+    "이 목소리, 누구게?" 퀴즈를 수백만 번 풀면서, 사람을 구분하는 단서만 남기는 법을
+    스스로 익힌 신경망입니다.</p>
+    <p>이름은 내부 구조를 설명하는 약자인데, 몰라도 됩니다.
+    <b>"목소리 지문 전문가"</b>로 기억하면 충분해요.</p>
+  </div>
+  <div id="g-nn" data-title="신경망">
+    <p>뇌의 신경세포 연결을 아주 단순하게 흉내 낸 <b>계산 프로그램</b>이에요. 처음엔
+    아무것도 모르지만, 문제를 풀고 → 틀리면 내부 연결을 조금씩 고치고 → 다시 풀기를
+    수백만 번 반복하면 스스로 요령이 생깁니다.</p>
+    <div class="eg">사람이 "이렇게 구분해"라고 규칙을 적어주는 게 아니라, 문제집을
+    풀리면서 규칙을 스스로 찾게 하는 방식이에요.</div>
+  </div>
+  <div id="g-dim" data-title="192차원 / 벡터">
+    <p>차원 = 위치를 말하는 데 필요한 <b>숫자의 개수</b>예요. 지도 위 보물 위치는
+    (가로, 세로) 2개면 되니 2차원, 하늘의 드론은 높이까지 3개니 3차원.</p>
+    <p>목소리 지문은 숫자 192개짜리 좌표라서 192차원이에요. 눈으로 그릴 수는 없지만
+    "두 점이 가깝다/멀다"를 계산하는 건 2차원과 똑같이 됩니다. 이런 숫자 묶음을
+    <b>벡터</b>라고 불러요.</p>
+  </div>
+  <div id="g-cos" data-title="코사인 유사도">
+    <p>두 벡터(숫자 묶음)를 화살표 두 개로 보고, <b>벌어진 각도</b>로 닮음을 재는
+    방법이에요. 완전히 같은 방향이면 1, 직각으로 벌어지면 0. 1에 가까울수록 닮은
+    목소리입니다.</p>
+  </div>
+  <div id="g-attn" data-title="어텐션">
+    <p>입력 전체를 똑같이 보지 않고 <b>중요한 부분에 집중</b>하게 해주는 장치예요.
+    교과서를 통째로 외우는 대신 요점에 형광펜을 치는 것과 같습니다. 5초 조각 안에서도
+    "모음이 길게 유지되는 구간"처럼 목소리 단서가 진한 곳에 가중치를 더 줘요.</p>
+  </div>
+  <div id="g-std" data-title="표준편차">
+    <p>값들이 평균 주변에서 <b>얼마나 들쭉날쭉한지</b>를 나타내는 숫자예요. 평균이
+    "보통 얼마"라면, 표준편차는 "왔다 갔다 하는 폭"입니다.</p>
+    <div class="eg">두 반의 수학 평균이 똑같이 70점이어도, 전원이 68~72점인 반은
+    표준편차가 작고, 30점과 100점이 섞인 반은 큽니다.</div>
+  </div>
+  <div id="g-pool" data-title="통계 풀링">
+    <p>길이가 제각각인 기록을 <b>평균 + <button class="term" data-term="std">표준편차</button>
+    두 가지 요약값</b>으로 눌러 담는 단계예요. 그래서 5초를 넣든 20초를 넣든 지문은
+    항상 같은 크기 1장이 나옵니다.</p>
+  </div>
+  <div id="g-vox" data-title="VoxCeleb">
+    <p>유튜브 인터뷰 영상에서 모은 <b>유명인 7천여 명의 말소리 모음집</b>이에요.
+    지문 기계(ECAPA)가 "누구 목소리게?" 퀴즈 연습을 한 문제집입니다.</p>
+  </div>
+  <div id="g-auc" data-title="AUC">
+    <p>"둘을 구분해봐" 시험의 점수예요. <b>1.0 = 만점, 0.5 = 동전 던지기(찍기)와
+    같음</b>. 0.9면 꽤 잘 구분하는 것, 0.7이면 애매한 수준입니다.</p>
+  </div>
+  <div id="g-rho" data-title="상관계수 ρ (로)">
+    <p>두 값이 <b>얼마나 같이 움직이는지</b>를 −1~+1로 나타낸 숫자예요. +1이면 하나가
+    오를 때 다른 것도 반드시 오르고, −1이면 정반대로 움직이고, 0이면 서로 상관없음.</p>
+    <div class="eg">본문의 ρ≈−0.95는 "두 곡의 음높이 차이가 클수록 지문 유사도가 거의
+    어김없이 떨어진다"는 뜻 — 음높이가 지문에 새어 들어갔다는 강한 증거예요.</div>
+  </div>
+  <div id="g-znorm" data-title="표준화 (z-정규화)">
+    <p>단위와 퍼짐이 다른 점수들을 <b>같은 자로 다시 재는</b> 작업이에요. 각 점수를
+    "평균에서 <button class="term" data-term="std">표준편차</button> 몇 개만큼 떨어져
+    있나"로 바꿉니다.</p>
+    <div class="eg">수학 점수와 100m 달리기 기록은 그냥 더할 수 없지만, 각각 "반에서
+    상위 몇 %급인가"로 바꾸면 공평하게 더할 수 있는 것과 같아요. 4절의 6:4 가중치
+    사고가 바로 이걸 안 해서 생긴 문제였습니다.</div>
+  </div>
+  <div id="g-centroid" data-title="대표 지문 (centroid)">
+    <p>한 가수의 지문 수백 장을 <b>평균 내서 만든 한 장</b>이에요. 여러 각도로 찍은
+    사진을 겹치면 그날그날의 표정·조명은 흐려지고 얼굴의 공통 생김새만 남는 것처럼,
+    곡마다의 우연이 상쇄되고 그 가수 고유의 목소리만 남습니다.</p>
+  </div>
+  <div id="g-tsne" data-title="t-SNE">
+    <p>192차원 공간의 점들을 사람이 볼 수 있게 <b>2차원 종이에 펴는</b> 기법이에요.
+    둥근 지구를 종이 지도로 펴는 것과 같아서, 대륙 같은 큰 지형은 맞지만 세부 거리에는
+    왜곡이 생깁니다. 그래서 이 그림으로는 "큰 구조"만 읽고, 정밀한 판정은 원래 공간의
+    숫자로 해요.</p>
+  </div>
+  <div id="g-formant" data-title="포먼트">
+    <p>목·입·코 울림통의 모양이 만드는 <b>공명 무늬</b>예요. 빈 병 입구에 바람을 불면
+    병 크기마다 다른 소리가 나듯, 사람마다 울림통 모양이 달라서 같은 음을 내도 소리
+    색이 달라집니다. 멜 스펙트로그램에서 특정 높이대가 유독 밝게 나오는 띠가 이거예요.</p>
+  </div>
+  <div id="g-ssl" data-title="자기지도 학습">
+    <p>사람이 정답지를 만들어주지 않아도, 데이터에서 <b>스스로 퀴즈를 만들어 푸는</b>
+    공부법이에요. 예: 같은 녹음의 두 구간을 잘라 "이 둘은 같은 가수"라는 문제를
+    자동으로 만드는 식. 사람이 정답 라벨을 달 필요가 없어서 아주 많은 데이터로 공부할
+    수 있습니다.</p>
+  </div>
+  <div id="g-afc" data-title="2AFC (양자택일 시험)">
+    <p>"A와 B 중 <b>어느 쪽이 기준 목소리와 더 닮았나</b>"만 고르게 하는 시험
+    방식이에요. "얼마나 닮았나요? (1~10점)"보다 사람마다 기준이 갈리지 않아서, 청취
+    실험의 표준 방식입니다.</p>
+  </div>
+  <div id="g-mds" data-title="MDS">
+    <p>"A와 B는 얼마나 닮았나" 같은 <b>쌍쌍의 닮음 점수만 가지고 지도를 그리는</b>
+    통계 기법이에요. 도시 사이 거리표만 보고 지도를 복원하는 것과 같습니다. 1970년대
+    음색 연구가 이걸로 "음색의 지도"를 처음 그렸어요.</p>
+  </div>
+  <div id="g-sig" data-title="통계적으로 유의">
+    <p>"이 결과가 <b>우연이라고 보기 어렵다</b>"는 뜻이에요. 동전을 32번 던져 22번
+    앞면이 나오면 "우연이겠지"보다 "이 동전 이상한데?"가 더 합리적이 되는 지점이
+    있는데, 그 지점을 넘었다는 말입니다.</p>
+  </div>
+  <div id="g-ci" data-title="신뢰구간">
+    <p>측정값에 붙이는 <b>오차 범위</b>예요. "키 약 150cm"보다 "150±1cm"가 더 정직한
+    것처럼, 표본이 적을수록 이 범위가 넓어집니다. 범위가 서로 겹치는 두 값을 놓고
+    "다르다"고 말하면 안 돼요.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  var panel=document.getElementById('gpanel'),scrim=document.getElementById('gscrim'),
+      ttl=document.getElementById('gtitle'),body=document.getElementById('gbody'),
+      closeBtn=document.getElementById('gclose'),last=null;
+  function open(term,src){
+    var d=document.getElementById('g-'+term);if(!d)return;
+    ttl.textContent=d.dataset.title;body.innerHTML=d.innerHTML;
+    panel.classList.add('open');scrim.classList.add('open');
+    panel.scrollTop=0;if(src)last=src;panel.focus();
+  }
+  function close(){
+    panel.classList.remove('open');scrim.classList.remove('open');
+    if(last){last.focus();last=null;}
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('button.term');
+    if(t)open(t.dataset.term,body.contains(t)?last:t);
+  });
+  scrim.addEventListener('click',close);
+  closeBtn.addEventListener('click',close);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+})();
+</script>
+
+

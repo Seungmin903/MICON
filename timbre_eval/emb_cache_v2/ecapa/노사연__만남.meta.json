@@ -1,0 +1,108 @@
+{
+ "model": "ecapa_v2",
+ "n_chunks": 13,
+ "track": {
+  "internal_coherence": 0.537,
+  "clipping_ratio": 0.0,
+  "snr_proxy_db": 60.8,
+  "outlier_chunks": 0,
+  "bimodality_ratio": 1.42,
+  "bimodality_balance": 0.38,
+  "low_confidence": false,
+  "duet_suspect": false,
+  "bimodality_validated": false
+ },
+ "chunks": [
+  {
+   "t_start_s": 85.0,
+   "voiced_ratio": 0.62,
+   "rms_raw": 0.09121,
+   "f0_median_hz": 321.6,
+   "coherence_to_center": 0.747
+  },
+  {
+   "t_start_s": 95.0,
+   "voiced_ratio": 0.815,
+   "rms_raw": 0.13116,
+   "f0_median_hz": 382.5,
+   "coherence_to_center": 0.774
+  },
+  {
+   "t_start_s": 105.0,
+   "voiced_ratio": 0.778,
+   "rms_raw": 0.10651,
+   "f0_median_hz": 356.9,
+   "coherence_to_center": 0.815
+  },
+  {
+   "t_start_s": 110.0,
+   "voiced_ratio": 0.935,
+   "rms_raw": 0.16157,
+   "f0_median_hz": 391.4,
+   "coherence_to_center": 0.721
+  },
+  {
+   "t_start_s": 115.0,
+   "voiced_ratio": 0.972,
+   "rms_raw": 0.17018,
+   "f0_median_hz": 454.9,
+   "coherence_to_center": 0.716
+  },
+  {
+   "t_start_s": 120.0,
+   "voiced_ratio": 0.676,
+   "rms_raw": 0.11041,
+   "f0_median_hz": 386.9,
+   "coherence_to_center": 0.7
+  },
+  {
+   "t_start_s": 170.0,
+   "voiced_ratio": 0.63,
+   "rms_raw": 0.10052,
+   "f0_median_hz": 384.7,
+   "coherence_to_center": 0.73
+  },
+  {
+   "t_start_s": 175.0,
+   "voiced_ratio": 0.778,
+   "rms_raw": 0.09058,
+   "f0_median_hz": 378.1,
+   "coherence_to_center": 0.797
+  },
+  {
+   "t_start_s": 180.0,
+   "voiced_ratio": 0.935,
+   "rms_raw": 0.17794,
+   "f0_median_hz": 457.5,
+   "coherence_to_center": 0.808
+  },
+  {
+   "t_start_s": 185.0,
+   "voiced_ratio": 0.926,
+   "rms_raw": 0.15047,
+   "f0_median_hz": 407.6,
+   "coherence_to_center": 0.776
+  },
+  {
+   "t_start_s": 190.0,
+   "voiced_ratio": 0.611,
+   "rms_raw": 0.07593,
+   "f0_median_hz": 375.9,
+   "coherence_to_center": 0.691
+  },
+  {
+   "t_start_s": 195.0,
+   "voiced_ratio": 0.648,
+   "rms_raw": 0.16037,
+   "f0_median_hz": 454.9,
+   "coherence_to_center": 0.763
+  },
+  {
+   "t_start_s": 200.0,
+   "voiced_ratio": 0.778,
+   "rms_raw": 0.13177,
+   "f0_median_hz": 396.0,
+   "coherence_to_center": 0.802
+  }
+ ]
+}

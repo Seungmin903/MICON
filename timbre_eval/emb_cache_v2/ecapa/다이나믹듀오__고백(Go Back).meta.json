@@ -1,0 +1,185 @@
+{
+ "model": "ecapa_v2",
+ "n_chunks": 24,
+ "track": {
+  "internal_coherence": 0.318,
+  "clipping_ratio": 0.0,
+  "snr_proxy_db": 23.5,
+  "outlier_chunks": 5,
+  "bimodality_ratio": 1.18,
+  "bimodality_balance": 0.42,
+  "low_confidence": true,
+  "duet_suspect": false,
+  "bimodality_validated": false
+ },
+ "chunks": [
+  {
+   "t_start_s": 5.0,
+   "voiced_ratio": 0.694,
+   "rms_raw": 0.0687,
+   "f0_median_hz": 232.7,
+   "coherence_to_center": 0.504
+  },
+  {
+   "t_start_s": 10.0,
+   "voiced_ratio": 0.806,
+   "rms_raw": 0.09981,
+   "f0_median_hz": 205.0,
+   "coherence_to_center": 0.445
+  },
+  {
+   "t_start_s": 20.0,
+   "voiced_ratio": 0.833,
+   "rms_raw": 0.1288,
+   "f0_median_hz": 273.6,
+   "coherence_to_center": 0.614
+  },
+  {
+   "t_start_s": 30.0,
+   "voiced_ratio": 0.889,
+   "rms_raw": 0.14784,
+   "f0_median_hz": 268.9,
+   "coherence_to_center": 0.615
+  },
+  {
+   "t_start_s": 40.0,
+   "voiced_ratio": 0.926,
+   "rms_raw": 0.17007,
+   "f0_median_hz": 280.0,
+   "coherence_to_center": 0.593
+  },
+  {
+   "t_start_s": 50.0,
+   "voiced_ratio": 0.843,
+   "rms_raw": 0.13061,
+   "f0_median_hz": 218.4,
+   "coherence_to_center": 0.666
+  },
+  {
+   "t_start_s": 60.0,
+   "voiced_ratio": 0.917,
+   "rms_raw": 0.15329,
+   "f0_median_hz": 221.0,
+   "coherence_to_center": 0.688
+  },
+  {
+   "t_start_s": 70.0,
+   "voiced_ratio": 0.796,
+   "rms_raw": 0.11349,
+   "f0_median_hz": 215.3,
+   "coherence_to_center": 0.612
+  },
+  {
+   "t_start_s": 75.0,
+   "voiced_ratio": 0.898,
+   "rms_raw": 0.13985,
+   "f0_median_hz": 203.8,
+   "coherence_to_center": 0.638
+  },
+  {
+   "t_start_s": 85.0,
+   "voiced_ratio": 0.898,
+   "rms_raw": 0.1514,
+   "f0_median_hz": 248.0,
+   "coherence_to_center": 0.659
+  },
+  {
+   "t_start_s": 95.0,
+   "voiced_ratio": 0.824,
+   "rms_raw": 0.14663,
+   "f0_median_hz": 234.1,
+   "coherence_to_center": 0.615
+  },
+  {
+   "t_start_s": 105.0,
+   "voiced_ratio": 0.917,
+   "rms_raw": 0.16996,
+   "f0_median_hz": 198.0,
+   "coherence_to_center": 0.66
+  },
+  {
+   "t_start_s": 115.0,
+   "voiced_ratio": 0.954,
+   "rms_raw": 0.20257,
+   "f0_median_hz": 201.5,
+   "coherence_to_center": 0.606
+  },
+  {
+   "t_start_s": 125.0,
+   "voiced_ratio": 0.694,
+   "rms_raw": 0.13032,
+   "f0_median_hz": 300.1,
+   "coherence_to_center": 0.306
+  },
+  {
+   "t_start_s": 135.0,
+   "voiced_ratio": 0.954,
+   "rms_raw": 0.16064,
+   "f0_median_hz": 369.5,
+   "coherence_to_center": 0.44
+  },
+  {
+   "t_start_s": 145.0,
+   "voiced_ratio": 0.935,
+   "rms_raw": 0.12356,
+   "f0_median_hz": 365.2,
+   "coherence_to_center": 0.449
+  },
+  {
+   "t_start_s": 150.0,
+   "voiced_ratio": 0.991,
+   "rms_raw": 0.13952,
+   "f0_median_hz": 351.8,
+   "coherence_to_center": 0.504
+  },
+  {
+   "t_start_s": 160.0,
+   "voiced_ratio": 0.935,
+   "rms_raw": 0.13429,
+   "f0_median_hz": 371.6,
+   "coherence_to_center": 0.438
+  },
+  {
+   "t_start_s": 170.0,
+   "voiced_ratio": 0.963,
+   "rms_raw": 0.16905,
+   "f0_median_hz": 245.2,
+   "coherence_to_center": 0.696
+  },
+  {
+   "t_start_s": 180.0,
+   "voiced_ratio": 0.926,
+   "rms_raw": 0.15419,
+   "f0_median_hz": 214.7,
+   "coherence_to_center": 0.709
+  },
+  {
+   "t_start_s": 190.0,
+   "voiced_ratio": 1.0,
+   "rms_raw": 0.15782,
+   "f0_median_hz": 195.7,
+   "coherence_to_center": 0.596
+  },
+  {
+   "t_start_s": 200.0,
+   "voiced_ratio": 0.991,
+   "rms_raw": 0.18918,
+   "f0_median_hz": 268.1,
+   "coherence_to_center": 0.72
+  },
+  {
+   "t_start_s": 210.0,
+   "voiced_ratio": 1.0,
+   "rms_raw": 0.18547,
+   "f0_median_hz": 232.1,
+   "coherence_to_center": 0.654
+  },
+  {
+   "t_start_s": 220.0,
+   "voiced_ratio": 0.722,
+   "rms_raw": 0.16605,
+   "f0_median_hz": 230.1,
+   "coherence_to_center": 0.692
+  }
+ ]
+}

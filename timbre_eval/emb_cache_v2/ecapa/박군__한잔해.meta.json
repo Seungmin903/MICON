@@ -1,0 +1,101 @@
+{
+ "model": "ecapa_v2",
+ "n_chunks": 12,
+ "track": {
+  "internal_coherence": 0.554,
+  "clipping_ratio": 0.0,
+  "snr_proxy_db": 55.4,
+  "outlier_chunks": 0,
+  "bimodality_ratio": 1.26,
+  "bimodality_balance": 0.42,
+  "low_confidence": false,
+  "duet_suspect": false,
+  "bimodality_validated": false
+ },
+ "chunks": [
+  {
+   "t_start_s": 20.0,
+   "voiced_ratio": 0.778,
+   "rms_raw": 0.09878,
+   "f0_median_hz": 341.7,
+   "coherence_to_center": 0.792
+  },
+  {
+   "t_start_s": 25.0,
+   "voiced_ratio": 0.963,
+   "rms_raw": 0.10652,
+   "f0_median_hz": 332.0,
+   "coherence_to_center": 0.733
+  },
+  {
+   "t_start_s": 30.0,
+   "voiced_ratio": 0.843,
+   "rms_raw": 0.10791,
+   "f0_median_hz": 333.0,
+   "coherence_to_center": 0.803
+  },
+  {
+   "t_start_s": 35.0,
+   "voiced_ratio": 0.907,
+   "rms_raw": 0.10423,
+   "f0_median_hz": 323.5,
+   "coherence_to_center": 0.771
+  },
+  {
+   "t_start_s": 40.0,
+   "voiced_ratio": 0.676,
+   "rms_raw": 0.08583,
+   "f0_median_hz": 333.0,
+   "coherence_to_center": 0.717
+  },
+  {
+   "t_start_s": 55.0,
+   "voiced_ratio": 0.935,
+   "rms_raw": 0.10258,
+   "f0_median_hz": 366.3,
+   "coherence_to_center": 0.692
+  },
+  {
+   "t_start_s": 60.0,
+   "voiced_ratio": 0.731,
+   "rms_raw": 0.08828,
+   "f0_median_hz": 294.9,
+   "coherence_to_center": 0.751
+  },
+  {
+   "t_start_s": 95.0,
+   "voiced_ratio": 0.824,
+   "rms_raw": 0.10575,
+   "f0_median_hz": 334.9,
+   "coherence_to_center": 0.829
+  },
+  {
+   "t_start_s": 100.0,
+   "voiced_ratio": 0.852,
+   "rms_raw": 0.09811,
+   "f0_median_hz": 333.0,
+   "coherence_to_center": 0.767
+  },
+  {
+   "t_start_s": 105.0,
+   "voiced_ratio": 0.981,
+   "rms_raw": 0.12017,
+   "f0_median_hz": 356.9,
+   "coherence_to_center": 0.799
+  },
+  {
+   "t_start_s": 110.0,
+   "voiced_ratio": 0.907,
+   "rms_raw": 0.10172,
+   "f0_median_hz": 327.3,
+   "coherence_to_center": 0.781
+  },
+  {
+   "t_start_s": 115.0,
+   "voiced_ratio": 0.769,
+   "rms_raw": 0.08318,
+   "f0_median_hz": 298.4,
+   "coherence_to_center": 0.793
+  }
+ ]
+}

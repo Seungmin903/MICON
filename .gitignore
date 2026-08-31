@@ -1,0 +1,39 @@
+# 음원·파생 오디오 — 저작권 + 용량(~100GB), 절대 푸시 금지
+data/
+timbre_eval/wav/
+timbre_eval/separated/
+timbre_eval/chunks_preview/
+timbre_eval/listening_session/*.wav
+timbre_eval/listening_final/*.wav
+*.mp3
+*.m4a
+
+# 대용량/재생성 가능
+.venv/
+timbre_eval/models/
+timbre_v2/emb_cache/
+timbre_eval/emb_cache/
+emb_cache_sweep/
+pretrained_models/
+*.log
+timbre_eval_verify_package.zip
+
+# 외부 클론 (패치 내역은 timbre_v2/README.md에 기록)
+timbre_v2/vendor/
+timbre_eval/ssl-singer-identity/
+
+__pycache__/
+*.pyc
+
+# 프로젝트 무관 개인 파일
+HJ중공업_영업기획_지원정보.md
+보컬트레이너_자문_질문지.md
+서비스소개_컨설팅용.md
+_workspace/
+
+# 원곡 파생 오디오 (저작권)
+timbre_eval/results/*.wav
+
+# 대용량 아카이브 (별도 전달)
+*.zip
+vocalscope-models-2026-08-31/models/
