@@ -4,7 +4,7 @@
 
 ## 레포 문서
 
-- [Jira·Git 운영 규칙](../JIRA_GIT_RULES_V1.md) — 이슈 작성, 브랜치·커밋·MR 규칙
+- [Jira·Git 운영 규칙](../JIRA_GIT_RULES.md) — 이슈 작성, 브랜치·커밋·MR 규칙
 - [CLAUDE.md](../CLAUDE.md) — AI 에이전트용 요약 규칙
 
 ## 파트 문서
