@@ -1,6 +1,9 @@
 * text=auto
 *.md text eol=lf
 *.sh text eol=lf
+infra/**/*.conf text eol=lf
+infra/**/*.yaml text eol=lf
+infra/**/*.sources text eol=lf
 *.bat text eol=crlf
 gradlew text eol=lf
 *.sqlite filter=lfs diff=lfs merge=lfs -text

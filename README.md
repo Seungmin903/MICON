@@ -27,6 +27,8 @@ git config --unset core.hooksPath        # 예전에 .githooks 로 바꿔둔 사
 ```
 
 Android 앱 빌드 절차는 [frontend/android/README.md](frontend/android/README.md).
+팀원별 준비물·로컬 실행·실기기 연결은 [로컬 실행 안내](docs/operations/LOCAL_DEVELOPMENT.md)를 먼저 확인한다.
+현재 운영 환경의 적용 결과와 미완료 범위는 [서버 설정 기록](docs/operations/SERVER_BOOTSTRAP.md), [배포 준비 체크리스트](docs/operations/DEPLOYMENT_READINESS.md)에 구분해 기록한다.
 
 ## Git 규칙 요약
 

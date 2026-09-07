@@ -9,6 +9,11 @@
 
 ## 파트 문서
 
+- [팀원용 로컬 실행 안내](operations/LOCAL_DEVELOPMENT.md) — Android·BE 준비, 실기기 연결, 설정·비밀정보 구분
+- [서버 초기 설정 기록](operations/SERVER_BOOTSTRAP.md) — Docker·Nginx·HTTPS 적용 및 검증 결과
+- [Android Jenkins CI](operations/JENKINS_ANDROID_CI.md) — 수동 빌드 성공 근거와 자동화 잔여 작업
+- [배포 준비 체크리스트](operations/DEPLOYMENT_READINESS.md) — API 계약·서버 배포·APK 배포·QA
+
 - Android: [frontend/android/README.md](../frontend/android/README.md), [frontend/android/docs/](../frontend/android/docs/)
 - AI 엔진·데이터 계약: `feat/vocalScope` 브랜치 `vocal-scope/docs/` (DATA_INVENTORY, MICON_DATA_PLAN, micon_schema.sql, MODEL_PIPELINE)
 
