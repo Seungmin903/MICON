@@ -1,0 +1,9 @@
+services:
+  smoke:
+    image: ${SMOKE_IMAGE:?Set SMOKE_IMAGE to the verified hello-world repository digest}
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

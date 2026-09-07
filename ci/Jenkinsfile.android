@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds(abortPrevious: true)
+        skipDefaultCheckout(true)
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        ANDROID_PROJECT_DIR = 'frontend/android'
+        GRADLE_USER_HOME = "${WORKSPACE}/.gradle"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git lfs pull'
+            }
+        }
+
+        stage('Verify toolchain') {
+            steps {
+                sh '''
+                    set -eu
+                    java -version
+                    git lfs version
+
+                    SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+                    test -n "$SDK_ROOT"
+                    test -d "$SDK_ROOT/platforms/android-37" || \
+                        test -d "$SDK_ROOT/platforms/android-37.0"
+                    test -f "$ANDROID_PROJECT_DIR/gradlew"
+                    test ! -f "$ANDROID_PROJECT_DIR/local.properties"
+                '''
+            }
+        }
+
+        stage('Test and build debug APK') {
+            steps {
+                dir("${ANDROID_PROJECT_DIR}") {
+                    sh '''
+                        set -eu
+                        chmod +x gradlew
+                        ./gradlew --no-daemon --stacktrace \
+                            :app:testDebugUnitTest \
+                            :app:assembleDebug
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true,
+                testResults: 'frontend/android/app/build/test-results/testDebugUnitTest/*.xml'
+        }
+        success {
+            archiveArtifacts artifacts: 'frontend/android/app/build/outputs/apk/debug/app-debug.apk',
+                fingerprint: true
+        }
+    }
+}
