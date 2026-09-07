@@ -39,7 +39,7 @@
 0. 클론 전에 `git lfs install` 을 한 번 실행한다. 개발용 샘플 DB `app/src/main/assets/micon_catalog.sqlite`(33 MB)가
    Git LFS 로 관리되므로, LFS 없이 클론하면 130 바이트 포인터 파일만 받아 앱이 곡 목록을 열지 못한다.
    이미 클론했다면 저장소 루트에서 `git lfs install && git lfs pull`.
-   저장소 루트에서 `git config core.hooksPath .githooks` 도 실행한다(커밋 메시지 규칙 검사).
+   예전에 `git config core.hooksPath .githooks` 를 실행했다면 `git config --unset core.hooksPath` 로 되돌린다(그대로 두면 LFS 훅이 돌지 않는다).
 1. `frontend/android/` 를 Android Studio 로 연다(저장소 루트가 아니라 이 폴더). `local.properties.example` 을 `local.properties` 로 복사하고 `sdk.dir` 을 채운다.
 2. `gradle.properties` 의 `org.gradle.java.home` 이 Android Studio 설치 경로와 다르면 수정하거나 지운다.
 3. 빌드와 단위 테스트를 실행한다.
@@ -156,4 +156,4 @@ Kotlin 포팅의 원본 대조가 필요하면 `feat/vocalScope` 브랜치의 �
 ## Git / Jira
 
 커밋 `[이슈키] 타입: 내용`, 브랜치 `타입/간단한설명`(camelCase, 이슈 키 없음), MR 제목 `[이슈키] (FE) 요약`, SP ≤ 3.
-`develop` 직접 push 금지. 상세는 저장소 루트의 `JIRA_GIT_RULES_V1.md`.
+`develop` 직접 push 금지. 상세는 저장소 루트의 `JIRA_GIT_RULES.md`.

@@ -20,7 +20,7 @@ Android Studio(또는 CLI)에서 실제 기능을 만들 때 이 폴더에서 **
 | 8 | `vocal-scope/model-server/workspace/tj-*/job.json` (51곡) | 실제 분석 결과 JSON 원문(`result.notes/karaokeNotes/register/lyrics/...`) + `instrumental.opus` | 파서 테스트 픽스처, 재생 테스트 |
 | 9 | `vocal-scope/app/live-scoring.tsx`, `vocal-scope/public/pitch-worklet.js`, `vocal-scope/tests/pitch-worklet.test.mjs` | 라이브 채점 로직(재생 위치 기준 즉시 판정, 자동 지연 보정)과 YIN 피치 추적 순수 함수 + 테스트 | Kotlin 포팅 원본 |
 | 10 | `vocal-scope/model-server/compare_engine.py` 상단 상수, `vocal-scope/app/scoring-ui.ts` | 판정 임계·점수 가중·등급 경계, 판정 색상·라벨 | 채점 표시 일관성 |
-| 11 | `JIRA_GIT_RULES_V1.md` | 커밋 `[이슈키] 타입: 내용`, 브랜치 `타입/이슈키_camelCase`, SP≤3 | 이슈·커밋 규칙 |
+| 11 | `JIRA_GIT_RULES.md` | 커밋 `타입: 내용`(이슈 키 선택), 브랜치 `타입/camelCase`, MR 제목에 이슈 키, SP≤3 | 이슈·커밋 규칙 |
 
 보조: `vocal-scope/README.md`(엔진 개요), `vocal-scope/docs/MODEL_PIPELINE.md`(알고리즘 근거, 화면 문구 설명에 필요할 때만), `vocal-scope/docs/BATCH_HANDOFF.md`·`vocal-scope/REQUIREMENTS.md`(다른 PC에서 890곡 배치 돌릴 때만).
 
@@ -105,7 +105,7 @@ job id: 카탈로그 곡은 `tj-<TJ번호>`(= `songs.song_id`), 사용자 업로
 
 ## 6. 작업 시작 체크리스트
 
-1. 팀 저장소 `Desktop\특화PJT_git\S15P21B110`에서 앱 폴더·브랜치 만들기(`JIRA_GIT_RULES_V1.md` 규칙, 지라 이슈 먼저).
+1. 팀 저장소 `Desktop\특화PJT_git\S15P21B110`에서 앱 폴더·브랜치 만들기(`JIRA_GIT_RULES.md` 규칙).
 2. `outputs/micon_catalog.sqlite`를 앱 `assets` 또는 로컬 백엔드에 넣어 목록·상세 화면부터.
 3. `workspace/tj-*/job.json` 몇 개를 테스트 픽스처로 복사해 `karaokeNotes`·`comparison` 파서 단위 테스트.
 4. 엔진 기동(`vocal-scope\VocalScope 실행.cmd` 또는 `model-server\start.ps1`) 후 에뮬레이터에서 `GET http://10.0.2.2:8787/health` 확인.
