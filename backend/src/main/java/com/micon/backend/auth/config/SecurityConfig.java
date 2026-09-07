@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.SecretKey;
@@ -46,6 +47,12 @@ public class SecurityConfig {
                                 "/auth/password-resets").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
+                        .bearerTokenResolver(request -> {
+                            if ("/auth/tokens/refresh".equals(request.getRequestURI())) {
+                                return null;
+                            }
+                            return new DefaultBearerTokenResolver().resolve(request);
+                        })
                         .jwt(Customizer.withDefaults())
                         .authenticationEntryPoint((request, response, exception) ->
                                 writeError(response, ErrorCode.UNAUTHENTICATED))
