@@ -1,0 +1,111 @@
+package com.micon.app.ui.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PersonOff
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.micon.app.BuildConfig
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.ui.common.BackHeader
+import com.micon.app.ui.theme.Grey
+import com.micon.app.ui.theme.GreyLight
+import com.micon.app.ui.theme.Ink
+import com.micon.app.ui.theme.Pink
+import com.micon.app.ui.theme.Purple
+
+/** Figma "설정": 섹션 라벨 + 아이콘 행 + 토글, 회원 탈퇴는 핑크. */
+@Composable
+fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}) {
+    var keepOriginal by remember { mutableStateOf(true) } // TODO: 기본값 상충(명세 ON vs SET-002 OFF) 결정 후 저장소 연동
+
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        BackHeader("설정", onBack)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
+            Spacer(Modifier.height(28.dp))
+            SectionTitle("녹음 및 음성 데이터")
+            SettingRow(Icons.Outlined.Mic, "마이크 권한 설정") { /* TODO: 앱 설정 화면 인텐트 */ }
+            SettingRow(Icons.Outlined.Notifications, "알림 설정") { }
+            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Save, null, Modifier.size(26.dp), tint = Ink)
+                Spacer(Modifier.width(22.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("원본 녹음 저장", fontSize = 17.sp, color = Ink)
+                    Text("비활성화시 분석 후 삭제", fontSize = 14.sp, color = Grey)
+                }
+                Switch(
+                    checked = keepOriginal, onCheckedChange = { keepOriginal = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple, uncheckedTrackColor = GreyLight, uncheckedThumbColor = Color.White, uncheckedBorderColor = GreyLight),
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("개인정보 및 보안")
+            SettingRow(Icons.Outlined.Shield, "개인정보 설정") { }
+            SettingRow(Icons.Outlined.Delete, "음성데이터 삭제") { /* TODO: BackendApi 음성 데이터 삭제 */ }
+            SettingRow(Icons.Outlined.PersonOff, "로그아웃") { TokenManager.clear(); onLogout() }
+            SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { /* TODO: 확인 다이얼로그 → BackendApi 탈퇴 */ }
+            Spacer(Modifier.height(32.dp))
+            SectionTitle("개발자")
+            DevRow("엔진 주소", BuildConfig.ENGINE_BASE_URL)
+            DevRow("백엔드 주소", BuildConfig.API_BASE_URL)
+            DevRow("앱 버전", BuildConfig.VERSION_NAME)
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, fontSize = 15.sp, color = Grey, modifier = Modifier.padding(bottom = 6.dp))
+}
+
+@Composable
+private fun SettingRow(icon: ImageVector, label: String, color: Color = Ink, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(26.dp), tint = color)
+        Spacer(Modifier.width(22.dp))
+        Text(label, fontSize = 17.sp, color = color, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(24.dp), tint = color)
+    }
+}
+
+@Composable
+private fun DevRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 14.sp, color = Ink, fontWeight = FontWeight.Medium, modifier = Modifier.width(96.dp))
+        Text(value, fontSize = 13.sp, color = Grey)
+    }
+}

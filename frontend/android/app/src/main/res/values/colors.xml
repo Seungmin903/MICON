@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose 는 ui/theme/Theme.kt 의 팔레트를 쓴다. 여기는 런처 아이콘·XML 테마용 최소 색만 둔다. -->
+    <color name="micon_purple">#FF6C5CE7</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+</resources>

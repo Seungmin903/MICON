@@ -1,0 +1,50 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+local.properties
+*.jks
+*.keystore
+keystore.properties
+
+# Logs
+*.log
+logs/
+
+# Node / Web
+node_modules/
+dist/
+.next/
+
+# Gradle / Android / Java
+.gradle/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+target/
+
+# Python / AI
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+
+# AI artifacts (대용량 데이터·모델은 Git 에 직접 올리지 않는다)
+/data/
+checkpoints/
+**/weights/*.pt
+**/weights/*.pth
+**/weights/*.onnx
+**/weights/*.engine
+!**/weights/.gitkeep

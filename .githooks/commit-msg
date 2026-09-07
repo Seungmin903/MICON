@@ -1,0 +1,22 @@
+#!/bin/sh
+# 커밋 메시지 규칙: [S15P21B110-N] 타입: 내용
+# 활성화: git config core.hooksPath .githooks   (JIRA_GIT_RULES_V1.md 9번)
+msg_file="$1"
+first_line=$(sed -n '1p' "$msg_file")
+
+# merge / revert / fixup / squash 커밋은 통과
+case "$first_line" in
+  Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+if ! printf '%s' "$first_line" | grep -Eq '^\[S15P21B110-[0-9]+\] (feat|fix|refactor|hotfix|chore|docs|test): .+'; then
+  echo "" >&2
+  echo "커밋 메시지 형식이 규칙과 다릅니다:" >&2
+  echo "  $first_line" >&2
+  echo "" >&2
+  echo "형식:  [이슈키] 타입: 내용" >&2
+  echo "예)    [S15P21B110-12] feat: 30초 측정 카운트다운 UI" >&2
+  echo "타입:  feat fix refactor hotfix chore docs test  (wip 금지)" >&2
+  echo "이슈 키 없는 커밋은 Jira 자동화(In Review/Done)와 이슈-커밋 추적이 끊어집니다." >&2
+  exit 1
+fi
