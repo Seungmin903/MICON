@@ -68,6 +68,7 @@ public class RecommendationQueryRepository {
 		String orderBy = sort == SongSort.SCORE
 			? "ORDER BY rs.overall_score DESC, rs.rank_no, rs.song_id"
 			: "ORDER BY rs.rank_no, rs.song_id";
+
 		String sql = """
 			SELECT rs.song_id, rs.rank_no, s.title, sm.display_image_url, s.duration_ms,
 			       rs.recommended_key, rs.overall_score, rs.range_fit_score,
@@ -76,7 +77,7 @@ public class RecommendationQueryRepository {
 			JOIN SONG s ON s.song_id = rs.song_id
 			LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
 			WHERE rs.recommendation_id = :recommendationId
-			""" + orderBy;
+			""" + orderBy + " LIMIT 6";
 		return jdbcTemplate.query(sql, Map.of("recommendationId", recommendationId), SONG_ROW_MAPPER);
 	}
 

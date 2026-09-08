@@ -60,6 +60,25 @@ class RecommendationQueryRepositoryTest {
 	}
 
 	@Test
+	void limitsRecommendationListToTopSixSongs() {
+		for (long songId = 3; songId <= 8; songId++) {
+			jdbcTemplate.update("INSERT INTO SONG VALUES (?, ?, ?)", songId, "추천곡 " + songId, 200000L);
+			jdbcTemplate.update(
+				"INSERT INTO RECOMMENDATION_SONG VALUES (41, ?, ?, 0, ?, '추천 사유', 80, NULL, 80)",
+				songId,
+				songId,
+				100 - songId
+			);
+		}
+
+		List<RecommendationQueryRepository.RecommendedSongRow> songs = repository.findSongs(41L, SongSort.RANK);
+
+		assertThat(songs).hasSize(6);
+		assertThat(songs).extracting(RecommendationQueryRepository.RecommendedSongRow::rank)
+			.containsExactly(1, 2, 3, 4, 5, 6);
+	}
+
+	@Test
 	void recommendationLookupIsScopedToOwner() {
 		assertThat(repository.findById(7L, 41L)).isPresent();
 		assertThat(repository.findById(8L, 41L)).isEmpty();
