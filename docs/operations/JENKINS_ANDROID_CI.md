@@ -2,6 +2,30 @@
 
 Jira: `S15P21B110-129`
 
+## 2026-09-08 MR CI 전환 (자동 재빌드 검증 완료, 리뷰 대기)
+
+- Freestyle 진입점은 `sh ci/android-ci.sh`로 관리한다. 아래 2026-09-07 기록은 이전 수동 구성이다.
+- Jenkins SCM은 토큰 없는 저장소 URL과 팀 Credentials를 사용한다. Git Username and Password 바인딩으로 LFS 다운로드에도 같은 read-only 인증을 제공한다. 비밀값은 파일/명령 인자에 쓰지 않으며 Gradle 시작 전 인증 환경변수를 해제한다.
+- SCM 기본 브랜치는 `*/develop`이다. `ci/jenkins-freestyle.sh` 내용을 Execute shell에 복사한다. 고정 저장소 fetch 후 MR 이벤트의 40자리 SHA가 로컬 commit인지 확인하고 해당 SHA를 detached checkout한다. 수동 실행은 develop을 사용한다. 이후 SHA를 다시 비교하여 다르면 즉시 실패한다. 웹훅의 저장소 URL은 fetch에 사용하지 않는다.
+- #6에서 Git 플러그인이 웹훅 revision을 다른 저장소로 판단하여 develop을 checkout한 현상을 확인했다. SHA 검사가 실패시켜 잘못된 소스의 성공을 방지했다. 보정 checkout 이후 실제 빌드 소스는 콘솔의 `[MICON] verified_build_sha`와 `source_sha`를 기준으로 확인한다. Jenkins Git Build Data/초기 changelog는 bootstrap develop SHA일 수 있어 MR 검증 근거로 단독 사용하지 않는다.
+- MR 대상은 `develop`으로 제한한다. MR 생성과 새 커밋 update를 검증하며, 댓글/승인/merge/close 이벤트는 빌드하지 않는다. 최초 구성은 모든 해당 MR을 검사한다(Android 경로 외 변경도 실행 가능).
+- Jenkins의 `Opened Merge Request Events`와 `Build only if new commits were pushed to Merge Request`를 켜고, `Rebuild open Merge Requests`를 `On push to source branch`로 지정한다. `Never`이면 MR update도 제외되므로 사용하지 않는다. 일반 `Push Events`는 끄고 GitLab의 MR update webhook으로 실행한다. 대상 브랜치 push로 다른 MR을 검색하는 API 연동은 사용하지 않는다.
+- JDK 21을 작업 디렉터리에 설치하며 공식 Temurin 바이너리의 고정 URL과 SHA-256을 검사한다. 공용 Java 설치는 바꾸지 않는다. SDK 37·Build Tools 36.0.0은 기존 승인된 설치를 사용한다.
+- 매 빌드마다 빈 LFS storage로 다운로드하여 기존 캐시가 인증 문제를 숨기지 않도록 한다. 임시 LFS 캐시는 `.ci-tools/lfs-auth-check.*`에 남으므로 운영 용량 점검 대상으로 관리한다.
+- `API_BASE_URL=https://j15b110.p.ssafy.io/api/v1/`를 명시 주입하고 생성 BuildConfig와 단위 테스트로 확인한다. 이 빌드는 Debug이며 실제 API 가용성/AI 주소/Release 배포 검증을 대신하지 않는다.
+- `CiConfigurationTest`로 URL 형식과 CI 환경변수 반영을 검사한다. 스크립트가 develop에 병합되기 전 수동 develop 빌드는 진입점 부재로 실패할 수 있으므로 이 MR의 이벤트 빌드로 먼저 검증한다.
+- 웹훅 HTTP 200은 통신 검증이다. 실제 MR의 Jenkins URL·SHA·테스트 수·소요 시간은 검증 후 별도 기록한다. 이 문단 작성만으로 Jira를 완료 처리하지 않는다.
+
+### 자동 빌드 검증 기록
+
+- MR !20 생성으로 #6 자동 시작을 확인했다. 잘못된 bootstrap SHA를 검사가 차단한 뒤 위 checkout 보정을 적용했다.
+- MR 새 커밋으로 #7과 #8이 자동 실행되었다. #8은 **SUCCESS**, 전체 1분 15초(Gradle 1분 11초), JUnit **23개 통과 / 실패 0 / 건너뜀 0**(2.1초)이다.
+- #8 실제 소스: `27142422e826f41d2f29ebd69f83fbc0b60f9e52`. JDK `21.0.12.1+1`, SDK 37, Build Tools 36.0.0. 빈 LFS storage 인증 다운로드·객체 무결성·현재 커밋의 SQLite SHA-256 일치·APK 압축/서명 검증을 통과했다.
+- `local.properties` 없이 `API_BASE_URL=https://j15b110.p.ssafy.io/api/v1/` 주입을 생성 BuildConfig와 테스트로 확인했다. API 호출 성공이나 AI 엔진 연결을 검증한 것은 아니다.
+- APK 59.15 MiB, SHA-256: `05179b8010a5a102237cd72d52ec532390e970286d424165c1d407fb415b7c5e`.
+- [#8 빌드](https://jenkins-1.ssafy.com/job/s15-ai-speech-sub3/job/S15P23B110/8/) · [테스트 보고서](https://jenkins-1.ssafy.com/job/s15-ai-speech-sub3/job/S15P23B110/8/testReport/). APK와 함께 `app-debug.apk.sha256`, `build-metadata.properties`(실제 소스 SHA·빌드 번호·API 주소)를 보관한다.
+- V3.1에 따라 브랜치를 `chore/infra/androidMrCi`로 정정한다. 기존 !20은 검증 이력으로 보존하고 교체 MR에서 최종 생성 이벤트 빌드를 확인한다. 이 기록 커밋의 빌드 결과는 MR에 추가한다. 팀원 리뷰·병합 전 Jira Done으로 전환하지 않는다.
+
 Android 단위 테스트와 debug APK 빌드를 검증한다. 서버 배포와 Release APK 배포는 이 작업에 포함하지 않는다.
 
 ## 2026-09-07 범위 결정: 결과는 Jenkins에서 확인
@@ -45,7 +69,9 @@ Jenkins 빌드 URL / 번호:
 
 인증 방향 구분은 [Jenkins GitLab 플러그인 공식 안내](https://plugins.jenkins.io/gitlab-plugin/#plugin-content-jenkins-to-gitlab-authentication)를 참고한다.
 
-## Jenkins 작업 설정
+## 이전 수동 설정 기록 (2026-09-07)
+
+아래 설정·미완료 항목은 당시 기록이다. 현재 운영 설정과 검증 상태는 문서 상단의 2026-09-08 절을 우선한다.
 
 - 운영 작업: `s15-ai-speech-sub3/S15P23B110`
 - URL: `https://jenkins-1.ssafy.com/job/s15-ai-speech-sub3/job/S15P23B110/`
