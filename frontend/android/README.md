@@ -141,7 +141,7 @@ Figma 가 아직 정하지 않은 값(적합도 공식, 추천 키, 난이도, �
 
 ## 데이터 소스 (현재 → 목표)
 
-- 곡 목록·상세·음표: `assets/micon_catalog.sqlite` (33 MB, MySQL `micon` 덤프와 같은 컬럼, 890곡 + 50곡 분석)
+- 곡 목록·상세·음표: `assets/micon_catalog.sqlite` (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 211곡 분석. 생성 절차: `vocal-scope/docs/STEM_PITCH_IMPORT.md`)
   → 앱 백엔드(MySQL 8) REST API 가 생기면 `SongRepository` 구현만 교체하고 asset 삭제.
   **Git LFS 로 관리한다** (루트 `.gitattributes` 의 `*.sqlite`). 파일을 갱신하면 커밋만 하면 되고, 받는 쪽은 `git lfs pull`.
 - 반주·채점: 엔진 직접 호출 (`/jobs/{id}/files/instrumental`, `/jobs/{id}/compare`). 실시간 작업이므로 백엔드가 생겨도 유지.

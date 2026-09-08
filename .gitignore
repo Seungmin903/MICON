@@ -52,3 +52,23 @@ checkpoints/
 **/weights/*.onnx
 **/weights/*.engine
 !**/weights/.gitkeep
+
+# 음원·파생 오디오 — 저작권 + 용량, 절대 푸시 금지 (vocal-scope 병합 시 추가)
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.opus
+
+# 대용량 아카이브·모델 번들 (별도 전달)
+*.zip
+*.tar.gz
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# 파이썬 가상환경 변형
+.venv-*/
+*.pyc

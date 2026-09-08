@@ -16,7 +16,7 @@ Android Studio(또는 CLI)에서 실제 기능을 만들 때 이 폴더에서 **
 | 4 | `vocal-scope/docs/DATA_INVENTORY.md` | 엔진이 내보내는 모든 필드의 이름·타입·단위(§2), 채점 결과 `comparison{}`(§2.9), 버려지는 값(§4), 미구현(§5) | JSON 파싱 클래스 작성 |
 | 5 | `vocal-scope/PIPELINE.md` §5 + `vocal-scope/model-server/app.py` | 엔진 REST API 원문(아래 §3에 요약) | Retrofit 인터페이스 |
 | 6 | `프로젝트 핵심 용어집 — 음성·음색·음역·분석 품질.md` (이 폴더 루트) | 팀 공통 용어(안정 음역, 성구, 음색 층, 분석 품질 pass/review/fail) — 화면 문구·필드명의 기준 | UI 문구, 네이밍 |
-| 7 | `outputs/micon_catalog.sqlite` (32 MB) | 890곡 메타 + 50곡 분석이 들어간 **개발용 샘플 DB**(스키마는 위와 동일 컬럼) | 목록·상세 화면 목데이터, 쿼리 검증 |
+| 7 | `outputs/micon_catalog.sqlite` | 890곡 메타 + 211곡 분석(stem-pitch 배치)이 들어간 **개발용 샘플 DB**(스키마는 위와 동일 컬럼, 생성: `vocal-scope/docs/STEM_PITCH_IMPORT.md`) | 목록·상세 화면 목데이터, 쿼리 검증 |
 | 8 | `vocal-scope/model-server/workspace/tj-*/job.json` (51곡) | 실제 분석 결과 JSON 원문(`result.notes/karaokeNotes/register/lyrics/...`) + `instrumental.opus` | 파서 테스트 픽스처, 재생 테스트 |
 | 9 | `vocal-scope/app/live-scoring.tsx`, `vocal-scope/public/pitch-worklet.js`, `vocal-scope/tests/pitch-worklet.test.mjs` | 라이브 채점 로직(재생 위치 기준 즉시 판정, 자동 지연 보정)과 YIN 피치 추적 순수 함수 + 테스트 | Kotlin 포팅 원본 |
 | 10 | `vocal-scope/model-server/compare_engine.py` 상단 상수, `vocal-scope/app/scoring-ui.ts` | 판정 임계·점수 가중·등급 경계, 판정 색상·라벨 | 채점 표시 일관성 |
