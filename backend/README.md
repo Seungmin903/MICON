@@ -6,3 +6,8 @@
 - 사용자 쪽 스키마 초안은 AI 파트 `vocal-scope/docs/micon_schema.sql` (사용자 쪽 8 테이블, 제안 상태)
 
 Jira 파트 코드는 `BE`.
+
+## 로컬 실행 환경 변수
+
+- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`: MySQL 연결 정보
+- `JWT_SECRET`: Access Token 서명 키. UTF-8 기준 32바이트 이상이어야 한다.
