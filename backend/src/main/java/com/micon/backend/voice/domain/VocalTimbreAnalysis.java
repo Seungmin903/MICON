@@ -46,4 +46,18 @@ public class VocalTimbreAnalysis {
 
     protected VocalTimbreAnalysis() {
     }
+
+    public VocalTimbreAnalysis(VoiceAnalysis voiceAnalysis, String timbreLabel, String timbreVector,
+                               BigDecimal rhythmScore, BigDecimal pronunciationScore, BigDecimal confidence,
+                               String explanation, BigDecimal validSingleSec, Integer validChunkCount,
+                               String userEmbedding, String embeddingRef, BigDecimal chunkCohesion,
+                               BigDecimal observedCoreLowMidi, BigDecimal observedCoreHighMidi,
+                               BigDecimal observedMedianMidi, String pitchHistogram, LocalDateTime measuredAt) {
+        this.voiceAnalysis = voiceAnalysis; this.timbreLabel = timbreLabel; this.timbreVector = timbreVector;
+        this.rhythmScore = rhythmScore; this.pronunciationScore = pronunciationScore; this.confidence = confidence;
+        this.explanation = explanation; this.validSingleSec = validSingleSec; this.validChunkCount = validChunkCount;
+        this.userEmbedding = userEmbedding; this.embeddingRef = embeddingRef; this.chunkCohesion = chunkCohesion;
+        this.observedCoreLowMidi = observedCoreLowMidi; this.observedCoreHighMidi = observedCoreHighMidi;
+        this.observedMedianMidi = observedMedianMidi; this.pitchHistogram = pitchHistogram; this.measuredAt = measuredAt;
+    }
 }

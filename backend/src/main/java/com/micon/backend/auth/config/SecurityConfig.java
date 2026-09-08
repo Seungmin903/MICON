@@ -42,13 +42,15 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/v1/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users", "/auth/sessions", "/auth/tokens/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(request -> {
-                            if ("/auth/tokens/refresh".equals(request.getRequestURI())) {
+                            if ("/auth/tokens/refresh".equals(request.getRequestURI())
+                                    || "/callbacks/voice-analyses".equals(request.getRequestURI())) {
                                 return null;
                             }
                             return new DefaultBearerTokenResolver().resolve(request);

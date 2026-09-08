@@ -18,4 +18,8 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select analysis from VoiceAnalysis analysis where analysis.id = :id")
     Optional<VoiceAnalysis> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select analysis from VoiceAnalysis analysis where analysis.jobId = :jobId")
+    Optional<VoiceAnalysis> findByJobIdForUpdate(@Param("jobId") String jobId);
 }

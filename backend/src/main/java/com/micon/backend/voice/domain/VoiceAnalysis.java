@@ -125,4 +125,26 @@ public class VoiceAnalysis {
         this.failureReason = failureReason;
         this.completedAt = completedAt;
     }
+
+    public void complete(String analysisVersion, VoiceQualityStatus qualityStatus, LocalDateTime completedAt) {
+        if (status != VoiceAnalysisStatus.ANALYZING) {
+            throw new IllegalStateException("only ANALYZING analysis can be completed");
+        }
+        this.status = VoiceAnalysisStatus.COMPLETED;
+        this.analysisVersion = analysisVersion;
+        this.qualityStatus = qualityStatus;
+        this.completedAt = completedAt;
+    }
+
+    public void insufficientData(String failureCode, String failureReason,
+                                 VoiceQualityStatus qualityStatus, LocalDateTime completedAt) {
+        if (status != VoiceAnalysisStatus.ANALYZING) {
+            throw new IllegalStateException("only ANALYZING analysis can report insufficient data");
+        }
+        this.status = VoiceAnalysisStatus.INSUFFICIENT_DATA;
+        this.failureCode = failureCode;
+        this.failureReason = failureReason;
+        this.qualityStatus = qualityStatus == null ? VoiceQualityStatus.INSUFFICIENT_VOICE : qualityStatus;
+        this.completedAt = completedAt;
+    }
 }
