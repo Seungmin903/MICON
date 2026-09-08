@@ -51,6 +51,7 @@ class RecommendationControllerTest {
 			.andExpect(jsonPath("$.code").value("SUCCESS"))
 			.andExpect(jsonPath("$.data.recommendationId").value(41))
 			.andExpect(jsonPath("$.data.songs[0].rank").value(1))
+			.andExpect(jsonPath("$.data.songs[0].albumImageUrl").value("cover.jpg"))
 			.andExpect(jsonPath("$.data.songs[0].reason").value("안정 음역에 잘 맞습니다."));
 	}
 
