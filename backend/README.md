@@ -7,6 +7,10 @@
 
 Jira 파트 코드는 `BE`.
 
+## 운영 배포 계약
+
+[환경변수 예제](.env.example)와 [BE 운영 실행 계약 초안](../docs/operations/BACKEND_RUNTIME_CONTRACT.md)을 참고한다. 현재 코드 사실과 합의가 필요한 운영 제안을 구분했으며, 실제 서버/SQL 설정을 적용한 문서가 아니다. 예제에 실제 비밀값을 기입하지 않는다.
+
 ## 로컬 실행 환경 변수
 
 - `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`: MySQL 연결 정보

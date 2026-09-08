@@ -1,5 +1,7 @@
 # 서버 연동과 APK 실기기 QA 준비
 
+> 2026-09-08 후속: 아래 초기 스냅샷의 "API 컨트롤러 없음"은 과거 상태다. 최신 코드 사실과 앱/BE 경로·health·환경변수 차이는 [BE 운영 실행 계약 초안](BACKEND_RUNTIME_CONTRACT.md)을 우선 참고한다. CI/키 준비도 각각 [Android CI](JENKINS_ANDROID_CI.md), [Release 준비](ANDROID_RELEASE.md)의 후속 기록을 확인한다. 최신 기록 역시 실제 운영 배포 성공을 의미하지 않는다.
+
 갱신일: 2026-09-07. 서버 기반 설정은 적용했지만 애플리케이션 배포·실기기 검증 완료 보고서는 아니다.
 [Jira/Git 규칙 V3.0](../../JIRA_GIT_RULES.md) 기준으로 작업 브랜치 → 리뷰 MR → develop에 반영한다. 완료한 기반 설정과 남은 제품 배포를 구분한다.
 
