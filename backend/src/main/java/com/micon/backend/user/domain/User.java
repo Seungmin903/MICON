@@ -105,4 +105,9 @@ public class User {
         this.lastLoginAt = loggedInAt;
         this.updatedAt = loggedInAt;
     }
+
+    public void changePassword(String encodedPassword, LocalDateTime changedAt) {
+        this.password = encodedPassword;
+        this.updatedAt = changedAt;
+    }
 }
