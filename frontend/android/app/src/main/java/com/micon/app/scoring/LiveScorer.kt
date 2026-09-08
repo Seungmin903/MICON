@@ -45,7 +45,12 @@ class LiveNote(
     val lyric: String?,
     val measure: Int,
     val weight: Double,
+    /** 가사 음절의 실제 발성 구간(초). 없으면 음표 start/end 를 쓴다. */
+    val lyricStart: Double? = null,
+    val lyricEnd: Double? = null,
 ) {
+    /** 가사 채움 기준 시각: 음절 타이밍이 있으면 그것, 없으면 음표 시작. */
+    val lyricAt: Double get() = lyricStart ?: start
     var status: LiveStatus = LiveStatus.UPCOMING
     var cents: Int? = null
     /** 초, +늦음. 온셋을 못 찾으면 null(레가토). */
@@ -86,6 +91,21 @@ class LiveScorer(val notes: List<LiveNote>) {
     var autoCalibrate = true
     var keyShift = 0
     private var cursor = 0
+
+    /**
+     * [seconds] 이후 음표를 미판정으로 되돌리고 커서를 옮긴다(일시정지 중 탐색·구간 반복용).
+     * 그 시각 이후의 프레임은 버린다. 이미 확정된 앞 음표의 판정은 유지한다.
+     */
+    fun rewindTo(seconds: Double) {
+        var first = notes.size
+        for (i in notes.indices) {
+            if (notes[i].end + 0.25 > seconds) { first = i; break }
+        }
+        for (i in first until notes.size) notes[i].reset()
+        cursor = minOf(cursor, first)
+        val keep = frames.indexOfFirst { it.t >= seconds }
+        if (keep >= 0) frames.subList(keep, frames.size).clear()
+    }
 
     fun addFrame(frame: Frame) {
         frames.add(frame)

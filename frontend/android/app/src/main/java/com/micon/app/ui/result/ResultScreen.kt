@@ -175,6 +175,12 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
                 }
             }
 
+            MiconCard {
+                CardTitle("점수 요약")
+                Spacer(Modifier.height(10.dp))
+                ScoreBreakdown(c)
+            }
+
             val r = rangeSummary(c)
             val axisLow = (r.songLow - 2).coerceAtMost(48)
             val axisHigh = (r.songHigh + 2).coerceAtLeast(axisLow + 12)
@@ -225,6 +231,20 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
                             }
                         }
                     }
+                }
+            }
+
+            if (c.measures.isNotEmpty()) MiconCard {
+                CardTitle("마디별 점수")
+                Spacer(Modifier.height(10.dp))
+                MeasureHeatmap(c.measures)
+            }
+
+            c.curves?.takeIf { it.user.any { v -> v != null } }?.let { curves ->
+                MiconCard {
+                    CardTitle("음정 곡선")
+                    Spacer(Modifier.height(10.dp))
+                    PitchCurveChart(curves)
                 }
             }
 
