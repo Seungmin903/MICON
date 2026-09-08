@@ -4,6 +4,8 @@ import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.voice.domain.VoiceRecording;
 import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
+import com.micon.backend.voice.storage.VoiceStorage;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,12 +16,17 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import java.net.URI;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -32,11 +39,14 @@ class VoiceAnalysisApiIntegrationTests {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired EntityManager entityManager;
+    @MockitoBean VoiceAnalysisJobGateway aiGateway;
+    @MockitoBean VoiceStorage voiceStorage;
 
     @Test
     void createsAnalysisForOwnedUploadedRecording() throws Exception {
         User user = user("analysis-owner@micon.com");
         VoiceRecording recording = uploadedRecording(user);
+        successfulDispatch("ai-job-1");
 
         mockMvc.perform(post("/voice-analyses").with(jwtFor(user))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -47,7 +57,8 @@ class VoiceAnalysisApiIntegrationTests {
                 .andExpect(jsonPath("$.data.analysisId").isNumber())
                 .andExpect(jsonPath("$.data.recordingId").value(recording.getId()))
                 .andExpect(jsonPath("$.data.method").value("SCALE"))
-                .andExpect(jsonPath("$.data.status").value("READY"));
+                .andExpect(jsonPath("$.data.status").value("ANALYZING"))
+                .andExpect(jsonPath("$.data.startedAt").isNotEmpty());
     }
 
     @Test
@@ -87,6 +98,7 @@ class VoiceAnalysisApiIntegrationTests {
         String body = """
                 {"recordingId":%d,"method":"SCALE"}
                 """.formatted(recording.getId());
+        successfulDispatch("ai-job-duplicate");
 
         mockMvc.perform(post("/voice-analyses").with(jwtFor(user))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -103,6 +115,7 @@ class VoiceAnalysisApiIntegrationTests {
         User owner = user("status-owner@micon.com");
         User another = user("status-another@micon.com");
         VoiceRecording recording = uploadedRecording(owner);
+        successfulDispatch("ai-job-status");
         String response = mockMvc.perform(post("/voice-analyses").with(jwtFor(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -114,15 +127,43 @@ class VoiceAnalysisApiIntegrationTests {
         mockMvc.perform(get("/voice-analyses/{analysisId}", analysisId).with(jwtFor(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.analysisId").value(analysisId))
-                .andExpect(jsonPath("$.data.status").value("READY"));
+                .andExpect(jsonPath("$.data.status").value("ANALYZING"));
 
         mockMvc.perform(get("/voice-analyses/{analysisId}", analysisId).with(jwtFor(another)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("VOICE_ANALYSIS_NOT_FOUND"));
     }
 
+    @Test
+    void recordsFailedStateWhenAiDispatchFails() throws Exception {
+        User user = user("analysis-dispatch-failure@micon.com");
+        VoiceRecording recording = uploadedRecording(user);
+        when(voiceStorage.createDownloadUrl(any(), any()))
+                .thenReturn(URI.create("https://storage.test/recording.wav"));
+        when(aiGateway.submit(any())).thenThrow(new RuntimeException("AI unavailable"));
+
+        mockMvc.perform(post("/voice-analyses").with(jwtFor(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"recordingId":%d,"method":"SCALE"}
+                                """.formatted(recording.getId())))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("VOICE_ANALYSIS_DISPATCH_FAILED"));
+
+        entityManager.flush();
+        var failed = jdbcTemplate.queryForMap(
+                "SELECT status, failure_code FROM voice_analysis WHERE recording_id = ?", recording.getId());
+        org.assertj.core.api.Assertions.assertThat(failed.get("status")).isEqualTo("FAILED");
+        org.assertj.core.api.Assertions.assertThat(failed.get("failure_code")).isEqualTo("AI_DISPATCH_FAILED");
+    }
+
     private User user(String email) {
         return users.saveAndFlush(new User(email, passwordEncoder.encode("Password123!")));
+    }
+
+    private void successfulDispatch(String jobId) {
+        when(voiceStorage.createDownloadUrl(any(), any())).thenReturn(URI.create("https://storage.test/recording.wav"));
+        when(aiGateway.submit(any())).thenReturn(new VoiceAnalysisJobGateway.Result(jobId, "QUEUED"));
     }
 
     private VoiceRecording uploadedRecording(User user) {

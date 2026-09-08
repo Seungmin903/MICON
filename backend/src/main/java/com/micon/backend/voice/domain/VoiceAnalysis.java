@@ -104,4 +104,25 @@ public class VoiceAnalysis {
         }
         this.jobId = jobId;
     }
+
+    public void start(String jobId, LocalDateTime startedAt) {
+        if (status != VoiceAnalysisStatus.READY) {
+            throw new IllegalStateException("only READY analysis can be started");
+        }
+        assignJobId(jobId);
+        this.status = VoiceAnalysisStatus.ANALYZING;
+        this.startedAt = startedAt;
+        this.failureCode = null;
+        this.failureReason = null;
+    }
+
+    public void fail(String failureCode, String failureReason, LocalDateTime completedAt) {
+        if (status != VoiceAnalysisStatus.READY && status != VoiceAnalysisStatus.ANALYZING) {
+            throw new IllegalStateException("analysis cannot fail from " + status);
+        }
+        this.status = VoiceAnalysisStatus.FAILED;
+        this.failureCode = failureCode;
+        this.failureReason = failureReason;
+        this.completedAt = completedAt;
+    }
 }

@@ -5,51 +5,50 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.domain.UserStatus;
 import com.micon.backend.voice.api.VoiceAnalysisRequest;
 import com.micon.backend.voice.api.VoiceAnalysisResponse;
-import com.micon.backend.voice.domain.RecordingUploadStatus;
 import com.micon.backend.voice.domain.VoiceAnalysis;
 import com.micon.backend.voice.domain.VoiceAnalysisRepository;
-import com.micon.backend.voice.domain.VoiceAnalysisStatus;
-import com.micon.backend.voice.domain.VoiceRecording;
-import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
+import com.micon.backend.voice.storage.VoiceStorage;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.EnumSet;
-import java.util.Set;
+import java.time.Duration;
 
 @Service
 public class VoiceAnalysisService {
-    private static final Set<VoiceAnalysisStatus> IN_PROGRESS = EnumSet.of(
-            VoiceAnalysisStatus.READY, VoiceAnalysisStatus.RECORDING,
-            VoiceAnalysisStatus.UPLOADING, VoiceAnalysisStatus.ANALYZING);
-
-    private final VoiceRecordingRepository recordings;
     private final VoiceAnalysisRepository analyses;
+    private final VoiceAnalysisLifecycleService lifecycle;
+    private final VoiceAnalysisJobGateway aiGateway;
+    private final VoiceStorage storage;
+    private final String guideVersion;
+    private final Duration downloadUrlTtl;
 
-    public VoiceAnalysisService(VoiceRecordingRepository recordings, VoiceAnalysisRepository analyses) {
-        this.recordings = recordings;
+    public VoiceAnalysisService(VoiceAnalysisRepository analyses, VoiceAnalysisLifecycleService lifecycle,
+                                VoiceAnalysisJobGateway aiGateway, VoiceStorage storage,
+                                @Value("${ai.voice-analysis-guide-version:v1}") String guideVersion,
+                                @Value("${ai.voice-analysis-download-url-ttl:30m}") Duration downloadUrlTtl) {
         this.analyses = analyses;
+        this.lifecycle = lifecycle;
+        this.aiGateway = aiGateway;
+        this.storage = storage;
+        this.guideVersion = guideVersion;
+        this.downloadUrlTtl = downloadUrlTtl;
     }
 
-    @Transactional
     public VoiceAnalysisResponse create(long userId, VoiceAnalysisRequest request) {
-        VoiceRecording recording = recordings.findByIdForUpdate(request.recordingId())
-                .filter(candidate -> candidate.getUser().getId().equals(userId))
-                .orElseThrow(() -> new BusinessException(ErrorCode.RECORDING_NOT_FOUND));
-        if (recording.getUser().getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ACCOUNT_NOT_ACTIVE);
-        }
-        if (recording.getUploadStatus() != RecordingUploadStatus.UPLOADED || recording.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
-        }
-        if (analyses.existsByRecordingIdAndStatusIn(recording.getId(), IN_PROGRESS)) {
-            throw new BusinessException(ErrorCode.VOICE_ANALYSIS_IN_PROGRESS);
-        }
+        VoiceAnalysis analysis = lifecycle.create(userId, request);
         try {
-            return VoiceAnalysisResponse.from(analyses.save(
-                    new VoiceAnalysis(recording.getUser(), recording, request.songId(), request.method())));
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, exception.getMessage());
+            String url = storage.createDownloadUrl(analysis.getRecording().getStoragePath(), downloadUrlTtl).toString();
+            VoiceAnalysisJobGateway.Result result = aiGateway.submit(new VoiceAnalysisJobGateway.Command(
+                    analysis.getId(), url, analysis.getMethod(), analysis.getSongId(), guideVersion));
+            if (result == null || result.jobId() == null || result.jobId().isBlank()) {
+                throw new IllegalStateException("AI response does not contain jobId");
+            }
+            return VoiceAnalysisResponse.from(lifecycle.start(analysis.getId(), result.jobId()));
+        } catch (RuntimeException exception) {
+            lifecycle.fail(analysis.getId(), exception.getMessage());
+            throw new BusinessException(ErrorCode.VOICE_ANALYSIS_DISPATCH_FAILED);
         }
     }
 
