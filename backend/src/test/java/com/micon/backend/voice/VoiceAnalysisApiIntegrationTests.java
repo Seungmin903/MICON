@@ -4,6 +4,9 @@ import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.voice.domain.VoiceRecording;
 import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.domain.VoiceAnalysis;
+import com.micon.backend.voice.domain.VoiceAnalysisMethod;
+import com.micon.backend.voice.domain.VoiceAnalysisRepository;
 import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
 import com.micon.backend.voice.storage.VoiceStorage;
 import jakarta.persistence.EntityManager;
@@ -28,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
+@SpringBootTest(properties = "ai.service-token=test-ai-token")
 @AutoConfigureMockMvc
 @Transactional
 class VoiceAnalysisApiIntegrationTests {
@@ -36,6 +39,7 @@ class VoiceAnalysisApiIntegrationTests {
     @Autowired MockMvc mockMvc;
     @Autowired UserRepository users;
     @Autowired VoiceRecordingRepository recordings;
+    @Autowired VoiceAnalysisRepository analyses;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired EntityManager entityManager;
@@ -155,6 +159,56 @@ class VoiceAnalysisApiIntegrationTests {
                 "SELECT status, failure_code FROM voice_analysis WHERE recording_id = ?", recording.getId());
         org.assertj.core.api.Assertions.assertThat(failed.get("status")).isEqualTo("FAILED");
         org.assertj.core.api.Assertions.assertThat(failed.get("failure_code")).isEqualTo("AI_DISPATCH_FAILED");
+    }
+
+    @Test
+    void storesCompletedCallbackResultsAndTreatsRetryAsDuplicate() throws Exception {
+        User user = user("analysis-callback@micon.com");
+        VoiceRecording recording = uploadedRecording(user);
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        analysis.start("callback-job-1", java.time.LocalDateTime.now());
+        analyses.flush();
+        String callback = """
+                {
+                  "voiceAnalysisId":%d,
+                  "jobId":"callback-job-1",
+                  "status":"COMPLETED",
+                  "analysisVersion":"v1",
+                  "qualityStatus":"VALID",
+                  "measuredAt":"2026-09-09T01:00:00",
+                  "range":{"fullLowMidi":48.0,"fullHighMidi":72.0,"pitchDistribution":{"60":3}},
+                  "timbre":{"timbreLabel":"warm","timbreVector":[0.1,0.2]}
+                }
+                """.formatted(analysis.getId());
+
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .header("Authorization", "Bearer test-ai-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(callback))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.duplicate").value(false));
+        entityManager.flush();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM vocal_range_analysis WHERE voice_analysis_id = ?", Integer.class, analysis.getId())).isOne();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM vocal_timbre_analysis WHERE voice_analysis_id = ?", Integer.class, analysis.getId())).isOne();
+
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .header("Authorization", "Bearer test-ai-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(callback))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.duplicate").value(true));
+    }
+
+    @Test
+    void rejectsCallbackWithoutAiServiceToken() throws Exception {
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"voiceAnalysisId":1,"jobId":"job","status":"FAILED","measuredAt":"2026-09-09T01:00:00"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_AI_SERVICE_TOKEN"));
     }
 
     private User user(String email) {

@@ -46,4 +46,21 @@ public class VocalRangeAnalysis {
 
     protected VocalRangeAnalysis() {
     }
+
+    public VocalRangeAnalysis(VoiceAnalysis voiceAnalysis, BigDecimal fullLowMidi, BigDecimal fullHighMidi,
+                              BigDecimal stableLowMidi, BigDecimal stableHighMidi, BigDecimal pitchMedianMidi,
+                              BigDecimal pitchAccuracyScore, BigDecimal pitchStabilityScore, String pitchDistribution,
+                              BigDecimal modalLowMidi, BigDecimal modalHighMidi, BigDecimal falsettoLowMidi,
+                              BigDecimal falsettoHighMidi, BigDecimal highNoteHoldSec, BigDecimal confidence,
+                              String noteResults, LocalDateTime measuredAt) {
+        this.voiceAnalysis = voiceAnalysis;
+        this.fullLowMidi = fullLowMidi; this.fullHighMidi = fullHighMidi;
+        this.stableLowMidi = stableLowMidi; this.stableHighMidi = stableHighMidi;
+        this.pitchMedianMidi = pitchMedianMidi; this.pitchAccuracyScore = pitchAccuracyScore;
+        this.pitchStabilityScore = pitchStabilityScore; this.pitchDistribution = pitchDistribution;
+        this.modalLowMidi = modalLowMidi; this.modalHighMidi = modalHighMidi;
+        this.falsettoLowMidi = falsettoLowMidi; this.falsettoHighMidi = falsettoHighMidi;
+        this.highNoteHoldSec = highNoteHoldSec; this.confidence = confidence;
+        this.noteResults = noteResults; this.measuredAt = measuredAt;
+    }
 }
