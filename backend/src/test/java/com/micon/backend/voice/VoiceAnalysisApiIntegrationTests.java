@@ -193,11 +193,41 @@ class VoiceAnalysisApiIntegrationTests {
         org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM vocal_timbre_analysis WHERE voice_analysis_id = ?", Integer.class, analysis.getId())).isOne();
 
+        mockMvc.perform(get("/voice-analyses/{analysisId}/report", analysis.getId()).with(jwtFor(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysis.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.range.fullLowMidi").value(48.0))
+                .andExpect(jsonPath("$.data.range.pitchDistribution.60").value(3))
+                .andExpect(jsonPath("$.data.timbre.timbreLabel").value("warm"))
+                .andExpect(jsonPath("$.data.timbre.timbreVector").doesNotExist())
+                .andExpect(jsonPath("$.data.timbre.userEmbedding").doesNotExist());
+
+        mockMvc.perform(get("/voice-analyses").with(jwtFor(user)).param("page", "0").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].analysisId").value(analysis.getId()));
+
+        mockMvc.perform(get("/voice-analyses/latest").with(jwtFor(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysisId").value(analysis.getId()));
+
         mockMvc.perform(post("/callbacks/voice-analyses")
                         .header("Authorization", "Bearer test-ai-token")
                         .contentType(MediaType.APPLICATION_JSON).content(callback))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.duplicate").value(true));
+    }
+
+    @Test
+    void hidesAnotherUsersAnalysisReport() throws Exception {
+        User owner = user("report-owner@micon.com");
+        User another = user("report-another@micon.com");
+        VoiceRecording recording = uploadedRecording(owner);
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(owner, recording, null, VoiceAnalysisMethod.SCALE));
+
+        mockMvc.perform(get("/voice-analyses/{analysisId}/report", analysis.getId()).with(jwtFor(another)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("VOICE_ANALYSIS_NOT_FOUND"));
     }
 
     @Test

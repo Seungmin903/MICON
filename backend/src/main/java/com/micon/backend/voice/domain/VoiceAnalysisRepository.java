@@ -8,6 +8,8 @@ import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Long> {
 
@@ -22,4 +24,8 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select analysis from VoiceAnalysis analysis where analysis.jobId = :jobId")
     Optional<VoiceAnalysis> findByJobIdForUpdate(@Param("jobId") String jobId);
+
+    Page<VoiceAnalysis> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+
+    Optional<VoiceAnalysis> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
 }
