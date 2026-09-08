@@ -2,6 +2,7 @@ package com.micon.backend.auth.api;
 
 import com.micon.backend.auth.application.EmailAuthService;
 import com.micon.backend.auth.application.AuthSessionService;
+import com.micon.backend.auth.application.PasswordResetService;
 import com.micon.backend.auth.token.TokenPair;
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
@@ -23,10 +24,13 @@ public class AuthController {
 
     private final EmailAuthService emailAuthService;
     private final AuthSessionService authSessionService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(EmailAuthService emailAuthService, AuthSessionService authSessionService) {
+    public AuthController(EmailAuthService emailAuthService, AuthSessionService authSessionService,
+                          PasswordResetService passwordResetService) {
         this.emailAuthService = emailAuthService;
         this.authSessionService = authSessionService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/sessions")
@@ -45,6 +49,30 @@ public class AuthController {
     @DeleteMapping("/sessions/current")
     public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal Jwt jwt) {
         authSessionService.logout(Long.parseLong(jwt.getSubject()), jwt.getClaimAsString("sid"));
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/password-reset-requests")
+    public ResponseEntity<ApiResponse<PasswordResetResponse.Issued>> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest.Issue request) {
+        return ResponseEntity.ok(ApiResponse.success(passwordResetService.issue(request.email())));
+    }
+
+    @PostMapping("/password-reset-verifications")
+    public ResponseEntity<ApiResponse<PasswordResetResponse.Verified>> verifyPasswordReset(
+            @Valid @RequestBody PasswordResetRequest.Verify request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                passwordResetService.verify(request.requestId(), request.code())));
+    }
+
+    @PostMapping("/password-resets")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @RequestHeader(value = "X-Password-Reset-Token", required = false) String resetToken,
+            @Valid @RequestBody PasswordResetRequest.Reset request) {
+        if (resetToken == null || resetToken.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD_RESET_TOKEN);
+        }
+        passwordResetService.reset(resetToken, request.newPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

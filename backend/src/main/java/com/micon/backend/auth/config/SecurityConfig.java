@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({AuthProperties.class, PasswordResetProperties.class})
 public class SecurityConfig {
 
     @Bean
