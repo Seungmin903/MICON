@@ -15,6 +15,10 @@ public enum ErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "인증이 필요합니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "접근 권한이 없습니다."),
     SONG_NOT_FOUND(HttpStatus.NOT_FOUND, "SONG_NOT_FOUND", "곡을 찾을 수 없습니다."),
+    SETLIST_NOT_FOUND(HttpStatus.NOT_FOUND, "SETLIST_NOT_FOUND", "세트리스트를 찾을 수 없습니다."),
+    SONG_NOT_FAVORITED(HttpStatus.BAD_REQUEST, "SONG_NOT_FAVORITED", "찜한 곡만 세트리스트에 추가할 수 있습니다."),
+    INVALID_SETLIST_ORDER(HttpStatus.BAD_REQUEST, "INVALID_SETLIST_ORDER", "세트리스트 곡 순서가 올바르지 않습니다."),
+    SETLIST_CONFLICT(HttpStatus.CONFLICT, "SETLIST_CONFLICT", "세트리스트가 다른 요청에 의해 변경되었습니다."),
     VOICE_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE_ANALYSIS_NOT_FOUND", "음성 분석 결과를 찾을 수 없습니다."),
     SONG_FIT_EVALUATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SONG_FIT_EVALUATION_FAILED", "곡 적합도 계산에 실패했습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.");
