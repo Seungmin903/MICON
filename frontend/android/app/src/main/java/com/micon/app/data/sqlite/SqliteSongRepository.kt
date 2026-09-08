@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * **임시 스텁.** assets/micon_catalog.sqlite (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 50곡 분석)를
+ * **임시 스텁.** assets/micon_catalog.sqlite (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 211곡 분석 — stem-pitch 배치, `vocal-scope/docs/STEM_PITCH_IMPORT.md`)를
  * 첫 실행 때 filesDir 로 복사해 읽기 전용으로 연다. Room 을 쓰지 않는 이유: 스키마 검증 없이 원본 파일을
  * 그대로 쓰기 위해서. 백엔드 API 가 생기면 이 클래스와 asset 을 삭제한다.
  */
