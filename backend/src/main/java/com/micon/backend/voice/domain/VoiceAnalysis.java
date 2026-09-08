@@ -32,6 +32,9 @@ public class VoiceAnalysis {
     @JoinColumn(name = "recording_id", nullable = false)
     private VoiceRecording recording;
 
+    @Column(name = "job_id", unique = true, length = 255)
+    private String jobId;
+
     @Column(name = "song_id")
     private Long songId;
 
@@ -83,6 +86,7 @@ public class VoiceAnalysis {
     public Long getId() { return id; }
     public User getUser() { return user; }
     public VoiceRecording getRecording() { return recording; }
+    public String getJobId() { return jobId; }
     public Long getSongId() { return songId; }
     public VoiceAnalysisMethod getMethod() { return method; }
     public VoiceAnalysisStatus getStatus() { return status; }
@@ -93,4 +97,11 @@ public class VoiceAnalysis {
     public LocalDateTime getCompletedAt() { return completedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public VoiceQualityStatus getQualityStatus() { return qualityStatus; }
+
+    public void assignJobId(String jobId) {
+        if (jobId == null || jobId.isBlank()) {
+            throw new IllegalArgumentException("jobId must not be blank");
+        }
+        this.jobId = jobId;
+    }
 }

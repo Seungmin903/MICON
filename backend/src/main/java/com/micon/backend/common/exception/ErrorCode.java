@@ -20,6 +20,8 @@ public enum ErrorCode {
     INVALID_SETLIST_ORDER(HttpStatus.BAD_REQUEST, "INVALID_SETLIST_ORDER", "세트리스트 곡 순서가 올바르지 않습니다."),
     SETLIST_CONFLICT(HttpStatus.CONFLICT, "SETLIST_CONFLICT", "세트리스트가 다른 요청에 의해 변경되었습니다."),
     VOICE_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "VOICE_ANALYSIS_NOT_FOUND", "음성 분석 결과를 찾을 수 없습니다."),
+    INVALID_RECORDING_FILE(HttpStatus.BAD_REQUEST, "INVALID_RECORDING_FILE", "지원하지 않거나 올바르지 않은 녹음 파일입니다."),
+    RECORDING_UPLOAD_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "RECORDING_UPLOAD_FAILED", "녹음 파일을 저장하지 못했습니다."),
     SONG_FIT_EVALUATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SONG_FIT_EVALUATION_FAILED", "곡 적합도 계산에 실패했습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.");
 

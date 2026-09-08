@@ -95,4 +95,10 @@ public class VoiceRecording {
     public LocalDateTime getDeleteScheduledAt() { return deleteScheduledAt; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void completeUpload(String sha256, long fileBytes) {
+        this.sha256 = sha256;
+        this.fileBytes = fileBytes;
+        this.uploadStatus = RecordingUploadStatus.UPLOADED;
+    }
 }
