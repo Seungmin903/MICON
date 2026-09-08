@@ -1,0 +1,470 @@
+{
+  "id": "00000000-0000-4000-8000-000000000000",
+  "status": "complete",
+  "progress": 100,
+  "message": "음색과 음역 추천이 완료되었습니다.",
+  "mode": "timbre",
+  "genres": [
+    "발라드"
+  ],
+  "result": {
+    "algorithm": {
+      "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+      "range_scoring_version": "vocal-range-keyshift-continuous-v2",
+      "requested_mode": "timbre",
+      "applied_mode": "timbre",
+      "composition": {
+        "version": "two-axis-quota-v1",
+        "quota": {
+          "ecapa": 2,
+          "singer_byol": 2,
+          "consensus": 1
+        },
+        "filled": {
+          "ecapa": 2,
+          "singer_byol": 2,
+          "consensus": 1
+        },
+        "consensus_top_n": 10,
+        "order": "final_score desc",
+        "candidate_count": 272
+      },
+      "language_gate": {
+        "enabled": true,
+        "genres": [
+          "발라드"
+        ],
+        "allowed": [
+          "ko"
+        ],
+        "excluded_count": 99
+      },
+      "range_filter": {
+        "enabled": true,
+        "min_score": 0.35,
+        "excluded_count": 2
+      },
+      "catalog_filter": {
+        "excluded_without_song_id": 0
+      },
+      "pitch_extraction_version": "vocalscope-crepe-viterbi-pyin-notes-v1",
+      "scope": "vocal_timbre_and_observed_range",
+      "feature_weights": {
+        "timbre": 0.75,
+        "range": 0.25
+      },
+      "ranking_score": "continuous weighted fusion",
+      "candidate_strategy": "top_50_per_feature_union",
+      "model_score": {
+        "centroid_weight": 0.3,
+        "symmetric_segment_coverage_weight": 0.7
+      },
+      "normalization": "absolute cosine-derived similarity clipped to [0, 1]",
+      "score_comparability": "pairwise model scores are independent of candidate-set membership; final ranks still depend on which tracks are available",
+      "base_weights": {
+        "ecapa": 0.5,
+        "singer_byol": 0.5
+      },
+      "effective_weights": {
+        "ecapa": 0.5,
+        "singer_byol": 0.5
+      },
+      "weight_reason": "fixed_candidate_independent_weights",
+      "confidence_rule_status": "diagnostic_only_not_used_for_weighting",
+      "range_scoring": {
+        "enabled": true,
+        "fallback_reason": null,
+        "key_shift_semitones": [
+          -6,
+          6
+        ],
+        "observed_range_padding_semitones": 2,
+        "coverage_sigmoid_center": 0.8,
+        "coverage_sigmoid_scale": 0.05,
+        "core_excess_decay_semitones": 4.0,
+        "base_score_weight": 0.7,
+        "soft_fit_weight": 0.3
+      }
+    },
+    "query": {
+      "segments": {
+        "ecapa": 9,
+        "singer_byol": 9
+      },
+      "pitchProfile": {
+        "schemaVersion": 1,
+        "profileKind": "catalog_song",
+        "method": "duration-weighted rounded notes; core 5th-95th percentile",
+        "histogramMidiMin": 36,
+        "histogramMidiMax": 95,
+        "lowestMidi": 52,
+        "highestMidi": 76,
+        "coreLowMidi": 54,
+        "medianMidi": 59,
+        "coreHighMidi": 66,
+        "lowest": "E3",
+        "highest": "E5",
+        "coreRange": "F♯3–F♯4",
+        "noteCount": 242,
+        "voicedSeconds": 144.14,
+        "confidence": 0.7174,
+        "f0AgreementRatio": 0.9223,
+        "octaveMismatchRatio": 0.0102,
+        "comparedFrames": 14381,
+        "reliable": true,
+        "qualityReasons": [],
+        "pitchMethod": "CREPE full (segment Viterbi) + pYIN cross-check + VAD",
+        "separation": {
+          "backend": "htdemucs",
+          "model": "htdemucs",
+          "requested": "htdemucs",
+          "seconds": 19.5
+        }
+      },
+      "pitchError": null
+    },
+    "recommendations": [
+      {
+        "position": 1,
+        "track_id": "tj-00281-52ceab7628c6",
+        "song_id": "tj-00281",
+        "title": "이름 모를 소녀",
+        "artist": "김정호",
+        "metadata": {
+          "album_name": "이름 모를 소녀 / 사랑의 진실",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/38/d2/22/38d222a0-ed01-0bfa-a358-53db00144d3f/525342_Vol_1.jpg/100x100bb.jpg",
+          "genres": [
+            "K-Pop"
+          ],
+          "language": null,
+          "release_date": "1983-02-25",
+          "tj_id": "TJ-00281"
+        },
+        "axis": "SINGER_BYOL",
+        "label": "부르는 방식이 비슷한 가수",
+        "axis_scores": {
+          "ecapa": 0.9557,
+          "singer_byol": 1.0,
+          "consensus": 0.9557
+        },
+        "axis_rank": {
+          "ecapa": 13,
+          "singer_byol": 1
+        },
+        "confidence": 0.9375,
+        "timbre_score": 0.63811,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.993656,
+          "coverage": 0.998316,
+          "centerScore": 1.0,
+          "spanFit": 1.0,
+          "softFit": 0.981409,
+          "keyShift": 0,
+          "songCoreLowMidi": 54,
+          "songCoreHighMidi": 66,
+          "catalogProfileReliable": true,
+          "baseScore": 0.998905,
+          "coverageFit": 0.981409,
+          "boundaryFit": 1.0,
+          "centerDistanceSemitones": 0.0,
+          "lowCoreExcessSemitones": 0.0,
+          "highCoreExcessSemitones": 0.0,
+          "totalCoreExcessSemitones": 0.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "F♯3–F♯4",
+          "shiftedCoreLowMidi": 54,
+          "shiftedCoreHighMidi": 66,
+          "shiftedCoreRange": "F♯3–F♯4",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": 0,
+        "final_score": 0.726997,
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "two-axis-quota-v1"
+      },
+      {
+        "position": 2,
+        "track_id": "tj-00615-c1dbbfa1bbf9",
+        "song_id": "tj-00615",
+        "title": "만남",
+        "artist": "노사연",
+        "metadata": {
+          "album_name": "노사연 2집",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music/71/b5/d6/mzi.igjurutj.jpg/100x100bb.jpg",
+          "genres": [
+            "Pop"
+          ],
+          "language": "ko",
+          "release_date": "1990-01-01",
+          "tj_id": "TJ-00615"
+        },
+        "axis": "ECAPA",
+        "label": "목소리 물성이 가까운 가수",
+        "axis_scores": {
+          "ecapa": 0.9963,
+          "singer_byol": 0.7048,
+          "consensus": 0.7048
+        },
+        "axis_rank": {
+          "ecapa": 2,
+          "singer_byol": 81
+        },
+        "confidence": 0.8887,
+        "timbre_score": 0.485818,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.965393,
+          "coverage": 0.953302,
+          "centerScore": 1.0,
+          "spanFit": 1.0,
+          "softFit": 0.95547,
+          "keyShift": -6,
+          "songCoreLowMidi": 60,
+          "songCoreHighMidi": 70,
+          "catalogProfileReliable": true,
+          "baseScore": 0.969646,
+          "coverageFit": 0.95547,
+          "boundaryFit": 1.0,
+          "centerDistanceSemitones": 0.0,
+          "lowCoreExcessSemitones": 0.0,
+          "highCoreExcessSemitones": 0.0,
+          "totalCoreExcessSemitones": 0.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "C4–A♯4",
+          "shiftedCoreLowMidi": 54,
+          "shiftedCoreHighMidi": 64,
+          "shiftedCoreRange": "F♯3–E4",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": -6,
+        "final_score": 0.605712,
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "two-axis-quota-v1"
+      },
+      {
+        "position": 3,
+        "track_id": "tj-08635-48d8c0341c24",
+        "song_id": "tj-08635",
+        "title": "슬퍼하지 마",
+        "artist": "김종환",
+        "metadata": {
+          "album_name": "사랑을 위하여",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/8f/57/1f/8f571f0f-3a67-8241-4170-118b323afa0a/507699_1.jpg/100x100bb.jpg",
+          "genres": [
+            "K-Pop"
+          ],
+          "language": "ko",
+          "release_date": "1997-06-13",
+          "tj_id": "TJ-08635"
+        },
+        "axis": "CONSENSUS",
+        "label": "두 축 모두 가까운 가수",
+        "axis_scores": {
+          "ecapa": 0.9742,
+          "singer_byol": 0.9852,
+          "consensus": 0.9742
+        },
+        "axis_rank": {
+          "ecapa": 8,
+          "singer_byol": 5
+        },
+        "confidence": 0.9286,
+        "timbre_score": 0.589516,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.5769,
+          "coverage": 0.818768,
+          "centerScore": 0.716531,
+          "spanFit": 0.367879,
+          "softFit": 0.218062,
+          "keyShift": -2,
+          "songCoreLowMidi": 54,
+          "songCoreHighMidi": 74,
+          "catalogProfileReliable": true,
+          "baseScore": 0.730688,
+          "coverageFit": 0.592755,
+          "boundaryFit": 0.367879,
+          "centerDistanceSemitones": 1.0,
+          "lowCoreExcessSemitones": 0.0,
+          "highCoreExcessSemitones": 4.0,
+          "totalCoreExcessSemitones": 4.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "F♯3–D5",
+          "shiftedCoreLowMidi": 52,
+          "shiftedCoreHighMidi": 72,
+          "shiftedCoreRange": "E3–C5",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": -2,
+        "final_score": 0.586362,
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "two-axis-quota-v1"
+      },
+      {
+        "position": 4,
+        "track_id": "tj-52313-1eb7d024e9f1",
+        "song_id": "tj-52313",
+        "title": "다시 돌아온 계절",
+        "artist": "Young K",
+        "metadata": {
+          "album_name": "멋진 신세계, Pt. 2 (Original Soundtrack) - Single",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9e/af/00/9eaf0068-fb51-8755-1b02-f01862948e7c/888272181616.jpg/100x100bb.jpg",
+          "genres": [
+            "Soundtrack"
+          ],
+          "language": "ko",
+          "release_date": "2026-05-16",
+          "tj_id": "TJ-52313"
+        },
+        "axis": "ECAPA",
+        "label": "목소리 물성이 가까운 가수",
+        "axis_scores": {
+          "ecapa": 1.0,
+          "singer_byol": 0.5756,
+          "consensus": 0.5756
+        },
+        "axis_rank": {
+          "ecapa": 1,
+          "singer_byol": 116
+        },
+        "confidence": 0.8648,
+        "timbre_score": 0.476765,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.886209,
+          "coverage": 0.966982,
+          "centerScore": 0.367879,
+          "spanFit": 1.0,
+          "softFit": 0.965764,
+          "keyShift": -3,
+          "songCoreLowMidi": 55,
+          "songCoreHighMidi": 69,
+          "catalogProfileReliable": true,
+          "baseScore": 0.852114,
+          "coverageFit": 0.965764,
+          "boundaryFit": 1.0,
+          "centerDistanceSemitones": 3.0,
+          "lowCoreExcessSemitones": 0.0,
+          "highCoreExcessSemitones": 0.0,
+          "totalCoreExcessSemitones": 0.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "G3–A4",
+          "shiftedCoreLowMidi": 52,
+          "shiftedCoreHighMidi": 66,
+          "shiftedCoreRange": "E3–F♯4",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": -3,
+        "final_score": 0.579126,
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "two-axis-quota-v1"
+      },
+      {
+        "position": 5,
+        "track_id": "tj-32340-67df3434c8e7",
+        "song_id": "tj-32340",
+        "title": "미워요",
+        "artist": "정인",
+        "metadata": {
+          "album_name": "정인 From Andromeda - EP",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/51/57/fe/5157fe31-8775-7d10-fa09-526b5d6ccf23/8809829771793.jpg/100x100bb.jpg",
+          "genres": [
+            "K-Pop"
+          ],
+          "language": "ko",
+          "release_date": "2010-03-11",
+          "tj_id": "TJ-32340"
+        },
+        "axis": "SINGER_BYOL",
+        "label": "부르는 방식이 비슷한 가수",
+        "axis_scores": {
+          "ecapa": 0.7306,
+          "singer_byol": 0.9963,
+          "consensus": 0.7306
+        },
+        "axis_rank": {
+          "ecapa": 74,
+          "singer_byol": 2
+        },
+        "confidence": 0.8188,
+        "timbre_score": 0.556033,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.6451,
+          "coverage": 0.848923,
+          "centerScore": 1.0,
+          "spanFit": 0.367879,
+          "softFit": 0.267376,
+          "keyShift": -5,
+          "songCoreLowMidi": 56,
+          "songCoreHighMidi": 76,
+          "catalogProfileReliable": true,
+          "baseScore": 0.806982,
+          "coverageFit": 0.726803,
+          "boundaryFit": 0.367879,
+          "centerDistanceSemitones": 0.0,
+          "lowCoreExcessSemitones": 1.0,
+          "highCoreExcessSemitones": 3.0,
+          "totalCoreExcessSemitones": 4.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "G♯3–E5",
+          "shiftedCoreLowMidi": 51,
+          "shiftedCoreHighMidi": 71,
+          "shiftedCoreRange": "D♯3–B4",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": -5,
+        "final_score": 0.5783,
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "two-axis-quota-v1"
+      }
+    ],
+    "catalog_track_count": 373,
+    "limitations": [
+      "The uploaded clip measures only the observed sung range, not the user's physiological or fully comfortable range.",
+      "Range fit uses the robust 5th-95th percentile and allows song transposition by up to 6 semitones.",
+      "Absolute cosine-derived similarity is a stable pairwise score, not a calibrated success probability.",
+      "Genre, mood, likes, and accumulated user profile are not used."
+    ],
+    "model_diagnostics": {
+      "ecapa": {
+        "top1_track_id": "tj-08635-48d8c0341c24",
+        "top1_margin": 0.0035088658332824707,
+        "margin_threshold": 0.06,
+        "margin_high": false,
+        "stable_track_id": "tj-00408-f79db3fb4695",
+        "stable_top1_votes": 1,
+        "query_segment_count": 9,
+        "minimum_stable_votes": 5,
+        "stability_high": false,
+        "high_confidence": false
+      },
+      "singer_byol": {
+        "top1_track_id": "tj-00281-52ceab7628c6",
+        "top1_margin": 0.10373228788375854,
+        "margin_threshold": 0.079,
+        "margin_high": true,
+        "stable_track_id": "tj-00281-52ceab7628c6",
+        "stable_top1_votes": 4,
+        "query_segment_count": 9,
+        "minimum_stable_votes": 5,
+        "stability_high": false,
+        "high_confidence": true
+      }
+    },
+    "candidate_union_count": 373
+  },
+  "error": null,
+  "sample_note": "합성 샘플: 카탈로그 곡 tj-00140-3d9817e2f1a0(하얀 나비 / 김정호) 의 임베딩·음역 프로파일을 사용자 입력으로 사용"
+}

@@ -20,7 +20,9 @@ import soundfile as sf
 
 from pitch_engine import extract_vocal_melody
 from pitch_profile import summarize_pitch_profile
+from schemas import RecommendResult
 from timbre_recommender.catalog import CatalogIndex
+from timbre_recommender.composition import apply_composition
 from timbre_recommender.embedding import embed_vocal_audio
 from timbre_recommender.pitch_range import RANGE_CATALOG_FILENAME, RangeCatalog
 from timbre_recommender.scoring import RankerConfig, recommend
@@ -33,6 +35,7 @@ JOBS_DIR = WORKSPACE / "jobs"
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".webm"}
 MAX_BYTES = 250 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
+CANDIDATE_POOL = 400  # compose 전에 후보 전체를 받는다. 최종 개수는 topK 가 정한다.
 LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
@@ -131,6 +134,7 @@ def _process(
     top_k: int,
     mode: str,
     excluded_track_ids: tuple[str, ...],
+    genres: tuple[str, ...] = (),
 ) -> None:
     job_dir = input_path.parent
     try:
@@ -187,13 +191,15 @@ def _process(
                     "ecapa": np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
                     "singer_byol": np.load(f"{prefix}.singer_byol.npy", allow_pickle=False),
                 },
-                config=RankerConfig(top_k=top_k),
+                config=RankerConfig(top_k=CANDIDATE_POOL),
                 excluded_track_ids=excluded_track_ids,
                 query_pitch_profile=pitch_profile,
                 catalog_pitch_profiles=ranges.profiles if pitch_profile is not None else None,
                 mode=mode,
             )
             result["query"]["pitchError"] = pitch_error
+            result = apply_composition(result, top_k=top_k, genres=genres)
+            result = RecommendResult.model_validate(result).model_dump()   # 응답 스키마 고정(schemas.py)
         _update(
             job_id,
             status="complete",
@@ -272,6 +278,7 @@ async def create_recommendation(
     topK: int = Form(10),
     mode: str = Form("timbre"),
     sourceTrackId: str = Form(""),
+    genres: list[str] = Form([]),
 ) -> dict[str, Any]:
     config, missing = _configuration_status()
     if missing:
@@ -309,6 +316,7 @@ async def create_recommendation(
         "filename": audio.filename,
         "mode": mode,
         "sourceTrackId": source_track_id or None,
+        "genres": [g.strip() for g in genres if g and g.strip()],
         "createdAt": time.time(),
         "status": "queued",
         "progress": 8,
@@ -324,6 +332,7 @@ async def create_recommendation(
         max(1, min(int(topK), 20)),
         mode,
         excluded_track_ids,
+        tuple(JOBS[job_id]["genres"]),
     )
     return JOBS[job_id]
 

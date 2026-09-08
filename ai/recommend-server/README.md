@@ -25,10 +25,26 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 |---|---|---|
 | `GET /health` | — | `{ok, service, version}` |
 | `GET /recommendations/status` | — | 카탈로그 곡 수·모델·누락 설정 |
-| `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`, `mode=timbre\|range`, `sourceTrackId` | job `{id, status, progress, message}` |
+| `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(≤20), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복 가능, 온보딩 선호 장르) | job `{id, status, progress, message, genres}` |
 | `GET /recommendations/{jobId}` | — | job. `status=complete` 면 `result.recommendations[]` |
 
-응답 스키마 고정과 `compose_two_axis` 연결은 다음 단계. 고정되면 `docs/sample-response.json` 이 FE DTO 의 원본이 된다.
+**응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
+(카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
+
+`result.recommendations[]` 한 항목:
+
+| 필드 | 뜻 |
+|---|---|
+| `position` | 목록 위치 1~. **`final_score` 내림차순**이라 앞일수록 적합. 화면의 "적합할수록 크게" 규칙과 같은 뜻. 클라이언트 재정렬 금지 |
+| `song_id` | 앱 `songs.song_id` (`tj-번호`). `metadata.tj_id` 에서 유도 |
+| `axis`, `label` | 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안, 없으면 자리 비움) |
+| `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |
+| `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(반음). 사용자 음역 프로파일이 없으면 null |
+| `final_score` | 최종 점수. 클라이언트 계산 금지 |
+| `scoring_version`, `composition_version` | 이벤트 로그에 함께 기록 |
+
+`result.algorithm` 에 `composition`(quota·pattern), `language_gate`(장르→허용 언어, 제외 수), `range_filter`(음역 하한, 제외 수), `catalog_filter` 가 실린다.
+게이트 규칙: `genres` 없음 → 전체 언어. `팝`→en, 그 외 장르→ko. 카탈로그 언어는 ISO 639-2(kor/eng/jpn), mul·zxx 는 항상 통과. 값은 `timbre_recommender/composition.py` 상단 상수.
 
 ## 테스트
 

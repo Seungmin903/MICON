@@ -1,0 +1,598 @@
+{
+  "$defs": {
+    "Algorithm": {
+      "additionalProperties": true,
+      "description": "scoring.recommend() 의 algorithm 블록 + 배치·게이트. 알려지지 않은 필드는 통과.",
+      "properties": {
+        "scoring_version": {
+          "title": "Scoring Version",
+          "type": "string"
+        },
+        "range_scoring_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Range Scoring Version"
+        },
+        "requested_mode": {
+          "title": "Requested Mode",
+          "type": "string"
+        },
+        "applied_mode": {
+          "title": "Applied Mode",
+          "type": "string"
+        },
+        "composition": {
+          "$ref": "#/$defs/Composition"
+        },
+        "language_gate": {
+          "$ref": "#/$defs/LanguageGate"
+        },
+        "range_filter": {
+          "$ref": "#/$defs/RangeFilter"
+        },
+        "catalog_filter": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Catalog Filter",
+          "type": "object"
+        }
+      },
+      "required": [
+        "scoring_version",
+        "requested_mode",
+        "applied_mode",
+        "composition",
+        "language_gate",
+        "range_filter",
+        "catalog_filter"
+      ],
+      "title": "Algorithm",
+      "type": "object"
+    },
+    "AxisScores": {
+      "description": "축별 0~1 백분위. 표시용이 아니라 로그·디버그용.",
+      "properties": {
+        "ecapa": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ecapa",
+          "type": "number"
+        },
+        "singer_byol": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Singer Byol",
+          "type": "number"
+        },
+        "consensus": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Consensus",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ecapa",
+        "singer_byol",
+        "consensus"
+      ],
+      "title": "AxisScores",
+      "type": "object"
+    },
+    "Composition": {
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "quota": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "축별 할당 수",
+          "title": "Quota",
+          "type": "object"
+        },
+        "filled": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "실제 채운 수. consensus 가 모자라면 다른 축이 채움",
+          "title": "Filled",
+          "type": "object"
+        },
+        "consensus_top_n": {
+          "title": "Consensus Top N",
+          "type": "integer"
+        },
+        "order": {
+          "description": "배치 순서 규칙. final_score desc",
+          "title": "Order",
+          "type": "string"
+        },
+        "candidate_count": {
+          "title": "Candidate Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "quota",
+        "filled",
+        "consensus_top_n",
+        "order",
+        "candidate_count"
+      ],
+      "title": "Composition",
+      "type": "object"
+    },
+    "LanguageGate": {
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "genres": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "allowed": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Allowed"
+        },
+        "excluded_count": {
+          "title": "Excluded Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "genres",
+        "allowed",
+        "excluded_count"
+      ],
+      "title": "LanguageGate",
+      "type": "object"
+    },
+    "RangeFilter": {
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "min_score": {
+          "title": "Min Score",
+          "type": "number"
+        },
+        "excluded_count": {
+          "title": "Excluded Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "min_score",
+        "excluded_count"
+      ],
+      "title": "RangeFilter",
+      "type": "object"
+    },
+    "RangeFit": {
+      "additionalProperties": true,
+      "description": "음역 적합도 상세 (`vocal-range-keyshift-continuous-v2`). 나머지 서버 필드는 통과시킨다.",
+      "properties": {
+        "scoringVersion": {
+          "title": "Scoringversion",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "coverage": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Coverage",
+          "type": "number"
+        },
+        "centerScore": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Centerscore",
+          "type": "number"
+        },
+        "spanFit": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Spanfit",
+          "type": "number"
+        },
+        "softFit": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Softfit",
+          "type": "number"
+        },
+        "keyShift": {
+          "title": "Keyshift",
+          "type": "integer"
+        },
+        "songCoreLowMidi": {
+          "title": "Songcorelowmidi",
+          "type": "integer"
+        },
+        "songCoreHighMidi": {
+          "title": "Songcorehighmidi",
+          "type": "integer"
+        },
+        "catalogProfileReliable": {
+          "title": "Catalogprofilereliable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scoringVersion",
+        "score",
+        "coverage",
+        "centerScore",
+        "spanFit",
+        "softFit",
+        "keyShift",
+        "songCoreLowMidi",
+        "songCoreHighMidi",
+        "catalogProfileReliable"
+      ],
+      "title": "RangeFit",
+      "type": "object"
+    },
+    "RecommendResult": {
+      "additionalProperties": true,
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/Algorithm"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        },
+        "recommendations": {
+          "items": {
+            "$ref": "#/$defs/Recommendation"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "catalog_track_count": {
+          "title": "Catalog Track Count",
+          "type": "integer"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "algorithm",
+        "query",
+        "recommendations",
+        "catalog_track_count"
+      ],
+      "title": "RecommendResult",
+      "type": "object"
+    },
+    "Recommendation": {
+      "properties": {
+        "position": {
+          "description": "목록 위치. 서버가 정한 순서이며 클라이언트는 재정렬하지 않는다",
+          "minimum": 1,
+          "title": "Position",
+          "type": "integer"
+        },
+        "track_id": {
+          "description": "카탈로그 내부 id",
+          "title": "Track Id",
+          "type": "string"
+        },
+        "song_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "앱 songs.song_id (tj-번호). tj_id 로부터 유도",
+          "title": "Song Id"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "artist": {
+          "title": "Artist",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/TrackMetadata"
+        },
+        "axis": {
+          "enum": [
+            "ECAPA",
+            "SINGER_BYOL",
+            "CONSENSUS"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "label": {
+          "description": "화면에 그대로 표시하는 문구",
+          "title": "Label",
+          "type": "string"
+        },
+        "axis_scores": {
+          "$ref": "#/$defs/AxisScores"
+        },
+        "axis_rank": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "후보군 안 축별 순위(1~). 로그용",
+          "title": "Axis Rank",
+          "type": "object"
+        },
+        "confidence": {
+          "description": "해당 축의 query 구간 일치율. 로그·진단용, 순서에 쓰지 않음",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "timbre_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Timbre Score",
+          "type": "number"
+        },
+        "range_fit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RangeFit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "사용자 음역 프로파일이 없거나 신뢰도가 낮으면 null"
+        },
+        "recommended_key": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "반음. range_fit 이 null 이면 null",
+          "title": "Recommended Key"
+        },
+        "final_score": {
+          "description": "서버 최종 점수. 클라이언트 계산 금지",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Final Score",
+          "type": "number"
+        },
+        "scoring_version": {
+          "title": "Scoring Version",
+          "type": "string"
+        },
+        "composition_version": {
+          "title": "Composition Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position",
+        "track_id",
+        "song_id",
+        "title",
+        "artist",
+        "metadata",
+        "axis",
+        "label",
+        "axis_scores",
+        "axis_rank",
+        "confidence",
+        "timbre_score",
+        "range_fit",
+        "recommended_key",
+        "final_score",
+        "scoring_version",
+        "composition_version"
+      ],
+      "title": "Recommendation",
+      "type": "object"
+    },
+    "TrackMetadata": {
+      "properties": {
+        "album_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Album Name"
+        },
+        "display_image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Image Url"
+        },
+        "genres": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Genres",
+          "type": "array"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "enum": [
+                "ko",
+                "en",
+                "jp"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "release_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Release Date"
+        },
+        "tj_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tj Id"
+        }
+      },
+      "title": "TrackMetadata",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "POST /recommendations(202) 와 GET /recommendations/{id} 의 응답.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "processing",
+        "complete",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "progress": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Progress",
+      "type": "integer"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "mode": {
+      "title": "Mode",
+      "type": "string"
+    },
+    "genres": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Genres",
+      "type": "array"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RecommendResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "progress",
+    "message",
+    "mode"
+  ],
+  "title": "Job",
+  "type": "object"
+}
