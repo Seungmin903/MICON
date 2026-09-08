@@ -11,6 +11,8 @@ data class RefNoteInput(
     val sourceEnd: Double? = null,
     val start: Double? = null,
     val end: Double? = null,
+    val lyricStart: Double? = null,
+    val lyricEnd: Double? = null,
 )
 
 /** 원곡 음표를 LiveNote 로 정규화 (live-scoring.tsx `refNotes` useMemo L257–275). */
@@ -35,6 +37,8 @@ object NoteNormalizer {
                     lyric = note.lyric,
                     measure = note.scoreStartBeat?.let { floor(it / meter).toInt() } ?: floor(start / 2).toInt(),
                     weight = (end - start).coerceIn(0.1, 1.5),
+                    lyricStart = note.lyricStart?.takeIf { it >= start - 0.5 && it <= end + 0.5 },
+                    lyricEnd = note.lyricEnd?.takeIf { it >= start - 0.5 && it <= end + 1.0 },
                 )
             }
     }

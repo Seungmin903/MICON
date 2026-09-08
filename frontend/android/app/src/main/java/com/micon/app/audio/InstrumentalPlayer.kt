@@ -51,6 +51,24 @@ class InstrumentalPlayer(context: Context, okHttp: OkHttpClient) {
     val isPlaying: Boolean get() = player.isPlaying
     val isEnded: Boolean get() = player.playbackState == Player.STATE_ENDED
     val isReady: Boolean get() = player.playbackState == Player.STATE_READY
+    val isBuffering: Boolean get() = player.playbackState == Player.STATE_BUFFERING
+    val isIdle: Boolean get() = player.playbackState == Player.STATE_IDLE
+
+    /**
+     * 스트림이 재생 가능(STATE_READY)해질 때까지 기다린다. 오류·IDLE 이면 false, [timeoutMs] 초과도 false.
+     * 카운트다운 전에 호출해 "소리 없이 타이머만 흐르는" 상황을 막는다.
+     */
+    suspend fun awaitReady(timeoutMs: Long = 8000): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            when (player.playbackState) {
+                Player.STATE_READY -> return true
+                Player.STATE_IDLE -> return false      // prepare 전 또는 오류
+                else -> kotlinx.coroutines.delay(80)
+            }
+        }
+        return player.playbackState == Player.STATE_READY
+    }
 
     fun seekTo(seconds: Double) = player.seekTo((seconds * 1000).toLong().coerceAtLeast(0))
     fun play() = player.play()
