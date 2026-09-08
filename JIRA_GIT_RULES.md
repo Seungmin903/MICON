@@ -1,4 +1,4 @@
-# S15P21B110 Jira·Git 운영 규칙 (V3.0)
+# S15P21B110 Jira·Git 운영 규칙 (V3.1)
 
 > 이 문서는 Claude / Codex 등 AI 에이전트가 이 프로젝트에 Jira 이슈를 만들 때 반드시 따라야 하는 규칙입니다.
 > 팀원이 직접 이슈를 만들거나 Git을 쓸 때의 기준도 동일합니다.
@@ -9,6 +9,7 @@
 - **Jira 프로젝트**: `S15P21B110` (cloudId: `ssafy.atlassian.net`)
 - **파일명에는 버전을 넣지 않는다.** 이 문서는 항상 `JIRA_GIT_RULES.md` 하나이고, 버전은 제목과 아래 개정 이력에만 적는다. 버전별 파일명(`_V1`, `_V2`, `_V3`)은 git에 서로 다른 파일이라 옛 판이 조용히 되살아난다 — 실제로 폐기된 V1이 다른 MR에 실려 develop에 재유입된 사고가 있었다. 같은 파일이면 옛 판을 들고 와도 **충돌로 드러난다.**
 - **개정 V3.0 (2026-09-07)**: 파일명에서 버전 제거(`JIRA_GIT_RULES_V1.md` → `JIRA_GIT_RULES.md`, 개명) · 브랜치 형식을 `타입/설명` 하나로 확정(파트 세그먼트 없음) · 커밋의 이슈 키를 선택으로(MR 제목 키가 Jira 연결 담당, squash 근거) · **커밋 형식 검사 훅 폐지 — 규칙은 문서와 MR 리뷰로 지킨다** · MR 자동 생성 룰 A0 예고와 MR 템플릿 파일(`.gitlab/merge_request_templates/Default.md`) · CLAUDE.md 참조 동기화 · 절 번호 정리 · 최신 develop 분기 절차 추가. 이전 판(V1.2, V1.3, V2.0)은 폐기.
+- **개정 V3.1 (2026-09-08)**: 브랜치 형식에 파트 세그먼트 복원 — `타입/파트/설명`. FE와 BE가 같은 기능을 같은 주에 만들면 `feat/analysisReport`가 두 사람 것으로 원격에서 충돌하고, 브랜치 목록에서 누구 것인지 걸러볼 수 없다. V3.0의 "파트는 이슈·MR 제목이 담당한다"는 Jira 연결에 대한 말이고, 브랜치 이름 충돌은 별개 문제였다.
 
 ---
 
@@ -240,17 +241,19 @@ feat|fix|...  ──(develop에서 분기)──▶ MR ──▶ develop
 ### 브랜치
 
 ```
-타입/간단한설명(camelCase)
-예) feat/voiceRangeTest, fix/pitchOffset, docs/timbreExperiment
+타입/파트/간단한설명(camelCase)
+예) feat/fe/micPermission, feat/be/analysisReport, fix/ai/pitchOffset, docs/ai/timbreExperiment
 ```
 
+* **파트는 소문자 파트 코드** (`fe` `be` `ai` `infra` `plan` `pm` `qa` `design`). 1번 표의 코드와 1:1이고, 표에 없는 값을 쓰지 않는다.
+
 * **브랜치 이름에 이슈 키를 넣지 않는다.** Jira 연결은 MR 제목의 이슈 키가 담당한다(커밋 키는 선택). 키를 브랜치에까지 넣으면 `feat/S15P21B110-12_...`처럼 길어져 읽히지 않는다.
-* **GitLab 이슈 화면의 "브랜치 생성" 버튼을 쓰지 않는다.** 이슈 제목을 그대로 붙여 `S15P21B110-98-추천-노래-추천-알고리즘-연속-점수화-개선-및-...` 같은 이름이 만들어진다. 로컬에서 `git switch -c feat/짧은이름`으로 딴다.
+* **GitLab 이슈 화면의 "브랜치 생성" 버튼을 쓰지 않는다.** 이슈 제목을 그대로 붙여 `S15P21B110-98-추천-노래-추천-알고리즘-연속-점수화-개선-및-...` 같은 이름이 만들어진다. 로컬에서 `git switch -c feat/fe/짧은이름`으로 딴다.
 * 설명은 2~3단어 camelCase. 한글·공백·이슈 제목 복붙 금지.
-* **파트 코드는 브랜치 이름에 넣지 않는다** (`feat/ai/timbreScoring` ❌ → `feat/timbreScoring` ⭕). 파트는 이슈 제목의 `[파트]`와 MR 제목의 `(파트)`가 담당한다. 이전 CLAUDE.md의 `타입/파트/설명` 형식은 폐기.
+* **파트 세그먼트는 이름 충돌 방지용이다.** FE와 BE가 같은 기능(예: 분석 리포트)을 같은 주에 만든다. 파트가 없으면 두 사람이 `feat/analysisReport`를 push해 원격에서 충돌하고, 브랜치 목록에서 파트별로 걸러볼 수도 없다. Jira 연결과는 무관하다 — 그건 여전히 MR 제목의 키가 담당한다. (V3.0에서 뺐다가 V3.1에서 복원.)
 * **항상 최신 develop에서 딴다**:
   ```
-  git fetch origin && git switch -c feat/짧은이름 origin/develop
+  git fetch origin && git switch -c feat/fe/짧은이름 origin/develop
   ```
   다른 작업 브랜치나 옛 커밋에서 따면 develop과 히스토리가 끊겨 MR 자체가 불가능해진다(실제 사례: 저장소 초기화 이전 커밋에서 딴 브랜치 2개가 고아 상태). 타입 접두어 없는 브랜치(`recommend-algo`)도 만들지 않는다.
 
