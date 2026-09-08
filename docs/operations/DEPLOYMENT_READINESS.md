@@ -92,6 +92,10 @@
 현재 검증 브랜치를 임의로 main/develop으로 전환하지 않고 MR 리뷰·합의 후 자동 트리거를 연결한다.
 기존 Jenkins 저장소 URL 내장 토큰은 Credentials 이전 및 교체가 필요하다. 권한 범위를 확인한 뒤 사용자가 비밀값을 직접 입력하는 방식으로 처리한다.
 
+2026-09-07 사용자 결정으로 **Jenkins → GitLab 빌드 결과 전송을 제외**했다. 이를 위한 전역 Connection·`api` 토큰은 배포 선행 조건이나 후속 필수 과제로 두지 않는다. **GitLab → Jenkins 자동 빌드 트리거, Jenkins 내부 결과/산출물 보관, 실패 시 배포 중단·health/readiness 검증은 유지**한다. SSAFY Outbound WebHook 및 GitLab–Jira 연동도 유지한다.
+
+리뷰어는 MR의 소스 SHA와 일치하는 Jenkins 빌드 URL·상태·테스트 보고서를 확인한다. GitLab의 머지 가능 표시만으로 테스트 성공을 판단하지 않는다. 세부 기준은 [Android CI 범위와 리뷰 절차](JENKINS_ANDROID_CI.md)를 따른다.
+
 ## 아직 하지 않은 작업
 
 BE/AI/DB 운영 배포, 앱 운영 주소 빌드·실기기 QA, 서버 main 자동 배포, Release APK 서명·다운로드 배포, 실제 서버 재부팅·롤백 시험은 미완료다. 체크된 기반 설정만으로 관련 Jira 이슈 전체를 Done으로 바꾸지 않는다.

@@ -77,6 +77,8 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 
 공유 CI 근거는 Jenkins #4의 단위 테스트 21개 통과, Debug APK 생성·LFS·서명 검증이다. **이 안내 자체를 새 PC에서 끝까지 재현하거나 새 통합 브랜치를 재빌드한 결과는 아니다.** 최신 코드 재현 중 오류가 나면 커밋·JDK/SDK 버전·실패 task를 남기되 비밀값은 가린다.
 
+2026-09-07 결정: GitLab MR의 자동 빌드 결과 표시는 구현하지 않는다. 자동 빌드 트리거는 유지하며 결과는 Jenkins에서 확인한다. MR 리뷰 때 소스 커밋 SHA가 일치하는 빌드 URL·번호·테스트 결과를 기록하고 확인한다. `Ready to merge`만으로 CI 통과를 판단하지 않는다. [상세 CI 범위](JENKINS_ANDROID_CI.md)
+
 ### USB 실기기에서 내 PC 연결
 
 휴대폰에서 직접 개발자 옵션·USB 디버깅을 허용하고 PC 연결을 승인한다. `adb`가 PATH에 없다면 SDK의 `platform-tools` 폴더에서 실행한다.
