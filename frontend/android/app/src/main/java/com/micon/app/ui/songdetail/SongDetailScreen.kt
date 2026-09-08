@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.audio.InstrumentalPlayer
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongRepository
 import com.micon.app.data.engine.EngineClient
@@ -60,12 +61,14 @@ class SongDetailViewModel(
     appContext: Context,
     private val repo: SongRepository,
     private val engine: EngineClient,
+    private val recommend: RecommendRepository,
     private val songId: String,
 ) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
         val detail: SongDetail? = null,
+        val recommendedKey: Int? = null,                        // RecommendRepository.fit. null = 평가 불가
         val melody: List<Pair<Double, Double>> = emptyList(),   // (초, MIDI) 다운샘플
         val playing: Boolean = false,
         val positionSec: Double = 0.0,
@@ -96,8 +99,9 @@ class SongDetailViewModel(
             try {
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
                 val notes = runCatching { repo.karaokeNotes(songId) }.getOrNull() ?: emptyList()
+                val fit = runCatching { recommend.fit(songId) }.getOrNull()
                 _state.update {
-                    it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0)
+                    it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0, recommendedKey = fit?.recommendedKey)
                 }
                 if (detail.hasInstrumental) player.load(engine.instrumentalUrl(songId, 0))
             } catch (e: Exception) {
@@ -138,7 +142,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(
         key = "song-$songId",
-        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.engine, songId) } },
+        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.engine, container.recommend, songId) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
@@ -168,7 +172,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
                         if (state.melody.isEmpty()) {
                             Text("분석된 음표가 없어 그래프를 그릴 수 없습니다.", fontSize = 13.sp, color = Grey, modifier = Modifier.padding(vertical = 40.dp))
                         } else {
-                            val key = UserStore.recommendedKey(songId, a?.highestMidi) ?: 0
+                            val key = state.recommendedKey ?: 0
                             KeyChangeGraph(
                                 melody = state.melody,
                                 shifted = if (key != 0) state.melody.map { it.first to it.second + key } else null,

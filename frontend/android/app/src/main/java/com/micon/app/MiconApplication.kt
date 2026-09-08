@@ -4,8 +4,10 @@ import android.app.Application
 import android.content.Context
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.core.network.BackendClient
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.engine.EngineClient
+import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.sqlite.SqliteSongRepository
 
 class MiconApplication : Application() {
@@ -39,6 +41,12 @@ class AppContainer(context: Context) {
      * 백엔드 API 가 생기면 Retrofit 구현으로 교체하고 sqlite 구현·asset 은 삭제한다.
      */
     val songs: SongRepository = SqliteSongRepository(context, EngineClient.moshi)
+
+    /**
+     * 추천·적합도. 현재는 앱 안 계산(음역만). 추천 서버(8788) 응답을 매핑하는 Remote 구현이 생기면 교체한다.
+     * 화면은 인터페이스만 보므로 교체 시 UI 수정은 없다.
+     */
+    val recommend: RecommendRepository = LocalRecommendRepository(songs)
 }
 
 val Context.appContainer: AppContainer

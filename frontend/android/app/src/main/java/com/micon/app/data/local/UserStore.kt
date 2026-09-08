@@ -66,13 +66,5 @@ object UserStore {
 
     fun addSetlist(name: String) = _setlists.update { it + Setlist("sl-${System.currentTimeMillis()}", name, emptyList()) }
 
-    /**
-     * 추천 키(song_fit.recommended_key) 임시값. 트레이너 답변 "최고음보다 3키 낮게" 후보를 흉내낸다.
-     * 곡 최고음이 없으면 id 해시로 0/+1/+2/없음 중 하나를 준다(목록 배지 예시용).
-     */
-    fun recommendedKey(songId: String, songHighMidi: Int? = null): Int? {
-        val p = _profile.value
-        if (songHighMidi != null && p != null) return (p.comfortHigh - songHighMidi + 3).coerceIn(-6, 5)
-        return when (Math.floorMod(songId.hashCode(), 4)) { 0 -> 0; 1 -> 1; 2 -> 2; else -> null }
-    }
+    // 추천 키·적합도는 RecommendRepository(LocalRecommendRepository) 가 계산한다. 임시 recommendedKey() 는 제거했다.
 }

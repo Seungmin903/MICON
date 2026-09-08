@@ -57,7 +57,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
+import com.micon.app.data.RecommendMode
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongDetail
+import com.micon.app.data.SongFit
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.local.UserStore
@@ -88,13 +91,21 @@ import com.micon.app.ui.theme.PurpleMid
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------
 // 추천곡
 // ---------------------------------------------------------------------------
 
-class RecommendViewModel(private val repo: SongRepository) : ViewModel() {
-    data class State(val query: String = "", val songs: List<SongSummary> = emptyList(), val loading: Boolean = true, val error: String? = null)
+class RecommendViewModel(private val songs: SongRepository, private val recommend: RecommendRepository) : ViewModel() {
+    data class State(
+        val query: String = "",
+        val songs: List<SongSummary> = emptyList(),
+        /** false = 기본 추천(프로필 없음). 개인화 문구를 쓰지 않는다(REC-004) */
+        val personalized: Boolean = false,
+        val loading: Boolean = true,
+        val error: String? = null,
+    )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
@@ -106,9 +117,16 @@ class RecommendViewModel(private val repo: SongRepository) : ViewModel() {
     fun load() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            // TODO: 백엔드 추천 API(음성 프로필 기반 top6). 지금은 분석 완료 곡 중 앞 7곡.
-            runCatching { repo.search(_state.value.query, analyzedOnly = true, limit = 7) }
-                .onSuccess { _state.value = _state.value.copy(songs = it, loading = false) }
+            val query = _state.value.query
+            runCatching {
+                if (query.isBlank()) {
+                    val r = recommend.recommend(RecommendMode.RANGE, limit = 7)      // 순서는 저장소가 정한 그대로
+                    r.items.map { it.song } to r.personalized
+                } else {
+                    songs.search(query, analyzedOnly = true, limit = 7) to false
+                }
+            }
+                .onSuccess { (list, personalized) -> _state.value = _state.value.copy(songs = list, personalized = personalized, loading = false) }
                 .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString()) }
         }
     }
@@ -118,7 +136,7 @@ class RecommendViewModel(private val repo: SongRepository) : ViewModel() {
 @Composable
 fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
-    val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs) } })
+    val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
     var carousel by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf<String?>(null) }
@@ -128,10 +146,13 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
         MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
         Spacer(Modifier.height(22.dp))
         Row(Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("이런 노래는 어때요?", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+            Text(if (state.personalized) "이런 노래는 어때요?" else "기본 추천", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
             IconButton(onClick = { carousel = !carousel }) {
                 Icon(if (carousel) Icons.Outlined.BubbleChart else Icons.Outlined.ViewCarousel, "배치 전환", tint = Grey)
             }
+        }
+        if (!state.personalized && !state.loading) {
+            Text("목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요", fontSize = 13.sp, color = Grey, modifier = Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -197,11 +218,12 @@ private fun VinylCarousel(songs: List<SongSummary>, onSongClick: (String) -> Uni
 // song-match-detail (곡 분석 및 추천)
 // ---------------------------------------------------------------------------
 
-class SongMatchViewModel(private val repo: SongRepository, private val songId: String) : ViewModel() {
+class SongMatchViewModel(private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String) : ViewModel() {
     sealed interface State {
         data object Loading : State
         data class Error(val message: String) : State
-        data class Ready(val detail: SongDetail) : State
+        /** fit == null 이면 평가 불가(프로필 없음 또는 곡 음역 정보 없음, ERR-004) */
+        data class Ready(val detail: SongDetail, val fit: SongFit?) : State
     }
 
     private val _state = MutableStateFlow<State>(State.Loading)
@@ -212,8 +234,8 @@ class SongMatchViewModel(private val repo: SongRepository, private val songId: S
     fun load() {
         viewModelScope.launch {
             _state.value = State.Loading
-            _state.value = runCatching { repo.detail(songId) }.fold(
-                onSuccess = { it?.let { d -> State.Ready(d) } ?: State.Error("곡을 찾을 수 없습니다: $songId") },
+            _state.value = runCatching { repo.detail(songId) to recommend.fit(songId) }.fold(
+                onSuccess = { (d, fit) -> d?.let { State.Ready(it, fit) } ?: State.Error("곡을 찾을 수 없습니다: $songId") },
                 onFailure = { State.Error(it.message ?: it.toString()) },
             )
         }
@@ -230,7 +252,7 @@ fun karaokeOctaveName(midi: Int): String {
 @Composable
 fun SongMatchDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit) {
     val container = rememberAppContainer()
-    val vm: SongMatchViewModel = viewModel(key = "match-$songId", factory = viewModelFactory { initializer { SongMatchViewModel(container.songs, songId) } })
+    val vm: SongMatchViewModel = viewModel(key = "match-$songId", factory = viewModelFactory { initializer { SongMatchViewModel(container.songs, container.recommend, songId) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
 
@@ -239,25 +261,29 @@ fun SongMatchDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> 
         when (val s = state) {
             SongMatchViewModel.State.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             is SongMatchViewModel.State.Error -> RetryBlock(s.message, vm::load)
-            is SongMatchViewModel.State.Ready -> MatchBody(s.detail, profile ?: UserStore.VoiceProfile(), onPractice)
+            is SongMatchViewModel.State.Ready -> MatchBody(s.detail, s.fit, profile, onPractice)
         }
     }
 }
 
+/**
+ * 곡 분석 및 추천 본문. 적합도·추천 키·부담 구간은 [SongFit] 을 **그리기만** 한다(계산은 RecommendRepository).
+ * fit == null → "평가 불가" (프로필 없음 또는 곡 음역 정보 없음, ERR-004). 음색·리듬은 데이터가 없으면 0점이 아닌 "평가 불가".
+ */
 @Composable
-private fun MatchBody(detail: SongDetail, profile: UserStore.VoiceProfile, onPractice: () -> Unit) {
+private fun MatchBody(detail: SongDetail, fit: SongFit?, profile: UserStore.VoiceProfile?, onPractice: () -> Unit) {
     val song = detail.summary
     val a = detail.analysis
     val songLow = a?.lowestMidi ?: 60
     val songHigh = a?.highestMidi ?: 72
-    // 적합도(임시 공식, 요구사항 §15 미확정): 곡 음역이 내 음역 안에 들어오는 비율 + 편안 음역 가중
-    val inside = (minOf(songHigh, profile.highMidi) - maxOf(songLow, profile.lowMidi)).coerceAtLeast(0).toFloat() / (songHigh - songLow).coerceAtLeast(1)
-    val comfort = (minOf(songHigh, profile.comfortHigh) - maxOf(songLow, profile.comfortLow)).coerceAtLeast(0).toFloat() / (songHigh - songLow).coerceAtLeast(1)
-    val fit = (55 + inside * 30 + comfort * 15).toInt().coerceIn(0, 99)
-    val fitLabel = when { fit >= 90 -> "찰떡궁합!"; fit >= 75 -> "잘 맞아요"; else -> "도전해 보세요" }
-    val recommendedKey = UserStore.recommendedKey(song.id, songHigh) ?: 0
-    val axisLow = minOf(songLow, profile.lowMidi) - 2
-    val axisHigh = maxOf(songHigh, profile.highMidi) + 2
+    val userLow = profile?.lowMidi ?: songLow
+    val userHigh = profile?.highMidi ?: songHigh
+    val fitPct = fit?.let { (it.overallFit * 100).roundToInt() }
+    val fitLabel = when { fitPct == null -> "평가 불가"; fitPct >= 90 -> "찰떡궁합!"; fitPct >= 75 -> "잘 맞아요"; else -> "도전해 보세요" }
+    val key = fit?.recommendedKey
+    val keyText = when { key == null -> "평가 불가"; key == 0 -> "원곡 키 추천 (0)"; key > 0 -> "키 +$key 추천"; else -> "키 $key 추천" }
+    val axisLow = minOf(songLow, userLow) - 2
+    val axisHigh = maxOf(songHigh, userHigh) + 2
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
@@ -268,7 +294,7 @@ private fun MatchBody(detail: SongDetail, profile: UserStore.VoiceProfile, onPra
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SoftChip("적합도 $fit%")
+                        SoftChip(if (fitPct != null) "적합도 $fitPct%" else "적합도 평가 불가")
                         Spacer(Modifier.width(8.dp))
                         Text(fitLabel, fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold)
                     }
@@ -282,53 +308,86 @@ private fun MatchBody(detail: SongDetail, profile: UserStore.VoiceProfile, onPra
 
         MiconCard {
             CardTitle("음역대 매칭 분석") {
-                Text(if (fit >= 75) "안정적인 소화 가능" else "일부 구간 주의", fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold)
+                Text(
+                    when { fit == null -> "데이터 부족"; fitPct!! >= 75 -> "안정적인 소화 가능"; else -> "일부 구간 주의" },
+                    fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold,
+                )
             }
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("1옥타브 (Low)", fontSize = 12.sp, color = Grey); Text("2옥타브", fontSize = 12.sp, color = Grey); Text("3옥타브 (High)", fontSize = 12.sp, color = Grey)
             }
             Spacer(Modifier.height(12.dp))
-            RangeBarRow("내 음역 범위 (${karaokeOctaveName(profile.lowMidi)} ~ ${karaokeOctaveName(profile.highMidi)})", profile.lowMidi, profile.highMidi, axisLow, axisHigh, LavenderDeep)
+            if (profile != null) {
+                RangeBarRow("내 음역 범위 (${karaokeOctaveName(profile.lowMidi)} ~ ${karaokeOctaveName(profile.highMidi)})", profile.lowMidi, profile.highMidi, axisLow, axisHigh, LavenderDeep)
+            } else {
+                Text("내 음역 범위: 목소리 분석 후 표시됩니다", fontSize = 13.sp, color = Grey)
+            }
             Spacer(Modifier.height(12.dp))
             RangeBarRow("곡 음역 범위 (${karaokeOctaveName(songLow)} ~ ${karaokeOctaveName(songHigh)})", songLow, songHigh, axisLow, axisHigh, Purple)
             Spacer(Modifier.height(14.dp))
-            Text(
-                buildAnnotatedString {
-                    append("이 곡의 최고음은 ")
-                    withStyle(SpanStyle(color = Purple, fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(songHigh)) }
-                    append("로, 회원님의 안정 음역대인 ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(profile.comfortHigh)) }
-                    append(
-                        if (songHigh <= profile.comfortHigh) "보다 약간 낮아 무리 없이 시원하게 부르실 수 있습니다."
-                        else "보다 ${songHigh - profile.comfortHigh}키 높아 고음 구간에서 부담이 있을 수 있습니다.",
-                    )
-                },
-                fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp,
-            )
+            if (profile == null) {
+                Text("리포트 탭에서 목소리를 분석하면 이 곡과 내 음역을 비교해 드려요.", fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp)
+            } else if (a == null) {
+                Text("이 곡은 음역 분석 정보가 없어 적합도를 평가할 수 없어요.", fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp)
+            } else {
+                Text(
+                    buildAnnotatedString {
+                        append("이 곡의 최고음은 ")
+                        withStyle(SpanStyle(color = Purple, fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(songHigh)) }
+                        append("로, 회원님의 안정 음역대인 ")
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(profile.comfortHigh)) }
+                        append(
+                            if (songHigh <= profile.comfortHigh) "보다 낮거나 같아 원키로도 무리가 적습니다."
+                            else "보다 ${songHigh - profile.comfortHigh}키 높아 고음 구간에서 부담이 있을 수 있습니다.",
+                        )
+                    },
+                    fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp,
+                )
+            }
         }
 
         MiconCard {
             CardTitle("곡 맞춤 설정 추천")
             Spacer(Modifier.height(14.dp))
-            SubCard("권장 키 조절", if (recommendedKey == 0) "원곡 키 추천 (0)" else "키 ${if (recommendedKey > 0) "+$recommendedKey" else recommendedKey} 추천") {
-                Text(if (recommendedKey == 0) "원곡 그대로 부르셔도 안전해요" else "최고음 부담을 줄이기 위한 추천 키예요", fontSize = 13.sp, color = Purple)
+            SubCard("권장 키 조절", keyText) {
+                Text(fit?.reasons?.firstOrNull() ?: "곡 음역 정보와 내 프로필이 있어야 계산돼요", fontSize = 13.sp, color = Purple)
             }
             Spacer(Modifier.height(12.dp))
-            val difficulty = when { songHigh - songLow >= 26 -> 3; songHigh - songLow >= 20 -> 2; else -> 1 }
-            SubCard("가창 난이도", listOf("쉬움", "보통", "어려움")[difficulty - 1], stars = difficulty) {
-                Text(listOf("편안하게 부를 수 있어요", "일부 고음 구간 호흡 조절 필요", "고음·음역 폭이 커 연습이 필요해요")[difficulty - 1], fontSize = 13.sp, color = Grey)
+            SubCard("음색 적합도", fit?.timbre?.label ?: "평가 불가") {
+                Text(if (fit?.timbre != null) "두 축 중 ${fit.timbre.axis} 기준" else "음색 추천은 서버 연결 후 제공돼요", fontSize = 13.sp, color = Grey)
+            }
+            Spacer(Modifier.height(12.dp))
+            SubCard("리듬 적합도", fit?.rhythmFit?.let { "${(it * 100).roundToInt()}%" } ?: "평가 불가") {
+                Text("리듬 분석 데이터가 아직 없어요", fontSize = 13.sp, color = Grey)
             }
         }
 
         MiconCard {
-            CardTitle("집중 연습 추천 구간") { Text("정밀 분석 완료", fontSize = 13.sp, color = Grey) }
+            val strain = fit?.strainSections
+            CardTitle("부담 구간") {
+                Text(
+                    if (strain == null) "평가 불가" else "원키 ${strain.original.size}곳 → 추천 키 ${strain.atKey.size}곳",
+                    fontSize = 13.sp, color = Grey,
+                )
+            }
             Spacer(Modifier.height(14.dp))
-            // TODO: karaokeNotes 에서 최고음이 몰린 구간 탐색으로 계산. 지금은 보컬 구간 후반 예시.
-            val start = a?.vocalStartSec ?: 20.0
-            val end = a?.vocalEndSec ?: 200.0
-            val hs = start + (end - start) * 0.55
-            HighlightRow("하이라이트", "고음 집중 구간", "${ScoringMath.formatTime(hs)} ~ ${ScoringMath.formatTime(hs + 35)}", "최고음 도전")
+            when {
+                strain == null -> Text("프로필과 곡 음표가 있어야 계산돼요", fontSize = 13.sp, color = Grey)
+                strain.atKey.isEmpty() -> Text("추천 키로 부르면 안정 음역을 넘는 구간이 없어요", fontSize = 14.sp, color = InkSoft)
+                else -> strain.atKey.take(5).forEachIndexed { i, s ->
+                    if (i > 0) Spacer(Modifier.height(8.dp))
+                    HighlightRow("부담", "안정 음역 +${s.maxExcessSemitones}반음 초과", "${ScoringMath.formatTime(s.startSec)} ~ ${ScoringMath.formatTime(s.endSec)}", "고음 주의")
+                }
+            }
+        }
+
+        if (fit != null && fit.reasons.size > 1) {
+            MiconCard {
+                CardTitle("추천 사유")
+                Spacer(Modifier.height(10.dp))
+                fit.reasons.forEach { Text("• $it", fontSize = 14.sp, color = InkSoft, lineHeight = 22.sp) }
+            }
         }
 
         PrimaryButton("이 곡 연습하기", onPractice, Modifier.fillMaxWidth())
