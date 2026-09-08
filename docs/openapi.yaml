@@ -1780,9 +1780,19 @@ paths:
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVoiceAnalysisRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "201":
+          description: "음성 분석 요청 생성"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceAnalysisApiResponse"
   "/voice-analyses/{analysisId}":
     delete:
       tags: ["음성 데이터"]
@@ -1827,9 +1837,15 @@ paths:
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/AnalysisId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "음성 분석 상태 조회"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceAnalysisApiResponse"
   "/voice-analyses/{analysisId}/cancel":
     post:
       tags: ["음성 분석"]
@@ -1999,6 +2015,77 @@ paths:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
 components:
+  parameters:
+    AnalysisId:
+      name: "analysisId"
+      in: "path"
+      required: true
+      schema:
+        type: "integer"
+        format: "int64"
+  schemas:
+    CreateVoiceAnalysisRequest:
+      type: "object"
+      required: ["recordingId", "method"]
+      properties:
+        recordingId:
+          type: "integer"
+          format: "int64"
+        method:
+          type: "string"
+          enum: ["SCALE", "SONG"]
+        songId:
+          type: ["integer", "null"]
+          format: "int64"
+          description: "SONG 방식일 때 필수"
+    VoiceAnalysisApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code:
+          type: "string"
+          example: "SUCCESS"
+        message:
+          type: "string"
+        data:
+          $ref: "#/components/schemas/VoiceAnalysisStatusResponse"
+    VoiceAnalysisStatusResponse:
+      type: "object"
+      required: ["analysisId", "recordingId", "method", "status", "createdAt"]
+      properties:
+        analysisId:
+          type: "integer"
+          format: "int64"
+        recordingId:
+          type: "integer"
+          format: "int64"
+        songId:
+          type: ["integer", "null"]
+          format: "int64"
+        method:
+          type: "string"
+          enum: ["SCALE", "SONG"]
+        status:
+          type: "string"
+          enum: ["READY", "RECORDING", "UPLOADING", "ANALYZING", "COMPLETED", "FAILED", "CANCELED", "INSUFFICIENT_DATA"]
+        qualityStatus:
+          type: ["string", "null"]
+          enum: ["VALID", "NOISY", "CLIPPED", "INSUFFICIENT_VOICE", null]
+        failureCode:
+          type: ["string", "null"]
+        failureReason:
+          type: ["string", "null"]
+        analysisVersion:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+          format: "date-time"
+        completedAt:
+          type: ["string", "null"]
+          format: "date-time"
+        createdAt:
+          type: "string"
+          format: "date-time"
   securitySchemes:
     bearerAuth:
       type: "http"
