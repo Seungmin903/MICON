@@ -311,7 +311,7 @@ paths:
     post:
       tags: ["음성 분석"]
       summary: "음성 분석 상태 및 결과 전달 API"
-      description: "eventId·jobId·상태·진행 단계·결과 또는 오류·발생 시각 및 순서 정보를 전달한다. 중복·역순 이벤트를 검증하고 유실 시 재전송한다."
+      description: "AI 서버가 발급한 jobId와 백엔드가 전달한 voiceAnalysisId를 함께 전달한다. eventId·상태·진행 단계·결과 또는 오류·발생 시각 및 순서 정보를 사용해 중복·역순 이벤트를 검증하고 유실 시 재전송한다."
       operationId: "micon012"
       servers:
         - url: "{backendUrl}"
@@ -329,6 +329,12 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "AI 서비스"
       x-auth-token: "서비스 토큰"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceAnalysisCallbackRequest"
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
@@ -927,9 +933,19 @@ paths:
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RecordingUploadRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "201":
+          description: "S3 업로드와 녹음 메타데이터 저장 완료"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingUploadApiResponse"
   "/recordings/{recordingId}":
     delete:
       tags: ["음성 데이터"]
@@ -1939,9 +1955,19 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVoiceAnalysisJobRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "202":
+          description: "AI 서버가 분석 작업을 접수하고 jobId를 발급함"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateVoiceAnalysisJobResponse"
   "/voice-analysis-jobs/{jobId}":
     get:
       tags: ["음성 분석"]
@@ -1963,6 +1989,8 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
+      parameters:
+        - $ref: "#/components/parameters/VoiceAnalysisJobId"
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
@@ -1987,6 +2015,8 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
+      parameters:
+        - $ref: "#/components/parameters/VoiceAnalysisJobId"
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
