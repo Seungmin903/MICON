@@ -63,4 +63,21 @@ public class VocalRangeAnalysis {
         this.highNoteHoldSec = highNoteHoldSec; this.confidence = confidence;
         this.noteResults = noteResults; this.measuredAt = measuredAt;
     }
+
+    public BigDecimal getFullLowMidi() { return fullLowMidi; }
+    public BigDecimal getFullHighMidi() { return fullHighMidi; }
+    public BigDecimal getStableLowMidi() { return stableLowMidi; }
+    public BigDecimal getStableHighMidi() { return stableHighMidi; }
+    public BigDecimal getPitchMedianMidi() { return pitchMedianMidi; }
+    public BigDecimal getPitchAccuracyScore() { return pitchAccuracyScore; }
+    public BigDecimal getPitchStabilityScore() { return pitchStabilityScore; }
+    public String getPitchDistribution() { return pitchDistribution; }
+    public BigDecimal getModalLowMidi() { return modalLowMidi; }
+    public BigDecimal getModalHighMidi() { return modalHighMidi; }
+    public BigDecimal getFalsettoLowMidi() { return falsettoLowMidi; }
+    public BigDecimal getFalsettoHighMidi() { return falsettoHighMidi; }
+    public BigDecimal getHighNoteHoldSec() { return highNoteHoldSec; }
+    public BigDecimal getConfidence() { return confidence; }
+    public String getNoteResults() { return noteResults; }
+    public LocalDateTime getMeasuredAt() { return measuredAt; }
 }

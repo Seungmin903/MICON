@@ -60,4 +60,18 @@ public class VocalTimbreAnalysis {
         this.observedCoreLowMidi = observedCoreLowMidi; this.observedCoreHighMidi = observedCoreHighMidi;
         this.observedMedianMidi = observedMedianMidi; this.pitchHistogram = pitchHistogram; this.measuredAt = measuredAt;
     }
+
+    public String getTimbreLabel() { return timbreLabel; }
+    public BigDecimal getRhythmScore() { return rhythmScore; }
+    public BigDecimal getPronunciationScore() { return pronunciationScore; }
+    public BigDecimal getConfidence() { return confidence; }
+    public String getExplanation() { return explanation; }
+    public BigDecimal getValidSingleSec() { return validSingleSec; }
+    public Integer getValidChunkCount() { return validChunkCount; }
+    public BigDecimal getChunkCohesion() { return chunkCohesion; }
+    public BigDecimal getObservedCoreLowMidi() { return observedCoreLowMidi; }
+    public BigDecimal getObservedCoreHighMidi() { return observedCoreHighMidi; }
+    public BigDecimal getObservedMedianMidi() { return observedMedianMidi; }
+    public String getPitchHistogram() { return pitchHistogram; }
+    public LocalDateTime getMeasuredAt() { return measuredAt; }
 }
