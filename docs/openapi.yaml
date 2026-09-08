@@ -1796,9 +1796,19 @@ paths:
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVoiceAnalysisRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "201":
+          description: "음성 분석 요청 생성"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceAnalysisApiResponse"
   "/voice-analyses/{analysisId}":
     delete:
       tags: ["음성 데이터"]
@@ -1843,9 +1853,15 @@ paths:
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/AnalysisId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "음성 분석 상태 조회"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceAnalysisApiResponse"
   "/voice-analyses/{analysisId}/cancel":
     post:
       tags: ["음성 분석"]
@@ -2030,33 +2046,29 @@ paths:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
 components:
   parameters:
-    VoiceAnalysisJobId:
-      name: "jobId"
+    AnalysisId:
+      name: "analysisId"
       in: "path"
       required: true
-      description: "AI 서버가 음성 분석 작업 접수 시 발급한 고유 식별자"
       schema:
-        type: "string"
-        maxLength: 255
+        type: "integer"
+        format: "int64"
   schemas:
-    RecordingUploadRequest:
+    CreateVoiceAnalysisRequest:
       type: "object"
-      required: ["file"]
+      required: ["recordingId", "method"]
       properties:
-        file:
-          type: "string"
-          format: "binary"
-          description: "최대 25 MiB의 WAV, MP3 또는 MP4 오디오"
-        attemptNo:
+        recordingId:
           type: "integer"
-          format: "int32"
-          minimum: 1
-          default: 1
-        keepOriginal:
-          type: "boolean"
-          default: false
-          description: "분석 완료 후 원본 녹음을 계속 보관할지 여부"
-    RecordingUploadApiResponse:
+          format: "int64"
+        method:
+          type: "string"
+          enum: ["SCALE", "SONG"]
+        songId:
+          type: ["integer", "null"]
+          format: "int64"
+          description: "SONG 방식일 때 필수"
+    VoiceAnalysisApiResponse:
       type: "object"
       required: ["code", "message", "data"]
       properties:
@@ -2066,76 +2078,44 @@ components:
         message:
           type: "string"
         data:
-          type: "object"
-          required: ["recordingId"]
-          properties:
-            recordingId:
-              type: "integer"
-              format: "int64"
-    CreateVoiceAnalysisJobRequest:
+          $ref: "#/components/schemas/VoiceAnalysisStatusResponse"
+    VoiceAnalysisStatusResponse:
       type: "object"
-      required: ["voiceAnalysisId", "recordingUrl", "method"]
+      required: ["analysisId", "recordingId", "method", "status", "createdAt"]
       properties:
-        voiceAnalysisId:
+        analysisId:
           type: "integer"
           format: "int64"
-          description: "백엔드가 생성한 음성 분석 기록 식별자"
-        recordingUrl:
-          type: "string"
-          format: "uri"
-          description: "AI 서버가 분석할 녹음 파일의 접근 URL"
+        recordingId:
+          type: "integer"
+          format: "int64"
+        songId:
+          type: ["integer", "null"]
+          format: "int64"
         method:
           type: "string"
           enum: ["SCALE", "SONG"]
-        guideVersion:
-          type: "string"
-          description: "녹음에 사용한 측정 가이드 버전"
-    CreateVoiceAnalysisJobResponse:
-      type: "object"
-      required: ["jobId", "status"]
-      properties:
-        jobId:
-          type: "string"
-          maxLength: 255
-          description: "AI 서버가 작업 접수 시 발급한 고유 식별자"
         status:
           type: "string"
-          description: "AI 작업 접수 상태"
-    VoiceAnalysisCallbackRequest:
-      type: "object"
-      required: ["eventId", "jobId", "voiceAnalysisId", "status"]
-      properties:
-        eventId:
-          type: "string"
-          description: "콜백 중복 처리를 막기 위한 이벤트 식별자"
-        jobId:
-          type: "string"
-          maxLength: 255
-          description: "AI 서버가 발급한 작업 식별자"
-        voiceAnalysisId:
-          type: "integer"
-          format: "int64"
-          description: "작업 생성 요청에서 백엔드가 전달한 분석 기록 식별자"
-        status:
-          type: "string"
-          description: "AI 작업 상태"
-        stage:
-          type: "string"
-          description: "현재 처리 단계"
-        result:
-          type: "object"
-          description: "완료된 음성 분석 결과"
-          additionalProperties: true
-        error:
-          type: "object"
-          description: "실패 정보"
-          additionalProperties: true
-        occurredAt:
+          enum: ["READY", "RECORDING", "UPLOADING", "ANALYZING", "COMPLETED", "FAILED", "CANCELED", "INSUFFICIENT_DATA"]
+        qualityStatus:
+          type: ["string", "null"]
+          enum: ["VALID", "NOISY", "CLIPPED", "INSUFFICIENT_VOICE", null]
+        failureCode:
+          type: ["string", "null"]
+        failureReason:
+          type: ["string", "null"]
+        analysisVersion:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+          format: "date-time"
+        completedAt:
+          type: ["string", "null"]
+          format: "date-time"
+        createdAt:
           type: "string"
           format: "date-time"
-        sequence:
-          type: "integer"
-          format: "int64"
   securitySchemes:
     bearerAuth:
       type: "http"
