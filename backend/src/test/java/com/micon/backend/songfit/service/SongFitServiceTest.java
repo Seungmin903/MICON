@@ -1,0 +1,173 @@
+package com.micon.backend.songfit.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
+import com.micon.backend.songfit.api.SongFitResponse;
+import com.micon.backend.songfit.api.SongFitResponse.BurdenSection;
+import com.micon.backend.songfit.client.SongFitGateway;
+import com.micon.backend.songfit.repository.SongFitQueryRepository;
+import com.micon.backend.songfit.repository.SongFitQueryRepository.RecommendationRow;
+import com.micon.backend.songfit.repository.SongFitQueryRepository.SongRangeRow;
+import com.micon.backend.songfit.repository.SongFitQueryRepository.UserRangeRow;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class SongFitServiceTest {
+
+	@Mock
+	private SongFitQueryRepository repository;
+	@Mock
+	private SongFitGateway gateway;
+
+	private SongFitService service;
+
+	@BeforeEach
+	void setUp() {
+		service = new SongFitService(repository, gateway, false);
+	}
+
+	@Test
+	void comparesOriginalAndSelectedKeyAgainstStableRange() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("50"), decimal("70"))
+		));
+		when(repository.findRecommendation(7L, 20L, 10L)).thenReturn(Optional.of(
+			new RecommendationRow(-2, decimal("88"), decimal("90"), null, decimal("77"), "음역이 잘 맞습니다.", "fit-v1")
+		));
+		when(repository.findBurdenSections(10L, 30L)).thenReturn(List.of(
+			new BurdenSection(40L, "CHORUS", "후렴", 60_000, 90_000, "HIGH_NOTE", decimal("82"), "고음 구간")
+		));
+
+		SongFitResponse response = service.getSongFit(7L, 10L, 20L, 5);
+
+		assertThat(response.evaluationStatus()).isEqualTo("AVAILABLE");
+		assertThat(response.originalKeyFit().score()).isEqualByComparingTo("75.00");
+		assertThat(response.selectedKeyFit().score()).isEqualByComparingTo("100.00");
+		assertThat(response.recommendedKeyOffset()).isEqualTo(-2);
+		assertThat(response.recommendationScores().timbre()).isNull();
+		assertThat(response.burdenSections()).singleElement()
+			.extracting(BurdenSection::sectionName)
+			.isEqualTo("후렴");
+	}
+
+	@Test
+	void returnsUnavailableWhenStableRangeIsMissing() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("INSUFFICIENT_DATA", null, null)
+		));
+
+		SongFitResponse response = service.getSongFit(7L, 10L, 20L, 0);
+
+		assertThat(response.evaluationStatus()).isEqualTo("UNAVAILABLE");
+		assertThat(response.unavailableReason()).isEqualTo("USER_STABLE_RANGE_UNAVAILABLE");
+		assertThat(response.originalKeyFit()).isNull();
+	}
+
+	@Test
+	void hidesAnotherUsersVoiceAnalysis() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.getSongFit(7L, 10L, 20L, 0))
+			.isInstanceOf(VoiceAnalysisNotFoundException.class);
+	}
+
+	@Test
+	void rejectsMissingSongBeforeReadingAnalysisData() {
+		when(repository.songExists(10L)).thenReturn(false);
+
+		assertThatThrownBy(() -> service.getSongFit(7L, 10L, 20L, 0))
+			.isInstanceOf(SongNotFoundException.class);
+	}
+
+	@Test
+	void returnsUnavailableWhenCompletedSongRangeIsMissing() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.empty());
+
+		SongFitResponse response = service.getSongFit(7L, 10L, 20L, 0);
+
+		assertThat(response.evaluationStatus()).isEqualTo("UNAVAILABLE");
+		assertThat(response.unavailableReason()).isEqualTo("SONG_RANGE_UNAVAILABLE");
+		assertThat(response.selectedKeyFit()).isNull();
+	}
+
+	@Test
+	void stillReturnsRangeComparisonWhenRecommendationHasNotBeenGenerated() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("50"), decimal("70"))
+		));
+		when(repository.findRecommendation(7L, 20L, 10L)).thenReturn(Optional.empty());
+		when(repository.findBurdenSections(10L, 30L)).thenReturn(List.of());
+
+		SongFitResponse response = service.getSongFit(7L, 10L, 20L, 0);
+
+		assertThat(response.evaluationStatus()).isEqualTo("AVAILABLE");
+		assertThat(response.originalKeyFit()).isNotNull();
+		assertThat(response.recommendedKeyOffset()).isNull();
+		assertThat(response.recommendationScores()).isNull();
+	}
+
+	@Test
+	void delegatesSongFitEvaluationToAiWhenEnabled() {
+		service = new SongFitService(repository, gateway, true);
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("50"), decimal("70"))
+		));
+		when(repository.findRecommendation(7L, 20L, 10L)).thenReturn(Optional.empty());
+		when(repository.findBurdenSections(10L, 30L)).thenReturn(List.of());
+		SongFitResponse aiResponse = new SongFitResponse(
+			10L, 20L, -1, "AVAILABLE", null, null, -2, null, "AI 계산", List.of(), null
+		);
+		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenReturn(aiResponse);
+
+		assertThat(service.getSongFit(7L, 10L, 20L, -1)).isSameAs(aiResponse);
+	}
+
+	@Test
+	void distinguishesAiEvaluationFailure() {
+		service = new SongFitService(repository, gateway, true);
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("50"), decimal("70"))
+		));
+		when(repository.findRecommendation(7L, 20L, 10L)).thenReturn(Optional.empty());
+		when(repository.findBurdenSections(10L, 30L)).thenReturn(List.of());
+		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenThrow(new IllegalStateException("AI down"));
+
+		assertThatThrownBy(() -> service.getSongFit(7L, 10L, 20L, 0))
+			.isInstanceOf(SongFitEvaluationFailedException.class);
+	}
+
+	private static BigDecimal decimal(String value) {
+		return new BigDecimal(value);
+	}
+}
