@@ -1,0 +1,31 @@
+# MICON 추천 서버 의존성. recommend-algo 의 requirements.txt + requirements-recommender.txt 에서
+# 엔진 전용(melband-roformer, music21, whisper, transformers, pedalboard)을 뺀 것.
+# torch 3종은 함께 고정. GPU 머신은 setup.ps1 이 CUDA 빌드로 다시 설치한다.
+
+# 서버
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+
+# 오디오 입출력
+imageio-ffmpeg==0.6.0
+librosa==0.11.0
+soundfile>=0.12
+
+# 음역 프로파일 (CREPE + pYIN)
+torch==2.13.0
+torchaudio==2.11.0
+torchvision==0.28.0
+torchcrepe==0.0.24
+
+# 음색 임베딩
+speechbrain==1.0.3            # ECAPA-TDNN
+nnAudio==0.3.2                # Singer-BYOL
+huggingface_hub==0.33.0
+hyperpyyaml>=1.2.2
+
+# 곡 적재(오프라인, GPU PC) — 보컬 분리
+demucs==4.1.0
+
+# 테스트
+pytest>=8
