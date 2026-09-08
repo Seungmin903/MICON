@@ -110,4 +110,10 @@ public class User {
         this.password = encodedPassword;
         this.updatedAt = changedAt;
     }
+
+    public void withdraw(LocalDateTime withdrawnAt) {
+        this.status = UserStatus.WITHDRAWN;
+        this.withdrawnAt = withdrawnAt;
+        this.updatedAt = withdrawnAt;
+    }
 }
