@@ -2,7 +2,7 @@
 
 Jira: S15P21B110-156 / 연계: 153·154·155. 2026-09-10 기준 Flyway V1~V10과 운영 DB 적재는 완료됐고, 후보 BE의 DB·S3 검증까지 수행했다.
 
-**현재 자동 배포/롤백이 모두 구성되었다는 뜻은 아니다.** 후보 readiness와 카탈로그 S3 실제 GET 게이트는 구현·실검증했지만 Nginx 전환·원복 및 Jenkins 연결은 아직이다. 앱 Release APK는 179에서 별도 관리한다. 기존 Android MR CI 작업을 서버 CD로 덮어쓰지 않는다.
+**현재 자동 배포/롤백이 모두 활성화됐다는 뜻은 아니다.** 후보 readiness와 카탈로그 S3 실제 GET, Nginx 전환·복원, [Jenkins BE Pipeline](JENKINS_BACKEND_CD.md) 코드는 구현했지만 Jenkins credential/job과 실제 성공 전환은 아직이다. 앱 Release APK는 179에서 별도 관리한다. 기존 Android MR CI 작업을 서버 CD로 덮어쓰지 않는다.
 
 2026-09-09 저장소 계약: BE·MySQL은 SSAFY 서버, S3는 개인 AWS 계정의 비공개 버킷을 사용한다. [S3 운영 계약](S3_VOICE_STORAGE.md)의 실제 버킷·권한·인증 준비가 배포 선행 조건이다. 아래 기존 health 도구는 S3 연결을 검사하지 않으며 DB readiness 계약의 후속 구현도 [BE 실행 계약](BACKEND_RUNTIME_CONTRACT.md)과 구분한다.
 

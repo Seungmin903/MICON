@@ -1,0 +1,95 @@
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        MICON_SERVER_HOST = 'j15b110.p.ssafy.io'
+        GRADLE_USER_HOME = "${WORKSPACE}/.gradle-backend"
+    }
+
+    stages {
+        stage('Checkout reviewed main') {
+            steps {
+                checkout scm
+                script {
+                    def candidates = [
+                        env.BRANCH_NAME,
+                        env.GIT_BRANCH?.replaceFirst('^(origin/|refs/remotes/origin/)', ''),
+                        env.gitlabBranch
+                    ]
+                    if (!candidates.contains('main')) {
+                        error('Backend deployment is restricted to the main branch')
+                    }
+                    env.RELEASE_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    if (!(env.RELEASE_SHA ==~ /[0-9a-f]{40}/)) {
+                        error('Checkout did not produce a full commit SHA')
+                    }
+                }
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                sh '''
+                    set -eu
+                    test -z "$(git status --porcelain)"
+                    python3 -m unittest discover -s backend/contract_tests -v
+                    python3 -m unittest discover -s infra/deploy -p 'test_*.py' -v
+                    cd backend
+                    chmod 0755 gradlew
+                    ./gradlew --no-daemon --max-workers=1 --console=plain test bootJar
+                '''
+            }
+        }
+
+        stage('Create immutable source archive') {
+            steps {
+                sh '''
+                    set -eu
+                    install -d -m 0700 .micon-release
+                    archive=".micon-release/micon-backend-$RELEASE_SHA.tar.gz"
+                    git archive --format=tar.gz -o "$archive" "$RELEASE_SHA"
+                    sha256sum "$archive" > "$archive.sha256"
+                '''
+                archiveArtifacts artifacts: '.micon-release/*.sha256', fingerprint: true
+            }
+        }
+
+        stage('Deploy inactive slot') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'micon-server-ssh', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER'),
+                    file(credentialsId: 'micon-server-known-hosts', variable: 'KNOWN_HOSTS_FILE')
+                ]) {
+                    sh '''
+                        set +x
+                        archive=".micon-release/micon-backend-$RELEASE_SHA.tar.gz"
+                        archive_sha="$(cut -d ' ' -f 1 "$archive.sha256")"
+                        ssh_options="-o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE -i $SSH_KEY_FILE"
+                        ssh $ssh_options "$SSH_USER@$MICON_SERVER_HOST" \
+                            'install -d -m 0700 "$HOME/micon-releases" "$HOME/micon-releases/incoming"'
+                        scp $ssh_options "$archive" \
+                            "$SSH_USER@$MICON_SERVER_HOST:/home/$SSH_USER/micon-releases/incoming/micon-backend-$RELEASE_SHA.tar.gz"
+                        ssh $ssh_options "$SSH_USER@$MICON_SERVER_HOST" \
+                            "sh -s -- '$RELEASE_SHA' '$archive_sha'" \
+                            < infra/deploy/install_backend_release.sh
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true,
+                testResults: 'backend/build/test-results/test/*.xml'
+        }
+    }
+}

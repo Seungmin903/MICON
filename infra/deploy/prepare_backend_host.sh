@@ -64,4 +64,13 @@ if [ ! -e "$RUNTIME_DIR/backend.env" ]; then
         "$RUNTIME_DIR/backend.env"
 fi
 
+if [ ! -e "$RUNTIME_DIR/backend-deploy.env" ]; then
+    install \
+        -o root \
+        -g root \
+        -m 0600 \
+        "$REPOSITORY_ROOT/infra/deploy/backend-deploy.env.example" \
+        "$RUNTIME_DIR/backend-deploy.env"
+fi
+
 echo "backend host prerequisites are ready"

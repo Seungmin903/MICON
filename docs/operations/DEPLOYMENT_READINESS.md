@@ -13,6 +13,7 @@
 | 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 사용자 녹음 upload/GET/delete, AI 접근, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
 | 배포 gate | readiness 3회 연속 성공과 카탈로그 S3 실제 GET·SHA-256 검사를 로컬 24개 테스트 및 서버 후보에서 통과. Jenkins 연결·Nginx 전환은 미완료 |
 | Nginx | `/api/v1/` prefix 제거, 관리·internal 외부 차단, blue/green 전환·실패 시 복원 도구 구현. 서버 격리 syntax와 후보 down fail-closed 확인; 실제 reload·성공 전환은 리뷰 후 필요 |
+| BE CD | main 전용 별도 Jenkinsfile, SHA archive·검증·비활성 slot·전체 gate·전환 전 정리 구현. Jenkins SSH credential/known_hosts/job/webhook 및 전체 실행은 미완료 |
 
 실제 S3 설정·검증은 S15P21B110-211 및 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절에 기록했다. S15P21B110-228에서 Flyway V8~V10과 보컬 stem 384건을 운영 DB에 반영했으며 BE 배포는 아직 실행하지 않았다. 아래 2026-09-07 스냅샷은 과거 기록이며 현재 전체 개발 상태로 읽지 않는다.
 
@@ -112,7 +113,7 @@
 
 ## CI/CD 후속 연결
 
-서버 배포와 APK 생성·배포는 별도 단계로 구성한다. `main` 자동 서버 배포는 팀 규칙상 목표이며 현재 Jenkins에 구현됐다는 의미가 아니다.
+서버 배포와 APK 생성·배포는 별도 단계로 구성한다. `ci/Jenkinsfile.backend`에 `main` 전용 서버 Pipeline을 구현했지만 Jenkins credential/job/webhook을 실제 생성하거나 활성화한 상태는 아니다.
 현재 검증 브랜치를 임의로 main/develop으로 전환하지 않고 MR 리뷰·합의 후 자동 트리거를 연결한다.
 기존 Jenkins 저장소 URL 내장 토큰은 Credentials 이전 및 교체가 필요하다. 권한 범위를 확인한 뒤 사용자가 비밀값을 직접 입력하는 방식으로 처리한다.
 
