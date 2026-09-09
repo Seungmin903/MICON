@@ -67,7 +67,7 @@ voicedDuration, karaokeNotes, karaokeVersion, karaoke, lyrics{source,text,...}, 
 (→ Android 목록·`GET /jobs`·`/compare` 에서 제외). 이유: Android 는 karaokeNotes < 10 이면 `notes` 로 폴백하는데 SQLite 경로에는 없어 오류가 나고,
 연습 화면은 반주 유무를 검사하지 않고 스트리밍을 시작한다. 2026-09-07 배치: 210 complete, 1 review(`tj-23444` 10,000 Hours — 음표 4개, 발성 0.9초).
 
-가사(`--assign-lyrics`): `lyrics.synced`(LRC, 줄 단위 시간) 가 있고 줄 텍스트의 70 % 이상이 `lyrics.plain` 에 그대로 있으면
+가사(`--assign-lyrics`, 1차 근사 — 이후 `align_catalog_lyrics.py` 가 덮어쓴다): `lyrics.synced`(LRC, 줄 단위 시간) 가 있고 줄 텍스트의 70 % 이상이 `lyrics.plain` 에 그대로 있으면
 각 줄을 음절(한·일: 글자, 영: 단어)로 나눠 줄 구간 안에 균등 배치한 뒤 `build_karaoke_notes` 의 `syllables` 로 넘긴다.
 정밀 정렬(wav2vec2)이 아니므로 `lyricScore 0.5 / lyricStatus low-confidence` 로 표시된다. 122/211 곡에 적용됨.
 Android `LyricLines` 는 `lyrics_plain` 에서 음절을 `indexOf` 로 찾아 줄바꿈을 복원하므로 plain 과 다른 LRC 는 가사 배정을 생략한다.
@@ -82,6 +82,14 @@ $v6 = "C:\Users\SSAFY\Desktop\data_tj_ballad_top100\metadata_enrichment\results\
 & $py import_stem_pitch.py --stem-pitch ..\outputs\stem-pitch --catalog $v6 `
       --stems "C:\Users\SSAFY\Desktop\data_tj_ballad_top100\보컬분리" --assign-lyrics --jobs 6 --run-name stem-pitch-2026-09-07
 # → workspace/tj-*/{job.json, pitch_frames.npz, instrumental.opus}, workspace/_batch/stem-pitch-2026-09-07.jsonl (요약)
+
+# (2026-09-09 추가) 가사 강제 정렬 — LRC 줄 단위 근사 대신 보컬 스템에 실제로 정렬하고 karaokeNotes 를 다시 만든다.
+#   한국어 우세 텍스트 → wav2vec2-ko(lyrics_engine.align_lyrics), 그 외(일·영·혼합) → MMS_FA + uroman(lyrics_align_mms.py).
+#   LRC 가 있는 곡은 정렬 결과를 LRC 줄 시각과 대조해(중앙값 |Δ| ≤ 1.2 s) 어긋나면 예전 LRC 근사 음절로 되돌린다.
+#   LRC 가 없는 곡은 정렬된 줄 시작으로 LRC 를 생성해 result.lyrics.syncedGenerated 에 넣고 build_catalog_db 가 songs.lyrics_synced 로 옮긴다.
+#   일본 곡 가사에 끼어 있는 한국어 독음 줄은 정렬 전에 제외한다. 처음 실행은 job.json.orig 백업을 남긴다. --force 로 재실행.
+& $py align_catalog_lyrics.py --catalog $v6 --stems "C:\Users\SSAFY\Desktop\data_tj_ballad_top100\보컬분리" --device cuda
+# → workspace/_batch/align-lyrics-YYYY-MM-DD.jsonl (곡별 aligner·used·lrcCheck·quality). GPU(RTX 4050) 기준 곡당 5–20 s.
 
 & $py build_catalog_db.py --catalog $v6 --out ..\outputs\micon_catalog.sqlite --mysql-dump ..\outputs\micon_catalog.mysql.sql `
       --workspace workspace --audio-root "C:\Users\SSAFY\Desktop\노래 모음\audio"
@@ -100,5 +108,6 @@ Copy-Item ..\outputs\micon_catalog.sqlite ..\..\frontend\android\app\src\main\as
 - workspace ≈ 1 GB (opus 211개). git 제외.
 - `song_artifacts.path` 는 이 PC 절대경로(개발용). 운영 MySQL 적재 시 `docs/SONG_METADATA_DB_GUIDE.md` 대로 오브젝트 키로 치환.
 - 기존 50곡 파일럿(`pilot50`) 분석은 이 PC 에 workspace 가 없어 새 DB 에 없다(겹치는 4곡은 stem-pitch 결과로 대체).
-- 스템 기준 분석이므로 `separation` 정보가 없고, 가사 타이밍은 줄 단위 근사다. MusicXML/MIDI 산출물은 없다(웹 악보 탭은 "악보 없음").
+- 스템 기준 분석이므로 `separation` 정보가 없다. 가사 타이밍은 `align_catalog_lyrics.py` 실행 후 음절 단위 정렬값이다(정렬 실패 곡만 줄 단위 근사, `lyrics_alignment.quality` 로 구분).
+- `karaoke.py` 음절 배정(2026-09-09): 한 음표에 음절이 여러 개 오면 첫 음절만 남기고 버리던 것을 고쳐, 뒤따르는 가사 없는 음표로 나누고 남는 것은 이어 붙인다(`lyricSyllables`). 겹치는 음표가 없는 음절은 0.6 s 안의 음표에 붙인다. Android 는 줄 텍스트를 LRC 에서 만들고 음표 음절은 글자 채움 시각에만 쓴다. MusicXML/MIDI 산출물은 없다(웹 악보 탭은 "악보 없음").
 - Android `SqliteSongRepository.ensureCopied()` 는 자산 **크기**만 비교해 재복사한다. 크기가 같은 갱신은 반영되지 않으니 `adb shell pm clear` 또는 버전 비교 로직 추가가 필요하다.

@@ -22,7 +22,31 @@ from separation import BACKENDS, normalize_backend
 ROOT = Path(__file__).resolve().parent
 WORKSPACE = ROOT / "workspace"
 WORKSPACE.mkdir(parents=True, exist_ok=True)
-COMPACT_JOBS = os.environ.get("VOCALSCOPE_COMPACT", "0") == "1"  # 저장 정책(compact.py)을 웹 업로드 작업에도 적용
+COMPACT_JOBS = os.environ.get("VOCALSCOPE_COMPACT", "0") == "1"
+# 원곡(mp3) 스트리밍용 카탈로그 오디오 루트 — `GET /jobs/{id}/files/original`. 이 PC 의 기본 경로; 운영은 오브젝트 스토리지로 대체.
+AUDIO_ROOT = Path(os.environ.get("MICON_AUDIO_ROOT", r"C:\Users\SSAFY\Desktop\노래 모음\audio"))
+_AUDIO_INDEX: dict[str, Path] | None = None
+
+
+def _original_audio(job_id: str) -> Path | None:
+    """카탈로그 작업(tj-*)의 원곡 파일. job.json 의 catalog.trackId 로 `<AUDIO_ROOT>/<artist>/<track_id>.mp3` 를 찾고,
+    없으면 TJ 번호 색인으로 찾는다(순위 접두어가 붙은 파일명)."""
+    global _AUDIO_INDEX
+    job_path = WORKSPACE / job_id / "job.json"
+    if not job_path.exists() or not AUDIO_ROOT.exists():
+        return None
+    try:
+        job = json.loads(job_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    track_id = (job.get("catalog") or {}).get("trackId")
+    if not track_id:
+        return None
+    from catalog_paths import build_audio_index, resolve_audio_path
+
+    if _AUDIO_INDEX is None:
+        _AUDIO_INDEX = build_audio_index(AUDIO_ROOT)
+    return resolve_audio_path({"track_id": track_id}, AUDIO_ROOT, index=_AUDIO_INDEX)  # 저장 정책(compact.py)을 웹 업로드 작업에도 적용
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".webm"}  # .webm: 라이브 채점 브라우저 녹음(MediaRecorder)
 MAX_BYTES = 250 * 1024 * 1024
 LOCK = threading.Lock()
@@ -37,7 +61,7 @@ app.add_middleware(
         "https://vocal-scope.dawon171100.chatgpt.site",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -274,6 +298,23 @@ def get_job(job_id: str) -> dict[str, Any]:
     return job
 
 
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: str) -> dict[str, Any]:
+    """Remove a *performance* (채점) job and its workspace files. Reference jobs (카탈로그 곡) are never deleted here:
+    the Android 평가 탭 lets the user drop their own recordings, not the songs they were scored against."""
+    with LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            raise HTTPException(404, "작업을 찾을 수 없습니다.")
+        if job.get("kind", "reference") != "performance":
+            raise HTTPException(409, "부른 노래(채점) 기록만 삭제할 수 있습니다.")
+        if job.get("status") == "processing":
+            raise HTTPException(409, "분석 중인 기록은 끝난 뒤에 삭제할 수 있습니다.")
+        JOBS.pop(job_id, None)
+    shutil.rmtree(WORKSPACE / job_id, ignore_errors=True)
+    return {"id": job_id, "deleted": True}
+
+
 def _flag(value: str, default: bool = True) -> bool:
     text = (value or "").strip().lower()
     if not text:
@@ -405,6 +446,13 @@ def get_file(job_id: str, kind: str, semitones: int = 0):
         "karaoke-musicxml": ("karaoke.musicxml", "application/vnd.recordare.musicxml+xml"),
         "pitch-frames": ("pitch_frames.npz", "application/octet-stream"),
     }
+    if kind == "original":
+        original = _original_audio(job_id)
+        if original is None:
+            raise HTTPException(404, "원곡 파일이 이 서버에 없습니다.")
+        suffix = original.suffix.lower()
+        media = {".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".webm": "audio/webm"}.get(suffix, "application/octet-stream")
+        return FileResponse(original, media_type=media, filename=f"{job_id}{suffix}")
     if kind not in filenames:
         raise HTTPException(404, "지원하지 않는 결과 파일입니다.")
     filename, media_type = filenames[kind]

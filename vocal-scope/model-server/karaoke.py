@@ -29,7 +29,7 @@ MIN_BEATS = 0.25
 
 NOTE_KEYS = ("sourceStart", "sourceEnd", "midi", "actualMidi", "confidence")
 OPTIONAL_KEYS = ("register", "registerConfidence", "registerScore", "lightness", "breathy", "h1h2Db", "hrfDb", "cppDb")  # 성구 annotations ride along
-LYRIC_KEYS = ("lyric", "lyricScore", "lyricExtend", "lyricStart", "lyricEnd", "lyricStatus", "explicitExtend")
+LYRIC_KEYS = ("lyric", "lyricScore", "lyricExtend", "lyricStart", "lyricEnd", "lyricStatus", "explicitExtend", "lyricSyllables")
 
 
 def _clone(note: dict[str, Any]) -> dict[str, Any]:
@@ -103,7 +103,20 @@ def _assign_syllables(notes: list[dict[str, Any]], syllables: list[dict[str, Any
             if overlaps and max(overlaps) > 0:
                 primary = int(np.argmax(overlaps))
         if primary is None:
+            # Stacked: the note that contains this onset already owns a syllable (fast passage, melody notes coarser
+            # than syllables). Keep it on that note — the spread step below moves it to the next free note if any.
+            container = next(
+                (i for i, note in enumerate(notes) if note["sourceStart"] - 0.03 <= onset < note["sourceEnd"]), None,
+            )
+            if container is not None:
+                notes[container]["_syllables"].append(syllable)
+                continue
+            # Orphan: no note is sounding at this onset (breathy / unvoiced / mistimed). Keep the text if a note starts
+            # within 0.6 s, otherwise drop it — farther than that the timing itself is wrong (mistimed LRC).
             unassigned += 1
+            nearest = int(np.argmin(np.abs(starts - onset)))
+            if abs(starts[nearest] - onset) <= 0.6:
+                notes[nearest]["_syllables"].append(dict(syllable, orphan=True))
             continue
 
         notes[primary]["_syllables"].append(syllable)
@@ -122,16 +135,43 @@ def _assign_syllables(notes: list[dict[str, Any]], syllables: list[dict[str, Any
             if min(note["sourceEnd"], ownership_end) > max(note["sourceStart"], onset):
                 note["lyricExtend"] = True
 
+    # Spread stacked syllables forward onto the following syllable-less notes (melisma tails, split notes) so that a
+    # fast passage keeps one syllable per note where the melody has notes for them.  Only the leftovers get joined.
+    for index in range(len(notes)):
+        items = sorted(notes[index]["_syllables"], key=lambda item: float(item["start"]))
+        if len(items) <= 1:
+            continue
+        overflow = items[1:]
+        target = index + 1
+        while overflow and target < len(notes) and not notes[target]["_syllables"]:
+            moved = overflow.pop(0)
+            if float(moved["start"]) > notes[target]["sourceEnd"] + 0.5:
+                break   # the syllable belongs much later than this note — leave it stacked rather than mistime it
+            notes[target]["_syllables"].append(moved)
+            notes[target]["lyricExtend"] = False
+            target += 1
+        notes[index]["_syllables"] = [items[0]] + overflow
+
     for note in notes:
-        items = note["_syllables"]
-        item = items[0] if items else None
-        note["lyric"] = item["text"] if item else None
-        note["lyricScore"] = float(item["score"]) if item else None
-        if item:
-            note["lyricStart"] = float(item["start"])
-            note["lyricEnd"] = float(item.get("end", item["start"]))
-            note["explicitExtend"] = bool(item.get("explicitExtend"))
-            note["lyricStatus"] = "unknown-language" if not item.get("known", True) else ("low-confidence" if float(item["score"]) < 0.2 else "aligned")
+        items = sorted(note["_syllables"], key=lambda item: float(item["start"]))
+        if items:
+            # Several syllables can land on one note (fast passages, notes coarser than syllables). Keep them all:
+            # previously only items[0] survived and the rest silently vanished from the lyric strip.
+            texts = [str(item["text"]) for item in items]
+            joined = texts[0]
+            for previous, current, text in zip(items, items[1:], texts[1:]):
+                joined += (" " if current.get("wordStart") else "") + text
+            note["lyric"] = joined
+            note["lyricScore"] = float(min(float(item["score"]) for item in items))
+            note["lyricStart"] = float(items[0]["start"])
+            note["lyricEnd"] = float(max(float(item.get("end", item["start"])) for item in items))
+            note["explicitExtend"] = bool(items[-1].get("explicitExtend"))
+            known = all(item.get("known", True) for item in items)
+            note["lyricStatus"] = "unknown-language" if not known else ("low-confidence" if note["lyricScore"] < 0.2 else "aligned")
+            note["lyricSyllables"] = len(items)
+        else:
+            note["lyric"] = None
+            note["lyricScore"] = None
         del note["_syllables"]
     return unassigned
 
@@ -300,5 +340,7 @@ def build_karaoke_notes(
         "lowConfidenceLyrics": sum(1 for note in working if note.get("lyricStatus") != "aligned" and note.get("lyric")),
         "quantizationAdjustments": sum(1 for note in working if note.get("quantizationAdjusted")),
         "unassignedSyllables": unassigned,
+        "lyricSyllablesKept": sum(int(note.get("lyricSyllables") or 0) for note in working),
+        "lyricSyllablesInput": len(syllables or []),
     }
     return working, stats
