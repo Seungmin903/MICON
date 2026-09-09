@@ -30,6 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @SpringBootTest(properties = "ai.service-token=test-ai-token")
 @AutoConfigureMockMvc
@@ -159,6 +161,85 @@ class VoiceAnalysisApiIntegrationTests {
                 "SELECT status, failure_code FROM voice_analysis WHERE recording_id = ?", recording.getId());
         org.assertj.core.api.Assertions.assertThat(failed.get("status")).isEqualTo("FAILED");
         org.assertj.core.api.Assertions.assertThat(failed.get("failure_code")).isEqualTo("AI_DISPATCH_FAILED");
+    }
+
+    @Test
+    void cancelsOwnedAnalysisAndIgnoresLateCallback() throws Exception {
+        User user = user("analysis-cancel@micon.com");
+        VoiceRecording recording = uploadedRecording(user);
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        analysis.start("cancel-job-1", java.time.LocalDateTime.now());
+        analyses.flush();
+
+        mockMvc.perform(post("/voice-analyses/{analysisId}/cancel", analysis.getId()).with(jwtFor(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELED"))
+                .andExpect(jsonPath("$.data.completedAt").isNotEmpty());
+        verify(aiGateway).cancel("cancel-job-1");
+
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .header("Authorization", "Bearer test-ai-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"voiceAnalysisId":%d,"jobId":"cancel-job-1","status":"FAILED",
+                                 "failureCode":"LATE_RESULT","measuredAt":"2026-09-09T02:00:00"}
+                                """.formatted(analysis.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CANCELED"))
+                .andExpect(jsonPath("$.data.duplicate").value(true));
+    }
+
+    @Test
+    void retriesFailedAnalysisWithNewAiJob() throws Exception {
+        User user = user("analysis-retry@micon.com");
+        VoiceRecording recording = uploadedRecording(user);
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        analysis.start("failed-job", java.time.LocalDateTime.now());
+        analysis.fail("AI_ANALYSIS_FAILED", "temporary failure", java.time.LocalDateTime.now());
+        analyses.flush();
+        successfulDispatch("retry-job");
+
+        mockMvc.perform(post("/voice-analyses/{analysisId}/retry", analysis.getId()).with(jwtFor(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysisId").value(analysis.getId()))
+                .andExpect(jsonPath("$.data.status").value("ANALYZING"))
+                .andExpect(jsonPath("$.data.failureCode").doesNotExist())
+                .andExpect(jsonPath("$.data.completedAt").doesNotExist());
+
+        entityManager.flush();
+        entityManager.clear();
+        org.assertj.core.api.Assertions.assertThat(analyses.findById(analysis.getId()).orElseThrow().getJobId())
+                .isEqualTo("retry-job");
+    }
+
+    @Test
+    void rejectsCancelAndRetryFromInvalidStates() throws Exception {
+        User user = user("analysis-invalid-control@micon.com");
+        VoiceRecording recording = uploadedRecording(user);
+        VoiceAnalysis completed = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        completed.start("completed-job", java.time.LocalDateTime.now());
+        completed.complete("v1", null, java.time.LocalDateTime.now());
+        analyses.flush();
+
+        mockMvc.perform(post("/voice-analyses/{analysisId}/cancel", completed.getId()).with(jwtFor(user)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
+        mockMvc.perform(post("/voice-analyses/{analysisId}/retry", completed.getId()).with(jwtFor(user)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
+        verify(aiGateway, never()).cancel("completed-job");
+    }
+
+    @Test
+    void hidesAnotherUsersAnalysisControl() throws Exception {
+        User owner = user("analysis-control-owner@micon.com");
+        User another = user("analysis-control-another@micon.com");
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(
+                owner, uploadedRecording(owner), null, VoiceAnalysisMethod.SCALE));
+
+        mockMvc.perform(post("/voice-analyses/{analysisId}/cancel", analysis.getId()).with(jwtFor(another)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("VOICE_ANALYSIS_NOT_FOUND"));
     }
 
     @Test

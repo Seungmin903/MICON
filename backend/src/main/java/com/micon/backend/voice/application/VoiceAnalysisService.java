@@ -11,12 +11,15 @@ import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
 import com.micon.backend.voice.storage.VoiceStorage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
 @Service
 public class VoiceAnalysisService {
+    private static final Logger log = LoggerFactory.getLogger(VoiceAnalysisService.class);
     private final VoiceAnalysisRepository analyses;
     private final VoiceAnalysisLifecycleService lifecycle;
     private final VoiceAnalysisJobGateway aiGateway;
@@ -38,6 +41,26 @@ public class VoiceAnalysisService {
 
     public VoiceAnalysisResponse create(long userId, VoiceAnalysisRequest request) {
         VoiceAnalysis analysis = lifecycle.create(userId, request);
+        return dispatch(analysis);
+    }
+
+    public VoiceAnalysisResponse retry(long userId, long analysisId) {
+        return dispatch(lifecycle.prepareRetry(userId, analysisId));
+    }
+
+    public VoiceAnalysisResponse cancel(long userId, long analysisId) {
+        String jobId = lifecycle.cancel(userId, analysisId);
+        if (jobId != null && !jobId.isBlank()) {
+            try {
+                aiGateway.cancel(jobId);
+            } catch (RuntimeException exception) {
+                log.warn("AI cancellation request failed for voice analysis {}", analysisId, exception);
+            }
+        }
+        return get(userId, analysisId);
+    }
+
+    private VoiceAnalysisResponse dispatch(VoiceAnalysis analysis) {
         try {
             String url = storage.createDownloadUrl(analysis.getRecording().getStoragePath(), downloadUrlTtl).toString();
             VoiceAnalysisJobGateway.Result result = aiGateway.submit(new VoiceAnalysisJobGateway.Command(
