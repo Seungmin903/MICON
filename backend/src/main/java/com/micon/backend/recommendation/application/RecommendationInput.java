@@ -6,29 +6,16 @@ import java.util.Objects;
 
 public record RecommendationInput(
         Long voiceAnalysisId,
-        Source source,
+        Long sourceSongId,
         VoiceProfile voiceProfile,
         List<String> genres,
         List<String> preferredArtists
 ) {
     public RecommendationInput {
         Objects.requireNonNull(voiceAnalysisId, "voiceAnalysisId is required");
-        Objects.requireNonNull(source, "source is required");
         Objects.requireNonNull(voiceProfile, "voiceProfile is required");
         genres = genres == null ? List.of() : List.copyOf(genres);
         preferredArtists = preferredArtists == null ? List.of() : List.copyOf(preferredArtists);
-    }
-
-    public interface Source {
-    }
-
-    public record RecordingSource(Long recordingId, String storagePath, String mediaType) implements Source {
-        public RecordingSource {
-            if (recordingId == null || storagePath == null || storagePath.isBlank()
-                    || mediaType == null || mediaType.isBlank()) {
-                throw new IllegalArgumentException("recording source is incomplete");
-            }
-        }
     }
 
     public record VoiceProfile(
@@ -41,7 +28,11 @@ public record RecommendationInput(
             String timbreVector,
             BigDecimal timbreConfidence,
             String userEmbedding,
-            String embeddingRef
+            String embeddingRef,
+            BigDecimal observedCoreLowMidi,
+            BigDecimal observedCoreHighMidi,
+            BigDecimal observedMedianMidi,
+            String pitchHistogram
     ) {
     }
 }

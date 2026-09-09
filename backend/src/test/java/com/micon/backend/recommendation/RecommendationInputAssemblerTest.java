@@ -4,7 +4,6 @@ import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.recommendation.application.RecommendationInput;
 import com.micon.backend.recommendation.application.RecommendationInputAssembler;
-import com.micon.backend.recommendation.application.RecommendationInputSourceProvider;
 import com.micon.backend.recommendation.application.RecommendationPreferenceReader;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.voice.domain.VocalRangeAnalysis;
@@ -29,8 +28,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,35 +37,29 @@ class RecommendationInputAssemblerTest {
     @Mock VocalRangeAnalysisRepository rangeResults;
     @Mock VocalTimbreAnalysisRepository timbreResults;
     @Mock RecommendationPreferenceReader preferences;
-    @Mock RecommendationInputSourceProvider sourceProvider;
 
     RecommendationInputAssembler assembler;
 
     @BeforeEach
     void setUp() {
-        assembler = new RecommendationInputAssembler(
-                analyses, rangeResults, timbreResults, preferences, sourceProvider);
+        assembler = new RecommendationInputAssembler(analyses, rangeResults, timbreResults, preferences);
     }
 
     @Test
-    void assemblesCompletedOwnedAnalysisProfileRecordingAndPreferences() {
+    void assemblesCompletedOwnedAnalysisProfileEmbeddingAndPreferences() {
         VoiceAnalysis analysis = completedAnalysis("recommendation-input@micon.com");
         VocalRangeAnalysis range = range(analysis);
         VocalTimbreAnalysis timbre = timbre(analysis);
-        RecommendationInput.RecordingSource source = new RecommendationInput.RecordingSource(
-                analysis.getRecording().getId(), analysis.getRecording().getStoragePath(),
-                analysis.getRecording().getMediaType());
         when(analyses.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(analysis));
         when(rangeResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.of(range));
         when(timbreResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.of(timbre));
         when(preferences.findByUserId(1L)).thenReturn(
                 new RecommendationPreferenceReader.Preferences(List.of("발라드", "록"), List.of("아이유")));
-        when(sourceProvider.provide(analysis, profile(range, timbre))).thenReturn(source);
 
         RecommendationInput input = assembler.assemble(1L, 10L);
 
         assertThat(input.voiceAnalysisId()).isEqualTo(10L);
-        assertThat(input.source()).isEqualTo(source);
+        assertThat(input.sourceSongId()).isNull();
         assertThat(input.genres()).containsExactly("발라드", "록");
         assertThat(input.preferredArtists()).containsExactly("아이유");
         assertThat(input.voiceProfile().stableLowMidi()).isEqualByComparingTo("48.5");
@@ -78,21 +69,12 @@ class RecommendationInputAssemblerTest {
     }
 
     @Test
-    void usesEmptyPreferencesAndOptionalProfileWhenNoResultsWereStored() {
+    void rejectsAnalysisWhenUserEmbeddingWasNotStored() {
         VoiceAnalysis analysis = completedAnalysis("recommendation-empty@micon.com");
-        RecommendationInput.RecordingSource source = new RecommendationInput.RecordingSource(
-                analysis.getRecording().getId(), "voice/input.wav", "audio/wav");
         when(analyses.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(analysis));
         when(rangeResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.empty());
         when(timbreResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.empty());
-        when(preferences.findByUserId(1L)).thenReturn(RecommendationPreferenceReader.Preferences.empty());
-        when(sourceProvider.provide(analysis, emptyProfile())).thenReturn(source);
-
-        RecommendationInput input = assembler.assemble(1L, 10L);
-
-        assertThat(input.genres()).isEmpty();
-        assertThat(input.preferredArtists()).isEmpty();
-        assertThat(input.voiceProfile()).isEqualTo(emptyProfile());
+        assertError(() -> assembler.assemble(1L, 10L), ErrorCode.RECOMMENDATION_INPUT_NOT_READY);
     }
 
     @Test
@@ -100,7 +82,6 @@ class RecommendationInputAssemblerTest {
         when(analyses.findByIdAndUserId(10L, 2L)).thenReturn(Optional.empty());
 
         assertError(() -> assembler.assemble(2L, 10L), ErrorCode.VOICE_ANALYSIS_NOT_FOUND);
-        verify(sourceProvider, never()).provide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -109,18 +90,22 @@ class RecommendationInputAssemblerTest {
         when(analyses.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(analysis));
 
         assertError(() -> assembler.assemble(1L, 10L), ErrorCode.RECOMMENDATION_INPUT_NOT_READY);
-        verify(sourceProvider, never()).provide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
-    void rejectsDeletedRecording() {
+    void usesStoredEmbeddingEvenWhenOriginalRecordingWasDeleted() {
         VoiceAnalysis analysis = completedAnalysis("recommendation-deleted@micon.com");
+        VocalTimbreAnalysis timbre = timbre(analysis);
         analysis.getRecording().markDeletePending(LocalDateTime.now());
         analysis.getRecording().markDeleted(LocalDateTime.now());
         when(analyses.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(analysis));
+        when(rangeResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.empty());
+        when(timbreResults.findByVoiceAnalysisId(10L)).thenReturn(Optional.of(timbre));
+        when(preferences.findByUserId(1L)).thenReturn(RecommendationPreferenceReader.Preferences.empty());
 
-        assertError(() -> assembler.assemble(1L, 10L), ErrorCode.RECOMMENDATION_INPUT_NOT_READY);
-        verify(sourceProvider, never()).provide(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        RecommendationInput input = assembler.assemble(1L, 10L);
+
+        assertThat(input.voiceProfile().userEmbedding()).isEqualTo("{\"ecapa\":[0.1]}");
     }
 
     private VoiceAnalysis completedAnalysis(String email) {
@@ -155,18 +140,6 @@ class RecommendationInputAssemblerTest {
                 null, null, new BigDecimal("0.88"), null, null, null,
                 "{\"ecapa\":[0.1]}", "embeddings/user-1.json", null,
                 null, null, null, null, LocalDateTime.now());
-    }
-
-    private RecommendationInput.VoiceProfile profile(VocalRangeAnalysis range, VocalTimbreAnalysis timbre) {
-        return new RecommendationInput.VoiceProfile(
-                range.getStableLowMidi(), range.getStableHighMidi(), range.getPitchMedianMidi(),
-                range.getPitchDistribution(), range.getConfidence(), timbre.getTimbreLabel(),
-                timbre.getTimbreVector(), timbre.getConfidence(), timbre.getUserEmbedding(), timbre.getEmbeddingRef());
-    }
-
-    private RecommendationInput.VoiceProfile emptyProfile() {
-        return new RecommendationInput.VoiceProfile(
-                null, null, null, null, null, null, null, null, null, null);
     }
 
     private void assertError(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable, ErrorCode errorCode) {
