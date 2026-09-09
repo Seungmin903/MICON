@@ -93,7 +93,7 @@ job id: 카탈로그 곡은 `tj-<TJ번호>`(= `songs.song_id`), 사용자 업로
 
 - 곡 쪽(읽기 전용, 적재기가 채움): `songs`(제목·가수·이미지·장르·언어·가사·`audio_path`), `song_analysis`(조성·BPM·음역·성구 JSON·`task_support`), `song_notes`(`karaoke_notes` JSON ≈0.3–1 MB/곡), `song_artifacts`(반주 opus 경로·키별), `song_sections`(**비어 있음**).
 - 사용자 쪽(**제안 상태**, 신승민 님 -68/-69·양서희 님 -16/-66 데이터 모델 이슈와 맞춰야 함): `users`, `user_recordings`, `user_voice_profiles`(안정 음역·반음별 안정도·성구·육각 특성), `song_fit`(추천 키·적합도, 음색·리듬은 NULL=평가 불가), `practice_sessions`(연습 1회 = `comparison` 저장), `favorites`, `setlists`, `setlist_items`.
-- 오디오는 DB 밖. `song_artifacts.path`의 Opus를 파일 서버로 스트리밍.
+- 오디오는 DB 밖. 로컬 엔진은 `song_artifacts.path`의 Opus를 파일 서버로 스트리밍한다. 운영은 [SSAFY BE·MySQL + 개인 S3](../../../docs/operations/S3_VOICE_STORAGE.md)이며 object key 매핑·허가된 다운로드/스트리밍 연결을 별도로 검증해야 한다. PC 절대경로나 `s3://`를 Android 재생 URL로 그대로 사용하지 않는다. 녹음은 BE가 발급한 만료 URL을 사용하고 AWS 키를 앱에 포함하지 않는다. 개인 S3 생성·운영 연동은 미완료다.
 - 로컬 MySQL84(root 비번 미설정)에 `micon` DB가 09-02 덤프로 올라가 있고, 같은 내용의 `outputs/micon_catalog.sqlite`가 있어 백엔드 없이도 화면 개발이 가능합니다.
 
 ## 5. 지금 데이터로 되는 것 / 안 되는 것

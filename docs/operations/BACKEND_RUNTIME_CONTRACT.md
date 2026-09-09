@@ -2,6 +2,8 @@
 
 Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-08.
 
+2026-09-09 저장소 계약 갱신: develop `fcc00d2`의 S3·AI 환경변수를 반영한다. 운영 구조는 **SSAFY 서버(BE·MySQL) + 개인 AWS 계정 S3**로 선택했다. 계정·권한·팀원 업로드 절차의 기준은 [S3 운영 계약](S3_VOICE_STORAGE.md)이다. 개인 버킷 생성·인증 주입·통합 업로드는 아직 미완료다. 아래 2026-09-08 결정은 당시 계약이며 이번 변경에서 서버·SQL·라우팅을 적용하지 않는다.
+
 **사용자의 결정 위임에 따라 인프라 계약을 정한 리뷰본이다.** 현재 코드 사실과 앞으로 적용할 계약을 분리한다. MR은 문서·예제 검토용이며 팀원 승인 또는 운영 검증 완료를 뜻하지 않는다. SQL 및 본인 프런트 구현 보류를 유지한다. 150의 범위는 계약 문서화이며 실제 구현·배포 검증은 149·153·154·155·156 및 FE 후속 작업에 인계한다.
 
 ### 2026-09-08 사용자 결정 (정책 확정, 구현·운영 검증 전)
@@ -28,6 +30,24 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | MAIL_PASSWORD | 빈 값 | 인증 SMTP 사용 시 별도 비밀값 |
 | MAIL_SMTP_AUTH | false | true/false. 제공자 요구와 일치; 운영 false를 임의 채택하지 않음 |
 | MAIL_STARTTLS | false | true/false. 제공자 TLS 방식과 일치; enable=true만으로 TLS 필수 강제가 되었다고 보지 않음 |
+| AI_BASE_URL | http://localhost:8000 | BE에서 접근 가능한 AI 서비스 주소. AI 위치·네트워크는 별도 확인; 운영 localhost fallback 금지 |
+| AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
+| AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
+| AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 분석용 S3 presigned GET URL 만료 Duration. 실제 다운로드 시간·보안 요구 검증 |
+| AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
+| VOICE_RECORDING_MAX_SIZE | 25MB | multipart 파일 및 전체 요청 제한. 부가정보 포함 경계 크기는 시험 필요 |
+| VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정의 비공개 버킷 실제 이름. 생성/검증 전 임의 값 사용 금지 |
+| VOICE_STORAGE_REGION | ap-northeast-2 | 개인 버킷과 일치하는 서울 리전 |
+| VOICE_STORAGE_PREFIX | voice-recordings | 객체 prefix. IAM의 voice-recordings/*와 함께 변경; catalog/와 분리 |
+| VOICE_STORAGE_PLAYBACK_URL_TTL | 10m | 녹음 재생 presigned GET URL 만료 Duration |
+| VOICE_STORAGE_MAX_FILE_BYTES | 26214400 | S3 업로드 전 파일 크기 상한(바이트), 프록시·multipart 제한과 함께 검증 |
+| AWS_SHARED_CREDENTIALS_FILE | SDK 기본 탐색 경로 | Spring placeholder 아님. BE 컨테이너의 /run/secrets/aws_credentials로 명시; 호스트 파일 읽기 전용 마운트 |
+| AWS_PROFILE | SDK default 프로필 | Spring profile 아님. 개인 계정 BE 전용 프로필 micon-backend 사용 |
+| AWS_EC2_METADATA_DISABLED | SDK 기본값 false | BE에 true 명시하여 SSAFY 인스턴스 역할로의 fallback 차단 |
+
+빈 예제는 실행용 기본값 목록이 아니다. 실제 환경파일에서 값을 비워 주입하면 코드 기본값이 적용되지 않거나 타입 변환에 실패할 수 있다. 운영 담당자가 위 형식과 필수값을 확인해 채우거나, 선택 항목은 의도적으로 생략한다.
+
+AWS 키 원문은 환경변수 예제·이미지·Git에 넣지 않고 서버 외부 파일에서 SDK가 읽는다. 상위 우선순위 AWS 환경변수/Java 시스템 속성/web identity 설정과 혼용하지 않는다. 파일 권한은 BE 실행 UID/GID와 맞춰 검증한다. 자세한 IAM 정책·Compose 부분 예시·비용·회전 절차는 [S3 운영 계약](S3_VOICE_STORAGE.md)을 따른다. S3 설정만으로 DB import나 AI 서비스 배포가 완료되지는 않는다.
 
 운영 계약: DB_URL/DB_USERNAME/DB_PASSWORD/JWT_SECRET은 명시 주입하고 빈 값·root 계정·로컬 fallback 사용을 배포 전 검사에서 거부한다. 메일 기능을 제공할 때는 MAIL_FROM/HOST/PORT 및 AUTH/STARTTLS를 명시하고 인증 사용 시 USERNAME/PASSWORD도 필수다. SMTP 제공자와 호환되는 인증·필수 TLS 및 유한 타임아웃 검증 없이 운영 메일 기능을 정상으로 처리하지 않는다. 이 표는 현재 fallback 제거나 fail-fast 구현을 뜻하지 않는다. JWT issuer=micon-backend, access TTL=30m, refresh TTL=30d는 현재 properties의 값이다. 기본 profile은 local이며 별도의 production profile 파일은 아직 없다. `SPRING_PROFILES_ACTIVE=prod`만 지정해도 로컬 fallback이 사라진다고 가정하지 않는다.
 
@@ -44,6 +64,7 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 | /api/v1/songs | /songs | 곡 조회 코드 존재, 운영 호출 미검증 |
 | /api/v1/users/me | /users/me | 회원 조회 코드 존재, 운영 호출 미검증 |
 | /api/v1/auth/tokens/refresh | /auth/tokens/refresh | BE/OpenAPI 경로 일치; 앱의 auth/refresh와는 불일치 |
+| /api/v1/recordings 및 /api/v1/recordings/{id}/content | /recordings 및 /recordings/{id}/content | 업로드·조회·삭제·재생 URL 코드 존재. content는 URL을 담은 JSON이며 S3 공개 주소/리다이렉트 계약이 아님; 운영 미검증 |
 | /api/v1/health | 해당 앱용 컨트롤러 없음 | 앱은 ApiResponse 봉투 기대. Actuator를 그대로 연결해 해결되었다고 보지 않음 |
 
 프런트는 이번에 변경하지 않는다. 실제 FE 담당자는 BE 명세 기준으로 갱신 경로/DTO 및 인증 예외 경로 목록을 함께 맞추고 health 사용 여부를 확인해야 한다. 현재 결정에는 BE 하위 호환 alias 추가가 포함되지 않는다. AI 주소/포트는 BE와 별도 미결 계약이다.
@@ -88,10 +109,13 @@ gate 실행 계약: 개별 요청 timeout 5초, 최대 60초 내 2초 간격 재
 |---|---|---|
 | Nginx | HTTPS 443, HTTP 80→443 | 외부 진입점 유지 |
 | BE | Java 21 / Boot 4.1.1, server.port override 없음 | 컨테이너 내부 8080. 호스트 Nginx가 연결할 경우 127.0.0.1:18081/18082를 두 배포 슬롯으로 사용. 153에서 점유 확인 후 사용하며 충돌 시 서비스를 종료하지 않고 매핑 계약을 갱신 |
-| MySQL | JDBC 기본값 3306, 정확한 버전 미확정 | 컨테이너 내부 3306, 외부 publish 없음. 제품은 현재 BE MySQL 기준; 버전·계정·실제 SQL은 보류된 149·153 재개 시 검증. 이번 계약에서 DB를 설치하거나 버전을 추정하지 않음 |
+| MySQL | JDBC 기본값 3306; 2026-09-09 서버 조회에서 8.4.11 healthy 확인 | 컨테이너 내부 3306, 외부 publish 없음. 운영 구성 문서를 따르고 스키마·계정·실제 데이터는 별도 검증. 이번 문서 변경에서 DB 설치/SQL 실행 없음 |
+| 개인 S3 | 현재 S3VoiceStorage가 SDK 기본 자격 증명 체인 사용 | BE에서 개인 버킷으로 outbound HTTPS. 버킷 비공개, 추가 inbound 포트 없음. DB-only internal 네트워크로 BE의 S3/DNS 통신을 차단하지 않음 |
 | Redis | build.gradle/런타임 코드에 의존성 없음 | 이번 BE 운영 구성에서는 제외. 6379 포트/컨테이너/필수 시작 의존성 없음. 후속 BE 기능에서 필요해지면 별도 계약 변경 |
 
 DB/스키마 준비 및 DB health 성공 → 단일 migration 단계 성공 → BE 시작/JPA validate → 후보 readiness → Nginx 전환 → 외부 기능 smoke 순서로 정한다. 이것은 실행된 절차가 아니다. 단순 depends_on만으로 readiness가 보장되지 않으며 DB health와 앱 readiness를 구분한다. SQL 보류 중 bootRun을 실행하지 않는다.
+
+[MySQL 운영 구성](MYSQL_RUNTIME.md)의 DB healthy는 스키마/초기 데이터/API 검증을 대신하지 않는다. 후보 배포에서는 S3의 실제 업로드·URL GET·삭제도 별도 smoke로 확인하고 실패 시 전환하지 않는다. S3 health indicator를 구현했다는 의미는 아니다.
 
 ## 6. 종료·migration (채택한 계약)
 
@@ -102,12 +126,12 @@ DB/스키마 준비 및 DB health 성공 → 단일 migration 단계 성공 → 
 
 ## 7. 계약 리뷰와 후속 구현 구분
 
-- [x] 현재 properties의 환경변수 11개 이름·형식·로컬 기본값을 예제/표로 정리 (실제 값 없음).
+- [x] 2026-09-09 기준 properties 환경변수 22개와 SDK 전용 3개를 예제/표로 정리 (실제 값 없음).
 - [x] 앱/BE 경로 차이, readiness 허용 미비, Redis 의존성 부재를 코드로 확인.
 - [x] 사용자 결정: BE 경로 유지, Nginx에서 외부 `/api/v1/` prefix 제거, 앱 갱신 경로를 BE 명세에 맞추는 방향 채택.
 - [x] 사용자 결정: DB 연결·기본 쿼리 성공을 배포 성공 필수 조건으로 채택.
 - [x] 위임된 인프라 결정: readiness/liveness 경로·응답·노출 범위, CORS, 포트/Redis 제외, 시작·migration·종료 계약 문서화.
-- [ ] 팀원의 계약 MR 리뷰/승인. 사용자 위임으로 정책을 결정했지만 타 담당자가 승인했다고 기록하지 않는다.
+- [x] 최초 150 계약 문서는 MR !28로 2026-09-08 병합됨. 이번 개인 S3 후속 문서 변경은 별도 리뷰 대상이며 최초 승인과 구분한다.
 
 아래는 150의 문서 MR을 Draft로 유지할 조건이 아니라 후속 구현 인계 항목이다.
 
@@ -117,7 +141,7 @@ DB/스키마 준비 및 DB health 성공 → 단일 migration 단계 성공 → 
 - 155·156: readiness 설정/무인증 matcher/검사 도구 동시 변경, DB 실패 시 전환 차단, SIGTERM/복구 실검증.
 - 운영 비밀값은 저장소 밖 파일/자격 증명으로 주입하고 MR·로그에 출력하지 않는다. 실제 SMTP 공급자/자격 증명/TLS 구성과 발송 시험은 운영 기능 준비 단계에서 확인한다.
 
-`python -m unittest discover -s backend/contract_tests -v`는 파일 내용만 검사한다. 애플리케이션·DB·SMTP에 연결하거나 비밀값을 읽지 않으며, 팀 승인이나 운영 성공을 증명하지 않는다. 문서 MR은 Ready for review로 제출하며 직접 병합하지 않는다. 150 상태는 팀 리뷰 전까지 진행 중으로 유지한다.
+`python -m unittest discover -s backend/contract_tests -v`는 파일 내용만 검사한다. 애플리케이션·DB·SMTP·S3에 연결하거나 비밀값을 읽지 않으며, 팀 승인이나 운영 성공을 증명하지 않는다. 후속 문서 MR은 Ready for review로 제출하며 직접 병합하지 않는다. 최초 150은 완료 상태이고, 이 문서 변경만으로 후속 런타임 구현 이슈를 완료 처리하지 않는다.
 
 ## 근거
 

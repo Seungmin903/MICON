@@ -8,7 +8,8 @@
 - Figma: https://www.figma.com/design/gD9LvKcDIDlSXf5Kds76LJ (참고용 와이어프레임, 확정 디자인 아님)
 - 위치: 팀 저장소 `S15P21B110/frontend/android/` (모노레포. 루트 `README.md` 에 전체 구조)
 - 앱 문서: `docs/` (`ANDROID_START_GUIDE.md` 가 진입점, 화면 스크린샷은 `docs/screenshots/`)
-- 엔진·데이터 계약 문서: AI 파트 `feat/vocalScope` 브랜치의 `vocal-scope/docs/` (DATA_INVENTORY, MICON_DATA_PLAN, micon_schema.sql)
+- 엔진·데이터 계약 문서: develop의 [VocalScope](../../vocal-scope/README.md), [배치·DB 인수](../../vocal-scope/docs/BATCH_HANDOFF.md)
+- 운영 저장 구조: [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md). AWS 키는 BuildConfig/APK에 넣지 않는다. 녹음은 BE API와 발급된 만료 URL을 사용하며, 카탈로그 파일 제공·DB 적재는 별도 통합 검증이 필요하다.
 
 ## 고정 버전
 

@@ -1,5 +1,7 @@
 # MICON 데이터 적재·모델 배치 계획 (2026-09-02)
 
+2026-09-09 운영 저장소 갱신: **SSAFY 서버의 BE·MySQL + 개인 AWS 계정 비공개 S3**를 사용합니다. 아래 로컬 배치·SQLite·파일 경로 설명은 개발 산출물 계약입니다. 운영 인수는 [S3 운영 계약](../../docs/operations/S3_VOICE_STORAGE.md)과 [배치 인수의 운영 적재 절차](BATCH_HANDOFF.md)를 따릅니다. 개인 버킷 생성·키 주입·DB import·음원 제공 연동은 아직 미완료이며 기존 로컬 경로를 그대로 운영에 사용하지 않습니다.
+
 Figma 와이어프레임(MICON 부제), Notion 요구사항 명세서 v2.0·장르/메타데이터 기준·용어집·리포트 설계·연습 기능 설계, TJ 890곡 카탈로그 보강 결과를 대조해 **화면 → 필요한 데이터 → 출처 → DB** 를 정리한 문서입니다. 파이프라인이 내보내는 필드의 전수 목록은 `DATA_INVENTORY.md`, 스키마 DDL은 `micon_schema.sql`.
 
 ## 1. 오늘 확정한 것
@@ -44,7 +46,7 @@ Figma 와이어프레임(MICON 부제), Notion 요구사항 명세서 v2.0·장�
 곡 쪽(적재기가 채움): `songs` · `song_analysis` · `song_notes`(JSON 한 덩어리) · `song_artifacts` · `song_sections`(빈 상태).
 사용자 쪽(앱 백엔드): `users` · `user_recordings` · `user_voice_profiles` · `song_fit` · `practice_sessions` · `favorites` · `setlists` · `setlist_items`.
 
-적재: `model-server/build_catalog_db.py --catalog <v6.jsonl> --out outputs/micon_catalog.sqlite --mysql-dump outputs/micon_catalog.mysql.sql` (재실행 가능, `workspace/tj-*/job.json`을 읽음). MySQL에는 `mysql -u <user> -p micon < micon_catalog.mysql.sql` (스키마는 `micon_schema.sql` 먼저).
+개발용 산출물 생성: `model-server/build_catalog_db.py --catalog <v6.jsonl> --out outputs/micon_catalog.sqlite --mysql-dump outputs/micon_catalog.mysql.sql` (재실행 가능, `workspace/tj-*/job.json`을 읽음). 기존 덤프·`micon_schema.sql`을 운영 MySQL에 직접 실행하지 않습니다. 운영은 object key 매핑과 현재 BE 스키마 호환성 검토 후 전용 계정/적재 절차로 반영합니다. S3 업로드만으로 테이블/곡이 생성되지 않습니다.
 시범 측정(2026-09-02, 890곡 + 분석 3곡, 7 MB): 곡 선택 목록 조인 2 ms, 제목·가수 검색 6 ms, 음표 1,152개 로드 12 ms.
 
 `task_support`는 초기 규칙: `f0AgreementRatio ≥ 0.6 ∧ octaveMismatch ≤ 0.1 ∧ 유성 30 s↑ → pitch_range pass`, 그 외 review. 음색은 review 고정(청취 검증 전), vocal_identity는 not_analyzed.
@@ -58,7 +60,7 @@ Figma 와이어프레임(MICON 부제), Notion 요구사항 명세서 v2.0·장�
 - 다음 단축 후보: pYIN 교차검증을 배치에서 표본 검증용으로만 돌리기(−16 s), wav2vec2 상주(−5 s/곡), 분리 청크를 ckpt 기본 8 s → VRAM 여유 시 확대.
 - **저장 정책(2026-09-02 적용, `model-server/compact.py`)**: 곡 폴더에 남기는 것 = `instrumental.opus`(128 kbps VBR, 4분 곡 ≈ 4 MB) · `pitch_frames.npz` · `vocal.mid` · `karaoke.mid` · `job.json`. 삭제 = `input.wav`, `separated/`, `vocals.wav`, `instrumental.wav`, MusicXML 2종, 배치 작업의 `original.*` 복사본(카탈로그 원본을 직접 읽음). 6분 곡 314 MB → 8 MB. 배치는 `run_pipeline(compact=True)`로 항상 적용, 웹 업로드는 `VOCALSCOPE_COMPACT=1`일 때만.
   - MusicXML은 `/files/musicxml`·`karaoke-musicxml` 요청 시 MIDI + 음표에서 재생성(≈1 s). 키 변경 반주는 Opus → WAV 디코드 → Rubber Band → Opus로 `instrumental_key±N.opus` 캐시(6분 곡 9 s). 보컬 스템이 없으므로 가사 재정렬(`POST /lyrics`)은 재분석이 필요하다고 422로 안내.
-  - 앱은 곡 정보·음표·조성·BPM·가사 타이밍을 DB에서 읽고, 오디오는 `song_artifacts.path`의 Opus를 파일 서버에서 스트리밍한다(DB에 바이너리 미저장).
+  - 로컬 앱/엔진은 곡 정보·음표·조성·BPM·가사 타이밍을 DB에서 읽고, 오디오는 `song_artifacts.path`의 Opus를 파일 서버에서 스트리밍한다(DB에 바이너리 미저장). 운영에서는 개인 S3 object key 매핑 및 허가된 다운로드/스트리밍 제공을 별도로 연결해야 하며, 버킷 공개나 만료 URL의 영구 저장으로 대체하지 않는다.
 - 배치를 다시 돌리기 전에 넣을 가치가 있는 🟡 항목: 반음별 안정도, 프레이즈(유성 구간) 목록, dbfs 통계, 조성 후보 top-3 (`DATA_INVENTORY.md` §4).
 
 ## 5-1. 50곡 시범 배치 결과 (2026-09-02)

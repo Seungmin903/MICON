@@ -1,5 +1,7 @@
 # VocalScope 데이터 인벤토리 (2026-09-02)
 
+2026-09-09 운영 저장소 주석: 이 문서의 workspace·파일 경로·DB 미저장 설명은 로컬 VocalScope 분석 흐름의 기록입니다. 운영은 [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md)를 사용하며, [배치 인수 절차](BATCH_HANDOFF.md)로 승인된 산출물 업로드 → object key 매핑 → 별도 DB 적재를 검증합니다. 전체 분석 JSON을 DB에 넣거나 로컬 workspace를 S3에 자동 동기화하도록 바꾼 것은 아닙니다.
+
 모델 서버(`model-server/`)가 **지금 만들어 내는 데이터, 계산은 하지만 버리는 데이터, 팀 용어집에 정의만 되어 있고 아직 없는 데이터**를 한 곳에 정리한 문서입니다. 파이프라인 동작·설치는 `PIPELINE.md`, 실험 기록은 `docs/MODEL_PIPELINE.md`를 보세요. 이 문서는 "무엇을 빼낼 수 있는가"만 다룹니다.
 
 검증 기준: 완료된 원곡 분석 작업(`workspace/48250e5f…/job.json`)과 가창 비교 작업(`workspace/12a049cd…/job.json`)의 실제 키 집합을 읽어 §2 표와 대조했습니다(누락 0). 줄 번호는 2026-09-02 기준 소스입니다.

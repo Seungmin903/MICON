@@ -2,19 +2,20 @@
 
 기준: 2026-09-07, develop `61d2c84` + 이 MR의 Android CI 변경. 규칙 원본은 [JIRA_GIT_RULES.md](../../JIRA_GIT_RULES.md) V3.0이다.
 
-현재는 **Android 빌드 가능 / BE 초기 구성 / 서비스 통합 미완료** 단계다. 아래 명령은 Windows PowerShell 기준이며, 아직 구현되지 않은 API까지 정상 실행된다는 뜻은 아니다.
+2026-09-09 갱신: develop `fcc00d2`에는 BE API·S3 연동 코드와 `vocal-scope/`가 있다. **코드 존재와 운영 통합 완료는 다르다.** BE·MySQL은 SSAFY 서버, 파일 저장은 개인 AWS S3를 사용하며 실제 개인 버킷 생성·연결은 미완료다. 아래 명령은 Windows PowerShell 기준이다.
 
 ## 누가 무엇을 준비하나
 
 | 담당 | 로컬 준비 | 불필요한 설정 |
 |---|---|---|
 | 전원 | Git·Git LFS, 최신 develop 기반 작업 브랜치 | 폐기된 `.githooks` 설치, 운영 비밀정보 복사 |
-| FE | Android Studio, SDK 37, JBR 21, 개인 `local.properties`, 에뮬레이터/실기기 | 운영 Nginx·Certbot·UFW 설치 |
-| BE | JDK 21, 프로젝트 Gradle Wrapper; 앱 실행 시 합의된 로컬 MySQL·스키마·앱 계정 | 운영 DB 외부 공개, 서버 PEM 공유 |
+| FE | Android Studio, SDK 37, JBR 21, 개인 `local.properties`, 에뮬레이터/실기기 | 운영 Nginx·Certbot·UFW 설치, AWS 키 수령/앱 삽입 |
+| BE | JDK 21, 프로젝트 Gradle Wrapper; 로컬 MySQL·스키마·앱 계정, 승인된 개발용 S3 인증 | 운영 DB 외부 공개, 서버 PEM·운영 AWS 키 공유 |
 | AI | 담당 브랜치 README의 Python 환경·모델·데이터 준비 | Android 개발자 전원에게 모델 환경 설치 강제 |
-| 인프라 | 서버 운영 권한과 Jenkins 설정 관리 | 팀원 PC에 서버 환경을 그대로 복제 |
+| 인프라 | SSAFY 서버·Jenkins 관리, 개인 S3 버킷·최소권한·비용·키 회전 관리 | 팀원 PC에 서버 환경을 그대로 복제 |
+| 데이터 업로더 | 승인된 파일만 모은 폴더, AWS CLI, 팀원별 catalog/ 업로더 인증 | BE 런타임 키, DB 공개 접속, 루트 계정 공유 |
 
-운영 MySQL의 정확한 버전과 초기 마이그레이션은 아직 합의가 필요하다. MySQL 드라이버가 코드에 있다는 사실과 운영 DB 구축 완료는 다르다. 이 MR의 `compose.smoke.yaml`은 설치 점검 전용이며 개발용/운영용 DB Compose가 아니다.
+MySQL은 [운영 구성](MYSQL_RUNTIME.md)의 8.4.11을 기준으로 하며 초기 스키마·마이그레이션 적용 범위는 BE/DB 담당자와 확인한다. `compose.smoke.yaml`은 설치 점검 전용이고 DB Compose가 아니다. 버킷·리전·권한 전달, 팀원 로컬 파일 업로드 및 DB 적재 구분은 [S3 운영 계약](S3_VOICE_STORAGE.md)을 따른다.
 
 ## 1. 저장소와 V3 준비
 
@@ -112,7 +113,7 @@ cd backend
 .\gradlew.bat test
 ```
 
-실제 `bootRun` 전에는 BE 담당자가 **로컬 MySQL 버전·micon DB·초기 스키마/마이그레이션·최소권한 앱 계정**을 준비해야 한다. `ddl-auto=validate`라 테이블을 자동 생성하지 않으며, 현재 초기 마이그레이션 파일도 없다. 임의 SQL 덤프를 운영 DB에 실행하지 않는다.
+실제 `bootRun` 전에는 BE 담당자가 **로컬 MySQL 버전·micon DB·초기 스키마/마이그레이션·최소권한 앱 계정**을 준비해야 한다. JPA는 `ddl-auto=validate`지만 Flyway migration 파일은 존재하며 기동 시 DB를 변경할 수 있다. SQL 보류/승인 조건과 migration 범위를 먼저 확인하고 임의 SQL 덤프를 운영 DB에 실행하지 않는다.
 
 설정은 터미널 프로세스 환경변수 또는 IDE Run Configuration으로 제공한다:
 
@@ -121,21 +122,26 @@ cd backend
 | `DB_URL` | `jdbc:mysql://localhost:3306/micon?serverTimezone=Asia/Seoul&characterEncoding=UTF-8` |
 | `DB_USERNAME` | BE 담당자와 정한 로컬 앱 계정; 기본 root 사용을 피한다 |
 | `DB_PASSWORD` | 개인 로컬 DB 비밀번호, Git·MR·로그에 기록 금지 |
+| `JWT_SECRET` | 개발 전용 무작위 비밀값, UTF-8 32바이트 이상; 운영 키 복사 금지 |
+| `AI_*` | 실제 접근할 AI 주소·인증·분석 설정. 전체 이름은 BE 실행 계약 참고 |
+| `VOICE_STORAGE_*`, `VOICE_RECORDING_MAX_SIZE` | 승인된 개발용 버킷·리전·prefix·URL 만료·용량 |
+| `AWS_SHARED_CREDENTIALS_FILE`, `AWS_PROFILE`, `AWS_EC2_METADATA_DISABLED` | 개발 전용 AWS 프로필·로컬 파일 경로, metadata 비활성화 true. 서버 컨테이너 경로를 PC에 그대로 쓰지 않음 |
 
 `.env` 파일만 만들면 현재 Spring 설정이 자동으로 읽어주는 것은 아니다. 환경변수가 실행 프로세스에 전달되도록 설정하고, 위 준비가 끝난 후 `backend` 폴더에서 `.\gradlew.bat bootRun`한다. 운영용 DB URL/계정은 이 예시와 별도로 안전하게 관리한다.
 
-아직 앱 API 컨트롤러가 없다. 서버 프로세스 시작 또는 Actuator 의존성만으로 로그인·추천 API가 준비됐다고 판단하지 않는다. Security 정책도 구현 전이므로 임의의 health 경로가 익명 접근 가능하다고 전제하지 않는다.
+BE API·Security·S3 연동 코드는 있지만 프로세스 시작만으로 로그인·추천·녹음이 정상이라고 판단하지 않는다. 전체 환경변수와 health 계약은 [BE 실행 계약](BACKEND_RUNTIME_CONTRACT.md), 값 없는 검토 템플릿은 [backend/.env.example](../../backend/.env.example)을 참고한다. 메일 기능을 시험하면 SMTP도 준비한다. S3 연결은 합성 파일로 업로드·발급 URL 실제 GET·삭제를 별도 검증한다.
 
 ## 4. AI와 주소 계약
 
-AI 실행 코드는 아직 develop에 통합되지 않았고 `recommend-algo`, `feat/vocalScope` 등 담당 브랜치에 있다. AI 담당자가 정한 브랜치·커밋의 README에 따라 별도 작업 폴더에서 Python 환경·모델을 준비한다. 서로 다른 브랜치의 모델·스키마를 임의로 섞지 않는다. FE 화면 개발을 위해 모든 팀원이 모델 환경을 설치할 필요는 없다.
+로컬 VocalScope 코드는 [vocal-scope/README.md](../../vocal-scope/README.md)에 있다. 추천/모델 작업의 실제 사용할 커밋은 AI 담당자와 맞춘다. AI 담당자가 정한 README에 따라 Python 환경·모델을 준비하며 서로 다른 브랜치의 모델·스키마를 임의로 섞지 않는다. FE 화면 개발을 위해 모든 팀원이 모델 환경을 설치할 필요는 없다. 로컬 workspace 저장을 S3 자동 동기화로 오해하지 않는다.
 
 현재 앱 기본 엔진 포트는 `8787`이지만 [OpenAPI 초안](../openapi.yaml)은 AI 기본 포트 `8000`을 적고 있다. BE도 OpenAPI 기본 URL에는 `/api/v1/`이 없으나 앱은 이 접두사를 기대한다. **BE·AI·FE·인프라가 경로/포트/응답 계약을 확정해야 하며, 이 문서에서 임의로 바꾸지 않았다.**
 
 ## 5. 운영 서버와 비밀정보
 
 - 운영 Nginx·TLS·Docker는 서버에 설정돼 있다. 팀원 PC에 Nginx·Certbot·UFW를 설치하거나 운영 PEM을 받을 필요가 없다.
-- `https://j15b110.p.ssafy.io/healthz`의 200은 Nginx만 정상이다. `/api/v1/health`는 현재 503이며 BE/AI/DB 미배포 상태다. 앱 주소를 도메인으로 바꾼 것만으로 서버 연동이 완료되지 않는다.
+- `https://j15b110.p.ssafy.io/healthz`의 200은 Nginx만 정상이다. 초기 API 503 기록 이후 MySQL 컨테이너 healthy는 확인했지만 BE/AI 통합 배포 성공은 별도 검증 대상이다. 앱 주소를 도메인으로 바꾼 것만으로 서버 연동이 완료되지 않는다.
+- AWS 자격 증명 파일도 저장소·이미지·APK 밖에 둔다. 개인 S3는 비공개이며 Android는 BE와 발급된 URL을 사용한다. 팀원 데이터 업로더 권한과 BE 녹음 권한을 공유하지 않는다.
 - `local.properties`, `.env`, PEM/개인키, JKS/keystore, 비밀번호·토큰 포함 URL, 운영 DB 덤프·사용자 음성은 커밋하지 않는다. `.gitignore`는 이미 추적된 비밀값까지 제거하지 못하므로 push 전에 diff도 확인한다.
 - Debug APK와 Release 배포 APK는 다르다. Release 서명키·버전 증가·다운로드 경로·업데이트 QA는 별도 구축 대상이다. 서버는 별도 패치하고 APK는 별도 배포하되 기존 앱 API 호환성을 유지한다.
 
@@ -149,5 +155,7 @@ AI 실행 코드는 아직 develop에 통합되지 않았고 `recommend-algo`, `
 | 실기기에서 localhost 접속 실패 | USB 승인, 장치 선택, adb reverse, 127.0.0.1 설정 후 재빌드 |
 | 운영 API 503 | 현재 미배포 상태가 맞는지 확인; 인증서 오류와 구분 |
 | 백엔드 시작 실패 | DB 접속/앱 계정/스키마 준비; validate를 create로 바꿔 데이터 손실을 유발하지 않기 |
+| S3 AccessDenied / 인증 없음 | 실제 AWS 프로필 신원·파일 읽기 권한·인증 우선순위·버킷/리전/prefix 일치. 버킷 전체 목록 실패만으로 녹음 API 불가 판정하지 않기 |
+| 업로드했는데 곡이 안 보임 | catalog/ 파일 업로드와 DB 메타데이터 import·API 연결이 각각 완료됐는지 확인 |
 
 다음 작업은 [배포 준비 체크리스트](DEPLOYMENT_READINESS.md), 서버 적용 증거는 [서버 설정 기록](SERVER_BOOTSTRAP.md), Jenkins 상세는 [Android CI](JENKINS_ANDROID_CI.md)를 따른다.

@@ -1,5 +1,9 @@
 # Android Jenkins CI
 
+## 개인 S3와 CI 자격 증명 경계 (2026-09-09)
+
+BE·MySQL은 SSAFY 서버, 파일은 개인 AWS 계정 S3를 사용하는 [운영 계약](S3_VOICE_STORAGE.md)을 따른다. AWS 키는 BE 런타임의 외부 자격 증명 파일에서만 주입하고 Android MR/Debug/Release 빌드·BuildConfig·APK·산출물에 포함하지 않는다. 저장소 checkout 자격 증명, APK 서명키, AWS 런타임 키는 별개다. 향후 서버 CD의 파일 배치 권한도 신뢰된 배포 작업에만 부여한다. 개인 S3 결정이 기존 Android CI에 AWS 키를 등록하라는 뜻은 아니다.
+
 Jira: `S15P21B110-129`
 
 ## 2026-09-08 MR CI 전환 (자동 재빌드 검증 완료, 리뷰 대기)
