@@ -11,6 +11,7 @@ class BackendContainerContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dockerfile = (ROOT / "backend/Dockerfile").read_text(encoding="utf-8")
+        cls.dockerignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
         cls.entrypoint = (ROOT / "backend/docker-entrypoint.sh").read_text(encoding="utf-8")
         cls.compose = (ROOT / "infra/compose/backend.compose.yml").read_text(encoding="utf-8")
         cls.production = (ROOT / "backend/src/main/resources/application-prod.properties").read_text(encoding="utf-8")
@@ -21,6 +22,10 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("@sha256:", self.dockerfile)
         self.assertIn("USER 10001:10001", self.dockerfile)
         self.assertIn('ENTRYPOINT ["/app/docker-entrypoint.sh"]', self.dockerfile)
+
+    def test_build_context_only_includes_backend(self):
+        self.assertEqual(self.dockerignore.splitlines()[:2], ["**", "!backend/"])
+        self.assertIn("!backend/**", self.dockerignore.splitlines())
 
     def test_secrets_are_files_and_not_tracked_values(self):
         for name in ("DB_PASSWORD", "JWT_SECRET", "AI_SERVICE_TOKEN"):
