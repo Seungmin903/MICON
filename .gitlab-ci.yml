@@ -1,0 +1,41 @@
+stages:
+  - verify
+
+default:
+  image: python:3.13-alpine
+  tags:
+    - micon-protected
+  interruptible: true
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - when: never
+
+runtime-contract-tests:
+  stage: verify
+  timeout: 10 minutes
+  script:
+    - python --version
+    - python -m unittest discover -s backend/contract_tests -v
+    - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
+
+mysql-song-import:
+  stage: verify
+  timeout: 10 minutes
+  image: eclipse-temurin:21-jdk-jammy@sha256:d48e921b83506f58910295b35fd02978c7f4c57fef41bceee6a460d7d97bc251
+  services:
+    - name: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+      alias: mysql
+  variables:
+    MYSQL_ROOT_PASSWORD: ci-root-password
+    MYSQL_DATABASE: micon
+    MYSQL_ROOT_HOST: '%'
+    MICON_MYSQL_TEST: '1'
+    MICON_TEST_DB_HOST: mysql
+    MICON_TEST_DB_PASSWORD: ci-root-password
+    GRADLE_USER_HOME: '$CI_PROJECT_DIR/.gradle-ci'
+    GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx384m'
+  script:
+    - sh infra/mysql/verify-song-import.sh
+

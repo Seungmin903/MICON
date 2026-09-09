@@ -58,6 +58,16 @@ object UserStore {
     /** 간편 분석이 남긴 마지막 보컬 녹음(WAV). 추천 서버 업로드에 쓴다. 원본 저장 정책은 별도(기본 OFF) — 세션 캐시일 뿐. */
     var lastRecording: java.io.File? = null
 
+    /** Clear account-scoped temporary state before another account can use the app. */
+    fun clearUserData() {
+        _profile.value = null
+        _liked.value = emptySet()
+        _setlists.value = emptyList()
+        preferredArtists = emptySet()
+        preferredGenres = emptySet()
+        lastRecording = null
+    }
+
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
 
     fun toggleLike(songId: String) = _liked.update { if (songId in it) it - songId else it + songId }

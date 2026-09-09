@@ -48,6 +48,8 @@ import com.micon.app.ui.charts.StabilityLineChart
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.MiconCard
+import com.micon.app.ui.common.OutlinePurpleButton
+import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.rememberAppContainer
@@ -56,6 +58,7 @@ import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.InkSoft
+import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.PurpleMid
 import com.micon.app.ui.theme.Red
@@ -133,16 +136,25 @@ fun stabilityCurve(c: Comparison, bins: Int = 8): Pair<List<Float>, List<String>
 // 화면
 // ---------------------------------------------------------------------------
 
-/** 전체 화면 버전 (딥링크·연습 종료 후). Figma "노래 연습 분석 상세" 카드 3개 + 곡 행. */
+/**
+ * 전체 화면 버전 (딥링크·연습 종료 후). 한줄 평가 → 곡 행 → 카드들 → "처음으로" 버튼.
+ * [onHome] 은 연습 목록(곡 선택)으로 돌아간다 — 연습 후 리포트에서 처음 화면으로 갈 길이 없었다.
+ */
 @Composable
-fun ResultScreen(jobId: String, onBack: () -> Unit) {
+fun ResultScreen(jobId: String, onBack: () -> Unit, onHome: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize().background(Color.White)) {
         BackHeader("연습 분석 상세", onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
-            ResultDetailCards(jobId, onOpenFull = null, showSong = true)
+            ResultDetailCards(jobId, onOpenFull = null, showSong = true, onHome = onHome, onBack = onBack)
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/** 카드 제목 아래 한 줄 설명 — 그래프를 처음 보는 사용자용 */
+@Composable
+private fun Caption(text: String) {
+    Text(text, fontSize = 12.sp, color = Grey, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
 }
 
 /**
@@ -150,7 +162,7 @@ fun ResultScreen(jobId: String, onBack: () -> Unit) {
  * onOpenFull 이 있으면 마지막에 "전체 리포트 보기" 링크를 둔다.
  */
 @Composable
-fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolean = false) {
+fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolean = false, onHome: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
     val container = rememberAppContainer()
     val vm: ResultViewModel = viewModel(key = "result-$jobId", factory = viewModelFactory { initializer { ResultViewModel(container.engine, container.songs, jobId) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -160,6 +172,22 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
         is ResultViewModel.State.Error -> RetryBlock(s.message, vm::load)
         is ResultViewModel.State.Ready -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val c = s.comparison
+            // 한줄 평가: 숫자 대신 말로 먼저
+            val summary = ReportSummaries.build(c)
+            Column(Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(16.dp)).padding(18.dp)) {
+                Text("한줄 평가", fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text(summary.headline, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, lineHeight = 24.sp)
+                if (summary.tips.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    summary.tips.forEach { tip ->
+                        Row(Modifier.padding(vertical = 2.dp)) {
+                            Text("•", fontSize = 14.sp, color = Purple, modifier = Modifier.width(14.dp))
+                            Text(tip, fontSize = 14.sp, color = InkSoft, lineHeight = 20.sp)
+                        }
+                    }
+                }
+            }
             if (showSong && s.song != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                     VinylArt(s.song.imageUrl, 72.dp, fallbackText = s.song.title)
@@ -175,11 +203,19 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
                 }
             }
 
+            MiconCard {
+                CardTitle("점수 요약")
+                Caption("100점 만점. 음정 65% + 박자 35%로 계산해요. 정확·높게·낮게·다른 음·안 부름은 음표 개수예요.")
+                Spacer(Modifier.height(10.dp))
+                ScoreBreakdown(c)
+            }
+
             val r = rangeSummary(c)
             val axisLow = (r.songLow - 2).coerceAtMost(48)
             val axisHigh = (r.songHigh + 2).coerceAtLeast(axisLow + 12)
             MiconCard {
                 CardTitle("음역대 지도")
+                Caption("이 노래에서 내가 안정적으로 낸 높이는 초록, 흔들린 높이는 빨강이에요. 왼쪽이 낮은 음, 오른쪽이 높은 음.")
                 Spacer(Modifier.height(10.dp))
                 RangeMapChart(
                     rows = buildList {
@@ -189,22 +225,29 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
                     },
                     axisLow = axisLow, axisHigh = axisHigh,
                     ticks = listOf(axisLow, axisLow + (axisHigh - axisLow) / 4, axisLow + (axisHigh - axisLow) / 2, axisLow + (axisHigh - axisLow) * 3 / 4, axisHigh).distinct(),
+                    labelOf = { com.micon.app.scoring.KaraokeNames.koreanShort(it) },
                 )
             }
 
             val (values, labels) = stabilityCurve(c)
             MiconCard {
                 CardTitle("음역별 안정성")
+                Caption("높이별로 정확히 맞춘 비율이에요. 오른쪽(고음)에서 선이 내려가면 고음이 아직 약한 거예요.")
                 Spacer(Modifier.height(10.dp))
                 StabilityLineChart(values, labels)
             }
 
             MiconCard {
                 CardTitle("구간 평가")
+                Caption("아쉬웠던 구간의 가사예요. 빨간 글자가 틀리거나 놓친 부분. 연습 화면에서 그 줄을 눌러 구간 반복하세요.")
                 Spacer(Modifier.height(12.dp))
                 val issues = c.issues.sortedBy { it.start }.take(6)
+                val sungCount = c.coverage?.notesSung ?: c.notes.count { it.covered && it.pitchStatus != PitchStatus.MISSED.key && it.pitchStatus != PitchStatus.UNSUNG.key }
                 if (issues.isEmpty()) {
-                    Text("음이탈 구간이 없어요. 잘 불렀어요!", fontSize = 14.sp, color = Grey)
+                    Text(
+                        if (sungCount == 0) "부른 부분이 없어 평가할 구간이 없어요. 다음엔 한 절 이상 불러 보세요." else "음이탈 구간이 없어요. 잘 불렀어요!",
+                        fontSize = 14.sp, color = Grey,
+                    )
                 } else {
                     Column(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         issues.forEach { issue ->
@@ -228,11 +271,35 @@ fun ResultDetailCards(jobId: String, onOpenFull: (() -> Unit)?, showSong: Boolea
                 }
             }
 
+            if (c.measures.isNotEmpty()) MiconCard {
+                CardTitle("마디별 점수")
+                Caption("곡을 마디 단위로 잘라 색으로 점수를 표시했어요. 초록이 잘 부른 마디, 빨강이 흔들린 마디.")
+                Spacer(Modifier.height(10.dp))
+                MeasureHeatmap(c.measures)
+            }
+
+            c.curves?.takeIf { it.user.any { v -> v != null } }?.let { curves ->
+                MiconCard {
+                    CardTitle("음정 곡선")
+                    Caption("원곡 멜로디와 내 목소리 높이를 시간 순서로 겹쳐 그렸어요. 두 선이 붙어 있으면 잘 맞은 거예요.")
+                    Spacer(Modifier.height(10.dp))
+                    PitchCurveChart(curves)
+                }
+            }
+
             onOpenFull?.let {
                 Text(
                     "전체 리포트 보기", fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.fillMaxWidth().clickable(onClick = it).padding(8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
+            }
+            if (onHome != null) {
+                Spacer(Modifier.height(6.dp))
+                PrimaryButton("처음으로 (연습 곡 선택)", onHome, Modifier.fillMaxWidth())
+                if (onBack != null) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinePurpleButton("이 곡 다시 연습", onBack, Modifier.fillMaxWidth(), height = 48.dp)
+                }
             }
             Spacer(Modifier.size(4.dp))
         }

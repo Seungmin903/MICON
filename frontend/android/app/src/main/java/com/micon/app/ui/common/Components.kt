@@ -43,7 +43,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -228,6 +234,9 @@ fun SongRow(
     liked: Boolean? = null,
     onLike: () -> Unit = {},
     trailing: (@Composable () -> Unit)? = null,
+    /** 가수명 옆 작은 칩(예: "가사 싱크", "가사만"). null 이면 없음 */
+    subBadge: String? = null,
+    subBadgeColor: Color = Purple,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
@@ -238,7 +247,16 @@ fun SongRow(
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(6.dp))
-            Text(artist, fontSize = 14.sp, color = Grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(artist, fontSize = 14.sp, color = Grey, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (subBadge != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        subBadge, fontSize = 10.sp, color = subBadgeColor, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.background(subBadgeColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
         }
         keyBadge?.let { KeyBadge(keyBadgeText(it)); Spacer(Modifier.width(6.dp)) }
         when {
@@ -416,6 +434,9 @@ fun PlayerCard(
     playing: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    /** null 이면 읽기 전용 진행 바, 아니면 드래그해 탐색할 수 있는 슬라이더 */
+    onSeek: ((Double) -> Unit)? = null,
+    caption: String? = null,
 ) {
     MiconCard(modifier, padding = PaddingValues(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -432,7 +453,27 @@ fun PlayerCard(
             }
         }
         Spacer(Modifier.height(14.dp))
-        TimeProgress(positionSec, durationSec)
+        if (onSeek == null) TimeProgress(positionSec, durationSec) else SeekableProgress(positionSec, durationSec, onSeek)
+        if (caption != null) Text(caption, fontSize = 11.sp, color = Grey, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** 시간 표시 + 드래그 탐색 슬라이더. 드래그 중에는 손가락 위치를 보여 주고 놓을 때 한 번 onSeek. */
+@Composable
+fun SeekableProgress(positionSec: Double, durationSec: Double, onSeek: (Double) -> Unit) {
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val duration = durationSec.coerceAtLeast(1.0)
+    val shown = dragging ?: (positionSec / duration).toFloat().coerceIn(0f, 1f)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(formatSec(shown * duration), fontSize = 13.sp, color = Ink, modifier = Modifier.width(40.dp))
+        Slider(
+            value = shown,
+            onValueChange = { dragging = it },
+            onValueChangeFinished = { dragging?.let { onSeek((it * duration).toDouble()) }; dragging = null },
+            modifier = Modifier.weight(1f).height(28.dp),
+            colors = SliderDefaults.colors(thumbColor = Purple, activeTrackColor = Purple, inactiveTrackColor = GreyLight),
+        )
+        Text(formatSec(durationSec), fontSize = 13.sp, color = Ink, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
     }
 }
 

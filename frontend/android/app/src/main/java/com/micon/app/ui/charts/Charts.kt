@@ -2,6 +2,8 @@ package com.micon.app.ui.charts
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -46,6 +50,7 @@ import com.micon.app.ui.theme.PurpleMid
 import com.micon.app.ui.theme.Red
 import com.micon.app.ui.theme.Teal
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -69,6 +74,7 @@ fun RangeMapChart(
     axisHigh: Int = 72,
     ticks: List<Int> = listOf(48, 55, 60, 67, 72),
     labelWidth: Dp = 84.dp,
+    labelOf: (Int) -> String = { ScoringMath.midiName(it) },
 ) {
     val measurer = rememberTextMeasurer()
     val grouped = rows.groupBy { it.label }
@@ -79,7 +85,7 @@ fun RangeMapChart(
                 val span = (axisHigh - axisLow).toFloat()
                 ticks.forEach { m ->
                     val x = size.width * (m - axisLow) / span
-                    val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = 11.sp, color = Grey))
+                    val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 11.sp, color = Grey))
                     drawText(layout, topLeft = Offset((x - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
                 }
             }
@@ -197,6 +203,113 @@ fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowM
     }
 }
 
+/**
+ * 간편 분석용 건반: 기준음(targetMidi) 건반을 강조하고, 감지된 음(detectedMidi, 소수 허용)을 건반 위 마커로
+ * 연속적으로 보여 준다(반음 사이는 건반 중심 사이를 보간 → 살짝 높거나 낮은 것도 바로 보임).
+ * 건반을 누르면 [onKeyTap] 으로 그 음을 돌려준다(기준음 변경·미리 듣기).
+ * 표시 범위는 기준음 아래 8반음 ~ 위 8반음을 흰 건반 경계로 맞춘 약 2옥타브.
+ */
+@Composable
+fun PianoTargetKeyboard(
+    targetMidi: Int,
+    detectedMidi: Double?,
+    matched: Boolean,
+    modifier: Modifier = Modifier,
+    onKeyTap: ((Int) -> Unit)? = null,
+) {
+    var lowMidi = targetMidi - 8
+    while (isBlackKey(lowMidi)) lowMidi--
+    var highMidi = lowMidi + 16
+    while (isBlackKey(highMidi)) highMidi++
+    val whites = (lowMidi..highMidi).filter { !isBlackKey(it) }
+    val measurer = rememberTextMeasurer()
+    val detectedColor = if (matched) Teal else Red
+    // 콜백은 매 프레임 바뀔 수 있으므로(50 fps 상태 갱신) pointerInput 키에 넣지 않는다 — 넣으면 탭이 끝나기 전에 제스처가 재시작된다.
+    val tapHandler by rememberUpdatedState(onKeyTap)
+
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .pointerInput(lowMidi, highMidi) {
+                detectTapGestures { pos ->
+                    val onKeyTap = tapHandler ?: return@detectTapGestures
+                    val labelH = 18.dp.toPx()
+                    val keyTop = labelH + 4.dp.toPx()
+                    val keyH = size.height - keyTop - 22.dp.toPx()
+                    val w = size.width / whites.size
+                    if (pos.y < keyTop || pos.y > keyTop + keyH) return@detectTapGestures
+                    val whiteIndex = (pos.x / w).toInt().coerceIn(0, whites.size - 1)
+                    val white = whites[whiteIndex]
+                    // 검은 건반 영역(위쪽 62 %, 흰 건반 경계 ± 0.3w)
+                    if (pos.y < keyTop + keyH * 0.62f) {
+                        val bw = w * 0.6f
+                        for (m in listOf(white + 1, white - 1)) {
+                            if (m < lowMidi || m > highMidi || !isBlackKey(m)) continue
+                            val leftWhite = whites.indexOf(m - 1)
+                            if (leftWhite < 0) continue
+                            val left = leftWhite * w + w - bw / 2
+                            if (pos.x in left..(left + bw)) { onKeyTap(m); return@detectTapGestures }
+                        }
+                    }
+                    onKeyTap(white)
+                }
+            },
+    ) {
+        val labelH = 18.dp.toPx()
+        val keyTop = labelH + 4.dp.toPx()
+        val markerH = 22.dp.toPx()
+        val keyH = size.height - keyTop - markerH
+        val w = size.width / whites.size
+        val bw = w * 0.6f
+        val xOf = HashMap<Int, Float>()          // 건반 중심 x (흰·검은 모두)
+        whites.forEachIndexed { i, m ->
+            val x = i * w
+            xOf[m] = x + w / 2
+            val isTarget = m == targetMidi
+            drawRoundRect(if (isTarget) Lavender else Color.White, Offset(x, keyTop), Size(w, keyH), CornerRadius(3.dp.toPx()))
+            drawRoundRect(if (isTarget) Purple else Color(0xFF9A9AA6), Offset(x, keyTop), Size(w, keyH), CornerRadius(3.dp.toPx()), style = Stroke(if (isTarget) 3.dp.toPx() else 1.5f))
+        }
+        (lowMidi..highMidi).filter { isBlackKey(it) }.forEach { m ->
+            val leftWhite = whites.indexOf(m - 1)
+            if (leftWhite < 0) return@forEach
+            val left = leftWhite * w + w - bw / 2
+            xOf[m] = left + bw / 2
+            val isTarget = m == targetMidi
+            drawRoundRect(if (isTarget) PurpleMid else Color(0xFF1B1B25), Offset(left, keyTop), Size(bw, keyH * 0.62f), CornerRadius(2.dp.toPx()))
+            if (isTarget) drawRoundRect(Purple, Offset(left, keyTop), Size(bw, keyH * 0.62f), CornerRadius(2.dp.toPx()), style = Stroke(3.dp.toPx()))
+        }
+        // 라벨: C 음과 기준음
+        (lowMidi..highMidi).filter { it == targetMidi || (it % 12 == 0 && abs(it - targetMidi) > 1) }.forEach { m ->   // 기준음 옆 C 라벨은 겹치므로 생략
+            val cx = xOf[m] ?: return@forEach
+            val isTarget = m == targetMidi
+            val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = if (isTarget) 12.sp else 10.sp, color = if (isTarget) Purple else Grey, fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal))
+            drawText(layout, topLeft = Offset((cx - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
+        }
+        // 감지된 음 마커: 건반 중심 사이를 보간해 연속적으로 이동
+        detectedMidi?.let { d ->
+            val clamped = d.coerceIn(lowMidi.toDouble(), highMidi.toDouble())
+            val lo = kotlin.math.floor(clamped).toInt()
+            val hi = kotlin.math.ceil(clamped).toInt()
+            val xLo = xOf[lo] ?: return@let
+            val xHi = xOf[hi] ?: xLo
+            val x = xLo + (xHi - xLo) * (clamped - lo).toFloat()
+            val bottom = keyTop + keyH
+            drawLine(detectedColor.copy(alpha = 0.85f), Offset(x, keyTop - 2.dp.toPx()), Offset(x, bottom), 4.dp.toPx(), StrokeCap.Round)
+            drawCircle(detectedColor, 7.dp.toPx(), Offset(x, bottom + markerH / 2))
+            drawCircle(Color.White, 3.dp.toPx(), Offset(x, bottom + markerH / 2))
+            if (d < lowMidi || d > highMidi) {   // 범위 밖: 화살표 대신 테두리 삼각형 힌트
+                val dir = if (d < lowMidi) -1f else 1f
+                val ax = if (dir < 0) 6.dp.toPx() else size.width - 6.dp.toPx()
+                val path = Path().apply {
+                    moveTo(ax, bottom + markerH / 2); lineTo(ax - dir * 10.dp.toPx(), bottom + markerH / 2 - 6.dp.toPx()); lineTo(ax - dir * 10.dp.toPx(), bottom + markerH / 2 + 6.dp.toPx()); close()
+                }
+                drawPath(path, detectedColor)
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // BPM 게이지 · 프레이즈 · 링 · 막대 · 육각형
 // ---------------------------------------------------------------------------
@@ -304,14 +417,19 @@ fun KeyChangeGraph(
     shifted: List<Pair<Double, Double>>? = null,
     bandLow: Int? = null,
     bandHigh: Int? = null,
+    /** 세로축 라벨 (기본 C3/C4…; 노래방식이면 KaraokeNames.koreanShort) */
+    labelOf: (Int) -> String = { ScoringMath.midiName(it) },
+    /** 가장 높은 지점 옆에 쓸 말 (null 이면 없음) */
+    peakLabel: String? = null,
+    height: Dp = 320.dp,
 ) {
     val measurer = rememberTextMeasurer()
-    Canvas(modifier.fillMaxWidth().height(320.dp)) {
+    Canvas(modifier.fillMaxWidth().height(height)) {
         if (melody.isEmpty()) return@Canvas
         val all = melody.map { it.second } + (shifted?.map { it.second } ?: emptyList()) + listOfNotNull(bandLow?.toDouble(), bandHigh?.toDouble())
         val lo = (all.min() - 2).toFloat(); val hi = (all.max() + 2).toFloat()
         val t0 = melody.first().first; val t1 = melody.last().first
-        val left = 44.dp.toPx()
+        val left = 58.dp.toPx()
         fun x(t: Double) = left + ((t - t0) / (t1 - t0).coerceAtLeast(1.0) * (size.width - left)).toFloat()
         fun y(m: Double) = ((hi - m) / (hi - lo) * size.height).toFloat()
         // 축
@@ -322,12 +440,12 @@ fun KeyChangeGraph(
             drawLine(Purple, Offset(left, y(bandHigh.toDouble())), Offset(size.width, y(bandHigh.toDouble())), 2f)
             drawLine(Purple, Offset(left, y(bandLow.toDouble())), Offset(size.width, y(bandLow.toDouble())), 2f)
         }
-        // C 음 라벨
-        var m = (lo.toInt() / 12 + 1) * 12
-        while (m <= hi) {
-            val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = 16.sp, color = Grey))
+        // 도·솔 라벨 (5도 간격이면 어느 음역이든 2~4개는 보인다) + 옅은 가로선
+        for (m in kotlin.math.ceil(lo).toInt()..kotlin.math.floor(hi).toInt()) {
+            if (m % 12 != 0 && m % 12 != 7) continue
+            drawLine(Color(0xFFE6E6EB), Offset(left, y(m.toDouble())), Offset(size.width, y(m.toDouble())), 1.5f)
+            val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 12.sp, color = Grey))
             drawText(layout, topLeft = Offset(4f, y(m.toDouble()) - layout.size.height / 2f))
-            m += 12
         }
         fun smooth(points: List<Pair<Double, Double>>): Path {
             val p = Path()
@@ -349,6 +467,12 @@ fun KeyChangeGraph(
         drawPath(smooth(melody), Purple, style = Stroke(3f))
         val top = melody.maxByOrNull { it.second }!!
         drawCircle(Purple, 9f, Offset(x(top.first), y(top.second))); drawCircle(Color.White, 4f, Offset(x(top.first), y(top.second)))
+        if (peakLabel != null) {
+            val layout = measurer.measure(peakLabel, TextStyle(fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold))
+            val px = (x(top.first) - layout.size.width / 2f).coerceIn(left, size.width - layout.size.width)
+            val py = (y(top.second) - layout.size.height - 12f).coerceAtLeast(0f)
+            drawText(layout, topLeft = Offset(px, py))
+        }
     }
 }
 
@@ -380,10 +504,12 @@ fun PitchGauge(
     matched: Boolean,
     holdProgress: Float,
     modifier: Modifier = Modifier,
+    gaugeHeight: Dp = 190.dp,
+    ringSize: Dp = 84.dp,
 ) {
     val measurer = rememberTextMeasurer()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val sw = 6.dp.toPx()
                 drawArc(Lavender, 0f, 360f, false, Offset(sw / 2, sw / 2), Size(size.width - sw, size.height - sw), style = Stroke(sw))
@@ -391,8 +517,8 @@ fun PitchGauge(
             }
             Text(targetName, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Ink)
         }
-        Spacer(Modifier.height(16.dp))
-        Canvas(Modifier.fillMaxWidth().height(190.dp)) {
+        Spacer(Modifier.height(12.dp))
+        Canvas(Modifier.fillMaxWidth().height(gaugeHeight)) {
             val cx = size.width / 2
             val cy = size.height - 24.dp.toPx()
             val r = min(size.width / 2 - 36.dp.toPx(), cy - 8.dp.toPx())

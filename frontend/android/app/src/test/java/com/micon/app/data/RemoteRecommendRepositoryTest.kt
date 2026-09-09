@@ -26,7 +26,8 @@ class RemoteRecommendRepositoryTest {
 
     /** 곡 카탈로그가 비어 있는 상황: 요약은 서버 metadata 로 만들어진다. */
     private object EmptySongs : SongRepository {
-        override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int) = emptyList<SongSummary>()
+        override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int, language: String?, chartTag: String?, sort: SongRepository.Sort) = emptyList<SongSummary>()
+        override suspend fun chartTagCounts(language: String?) = emptyMap<String, Int>()
         override suspend fun detail(songId: String): SongDetail? = null
         override suspend fun karaokeNotes(songId: String) = null
         override suspend fun counts() = SongRepository.Counts(0, 0)

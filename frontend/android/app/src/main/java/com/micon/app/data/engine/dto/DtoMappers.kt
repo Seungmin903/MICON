@@ -7,6 +7,7 @@ import com.micon.app.scoring.RefNoteInput
 fun KaraokeNote.toRefNoteInput() = RefNoteInput(
     midi = midi, lyric = lyric, scoreStartBeat = scoreStartBeat,
     sourceStart = sourceStart, sourceEnd = sourceEnd,
+    lyricStart = lyricStart, lyricEnd = lyricEnd,
 )
 
 fun SourceNote.toRefNoteInput() = RefNoteInput(

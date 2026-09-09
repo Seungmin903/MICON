@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * **임시 스텁.** assets/micon_catalog.sqlite (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 50곡 분석)를
+ * **임시 스텁.** assets/micon_catalog.sqlite (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 211곡 분석 — stem-pitch 배치, `vocal-scope/docs/STEM_PITCH_IMPORT.md`)를
  * 첫 실행 때 filesDir 로 복사해 읽기 전용으로 연다. Room 을 쓰지 않는 이유: 스키마 검증 없이 원본 파일을
  * 그대로 쓰기 위해서. 백엔드 API 가 생기면 이 클래스와 asset 을 삭제한다.
  */
@@ -29,6 +29,7 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
     private val ratiosAdapter = moshi.adapter(RangeRatios::class.java)
     private val beatGridAdapter = moshi.adapter(BeatGrid::class.java)
     private val stringMapAdapter = moshi.adapter<Map<String, String>>(Types.newParameterizedType(Map::class.java, String::class.java, String::class.java))
+    private val stringListAdapter = moshi.adapter<List<String>>(Types.newParameterizedType(List::class.java, String::class.java))
     private val karaokeNotesAdapter = moshi.adapter<List<KaraokeNote>>(Types.newParameterizedType(List::class.java, KaraokeNote::class.java))
 
     private val mutex = Mutex()
@@ -55,33 +56,65 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
         return target
     }
 
-    override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int): List<SongSummary> = withContext(Dispatchers.IO) {
+    override suspend fun search(
+        query: String, analyzedOnly: Boolean, limit: Int, offset: Int,
+        language: String?, chartTag: String?, sort: SongRepository.Sort,
+    ): List<SongSummary> = withContext(Dispatchers.IO) {
         val db = open()
         val like = "%${query.trim()}%"
+        val args = ArrayList<String>(listOf(like, like, like))
         val where = buildString {
             append("WHERE (s.title LIKE ? OR s.artist_name LIKE ? OR s.tj_number LIKE ?)")
             if (analyzedOnly) append(" AND a.song_id IS NOT NULL")
+            if (language != null) { append(" AND s.primary_language = ?"); args.add(language) }
+            if (chartTag != null) { append(" AND s.market_context_tags LIKE ?"); args.add("%\"tj_chart:$chartTag\"%") }
+        }
+        val order = when (sort) {
+            SongRepository.Sort.ARTIST -> "s.artist_name COLLATE NOCASE, s.title COLLATE NOCASE"
+            SongRepository.Sort.TITLE -> "s.title COLLATE NOCASE, s.artist_name COLLATE NOCASE"
+            SongRepository.Sort.NEWEST -> "s.release_date IS NULL, s.release_date DESC, s.title COLLATE NOCASE"
         }
         val sql = """
-            SELECT $SUMMARY_COLUMNS, (a.song_id IS NOT NULL) AS analyzed
+            SELECT $SUMMARY_COLUMNS, (a.song_id IS NOT NULL) AS analyzed, $LYRIC_FLAG_COLUMNS
             FROM songs s LEFT JOIN song_analysis a ON a.song_id = s.song_id AND a.status = 'complete'
             $where
-            ORDER BY analyzed DESC, s.artist_name COLLATE NOCASE, s.title COLLATE NOCASE
+            ORDER BY analyzed DESC, $order
             LIMIT ? OFFSET ?
         """.trimIndent()
-        db.rawQuery(sql, arrayOf(like, like, like, limit.toString(), offset.toString())).use { c ->
+        args.add(limit.toString()); args.add(offset.toString())
+        db.rawQuery(sql, args.toTypedArray()).use { c ->
             buildList { while (c.moveToNext()) add(c.summary()) }
         }
+    }
+
+    override suspend fun chartTagCounts(language: String?): Map<String, Int> = withContext(Dispatchers.IO) {
+        val db = open()
+        val sql = "SELECT s.market_context_tags FROM songs s JOIN song_analysis a ON a.song_id = s.song_id AND a.status = 'complete'" +
+            if (language != null) " WHERE s.primary_language = ?" else ""
+        val counts = LinkedHashMap<String, Int>()
+        db.rawQuery(sql, if (language != null) arrayOf(language) else null).use { c ->
+            while (c.moveToNext()) {
+                for (tag in chartTagsOf(c.getString(0))) counts[tag] = (counts[tag] ?: 0) + 1
+            }
+        }
+        counts
+    }
+
+    /** market_context_tags JSON 에서 `tj_chart:` 태그만 접두어 없이 */
+    private fun chartTagsOf(json: String?): List<String> {
+        if (json.isNullOrBlank()) return emptyList()
+        val list = runCatching { stringListAdapter.fromJson(json) }.getOrNull() ?: return emptyList()
+        return list.filter { it.startsWith("tj_chart:") }.map { it.removePrefix("tj_chart:") }
     }
 
     override suspend fun detail(songId: String): SongDetail? = withContext(Dispatchers.IO) {
         val db = open()
         val summaryAndLyrics = db.rawQuery(
-            """SELECT $SUMMARY_COLUMNS, s.lyrics_plain, (a.song_id IS NOT NULL) AS analyzed
+            """SELECT $SUMMARY_COLUMNS, s.lyrics_plain, s.lyrics_synced, (a.song_id IS NOT NULL) AS analyzed, $LYRIC_FLAG_COLUMNS
                FROM songs s LEFT JOIN song_analysis a ON a.song_id = s.song_id AND a.status = 'complete'
                WHERE s.song_id = ?""",
             arrayOf(songId),
-        ).use { c -> if (c.moveToFirst()) c.summary() to c.str("lyrics_plain") else null } ?: return@withContext null
+        ).use { c -> if (c.moveToFirst()) Triple(c.summary(), c.str("lyrics_plain"), c.str("lyrics_synced")) else null } ?: return@withContext null
 
         val analysis = db.rawQuery("SELECT * FROM song_analysis WHERE song_id = ? AND status = 'complete'", arrayOf(songId)).use { c ->
             if (!c.moveToFirst()) null else SongAnalysis(
@@ -113,6 +146,7 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
         SongDetail(
             summary = summaryAndLyrics.first,
             lyricsPlain = summaryAndLyrics.second,
+            lyricsSynced = summaryAndLyrics.third,
             analysis = analysis,
             hasInstrumental = artifacts.any { it.first == "instrumental" },
             renderedKeyShifts = artifacts.filter { it.first == "instrumental-key" }.map { it.second }.sorted(),
@@ -131,7 +165,10 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
         val db = open()
         val songs = db.rawQuery("SELECT COUNT(*) FROM songs", null).use { it.moveToFirst(); it.getInt(0) }
         val analyzed = db.rawQuery("SELECT COUNT(*) FROM song_analysis WHERE status = 'complete'", null).use { it.moveToFirst(); it.getInt(0) }
-        SongRepository.Counts(songs, analyzed)
+        val synced = db.rawQuery(
+            "SELECT COUNT(*) FROM songs s JOIN song_analysis a ON a.song_id = s.song_id AND a.status = 'complete' WHERE length(s.lyrics_synced) > 0", null,
+        ).use { it.moveToFirst(); it.getInt(0) }
+        SongRepository.Counts(songs, analyzed, synced)
     }
 
     private fun Cursor.summary() = SongSummary(
@@ -146,6 +183,9 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
         language = str("primary_language"),
         releaseDate = str("release_date"),
         analyzed = (int("analyzed") ?: 0) != 0,
+        chartTag = chartTagsOf(str("market_context_tags")).firstOrNull(),
+        lyricsSynced = (int("lyrics_synced_flag") ?: 0) != 0,
+        hasLyrics = (int("has_lyrics") ?: 0) != 0,
     )
 
     private fun Cursor.str(column: String): String? = getColumnIndex(column).takeIf { it >= 0 }?.let { if (isNull(it)) null else getString(it) }
@@ -155,6 +195,8 @@ class SqliteSongRepository(private val context: Context, moshi: Moshi) : SongRep
     companion object {
         const val ASSET_NAME = "micon_catalog.sqlite"
         private const val SUMMARY_COLUMNS =
-            "s.song_id, s.tj_number, s.title, s.artist_name, s.album_name, s.duration_ms, s.display_image_url, s.primary_genre, s.primary_language, s.release_date"
+            "s.song_id, s.tj_number, s.title, s.artist_name, s.album_name, s.duration_ms, s.display_image_url, s.primary_genre, s.primary_language, s.release_date, s.market_context_tags"
+        private const val LYRIC_FLAG_COLUMNS =
+            "(length(s.lyrics_synced) > 0) AS lyrics_synced_flag, (length(s.lyrics_plain) > 0) AS has_lyrics"
     }
 }

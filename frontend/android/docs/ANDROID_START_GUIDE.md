@@ -16,7 +16,7 @@ Android Studio(또는 CLI)에서 실제 기능을 만들 때 이 폴더에서 **
 | 4 | `vocal-scope/docs/DATA_INVENTORY.md` | 엔진이 내보내는 모든 필드의 이름·타입·단위(§2), 채점 결과 `comparison{}`(§2.9), 버려지는 값(§4), 미구현(§5) | JSON 파싱 클래스 작성 |
 | 5 | `vocal-scope/PIPELINE.md` §5 + `vocal-scope/model-server/app.py` | 엔진 REST API 원문(아래 §3에 요약) | Retrofit 인터페이스 |
 | 6 | `프로젝트 핵심 용어집 — 음성·음색·음역·분석 품질.md` (이 폴더 루트) | 팀 공통 용어(안정 음역, 성구, 음색 층, 분석 품질 pass/review/fail) — 화면 문구·필드명의 기준 | UI 문구, 네이밍 |
-| 7 | `outputs/micon_catalog.sqlite` (32 MB) | 890곡 메타 + 50곡 분석이 들어간 **개발용 샘플 DB**(스키마는 위와 동일 컬럼) | 목록·상세 화면 목데이터, 쿼리 검증 |
+| 7 | `outputs/micon_catalog.sqlite` | 890곡 메타 + 211곡 분석(stem-pitch 배치)이 들어간 **개발용 샘플 DB**(스키마는 위와 동일 컬럼, 생성: `vocal-scope/docs/STEM_PITCH_IMPORT.md`) | 목록·상세 화면 목데이터, 쿼리 검증 |
 | 8 | `vocal-scope/model-server/workspace/tj-*/job.json` (51곡) | 실제 분석 결과 JSON 원문(`result.notes/karaokeNotes/register/lyrics/...`) + `instrumental.opus` | 파서 테스트 픽스처, 재생 테스트 |
 | 9 | `vocal-scope/app/live-scoring.tsx`, `vocal-scope/public/pitch-worklet.js`, `vocal-scope/tests/pitch-worklet.test.mjs` | 라이브 채점 로직(재생 위치 기준 즉시 판정, 자동 지연 보정)과 YIN 피치 추적 순수 함수 + 테스트 | Kotlin 포팅 원본 |
 | 10 | `vocal-scope/model-server/compare_engine.py` 상단 상수, `vocal-scope/app/scoring-ui.ts` | 판정 임계·점수 가중·등급 경계, 판정 색상·라벨 | 채점 표시 일관성 |
@@ -57,6 +57,7 @@ Android Studio(또는 CLI)에서 실제 기능을 만들 때 이 폴더에서 **
 | `POST /jobs` (202, multipart) | `audio` 파일, `sourceType=mix|vocal`, `lyrics`(≤20,000자), `separator` | job 객체(`status=queued`) | 원곡 분석 시작(배치 완료 곡은 불필요) |
 | `GET /jobs/{id}` | — | job 객체 `{id, kind, status, progress 0–100, message, result, error}` | **진행률 폴링**(1–2 s), 결과 읽기 |
 | `POST /jobs/{id}/compare` (202, multipart) | `audio`(webm/wav/m4a 등), `sourceType=mix|vocal`, `allowTranspose`, `octaveTolerant` | performance job(`kind=performance`, `referenceJobId`) | **부른 노래 채점**(MR 없이 부르면 `sourceType=vocal`로 분리 생략) |
+| `DELETE /jobs/{id}` | — | `{id, deleted:true}`; reference 곡·분석 중이면 409 | **부른 노래 기록 삭제**(평가 탭, workspace 파일까지 제거) |
 | `POST /jobs/{id}/comparison` (JSON) | `{allowTranspose?, octaveTolerant?}` | job(`result.comparison` 갱신) | 옵션만 바꿔 재채점 |
 | `POST /jobs/{id}/instrumental-key` (JSON) | `{semitones}` −6…+5 | `{semitones, file, url, seconds, range}` | 키 변경 반주 미리 렌더(6분 곡 ≈9 s) |
 | `GET /jobs/{id}/files/instrumental?semitones=N` | — | `audio/ogg`(Opus) 또는 `audio/wav` | **반주 스트리밍**(ExoPlayer로 재생) |
@@ -92,7 +93,7 @@ job id: 카탈로그 곡은 `tj-<TJ번호>`(= `songs.song_id`), 사용자 업로
 
 - 곡 쪽(읽기 전용, 적재기가 채움): `songs`(제목·가수·이미지·장르·언어·가사·`audio_path`), `song_analysis`(조성·BPM·음역·성구 JSON·`task_support`), `song_notes`(`karaoke_notes` JSON ≈0.3–1 MB/곡), `song_artifacts`(반주 opus 경로·키별), `song_sections`(**비어 있음**).
 - 사용자 쪽(**제안 상태**, 신승민 님 -68/-69·양서희 님 -16/-66 데이터 모델 이슈와 맞춰야 함): `users`, `user_recordings`, `user_voice_profiles`(안정 음역·반음별 안정도·성구·육각 특성), `song_fit`(추천 키·적합도, 음색·리듬은 NULL=평가 불가), `practice_sessions`(연습 1회 = `comparison` 저장), `favorites`, `setlists`, `setlist_items`.
-- 오디오는 DB 밖. `song_artifacts.path`의 Opus를 파일 서버로 스트리밍.
+- 오디오는 DB 밖. 로컬 엔진은 `song_artifacts.path`의 Opus를 파일 서버로 스트리밍한다. 운영은 [SSAFY BE·MySQL + 개인 S3](../../../docs/operations/S3_VOICE_STORAGE.md)이며 object key 매핑·허가된 다운로드/스트리밍 연결을 별도로 검증해야 한다. PC 절대경로나 `s3://`를 Android 재생 URL로 그대로 사용하지 않는다. 녹음은 BE가 발급한 만료 URL을 사용하고 AWS 키를 앱에 포함하지 않는다. 2026-09-09 버킷·BE 전용 IAM·서버 키 저장과 CLI 연결은 검증했지만 BE 배포·앱/DB/AI 통합은 미완료다.
 - 로컬 MySQL84(root 비번 미설정)에 `micon` DB가 09-02 덤프로 올라가 있고, 같은 내용의 `outputs/micon_catalog.sqlite`가 있어 백엔드 없이도 화면 개발이 가능합니다.
 
 ## 5. 지금 데이터로 되는 것 / 안 되는 것

@@ -23,11 +23,12 @@ class LocalRecommendRepositoryTest {
         val analyzed = summary("tj-14260", "행복하지 말아요", analyzed = true)
         val unanalyzed = summary("tj-00001", "분석 안 된 곡", analyzed = false)
 
-        override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int) =
+        override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int, language: String?, chartTag: String?, sort: SongRepository.Sort) =
             (if (analyzedOnly) listOf(analyzed) else listOf(analyzed, unanalyzed)).take(limit)
+        override suspend fun chartTagCounts(language: String?) = emptyMap<String, Int>()
 
         override suspend fun detail(songId: String): SongDetail? = when (songId) {
-            analyzed.id -> SongDetail(analyzed, null, analysis(53, 74), hasInstrumental = true, renderedKeyShifts = emptyList())
+            analyzed.id -> SongDetail(analyzed, null, analysis = analysis(53, 74), hasInstrumental = true, renderedKeyShifts = emptyList())
             unanalyzed.id -> SongDetail(unanalyzed, null, analysis = null, hasInstrumental = false, renderedKeyShifts = emptyList())
             else -> null
         }

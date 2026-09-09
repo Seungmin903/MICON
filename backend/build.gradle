@@ -23,9 +23,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.flywaydb:flyway-mysql'
+	implementation platform('software.amazon.awssdk:bom:2.54.13')
+	implementation 'software.amazon.awssdk:s3'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.mysql:mysql-connector-j'
@@ -45,4 +49,22 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Use the application's Flyway/MySQL dependencies without booting Spring or
+// compiling unrelated application code. This task only targets disposable MySQL.
+sourceSets {
+	mysqlVerification {
+		compileClasspath = configurations.runtimeClasspath
+		runtimeClasspath = output + compileClasspath
+	}
+}
+
+tasks.register('verifySongImport', JavaExec) {
+	group = 'verification'
+	description = 'Apply real Flyway migrations and assert two catalog imports on empty test MySQL.'
+	classpath = sourceSets.mysqlVerification.runtimeClasspath
+	mainClass = 'com.micon.verification.SongImportVerifier'
+	workingDir = rootDir.parentFile
+	maxHeapSize = '256m'
 }

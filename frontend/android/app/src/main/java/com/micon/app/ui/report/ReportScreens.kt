@@ -45,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.micon.app.data.local.UserStore
@@ -97,10 +99,14 @@ fun VoiceReportScreen(onQuickAnalysis: () -> Unit, onFileAnalysis: () -> Unit = 
             }
         }
         if (overlay) {
-            Box(Modifier.fillMaxSize().background(Color(0x99777777)).clickable { overlay = false }, contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(48.dp)) {
-                    BigCircleButton(Icons.Filled.GraphicEq, "간편 분석하기") { overlay = false; onQuickAnalysis() }
-                    BigCircleButton(Icons.Outlined.Mic, "불러서 분석하기") { overlay = false; onFileAnalysis() }
+            // Dialog = 별도 창이라 하단 탭바까지 덮는다(이전엔 Scaffold 내용 영역만 덮어 탭바가 눌렸다). 바깥 터치/뒤로 가기로 닫힘.
+            Dialog(onDismissRequest = { overlay = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                Box(Modifier.fillMaxSize().background(Color(0x99777777)).clickable { overlay = false }, contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(36.dp)) {
+                        BigCircleButton(Icons.Filled.GraphicEq, "간편 분석하기", "기준음 5개를 따라 부르면 끝") { overlay = false; onQuickAnalysis() }
+                        BigCircleButton(Icons.Outlined.Mic, "불러서 분석하기", "노래 한 곡을 불러 정밀 분석") { overlay = false; onFileAnalysis() }
+                        Text("닫기", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { overlay = false })
+                    }
                 }
             }
         }
@@ -108,12 +114,14 @@ fun VoiceReportScreen(onQuickAnalysis: () -> Unit, onFileAnalysis: () -> Unit = 
 }
 
 @Composable
-private fun BigCircleButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = CircleShape, color = Purple, shadowElevation = 10.dp, modifier = Modifier.size(232.dp)) {
+private fun BigCircleButton(icon: ImageVector, label: String, caption: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = CircleShape, color = Purple, shadowElevation = 10.dp, modifier = Modifier.size(196.dp)) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, null, Modifier.size(64.dp), tint = Color.White)
-            Spacer(Modifier.height(18.dp))
-            Text(label, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Icon(icon, null, Modifier.size(52.dp), tint = Color.White)
+            Spacer(Modifier.height(12.dp))
+            Text(label, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Spacer(Modifier.height(4.dp))
+            Text(caption, fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
         }
     }
 }
