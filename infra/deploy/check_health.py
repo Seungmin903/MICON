@@ -32,9 +32,9 @@ def validate_url(url):
         or parsed.password is not None
         or parsed.query
         or parsed.fragment
-        or parsed.path != "/actuator/health"
+        or parsed.path != "/actuator/health/readiness"
     ):
-        raise ValueError("Use loopback:port/actuator/health without credentials or query")
+        raise ValueError("Use loopback:port/actuator/health/readiness without credentials or query")
     return url
 
 
@@ -65,7 +65,7 @@ def check_once(url, timeout):
         return False, "invalid_json"
 
 
-def wait_for_ready(url, deadline=30, interval=2, timeout=3, *,
+def wait_for_ready(url, deadline=60, interval=2, timeout=5, required_successes=3, *,
                    probe=check_once, clock=time.monotonic, sleep=time.sleep,
                    report=print):
     validate_url(url)
@@ -73,8 +73,15 @@ def wait_for_ready(url, deadline=30, interval=2, timeout=3, *,
         raise ValueError("Timing values must be finite and positive")
     if deadline > 60 or timeout > deadline or interval > deadline:
         raise ValueError("Deadline must be <=60s and bound timeout and interval")
+    if (
+        not isinstance(required_successes, int)
+        or isinstance(required_successes, bool)
+        or not 1 <= required_successes <= 10
+    ):
+        raise ValueError("Required successes must be an integer from 1 to 10")
     start = clock()
     attempt = 0
+    success_streak = 0
     while clock() - start < deadline:
         attempt += 1
         remaining = deadline - (clock() - start)
@@ -82,8 +89,12 @@ def wait_for_ready(url, deadline=30, interval=2, timeout=3, *,
             break
         ready, reason = probe(url, min(timeout, remaining))
         elapsed = clock() - start
-        report(f"health attempt={attempt} result={reason} elapsed_s={elapsed:.2f}")
-        if ready and elapsed <= deadline:
+        success_streak = success_streak + 1 if ready else 0
+        report(
+            f"health attempt={attempt} result={reason} "
+            f"success_streak={success_streak}/{required_successes} elapsed_s={elapsed:.2f}"
+        )
+        if success_streak >= required_successes and elapsed <= deadline:
             return True
         remaining = deadline - (clock() - start)
         if remaining > 0:
@@ -95,12 +106,19 @@ def wait_for_ready(url, deadline=30, interval=2, timeout=3, *,
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
-    parser.add_argument("--deadline", type=float, default=30)
+    parser.add_argument("--deadline", type=float, default=60)
     parser.add_argument("--interval", type=float, default=2)
-    parser.add_argument("--timeout", type=float, default=3)
+    parser.add_argument("--timeout", type=float, default=5)
+    parser.add_argument("--required-successes", type=int, default=3)
     args = parser.parse_args()
     try:
-        return 0 if wait_for_ready(args.url, args.deadline, args.interval, args.timeout) else 1
+        return 0 if wait_for_ready(
+            args.url,
+            args.deadline,
+            args.interval,
+            args.timeout,
+            args.required_successes,
+        ) else 1
     except ValueError:
         print("health result=invalid_configuration")
         return 2
