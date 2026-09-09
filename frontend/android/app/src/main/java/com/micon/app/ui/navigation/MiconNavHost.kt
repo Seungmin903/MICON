@@ -165,6 +165,9 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier) {
         // ---- 개발용: 음성 프로필 예시를 채우고 리포트 탭으로 (adb shell am start -d "micon://app/dev/seed-profile") ----
         composable(Routes.DEV_SEED_PROFILE, deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_SEED_PROFILE}" })) {
             com.micon.app.data.local.UserStore.setProfile(com.micon.app.data.local.UserStore.VoiceProfile())
+            // 선호 가수도 같이 심어 "선호 가수" 섹션까지 보이게 (개발용 카탈로그에 분석된 곡이 있는 가수)
+            com.micon.app.data.local.UserStore.preferredArtists = setOf("한로로", "백아", "볼빨간사춘기", "이승철", "조항조", "싸이")
+            com.micon.app.data.local.UserStore.nickname = "유림"
             androidx.compose.runtime.LaunchedEffect(Unit) { nav.navigate(Routes.REPORT) { popUpTo(Routes.DEV_SEED_PROFILE) { inclusive = true } } }
         }
     }

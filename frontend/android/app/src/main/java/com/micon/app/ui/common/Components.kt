@@ -2,6 +2,7 @@ package com.micon.app.ui.common
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -68,6 +70,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.micon.app.R
 import coil.compose.AsyncImage
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
@@ -174,24 +177,21 @@ fun MiconSearchBar(
     }
 }
 
-/** LP 판 모양 앨범 아트. imageUrl 이 없으면 제목 첫 글자를 보라 배경에 보인다. */
+/**
+ * LP 판 모양 앨범 아트 = 디자인 에셋 링(`lp_ring.png`, 가운데가 뚫려 있고 흰 구멍 포함) 아래에 앨범아트를 깐다.
+ * 에셋의 뚫린 지름은 0.828·size — 아트는 0.85·size 로 조금 더 크게 깔아 링이 가장자리를 덮는다. imageUrl 이 없으면 제목 첫 글자.
+ */
 @Composable
 fun VinylArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier, fallbackText: String = "") {
-    Box(modifier.size(size).clip(CircleShape).background(Color(0xFF15161C)), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val r = this.size.minDimension / 2f
-            listOf(0.93f, 0.86f, 0.79f).forEach { k ->
-                drawCircle(Color.White.copy(alpha = 0.14f), radius = r * k, style = Stroke(width = r * 0.025f))
-            }
-        }
-        Box(Modifier.size(size * 0.66f).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF9F8DF7), Color(0xFF6C5CE7)))), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size * 0.85f).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF9F8DF7), Color(0xFF6C5CE7)))), contentAlignment = Alignment.Center) {
             if (imageUrl != null) {
                 AsyncImage(model = imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
                 Text(fallbackText.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.22f).sp)
             }
         }
-        Box(Modifier.size(size * 0.12f).clip(CircleShape).background(Color.White))
+        Image(painterResource(R.drawable.lp_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
     }
 }
 
