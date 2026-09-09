@@ -2,7 +2,7 @@
 
 Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-08.
 
-2026-09-09 저장소 계약 갱신: develop `fcc00d2`의 S3·AI 환경변수를 반영한다. 운영 구조는 **SSAFY 서버(BE·MySQL) + 개인 AWS 계정 S3**로 선택했다. 실제 버킷·리전·전용 IAM·서버 키 파일은 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절을 따른다. S15P21B110-211에서 서버 CLI 업로드/GET/삭제 검증까지 완료했으나 BE 컨테이너 마운트·앱/DB/AI 통합은 미완료다. 아래 2026-09-08 결정은 당시 계약이며 이번 S3 설정에서 SQL·라우팅·BE 배포는 실행하지 않았다.
+2026-09-10 구현 갱신: S15P21B110-153 브랜치에서 [BE 운영 컨테이너](BACKEND_CONTAINER_RUNTIME.md), prod health 설정과 비-root secret 준비를 구현했다. SSAFY 서버 후보 포트에서 MySQL 8.4.11/V10, readiness/liveness, 카탈로그 S3 실제 GET·SHA-256 및 컨테이너 단독 재시작을 검증했다. Nginx 실서비스 전환·앱/AI 통합은 아직 미완료다. 아래 2026-09-08 항목 중 “미구현” 표시는 역사적 계약 설명이며, 현재 구현 상태는 이 갱신과 운영 컨테이너 문서를 우선한다.
 
 **사용자의 결정 위임에 따라 인프라 계약을 정한 리뷰본이다.** 현재 코드 사실과 앞으로 적용할 계약을 분리한다. MR은 문서·예제 검토용이며 팀원 승인 또는 운영 검증 완료를 뜻하지 않는다. SQL 및 본인 프런트 구현 보류를 유지한다. 150의 범위는 계약 문서화이며 실제 구현·배포 검증은 149·153·154·155·156 및 FE 후속 작업에 인계한다.
 
@@ -79,20 +79,20 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 
 프런트는 이번에 변경하지 않는다. 실제 FE 담당자는 BE 명세 기준으로 갱신 경로/DTO 및 인증 예외 경로 목록을 함께 맞추고 health 사용 여부를 확인해야 한다. 현재 결정에는 BE 하위 호환 alias 추가가 포함되지 않는다. AI 주소/포트는 BE와 별도 미결 계약이다.
 
-## 3. health/readiness (채택한 계약 — 구현 인계)
+## 3. health/readiness (153 구현·후보 검증 완료)
 
-확정한 배포 원칙: DB 연결·기본 쿼리 성공 없이는 배포 성공으로 처리하지 않는다. 배포 gate는 `/actuator/health/readiness`로 정하고 `readinessState,db`를 포함한다. 아직 설정에 적용하지 않았다. DB 연결 성공만으로 migration·테이블·추천 데이터·주요 API 동작까지 검증된 것은 아니므로 별도 검증도 필요하다.
+확정한 배포 원칙: DB 연결·기본 쿼리 성공 없이는 배포 성공으로 처리하지 않는다. `application-prod.properties`에 `/actuator/health/readiness`의 `readinessState,db`와 DB를 제외한 liveness를 적용했고 후보 서버에서 두 경로 모두 HTTP 200 `{"status":"UP"}`를 확인했다. DB 연결 성공만으로 추천 데이터·주요 API 동작까지 검증된 것은 아니므로 별도 검증도 필요하다.
 
 | 대상 | 현재 사실 | 채택한 검증 계약 |
 |---|---|---|
 | Nginx /healthz | edge만 나타내는 JSON 200 | edge 생존 확인 전용. DB/API 정상 증거로 사용 금지 |
-| BE /actuator/health | SecurityConfig가 정확한 경로를 permitAll; 기존 156 gate 대상 | 내부 종합 진단용. 최종 배포 gate는 아래 readiness로 변경 |
-| BE /actuator/health/readiness | 별도 probes 명시 설정/무인증 허용 없음 | 내부 무인증 GET. readinessState와 db 포함. HTTP 200 + application/json + status=UP만 성공; DOWN/OUT_OF_SERVICE는 503. 그 밖의 상태·응답 오류·timeout은 실패. 상세 구성/예외 원문 숨김 |
-| BE /actuator/health/liveness | 별도 명시 허용 없음 | 내부 무인증 GET, livenessState만 검사. UP은 200, DOWN/BROKEN은 503. DB/SMTP는 제외하여 외부 의존성 장애로 재시작 반복 방지 |
+| BE /actuator/health | health 하위 경로만 permitAll, 상세 숨김 | 내부 종합 진단용. 최종 배포 gate는 아래 readiness |
+| BE /actuator/health/readiness | prod 설정·무인증 허용·DB 포함 구현, 후보 HTTP 200 확인 | 내부 무인증 GET. readinessState와 db 포함. HTTP 200 + application/json + status=UP만 성공 |
+| BE /actuator/health/liveness | prod 설정·무인증 허용·DB 제외 구현, 후보 HTTP 200 확인 | 내부 무인증 GET, livenessState만 검사. 외부 의존성 장애로 재시작 반복 방지 |
 
-무인증 probe 허용은 관리 API 전체 공개가 아니다. 154에서 외부 `/actuator` 노출을 차단하고 내부 네트워크/loopback에서만 검사하도록 한다. 지금 보안 matcher나 방화벽을 변경하지 않았다. Actuator 기본/자동 구성과 실제 HTTP 동작은 따로 검증해야 하며, 이 표는 기동 시험 결과가 아니다.
+무인증 probe 허용은 관리 API 전체 공개가 아니다. 컨테이너 포트는 loopback에만 publish했고 154에서 외부 `/actuator` 노출을 차단한다. 방화벽 공개 포트는 추가하지 않았다.
 
-후속 구현에서 적용할 properties 계약 (현재 설정 파일 아님):
+적용한 properties 계약:
 
 ```properties
 management.endpoints.web.exposure.include=health
@@ -103,7 +103,7 @@ management.endpoint.health.group.readiness.include=readinessState,db
 management.endpoint.health.group.liveness.include=livenessState
 ```
 
-SMTP는 readiness에서 제외한다. 메일 장애는 비밀번호 복구 기능 실패로 별도 감지하고 사용자에게 재시도를 안내하며, 다른 기능 전체의 트래픽을 차단하지 않는다. 메일 발송 검증 없이 복구 기능을 정상으로 보고하지 않는다. 현재 156의 gate는 정확히 `/actuator/health`만 허용하므로 readiness 설정·보안 matcher·검사 도구·테스트를 함께 수정한 뒤 사용해야 한다. 기존 gate를 바꿨다고 가정하지 않는다.
+SMTP는 readiness에서 제외한다. 메일 장애는 비밀번호 복구 기능 실패로 별도 감지하고 사용자에게 재시도를 안내하며, 다른 기능 전체의 트래픽을 차단하지 않는다. 메일 발송 검증 없이 복구 기능을 정상으로 보고하지 않는다. 156의 검사 도구는 readiness 및 연속 성공 조건으로 별도 수정해야 한다.
 
 gate 실행 계약: 개별 요청 timeout 5초, 최대 60초 내 2초 간격 재시도, 연속 3회 성공 후에만 전환한다. 시간 내 미충족이면 전환하지 않고 기존 버전을 유지한다. 전환 후 주요 API smoke 실패 시 이전 이미지·upstream으로 복구한다. 156에서 이 조건의 모의/실제 검증을 담당한다.
 

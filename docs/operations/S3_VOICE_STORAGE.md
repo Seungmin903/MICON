@@ -1,6 +1,6 @@
 # SSAFY 서버 + 개인 AWS S3 운영 계약
 
-설계 Jira: S15P21B110-210 / 실제 설정·검증: S15P21B110-211, S15P21B110-228. 결정·검증일: 2026-09-10. 서버는 SSAFY 제공 자원을 유지하고, 파일 저장소만 인프라 담당자의 개인 AWS 계정을 사용한다. **비공개 버킷·BE 전용 IAM·서버 키 저장, 서버 CLI 직접 연결, 384곡 보컬 stem 읽기 권한과 DB 참조 적재를 완료했다. BE 컨테이너 배포·앱/AI 통합은 아직 미완료다.**
+설계 Jira: S15P21B110-210 / 실제 설정·검증: S15P21B110-211, S15P21B110-228. 결정·검증일: 2026-09-10. 서버는 SSAFY 제공 자원을 유지하고, 파일 저장소만 인프라 담당자의 개인 AWS 계정을 사용한다. **비공개 버킷·BE 전용 IAM·서버 키 저장, 서버 CLI 직접 연결, 384곡 보컬 stem 읽기 권한과 DB 참조 적재를 완료했다. 후보 BE 컨테이너에서도 카탈로그 WAV 실제 GET·체크섬을 검증했지만 Nginx 전환·앱/AI 통합은 아직 미완료다.**
 
 ## 0. 실제 적용 상태와 인계 값 (2026-09-10 KST)
 
@@ -14,7 +14,8 @@
 | 허용 범위 | 버킷의 `GetBucketLocation`, `voice-recordings/*`의 읽기·쓰기·삭제, 승인된 `catalog/정영주/section-384-v1/vocals/*`의 `GetObject`만 허용 |
 | 서버 비밀 파일 | `/etc/micon/secrets/aws_credentials`, 프로필 `micon-backend`, `root:root 0600`; 상위 secrets 디렉터리 `0700` |
 | 호스트 기본 인증 | SSAFY `AmazonLightsailInstanceRole` 유지. 개인 프로필은 해당 검증 명령에만 명시 |
-| 아직 미적용 | BE 컨테이너 읽기 전용 마운트·환경변수와 내부 URL 실제 GET, 비용 알림, 보관/인수 정책, HTTPS 강제 버킷 Deny 정책 |
+| BE 후보 런타임 | UID/GID `10001:10001`, 전용 staged secret `0400`, loopback 18081, 개인 프로필로 카탈로그 WAV 실제 GET·SHA-256 일치 확인 |
+| 아직 미적용 | Nginx 실서비스 전환, 사용자 녹음 API upload/GET/delete, 비용 알림, 보관/인수 정책, HTTPS 강제 버킷 Deny 정책 |
 
 키 값·키 ID는 이 문서에 기록하지 않는다. 생성 직후 SSH 표준 입력으로 서버 파일에 전달했고, 서버 신원 검증 후 로컬 임시 키 CSV를 삭제했다. shared credentials 파일은 평문 비밀 파일이므로 파일 권한으로 접근을 제한하며 서버 백업·운영자 접근에도 같은 보호가 필요하다. [AWS 액세스 키 관리](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html)
 
@@ -48,7 +49,7 @@ AWS_PROFILE=micon-backend
 AWS_EC2_METADATA_DISABLED=true
 ```
 
-호스트 `/etc/micon/secrets/aws_credentials` → 컨테이너 `/run/secrets/aws_credentials`를 읽기 전용으로 마운트한다. 아직 BE 이미지 실행 UID/GID가 검증되지 않았으므로 현재 `0600`을 non-root 컨테이너가 읽을 수 있다고 가정하지 않는다. 아래 4절에 따라 소유권·마운트·실제 컨테이너 신원을 검증한 다음 앱 smoke를 진행한다. 팀원 로컬 업로드에는 이 BE 키를 공유하지 않고 5절의 별도 업로더를 준비한다.
+원본 `/etc/micon/secrets/aws_credentials`는 `root:root 0600`을 유지한다. [BE 운영 컨테이너](BACKEND_CONTAINER_RUNTIME.md)의 준비 스크립트가 앱 전용 `/etc/micon/backend-secrets/aws_credentials`를 UID/GID `10001:10001`, mode `0400`으로 복제하고 컨테이너 `/run/secrets/aws_credentials`에 read-only secret으로 마운트한다. 팀원 로컬 업로드에는 이 BE 키를 공유하지 않고 5절의 별도 업로더를 사용한다.
 
 ## 1. 구성과 담당 범위
 
