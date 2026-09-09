@@ -52,6 +52,15 @@ object UserStore {
     var preferredArtists: Set<String> = emptySet()
     var preferredGenres: Set<String> = emptySet()
 
+    /** Clear account-scoped temporary state before another account can use the app. */
+    fun clearUserData() {
+        _profile.value = null
+        _liked.value = emptySet()
+        _setlists.value = emptyList()
+        preferredArtists = emptySet()
+        preferredGenres = emptySet()
+    }
+
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
 
     fun toggleLike(songId: String) = _liked.update { if (songId in it) it - songId else it + songId }
