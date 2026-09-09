@@ -1,0 +1,14 @@
+.git
+.gitlab
+.gradle
+.idea
+.pytest_cache
+**/build
+**/.gradle
+**/__pycache__
+frontend
+docs
+vocal-scope
+*.md
+!backend
+!backend/**
