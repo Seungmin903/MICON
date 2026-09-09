@@ -968,7 +968,7 @@ paths:
     delete:
       tags: ["음성 데이터"]
       summary: "원본 녹음 개별 삭제 API"
-      description: "선택 원본을 삭제하고 관련 AI 임시 데이터 정리를 요청한다."
+      description: "선택 원본을 S3에서 삭제하고 DB 메타데이터를 DELETED 상태로 전환한다. 진행 중인 분석이 있으면 먼저 취소해야 한다."
       operationId: "micon038"
       servers:
         - url: "{backendUrl}"
@@ -980,14 +980,25 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - name: "recordingId"
+          in: "path"
+          required: true
+          schema: { type: "integer", format: "int64" }
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "원본 녹음 삭제 완료"
+        "404":
+          description: "녹음이 없거나 본인 소유가 아님"
+        "409":
+          description: "해당 녹음을 사용하는 분석이 진행 중"
+        "503":
+          description: "스토리지 객체 삭제 실패"
     get:
       tags: ["음성 데이터"]
       summary: "원본 녹음 정보 조회 API"
@@ -1857,7 +1868,7 @@ paths:
     delete:
       tags: ["음성 데이터"]
       summary: "음성 분석 데이터 개별 삭제 API"
-      description: "선택 분석 데이터를 삭제하고 관련 작업·임시 데이터 처리 및 감사 이력을 관리한다."
+      description: "종료된 분석의 음역·음색 결과를 먼저 삭제한 뒤 분석 데이터를 삭제한다. 진행 중인 분석은 먼저 취소해야 한다."
       operationId: "micon074"
       servers:
         - url: "{backendUrl}"
@@ -1869,14 +1880,20 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/AnalysisId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "분석과 상세 결과 삭제 완료"
+        "404":
+          description: "분석이 없거나 본인 소유가 아님"
+        "409":
+          description: "분석이 진행 중"
     get:
       tags: ["음성 분석"]
       summary: "입력 검증·분석 진행 상태 조회 API"

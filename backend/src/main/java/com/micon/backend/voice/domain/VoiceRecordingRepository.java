@@ -16,7 +16,9 @@ public interface VoiceRecordingRepository extends JpaRepository<VoiceRecording, 
     @Query("select recording from VoiceRecording recording join fetch recording.user where recording.id = :recordingId")
     Optional<VoiceRecording> findByIdForUpdate(@Param("recordingId") Long recordingId);
 
-    Page<VoiceRecording> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
-
-    Optional<VoiceRecording> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select recording from VoiceRecording recording join fetch recording.user "
+            + "where recording.id = :recordingId and recording.user.id = :userId")
+    Optional<VoiceRecording> findByIdAndUserIdForUpdate(@Param("recordingId") Long recordingId,
+                                                        @Param("userId") Long userId);
 }
