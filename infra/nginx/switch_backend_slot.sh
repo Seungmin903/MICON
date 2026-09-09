@@ -88,9 +88,16 @@ if ! systemctl reload nginx.service; then
 fi
 
 smoke_body="$backup_dir/public-smoke.json"
-public_status="$(curl --silent --show-error --max-time 10 \
+if ! public_status="$(curl --silent --show-error --max-time 10 \
     --output "$smoke_body" --write-out '%{http_code}' \
-    "https://$DOMAIN/api/v1/songs")"
+    "https://$DOMAIN/api/v1/songs")"; then
+    restore_previous
+    nginx -t
+    systemctl reload nginx.service
+    rm -f "$smoke_body"
+    echo "public API smoke request failed; previous route restored" >&2
+    exit 1
+fi
 if [ "$public_status" != 401 ] || ! grep -q '"code":"UNAUTHENTICATED"' "$smoke_body"; then
     restore_previous
     nginx -t

@@ -46,9 +46,11 @@ class NginxBackendRoutingTests(unittest.TestCase):
         self.assertIn("--required-successes 3", self.switch)
 
     def test_switch_restores_route_on_nginx_or_public_smoke_failure(self):
-        self.assertGreaterEqual(self.switch.count("restore_previous"), 4)
-        self.assertGreaterEqual(self.switch.count("nginx -t"), 4)
+        self.assertGreaterEqual(self.switch.count("restore_previous"), 5)
+        self.assertGreaterEqual(self.switch.count("nginx -t"), 5)
         self.assertIn("systemctl reload nginx.service", self.switch)
+        self.assertIn('if ! public_status="$(curl', self.switch)
+        self.assertIn("public API smoke request failed; previous route restored", self.switch)
         self.assertIn('public_status" != 401', self.switch)
         self.assertIn('"code":"UNAUTHENTICATED"', self.switch)
 
