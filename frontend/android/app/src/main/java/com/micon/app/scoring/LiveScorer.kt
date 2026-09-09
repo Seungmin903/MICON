@@ -2,29 +2,33 @@ package com.micon.app.scoring
 
 import com.micon.app.scoring.ScoringConstants.CALIBRATION_LIMIT_SECONDS
 import com.micon.app.scoring.ScoringConstants.FRAME_HOP_SECONDS
-import com.micon.app.scoring.ScoringConstants.MISSED_VOICED_RATIO
-import com.micon.app.scoring.ScoringConstants.ONSET_NEAR_SEMITONES
-import com.micon.app.scoring.ScoringConstants.ONSET_SEARCH_SECONDS
-import com.micon.app.scoring.ScoringConstants.PITCH_FULL_CENTS
-import com.micon.app.scoring.ScoringConstants.PITCH_GOOD_CENTS
-import com.micon.app.scoring.ScoringConstants.PITCH_WRONG_CENTS
-import com.micon.app.scoring.ScoringConstants.PITCH_ZERO_CENTS
-import com.micon.app.scoring.ScoringConstants.TIMING_FULL_SECONDS
-import com.micon.app.scoring.ScoringConstants.TIMING_GOOD_SECONDS
-import com.micon.app.scoring.ScoringConstants.TIMING_ZERO_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_CORE_FRAME_RATIO
+import com.micon.app.scoring.ScoringConstants.LIVE_MIN_JUDGE_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_MISSED_VOICED_RATIO
+import com.micon.app.scoring.ScoringConstants.LIVE_ONSET_NEAR_SEMITONES
+import com.micon.app.scoring.ScoringConstants.LIVE_ONSET_SEARCH_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_PITCH_FULL_CENTS
+import com.micon.app.scoring.ScoringConstants.LIVE_PITCH_GOOD_CENTS
+import com.micon.app.scoring.ScoringConstants.LIVE_PITCH_WRONG_CENTS
+import com.micon.app.scoring.ScoringConstants.LIVE_PITCH_ZERO_CENTS
+import com.micon.app.scoring.ScoringConstants.LIVE_TIMING_FULL_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_TIMING_GOOD_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_TIMING_ZERO_SECONDS
+import com.micon.app.scoring.ScoringConstants.LIVE_WINDOW_PAD_SECONDS
 import com.micon.app.scoring.ScoringConstants.WEIGHT_PITCH
 import com.micon.app.scoring.ScoringConstants.WEIGHT_TIMING
 import com.micon.app.scoring.ScoringMath.clamp01
 import com.micon.app.scoring.ScoringMath.fold
 import com.micon.app.scoring.ScoringMath.median
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.floor
 
-/** 라이브 판정 상태. UPCOMING/ACTIVE 는 아직 판정 전. */
+/** 라이브 판정 상태. UPCOMING/ACTIVE 는 아직 판정 전. SKIPPED 는 너무 짧아 판정하지 않은 음표(총점 제외). */
 enum class LiveStatus {
-    UPCOMING, ACTIVE, GOOD, SHARP, FLAT, WRONG, MISSED;
+    UPCOMING, ACTIVE, GOOD, SHARP, FLAT, WRONG, MISSED, SKIPPED;
 
-    val judged: Boolean get() = this != UPCOMING && this != ACTIVE
+    val judged: Boolean get() = this != UPCOMING && this != ACTIVE && this != SKIPPED
 
     fun toPitchStatus(): PitchStatus? = when (this) {
         GOOD -> PitchStatus.GOOD
@@ -51,6 +55,8 @@ class LiveNote(
 ) {
     /** 가사 채움 기준 시각: 음절 타이밍이 있으면 그것, 없으면 음표 시작. */
     val lyricAt: Double get() = lyricStart ?: start
+    /** false 면 판정하지 않는다(가사 줄 밖에서 잡힌 코러스·허밍 등). ViewModel 이 가사 시트로 정한다. */
+    var judgeable: Boolean = true
     var status: LiveStatus = LiveStatus.UPCOMING
     var cents: Int? = null
     /** 초, +늦음. 온셋을 못 찾으면 null(레가토). */
@@ -80,6 +86,8 @@ data class MeasureRow(val measure: Int, val score: Int, val pitch: Int, val timi
 /**
  * 음표별 라이브 판정 (live-scoring.tsx `class LiveScorer` L88–227 포팅). UI 와 분리된 순수 로직.
  * 재생 위치(now)를 알기 때문에 DTW 없이 음표가 끝나는 즉시 판정한다.
+ * 판정 기준은 ScoringConstants 의 LIVE_* (정밀 리포트보다 느슨함): 짧은 음표는 건너뛰고(SKIPPED), 음정 오차는 목표에
+ * 가까운 60 % 프레임의 중앙값, ±70¢ 까지 정확, 2반음 넘어야 다른 음.
  * 스레드 안전하지 않음 — 한 스레드(오디오 콜백 → 채널 → 단일 코루틴)에서만 호출할 것.
  */
 class LiveScorer(val notes: List<LiveNote>) {
@@ -107,6 +115,24 @@ class LiveScorer(val notes: List<LiveNote>) {
         if (keep >= 0) frames.subList(keep, frames.size).clear()
     }
 
+    /**
+     * [seconds] 로 앞으로 건너뛴다(간주·절 점프). 그 앞에서 끝나는 미판정 음표는 판정하지 않고 UPCOMING 으로 남겨
+     * 총점에서 빠진다(놓침으로 세지 않는다). 뒤로 가는 경우는 [rewindTo] 를 쓴다.
+     */
+    fun skipTo(seconds: Double) {
+        var first = notes.size
+        for (i in notes.indices) {
+            if (notes[i].end + 0.25 > seconds) { first = i; break }
+        }
+        for (i in cursor until minOf(first, notes.size)) if (notes[i].status == LiveStatus.ACTIVE) notes[i].reset()
+        cursor = maxOf(cursor, first)
+    }
+
+    /** 재생 위치가 [seconds] 로 바뀌었을 때: 뒤로면 되감기, 앞으로면 건너뛰기. */
+    fun jumpTo(seconds: Double, from: Double) {
+        if (seconds < from) rewindTo(seconds) else skipTo(seconds)
+    }
+
     fun addFrame(frame: Frame) {
         frames.add(frame)
         if (frames.size > 3000) frames.subList(0, 1000).clear() // 최근 ~60 s 만 유지
@@ -121,6 +147,11 @@ class LiveScorer(val notes: List<LiveNote>) {
                 note.status = LiveStatus.ACTIVE
             }
             if (note.end + calibration + 0.25 > now) break
+            if (!note.judgeable || note.end - note.start < LIVE_MIN_JUDGE_SECONDS) {
+                note.status = LiveStatus.SKIPPED   // 가사 밖 음표·장식음·경과음: 판정하지 않는다
+                cursor++
+                continue
+            }
             judge(note)
             done.add(note)
             cursor++
@@ -144,10 +175,11 @@ class LiveScorer(val notes: List<LiveNote>) {
         val target = note.midi + keyShift
         val start = note.start + calibration
         val end = note.end + calibration
-        val window = framesBetween(start, end)
+        // 판정 창은 음표 앞뒤로 살짝 넓힌다 — 조금 이르거나 늦게 들어간 발성도 그 음표의 것으로 본다
+        val window = framesBetween(start - LIVE_WINDOW_PAD_SECONDS, end + LIVE_WINDOW_PAD_SECONDS)
         val voiced = window.filter { it.midi != null }
         val expected = maxOf(1, Math.round((end - start) / FRAME_HOP_SECONDS).toInt())
-        if (voiced.size < 3 || voiced.size.toDouble() / expected < MISSED_VOICED_RATIO) {
+        if (voiced.size < 3 || voiced.size.toDouble() / expected < LIVE_MISSED_VOICED_RATIO) {
             note.status = LiveStatus.MISSED
             note.pitchScore = 0.0
             note.timingScore = 0.0
@@ -155,21 +187,23 @@ class LiveScorer(val notes: List<LiveNote>) {
         }
         val skip = floor(voiced.size * 0.15).toInt() // 어택 제외 (엔진과 동일)
         val body = if (voiced.size - skip >= 3) voiced.subList(skip, voiced.size) else voiced
-        val errors = body.map { fold(it.midi!! - target) }
-        val cents = median(errors) * 100
+        // 목표에 가까운 순으로 60 % 프레임만 남겨 중앙값 — 비브라토·스쿱·끝 꺾기가 판정을 망치지 않게
+        val errors = body.map { fold(it.midi!! - target) }.sortedBy { abs(it) }
+        val core = errors.subList(0, maxOf(3, ceil(errors.size * LIVE_CORE_FRAME_RATIO).toInt()).coerceAtMost(errors.size))
+        val cents = median(core) * 100
         note.cents = Math.round(cents).toInt()
         note.status = when {
-            abs(cents) <= PITCH_GOOD_CENTS -> LiveStatus.GOOD
-            abs(cents) > PITCH_WRONG_CENTS -> LiveStatus.WRONG
+            abs(cents) <= LIVE_PITCH_GOOD_CENTS -> LiveStatus.GOOD
+            abs(cents) > LIVE_PITCH_WRONG_CENTS -> LiveStatus.WRONG
             cents > 0 -> LiveStatus.SHARP
             else -> LiveStatus.FLAT
         }
-        note.pitchScore = clamp01(1 - maxOf(0.0, abs(cents) - PITCH_FULL_CENTS) / (PITCH_ZERO_CENTS - PITCH_FULL_CENTS))
+        note.pitchScore = clamp01(1 - maxOf(0.0, abs(cents) - LIVE_PITCH_FULL_CENTS) / (LIVE_PITCH_ZERO_CENTS - LIVE_PITCH_FULL_CENTS))
 
-        // 온셋: 시작 ±0.3 s 에서 목표 ±0.6 st 에 3프레임 연속 진입한 첫 시각
-        val search = framesBetween(start - ONSET_SEARCH_SECONDS, start + ONSET_SEARCH_SECONDS + 0.06)
+        // 온셋: 시작 ±0.4 s 에서 목표 ±1 st 에 3프레임 연속 진입한 첫 시각
+        val search = framesBetween(start - LIVE_ONSET_SEARCH_SECONDS, start + LIVE_ONSET_SEARCH_SECONDS + 0.06)
         var onset: Double? = null
-        fun near(frame: Frame) = frame.midi != null && abs(fold(frame.midi - target)) <= ONSET_NEAR_SEMITONES
+        fun near(frame: Frame) = frame.midi != null && abs(fold(frame.midi - target)) <= LIVE_ONSET_NEAR_SEMITONES
         var i = 0
         while (i + 2 < search.size) {
             if (near(search[i]) && near(search[i + 1]) && near(search[i + 2])) {
@@ -186,7 +220,7 @@ class LiveScorer(val notes: List<LiveNote>) {
                 calibration = median(rawDeviations).coerceIn(-CALIBRATION_LIMIT_SECONDS, CALIBRATION_LIMIT_SECONDS)
             }
             note.deviation = raw
-            note.timingScore = clamp01(1 - maxOf(0.0, abs(raw) - TIMING_FULL_SECONDS) / (TIMING_ZERO_SECONDS - TIMING_FULL_SECONDS))
+            note.timingScore = clamp01(1 - maxOf(0.0, abs(raw) - LIVE_TIMING_FULL_SECONDS) / (LIVE_TIMING_ZERO_SECONDS - LIVE_TIMING_FULL_SECONDS))
         } else {
             note.deviation = null
             note.timingScore = 0.5 // 온셋 불명(레가토 연속) — 중립
@@ -220,7 +254,7 @@ class LiveScorer(val notes: List<LiveNote>) {
                 val deviation = note.deviation
                 if (deviation != null) {
                     devSum += deviation
-                    if (deviation < -TIMING_GOOD_SECONDS) early++ else if (deviation > TIMING_GOOD_SECONDS) late++
+                    if (deviation < -LIVE_TIMING_GOOD_SECONDS) early++ else if (deviation > LIVE_TIMING_GOOD_SECONDS) late++
                 }
             }
         }

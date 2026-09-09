@@ -74,6 +74,7 @@ fun RangeMapChart(
     axisHigh: Int = 72,
     ticks: List<Int> = listOf(48, 55, 60, 67, 72),
     labelWidth: Dp = 84.dp,
+    labelOf: (Int) -> String = { ScoringMath.midiName(it) },
 ) {
     val measurer = rememberTextMeasurer()
     val grouped = rows.groupBy { it.label }
@@ -84,7 +85,7 @@ fun RangeMapChart(
                 val span = (axisHigh - axisLow).toFloat()
                 ticks.forEach { m ->
                     val x = size.width * (m - axisLow) / span
-                    val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = 11.sp, color = Grey))
+                    val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 11.sp, color = Grey))
                     drawText(layout, topLeft = Offset((x - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
                 }
             }
@@ -416,14 +417,19 @@ fun KeyChangeGraph(
     shifted: List<Pair<Double, Double>>? = null,
     bandLow: Int? = null,
     bandHigh: Int? = null,
+    /** 세로축 라벨 (기본 C3/C4…; 노래방식이면 KaraokeNames.koreanShort) */
+    labelOf: (Int) -> String = { ScoringMath.midiName(it) },
+    /** 가장 높은 지점 옆에 쓸 말 (null 이면 없음) */
+    peakLabel: String? = null,
+    height: Dp = 320.dp,
 ) {
     val measurer = rememberTextMeasurer()
-    Canvas(modifier.fillMaxWidth().height(320.dp)) {
+    Canvas(modifier.fillMaxWidth().height(height)) {
         if (melody.isEmpty()) return@Canvas
         val all = melody.map { it.second } + (shifted?.map { it.second } ?: emptyList()) + listOfNotNull(bandLow?.toDouble(), bandHigh?.toDouble())
         val lo = (all.min() - 2).toFloat(); val hi = (all.max() + 2).toFloat()
         val t0 = melody.first().first; val t1 = melody.last().first
-        val left = 44.dp.toPx()
+        val left = 58.dp.toPx()
         fun x(t: Double) = left + ((t - t0) / (t1 - t0).coerceAtLeast(1.0) * (size.width - left)).toFloat()
         fun y(m: Double) = ((hi - m) / (hi - lo) * size.height).toFloat()
         // 축
@@ -434,12 +440,12 @@ fun KeyChangeGraph(
             drawLine(Purple, Offset(left, y(bandHigh.toDouble())), Offset(size.width, y(bandHigh.toDouble())), 2f)
             drawLine(Purple, Offset(left, y(bandLow.toDouble())), Offset(size.width, y(bandLow.toDouble())), 2f)
         }
-        // C 음 라벨
-        var m = (lo.toInt() / 12 + 1) * 12
-        while (m <= hi) {
-            val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = 16.sp, color = Grey))
+        // 도·솔 라벨 (5도 간격이면 어느 음역이든 2~4개는 보인다) + 옅은 가로선
+        for (m in kotlin.math.ceil(lo).toInt()..kotlin.math.floor(hi).toInt()) {
+            if (m % 12 != 0 && m % 12 != 7) continue
+            drawLine(Color(0xFFE6E6EB), Offset(left, y(m.toDouble())), Offset(size.width, y(m.toDouble())), 1.5f)
+            val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 12.sp, color = Grey))
             drawText(layout, topLeft = Offset(4f, y(m.toDouble()) - layout.size.height / 2f))
-            m += 12
         }
         fun smooth(points: List<Pair<Double, Double>>): Path {
             val p = Path()
@@ -461,6 +467,12 @@ fun KeyChangeGraph(
         drawPath(smooth(melody), Purple, style = Stroke(3f))
         val top = melody.maxByOrNull { it.second }!!
         drawCircle(Purple, 9f, Offset(x(top.first), y(top.second))); drawCircle(Color.White, 4f, Offset(x(top.first), y(top.second)))
+        if (peakLabel != null) {
+            val layout = measurer.measure(peakLabel, TextStyle(fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold))
+            val px = (x(top.first) - layout.size.width / 2f).coerceIn(left, size.width - layout.size.width)
+            val py = (y(top.second) - layout.size.height - 12f).coerceAtLeast(0f)
+            drawText(layout, topLeft = Offset(px, py))
+        }
     }
 }
 

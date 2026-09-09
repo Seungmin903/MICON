@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
@@ -65,8 +68,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.scoring.LiveNote
 import com.micon.app.scoring.LiveStatus
-import com.micon.app.scoring.LyricLine
+import com.micon.app.scoring.LyricSheet
+import com.micon.app.scoring.LyricTiming
 import com.micon.app.scoring.ScoringConstants
+import com.micon.app.scoring.SectionMap
 import com.micon.app.scoring.ScoringUi
 import com.micon.app.scoring.Totals
 import com.micon.app.ui.charts.WaveformBars
@@ -86,18 +91,22 @@ import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.InkSoft
 import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
+import com.micon.app.ui.theme.Pink
+import com.micon.app.ui.theme.PinkBg
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
 import com.micon.app.ui.theme.Teal
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
  * Figma "노래 연습 - 노래 연습전 / 연습중" + 고도화.
  * 위: 곡명·가수, 탐색 가능한 진행 바(실제 반주 길이), 키 조절(원키 → 바뀐 키 이름, 렌더 대기 표시),
  *     시작 전 설정(이어폰·전주 건너뛰기·지연 보정·진동)과 마이크 미리보기.
- * 가운데: 연습 중 실시간 점수판 + 방금 음표 판정 칩, 접을 수 있는 러너웨이(피아노롤), 가사 줄 목록(음절 실제 시각으로 채움).
- *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다.
+ *     구간 칩(1절·2절…·하이라이트) — 누르면 그 구간 1.5초 앞으로 이동(재생 중에도).
+ * 가운데: 연습 중 실시간 점수판 + 방금 음표 판정 칩, 접을 수 있는 러너웨이(피아노롤), 가사 줄 목록(LRC 줄 텍스트, 글자는 음절 시각으로 채움).
+ *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다. 간주에 들어가면 "간주 건너뛰기" 버튼이 뜬다.
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·정밀 리포트.
  */
 @Composable
@@ -122,8 +131,14 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (String) ->
             Phase.LOADING -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Purple)
             Phase.ERROR -> RetryBlock(state.error ?: "오류", onBack)
             else -> Column(Modifier.fillMaxSize()) {
+                // 재생 중에는 노래방처럼 필요한 것만: 작은 제목·진행 바 → 점수판 → 음표 레인 → 현재 가사(+다음 줄).
+                // 키·구간 칩·설정은 멈췄을 때(READY/PAUSED/FINISHED)만 보인다.
                 Surface(color = Color.White, shadowElevation = 4.dp) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = if (running) 8.dp else 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (running) {
+                            Text("${state.title}  ·  ${state.artist}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Purple, textAlign = TextAlign.Center, maxLines = 1)
+                            SeekBar(state.nowSec, state.durationSec, enabled = false, onSeek = vm::seekTo)
+                        } else {
                         Spacer(Modifier.height(14.dp))
                         Text(state.title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Purple, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(4.dp))
@@ -131,9 +146,15 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (String) ->
                         Spacer(Modifier.height(14.dp))
                         SeekBar(state.nowSec, state.durationSec, enabled = state.phase == Phase.READY || state.phase == Phase.PAUSED || state.phase == Phase.FINISHED, onSeek = vm::seekTo)
                         KeyRow(state.keyShift, state.keyBusy, state.keyName, state.shiftedKeyName, enabled = !running, onChange = vm::changeKey)
+                        SectionChips(vm.sections, state.sectionIndex, enabled = state.phase != Phase.COUNTDOWN, onSection = vm::jumpToSection, onHighlight = vm::jumpToHighlight)
+                        }
                         if (state.phase == Phase.READY) {
                             Spacer(Modifier.height(8.dp))
                             SettingsRow(state, vm)
+                            if (!state.headphones) {
+                                Spacer(Modifier.height(4.dp))
+                                Text("이어폰을 쓰면 판정이 정확해요. 스피커로 들으면 마이크가 반주 소리를 함께 잡아요.", fontSize = 11.sp, color = Grey, textAlign = TextAlign.Center)
+                            }
                             Spacer(Modifier.height(8.dp))
                             MicPreview(state.micRms, state.micNote)
                         }
@@ -144,16 +165,26 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (String) ->
                     }
                 }
                 if (running || state.phase == Phase.PAUSED) {
-                    ScoreBoard(state.totals, state.lastJudged, state.lastJudgedAtMs, state.calibrationMs, state.autoCalibrate, state.showRunway, onToggleRunway = vm::toggleRunway)
+                    val interludeLeft = state.interlude?.let { it.end - state.nowSec }?.takeIf { it > SectionMap.JUMP_LEAD_SECONDS + 1.0 }?.let { ceil(it).toInt() }
+                    ScoreBoard(
+                        state.totals, state.lastJudged, state.lastJudgedAtMs, state.calibrationMs, state.autoCalibrate, state.showRunway, onToggleRunway = vm::toggleRunway,
+                        interludeLeft = interludeLeft, onSkipInterlude = vm::skipInterlude,
+                    )
                     AnimatedVisibility(visible = state.showRunway) {
-                        Runway(vm.notes, vm.frames, vm.lyricLines, vm.beatGrid, vm.meter, state.nowSec, state.keyShift, Modifier.fillMaxWidth().height(150.dp))
+                        Runway(vm.notes, vm.displayBars, vm.frames, vm.beatGrid, vm.meter, state.nowSec, state.keyShift, Modifier.fillMaxWidth().height(210.dp))
                     }
                 }
-                LyricsList(
-                    vm.lyricLines, state.nowSec, running, loopLine = state.loop?.lineIndex,
-                    onLineTap = { index -> if (!running) vm.toggleLoop(index) },
-                    Modifier.weight(1f),
-                )
+                if (running) {
+                    KaraokePanel(vm.sheet, state.nowSec, Modifier.weight(1f))
+                } else {
+                    LyricsList(
+                        vm.sheet, state.nowSec, running, loopLine = state.loop?.lineIndex,
+                        onLineTap = { vm.toggleLoop(it) },
+                        Modifier.weight(1f),
+                    )
+                }
+                // 하단 시트(오버레이)에 가리지 않도록 비워 두는 높이
+                Spacer(Modifier.height(if (state.phase == Phase.FINISHED) 330.dp else 190.dp))
             }
         }
 
@@ -223,6 +254,28 @@ private fun KeyRow(keyShift: Int, busy: Boolean, keyName: String?, shiftedKeyNam
     }
 }
 
+/** 구간 칩: 1절·2절…(음표 사이 5초 이상 빈 곳으로 나눈 보컬 묶음) + 하이라이트(최고음 구간). 현재 구간은 보라. */
+@Composable
+private fun SectionChips(sections: SectionMap, current: Int?, enabled: Boolean, onSection: (Int) -> Unit, onHighlight: () -> Unit) {
+    if (sections.sections.size < 2 && sections.highlight == null) return
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+    ) {
+        if (sections.sections.size >= 2) sections.sections.forEach { sec ->
+            val on = sec.index == current
+            Surface(onClick = { onSection(sec.index) }, enabled = enabled, shape = RoundedCornerShape(50), color = if (on) Purple else GreyBg) {
+                Text("${sec.label} ${formatSec(sec.start)}", fontSize = 12.sp, color = if (on) Color.White else Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp))
+            }
+        }
+        sections.highlight?.let { h ->
+            Surface(onClick = onHighlight, enabled = enabled, shape = RoundedCornerShape(50), color = PinkBg) {
+                Text("하이라이트 ${formatSec(h.start)}", fontSize = 12.sp, color = Pink, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp))
+            }
+        }
+    }
+}
+
 @Composable
 private fun SettingsRow(state: PracticeViewModel.UiState, vm: PracticeViewModel) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
@@ -267,7 +320,10 @@ private fun LoopChip(loop: PracticeViewModel.Loop, count: Int, onClear: () -> Un
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun ScoreBoard(totals: Totals?, lastJudged: LiveNote?, lastJudgedAtMs: Long, calibrationMs: Int, autoCalibrate: Boolean, showRunway: Boolean, onToggleRunway: () -> Unit) {
+private fun ScoreBoard(
+    totals: Totals?, lastJudged: LiveNote?, lastJudgedAtMs: Long, calibrationMs: Int, autoCalibrate: Boolean, showRunway: Boolean, onToggleRunway: () -> Unit,
+    interludeLeft: Int? = null, onSkipInterlude: () -> Unit = {},
+) {
     Row(Modifier.fillMaxWidth().background(GreyBg).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(74.dp)) {
             Text("${totals?.overall?.roundToInt() ?: 0}", fontSize = 26.sp, fontWeight = FontWeight.Black, color = Ink, lineHeight = 28.sp)
@@ -281,7 +337,18 @@ private fun ScoreBoard(totals: Totals?, lastJudged: LiveNote?, lastJudgedAtMs: L
                 Stat("놓침", "${totals?.missed ?: 0}", Red)
                 if (autoCalibrate && calibrationMs != 0) Stat("보정", "${calibrationMs}ms")
             }
-            JudgementChip(lastJudged, lastJudgedAtMs)
+            if (interludeLeft != null) {
+                // 간주 중: 판정 칩 자리에 건너뛰기 버튼 (가사 위에 겹치지 않게 여기 둔다)
+                Surface(onClick = onSkipInterlude, shape = RoundedCornerShape(50), color = Purple, modifier = Modifier.padding(top = 2.dp)) {
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.SkipNext, null, Modifier.size(16.dp), tint = Color.White)
+                        Spacer(Modifier.width(4.dp))
+                        Text("간주 ${interludeLeft}초 · 건너뛰기", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            } else {
+                JudgementChip(lastJudged, lastJudgedAtMs)
+            }
         }
         IconButton(onClick = onToggleRunway, modifier = Modifier.size(32.dp)) {
             Icon(Icons.AutoMirrored.Outlined.ShowChart, if (showRunway) "음정 레인 숨기기" else "음정 레인 보기", tint = if (showRunway) Purple else Grey)
@@ -310,8 +377,8 @@ private fun JudgementChip(note: LiveNote?, atMs: Long) {
         note.cents?.takeIf { note.status != LiveStatus.MISSED }?.let { add(if (it > 0) "+${it}¢" else "${it}¢") }
         note.deviation?.let { d ->
             when {
-                d > ScoringConstants.TIMING_GOOD_SECONDS -> add("늦음 ${(d * 1000).roundToInt()}ms")
-                d < -ScoringConstants.TIMING_GOOD_SECONDS -> add("빠름 ${(abs(d) * 1000).roundToInt()}ms")
+                d > ScoringConstants.LIVE_TIMING_GOOD_SECONDS -> add("늦음 ${(d * 1000).roundToInt()}ms")
+                d < -ScoringConstants.LIVE_TIMING_GOOD_SECONDS -> add("빠름 ${(abs(d) * 1000).roundToInt()}ms")
                 else -> add("박자 정확")
             }
         }
@@ -321,22 +388,80 @@ private fun JudgementChip(note: LiveNote?, atMs: Long) {
 }
 
 // ---------------------------------------------------------------------------
-// 가사 목록 (음절 실제 시각으로 채움, 줄 탭 = 구간 반복)
+// 재생 중 가사: 현재 줄(크게, 글자 채움) + 다음 줄(작게). 지난 줄은 보이지 않는다.
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun LyricsList(lines: List<LyricLine>, nowSec: Double, running: Boolean, loopLine: Int?, onLineTap: (Int) -> Unit, modifier: Modifier) {
-    val listState = rememberLazyListState()
-    val currentIndex = lines.indexOfLast { it.start <= nowSec }
-        .let { i -> if (i < 0) 0 else if (i + 1 < lines.size && nowSec >= lines[i].end) i + 1 else i }
-    LaunchedEffect(currentIndex, running) {
-        if (running && lines.isNotEmpty()) listState.animateScrollToItem(currentIndex, scrollOffset = -160)
-    }
+private fun KaraokePanel(sheet: LyricSheet, nowSec: Double, modifier: Modifier) {
+    val lines = sheet.lines
     if (lines.isEmpty()) {
-        Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Text("가사 타이밍 정보가 없는 곡이에요. 음정 레인을 보며 불러 보세요.", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.padding(32.dp)) }
+        Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text("이 곡은 가사 데이터가 없어요. 음표 레인을 보며 불러 보세요.", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.padding(32.dp))
+        }
         return
     }
-    LazyColumn(modifier.fillMaxWidth(), state = listState, contentPadding = PaddingValues(top = 24.dp, bottom = 300.dp)) {
+    val currentIndex = sheet.currentIndex(nowSec)
+    val current = currentIndex?.let { lines.getOrNull(it) }
+    val next = lines.getOrNull((currentIndex ?: -1) + 1)
+    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        if (current != null) {
+            Text(
+                buildAnnotatedString {
+                    for (ch in current.chars) {
+                        val sung = nowSec >= ch.at
+                        val note = ch.note
+                        val color = when {
+                            note != null && note.status.judged -> Color(note.status.toPitchStatus()!!.argb)
+                            sung -> Purple
+                            else -> Ink
+                        }
+                        withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
+                    }
+                },
+                fontSize = 28.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 12.dp),
+            )
+        } else {
+            Text("♪", fontSize = 28.sp, color = Grey)
+        }
+        Spacer(Modifier.height(12.dp))
+        if (next != null) {
+            Text(next.text, fontSize = 20.sp, lineHeight = 28.sp, color = Grey, textAlign = TextAlign.Center, maxLines = 2)
+        } else if (current != null) {
+            Text("마지막 줄이에요", fontSize = 14.sp, color = Grey)
+        }
+        if (sheet.timing == LyricTiming.APPROX) {
+            Spacer(Modifier.height(8.dp))
+            Text("가사 위치는 원곡 음표로 추정한 값이에요", fontSize = 11.sp, color = Grey)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 멈춤 상태 가사 목록 (LRC 줄 텍스트 · 줄 탭 = 구간 반복)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun LyricsList(sheet: LyricSheet, nowSec: Double, running: Boolean, loopLine: Int?, onLineTap: (Int) -> Unit, modifier: Modifier) {
+    val lines = sheet.lines
+    val listState = rememberLazyListState()
+    val currentIndex = sheet.currentIndex(nowSec) ?: 0
+    LaunchedEffect(currentIndex) {
+        if (lines.isNotEmpty()) listState.animateScrollToItem(currentIndex, scrollOffset = -60)
+    }
+    if (lines.isEmpty()) {
+        Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text("이 곡은 가사 데이터가 없어요. 음정 레인을 보며 불러 보세요.", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.padding(32.dp))
+        }
+        return
+    }
+    LazyColumn(modifier.fillMaxWidth(), state = listState, contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)) {
+        if (sheet.timing == LyricTiming.APPROX) item {
+            Text(
+                "가사 싱크 정보가 없는 곡이라 원곡 음표 타이밍으로 가사 위치를 추정했어요. 줄 전환이 실제와 조금 다를 수 있어요.",
+                fontSize = 11.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+            )
+        }
         itemsIndexed(lines) { i, line ->
             val isCurrent = i == currentIndex && running
             val isLoop = i == loopLine
@@ -344,30 +469,34 @@ private fun LyricsList(lines: List<LyricLine>, nowSec: Double, running: Boolean,
                 Modifier.fillMaxWidth()
                     .background(if (isCurrent) Lavender else if (isLoop) LavenderDeep.copy(alpha = 0.35f) else Color.Transparent)
                     .clickable(enabled = !running) { onLineTap(i) }
-                    .padding(vertical = if (isCurrent) 14.dp else 8.dp, horizontal = 16.dp),
+                    .padding(vertical = if (isCurrent) 16.dp else 9.dp, horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (isCurrent) {
                     Text(
                         buildAnnotatedString {
-                            line.tokens.forEach { tok ->
-                                val sung = nowSec >= tok.note.lyricAt
-                                val judged = tok.note.status.judged
+                            for (ch in line.chars) {
+                                val sung = nowSec >= ch.at
+                                val note = ch.note
                                 val color = when {
-                                    judged -> Color(tok.note.status.toPitchStatus()!!.argb)
+                                    note != null && note.status.judged -> Color(note.status.toPitchStatus()!!.argb)
                                     sung -> Purple
                                     else -> Ink
                                 }
-                                if (tok.space) append(" ")
-                                withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(tok.note.lyric ?: "") }
+                                withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
                             }
                         },
-                        fontSize = 24.sp, textAlign = TextAlign.Center,
+                        fontSize = 28.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
                     )
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isLoop) { Icon(Icons.Outlined.Repeat, null, Modifier.size(14.dp), tint = Purple); Spacer(Modifier.width(6.dp)) }
-                        Text(line.text, fontSize = 19.sp, color = if (isLoop) Purple else Grey, textAlign = TextAlign.Center)
+                        val isNext = running && i == currentIndex + 1
+                        Text(
+                            line.text, fontSize = if (isNext) 22.sp else 19.sp, lineHeight = if (isNext) 30.sp else 26.sp,
+                            color = if (isLoop) Purple else if (isNext) Ink else if (i < currentIndex && running) Grey.copy(alpha = 0.6f) else Grey,
+                            fontWeight = if (isNext) FontWeight.Medium else FontWeight.Normal, textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }
@@ -390,7 +519,7 @@ private fun BottomSheet(state: PracticeViewModel.UiState, vm: PracticeViewModel,
         ) {
             Column(Modifier.padding(top = 18.dp, bottom = 28.dp)) {
                 if (state.phase == Phase.PAUSED) {
-                    Text("일시정지 · 진행 바를 옮기거나 가사 줄을 눌러 구간 반복을 정할 수 있어요", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+                    Text("일시정지 · 진행 바나 구간 칩으로 이동하거나, 가사 줄을 눌러 구간 반복을 정할 수 있어요", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
                     Spacer(Modifier.height(6.dp))
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 36.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {

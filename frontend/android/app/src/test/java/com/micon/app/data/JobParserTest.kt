@@ -66,7 +66,7 @@ class JobParserTest {
         assertEquals(2, notes[10].measure)       // scoreStartBeat 9.5 / 4 → 2
         val lines = LyricLines.build(notes, result.lyrics?.text)
         assertTrue(lines.size > 20)
-        assertTrue(lines.all { it.tokens.isNotEmpty() && it.start <= it.end })
+        assertTrue(lines.all { it.chars.isNotEmpty() && it.start <= it.end })
         assertTrue(lines.first().text.startsWith("왜"))
     }
 
