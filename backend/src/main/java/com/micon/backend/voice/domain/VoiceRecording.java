@@ -101,4 +101,20 @@ public class VoiceRecording {
         this.fileBytes = fileBytes;
         this.uploadStatus = RecordingUploadStatus.UPLOADED;
     }
+
+    public void markDeletePending(LocalDateTime scheduledAt) {
+        if (uploadStatus == RecordingUploadStatus.DELETED) {
+            throw new IllegalStateException("recording is already deleted");
+        }
+        this.uploadStatus = RecordingUploadStatus.DELETE_PENDING;
+        this.deleteScheduledAt = scheduledAt;
+    }
+
+    public void markDeleted(LocalDateTime deletedAt) {
+        if (uploadStatus != RecordingUploadStatus.DELETE_PENDING) {
+            throw new IllegalStateException("only DELETE_PENDING recording can be deleted");
+        }
+        this.uploadStatus = RecordingUploadStatus.DELETED;
+        this.deletedAt = deletedAt;
+    }
 }

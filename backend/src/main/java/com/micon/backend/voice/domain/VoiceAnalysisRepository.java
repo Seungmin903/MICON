@@ -15,6 +15,9 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
 
     boolean existsByRecordingIdAndStatusIn(Long recordingId, Collection<VoiceAnalysisStatus> statuses);
 
+    boolean existsByRecordingIdAndStatusInAndUserId(Long recordingId, Collection<VoiceAnalysisStatus> statuses,
+                                                     Long userId);
+
     Optional<VoiceAnalysis> findByIdAndUserId(Long id, Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
