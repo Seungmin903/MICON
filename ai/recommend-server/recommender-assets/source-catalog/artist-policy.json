@@ -1,0 +1,6602 @@
+{
+  "schema_version": 1,
+  "source": {
+    "inventory": "Desktop audio folder and filename inventory",
+    "metadata": "01_USE_NOW__COMPACT_890_TRACKS__11_FIELDS_CLEAN.jsonl",
+    "metadata_sha256": "012ca7234c1f00de5ed74e36f8536d30b210625b9e47fe988e63f18c902075b0",
+    "entity_sources": [
+      "Wikidata EntitySearch/P31",
+      "manual catalog disambiguation",
+      "Bugs artist profile for unresolved Korean acts"
+    ],
+    "classified_on": "2026-09-02"
+  },
+  "notes": [
+    "Artist keys exactly match the 556 top-level audio folder names; no local paths or text payloads are stored.",
+    "Track overrides take precedence over the folder-level default decision.",
+    "Featured credits are excluded by default because mixed voices can contaminate singer embeddings and range profiles.",
+    "10CM and Bolbbalgan4 remain review items because a historical duo/group credit and current one-person operation imply different policies.",
+    "Enka is review-only and is not automatically treated as Trot.",
+    "Person entity IDs are intentionally omitted because name-only external lookup produced unsafe homonym matches; group and duo IDs were separately verified."
+  ],
+  "summary": {
+    "folder_count": 556,
+    "track_count": 872,
+    "entity_type": {
+      "folders": {
+        "person": 292,
+        "group": 116,
+        "duo": 37,
+        "virtual": 4,
+        "unknown": 107
+      },
+      "tracks": {
+        "person": 483,
+        "group": 206,
+        "duo": 69,
+        "virtual": 4,
+        "unknown": 110
+      }
+    },
+    "credit_kind": {
+      "folders": {
+        "single": 448,
+        "multi": 45,
+        "featured": 62,
+        "narration": 1
+      },
+      "tracks": {
+        "single": 761,
+        "multi": 45,
+        "featured": 65,
+        "narration": 1
+      }
+    },
+    "default_decision": {
+      "folders": {
+        "include": 292,
+        "exclude": 258,
+        "review": 6
+      },
+      "tracks": {
+        "include": 483,
+        "exclude": 367,
+        "review": 22
+      }
+    },
+    "mutually_exclusive_track_scope": {
+      "collaboration_or_feature": 110,
+      "group_or_duo": 257,
+      "person": 483,
+      "review_boundary": 22,
+      "total": 872
+    },
+    "trot": {
+      "exact_genre_tracks": 32,
+      "corrected_high_confidence_tracks": 38,
+      "high_confidence_total_tracks": 70,
+      "already_excluded_group_or_collaboration_tracks": 2,
+      "additional_solo_exclusions": 68,
+      "review_tracks": 6
+    },
+    "expected_solo_non_trot": {
+      "confirmed_default": 415,
+      "conservative_with_genre_review_held": 409,
+      "include_virtual_or_character_solo": 419,
+      "include_all_artist_boundary_items": 437
+    }
+  },
+  "artists": {
+    "#안녕(Prod.영화처럼)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "(여자)아이들": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q51885404",
+      "entity_label": "아이들"
+    },
+    "10CM": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "historical_duo_current_solo_project"
+      ],
+      "confidence": "high",
+      "file_count": 13,
+      "entity_id": "Q493329",
+      "entity_label": "10cm"
+    },
+    "164(Feat.GUMI)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "40": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "40mP(Feat.初音ミク)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "4MEN": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q16097857",
+      "entity_label": "포맨"
+    },
+    "4MEN(Feat.미(MIIII))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "5 Seconds Of Summer": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q4641147",
+      "entity_label": "5 세컨즈 오브 서머"
+    },
+    "ABBA": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q18233",
+      "entity_label": "아바"
+    },
+    "AKMU(악뮤)": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 5,
+      "entity_id": "Q10728972",
+      "entity_label": "악동뮤지션"
+    },
+    "AOA": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q492035",
+      "entity_label": "AOA"
+    },
+    "Adam Levine": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Adele": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 4
+    },
+    "Ado": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3
+    },
+    "Alessia Cara": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Alicia Keys": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Anne-Marie": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Ariana Grande": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "BE'O(비오)(Feat.송민호)(Prod.그레이)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "BMK": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "BOYNEXTDOOR": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "BUMP OF CHICKEN(Feat.初音ミク)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Benson Boone": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Beyonce": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Bill Withers": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Billy Joel": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Bobby Kim": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Bruno Mars": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3
+    },
+    "CORTIS(코르티스)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3,
+      "entity_id": "Q135668928",
+      "entity_label": "CORTIS"
+    },
+    "CUTIE STREET": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q130260884",
+      "entity_label": "CUTIE STREET"
+    },
+    "Carly Rae Jepsen": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Celine Dion": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Charlie Puth": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Christina Perri": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Christopher": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Creepy Nuts": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q20039817",
+      "entity_label": "Creepy Nuts"
+    },
+    "DECO_27(Feat.初音ミク)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "DK(디셈버)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Dan+Shay,Justin Bieber": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "David Guetta(Feat.Sia)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "EXO": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q494717",
+      "entity_label": "EXO"
+    },
+    "Ed Sheeran": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Fly To The Sky": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q483756",
+      "entity_label": "플라이 투 더 스카이"
+    },
+    "Fool's Garden": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q662758",
+      "entity_label": "풀스 가든"
+    },
+    "Frank Sinatra": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "G-DRAGON": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 6
+    },
+    "Glen Hansard & Marketa Irglova": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Green Day": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q47871",
+      "entity_label": "그린 데이"
+    },
+    "H.O.T": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q483135",
+      "entity_label": "H.O.T."
+    },
+    "HUNTR_X": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "HYNN(박혜원)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Harry Styles": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Hearts2Hearts(하츠투하츠)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3,
+      "entity_id": "Q131746784",
+      "entity_label": "Hearts2Hearts"
+    },
+    "Hump Back": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q48757458",
+      "entity_label": "험프 백"
+    },
+    "IU": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 4
+    },
+    "IVE(아이브)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q109375061",
+      "entity_label": "IVE"
+    },
+    "Idina Menzel": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Idina Menzel,Aurora": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Imagine Dragons": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q391348",
+      "entity_label": "이매진 드래곤스"
+    },
+    "Jason Mraz": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Jodi Benson": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "John Denver": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "John Legend": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Justin Bieber": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3
+    },
+    "Justin Bieber(Feat.Nicki Minaj)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "KANA-BOON": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q17225356",
+      "entity_label": "KANA-BOON"
+    },
+    "Kanaria(Feat.GUMI)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "Keyshia Cole": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "KiiiKiii(키키)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q132526762",
+      "entity_label": "KiiiKiii"
+    },
+    "King Gnu": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3,
+      "entity_id": "Q48760263",
+      "entity_label": "King Gnu"
+    },
+    "Kristen Bell,Santino Fontana": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Kristin Chenoweth,Idina Menzel": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "LET ME KNOW": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "LISA": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Lady Gaga": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Lady Gaga,Bradley Cooper": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Lady Gaga,Bruno Mars": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Laufey": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Leina": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Lewis Capaldi": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Lil tachi,호치키스(HOTCHKISS)(Prod.기리보이)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Luis Fonsi(Feat.Daddy Yankee)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "M TO M": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q6863119",
+      "entity_label": "M To M"
+    },
+    "MC Sniper": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "MC THE MAX": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 8,
+      "entity_id": "Q6497037",
+      "entity_label": "엠씨 더 맥스"
+    },
+    "MC몽(Feat.김태우)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "MC몽(Feat.린)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "MC몽(Feat.멜로우)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "MC몽(Feat.허각)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "MC몽,서인영": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Mandy Moore": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Mandy Moore,Zachary Levi": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Maneskin": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q56884561",
+      "entity_label": "모네스킨"
+    },
+    "Maroon 5": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3,
+      "entity_id": "Q182223",
+      "entity_label": "마룬 5"
+    },
+    "Maroon 5(Feat.Wiz Khalifa)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Men's Tear(맨스티어)": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Mena Massoud,Naomi Scott": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Michael Jackson": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Mingginyu(밍기뉴)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Morten Harket": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Mrs. Green Apple": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 6,
+      "entity_id": "Q22129461",
+      "entity_label": "Mrs. GREEN APPLE"
+    },
+    "My Chemical Romance": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q483285",
+      "entity_label": "마이 케미컬 로맨스"
+    },
+    "NCT DREAM": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q47002841",
+      "entity_label": "NCT DREAM"
+    },
+    "NOWIMYOUNG(나우아임영),Royal 44(Feat.선우(THE BOYZ)(Prod.Hukky Shibaseki)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit",
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Naomi Scott": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Novelbright": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2,
+      "entity_id": "Q55541893",
+      "entity_label": "노벨브라이트"
+    },
+    "Oasis": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "Official髭男dism": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 5,
+      "entity_id": "Q48748934",
+      "entity_label": "오피셜히게단디즘"
+    },
+    "One Direction": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q146027",
+      "entity_label": "원 디렉션"
+    },
+    "OneRepublic": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q1438730",
+      "entity_label": "원리퍼블릭"
+    },
+    "Orangestar(Feat.IA)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "Post Malone": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Post Malone,Swae Lee": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "QWER": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q124412677",
+      "entity_label": "QWER"
+    },
+    "Queen": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q15862",
+      "entity_label": "퀸"
+    },
+    "RADWIMPS": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2,
+      "entity_id": "Q1196122",
+      "entity_label": "래드윔프스"
+    },
+    "RESCENE(리센느)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3,
+      "entity_id": "Q124856415",
+      "entity_label": "리센느"
+    },
+    "Radiohead": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q44190",
+      "entity_label": "라디오헤드"
+    },
+    "Richard Sanderson": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Rosa Walton,Hallie Coggins": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Ruel": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "SG워너비": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5,
+      "entity_id": "Q489102",
+      "entity_label": "SG워너비"
+    },
+    "SPAPA": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "SPYAIR": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2,
+      "entity_id": "Q1096279",
+      "entity_label": "스파이에어"
+    },
+    "SS501": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q489849",
+      "entity_label": "SS501"
+    },
+    "Sam Smith": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Sam Smith(Feat.John Legend)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "San E": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "San E,레이나": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Sarah Brightman": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Shawn Mendes": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Sia": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Steelheart": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q967122",
+      "entity_label": "스틸하트"
+    },
+    "Stephen Sanchez": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "Sting": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Supreme Team": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q491534",
+      "entity_label": "슈프림팀"
+    },
+    "Supreme Team,영준": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "T(윤미래)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "T.M.Revolution": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "TK From 凛として時雨": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "TWS(투어스)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q124091148",
+      "entity_label": "TWS"
+    },
+    "Tani Yuuki": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Taylor Swift": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3
+    },
+    "The Cranberries": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q483810",
+      "entity_label": "크랜베리스"
+    },
+    "The Kid LAROI,Justin Bieber": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "The Name": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "The Nuts": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q16097033",
+      "entity_label": "더 넛츠"
+    },
+    "The One": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "The Walters": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q30634364",
+      "entity_label": "The Walters"
+    },
+    "Tim": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "Tones And I": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "UN": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q7865415",
+      "entity_label": "UN"
+    },
+    "Unison Square Garden": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q11252025",
+      "entity_label": "Unison Square Garden"
+    },
+    "V.O.S": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12582114",
+      "entity_label": "V.O.S"
+    },
+    "Vaundy": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 4
+    },
+    "WAX": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "WOODZ(조승연)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Westlife": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q151241",
+      "entity_label": "웨스트라이프"
+    },
+    "Wiz Khalifa,Charlie Puth": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "X-JAPAN": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q179767",
+      "entity_label": "엑스 재팬"
+    },
+    "YENA(최예나)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "YOASOBI": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q95688943",
+      "entity_label": "YOASOBI"
+    },
+    "Young K(DAY6)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "Zac Efron,Zendaya": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "amazarashi": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q11190207",
+      "entity_label": "Amazarashi"
+    },
+    "back number": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 4,
+      "entity_id": "Q1960142",
+      "entity_label": "백 넘버"
+    },
+    "d4vd": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "god": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q482380",
+      "entity_label": "god"
+    },
+    "iKON(아이콘)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2,
+      "entity_id": "Q18161349",
+      "entity_label": "아이콘"
+    },
+    "imase": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "izi": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q21575498",
+      "entity_label": "izi"
+    },
+    "pH-1,키드밀리,루피(Feat.팔로알토)(Prod. By 코드쿤스트)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit",
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "sokodomo(Feat.자이언티,원슈타인)(Prod.Slom)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "tuki": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "yung kai": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "『ユイカ』": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "あいみょん": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "いよわ(Feat.可不)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "すりぃ": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "なきそ(Feat.初音ミク)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "なとり": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "みきとP(Feat.鏡音リン)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "キタニタツヤ": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "サツキ(Feat.初音ミク,重音テト)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "シド": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "チョーキューメイ": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q124102066",
+      "entity_label": "チョーキューメイ"
+    },
+    "ツミキ(Feat.可不)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "バルーン(Feat.Flower)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "ヒグチアイ": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "ピノキオピー(Feat.初音ミク)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "ヨルシカ": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q55525789",
+      "entity_label": "요루시카"
+    },
+    "優里": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 5
+    },
+    "吉本おじさん(Feat.雨衣)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "小野正利": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "尾崎豊": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "巡音ルカ": {
+      "entity_type": "virtual",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "virtual_or_character_voice"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "手嶌葵": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "松田聖子": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "椎名もた(Feat.鏡音リン)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "椎名林檎": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "楽音": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "涼宮ハルヒ(平野綾)": {
+      "entity_type": "virtual",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "virtual_or_character_voice"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "瑛人": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "米津玄師": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 6
+    },
+    "米津玄師 & 宇多田ヒカル": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "緑黄色社会": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q30930490",
+      "entity_label": "녹황색사회"
+    },
+    "蝶々P(Feat.GUMI)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "鏡音リン": {
+      "entity_type": "virtual",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "virtual_or_character_voice"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "鏡音レン": {
+      "entity_type": "virtual",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "virtual_or_character_voice"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "高橋洋子": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "가비엔제이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q623577",
+      "entity_label": "가비앤제이"
+    },
+    "가호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "강산에": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "강승모": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "강진": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "강하늘,정우,조복래": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "거미": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "거북이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q489470",
+      "entity_label": "거북이"
+    },
+    "검정치마": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "고경표": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "고추잠자리": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "고한우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "그_냥": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "그루비룸,릴보이,Blase,노윤하,Polodared,칠린호미,Fleeky Bang(Prod.그루비룸)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "금과은": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "금잔디": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "기리보이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "긱스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16096965",
+      "entity_label": "긱스"
+    },
+    "김건모": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "김경호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김광석": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 11
+    },
+    "김나영": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김민석": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "김범수": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "김수희": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "김신우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김연자": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김장훈": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김정호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "김종환": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "김진표(Feat.G.NA)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김태우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김필": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김하온(Feat.Sik-K)(Prod. By Groovy Room)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김하온(Prod.지코,크러쉬)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김하온,Nosun,Raf Sandou,Marv,정준혁(Feat.지코)(Prod.지코,크러쉬)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit",
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김하온,이병재(Prod. By Groovy Room)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김학래": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "김현식": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "김현정": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 2
+    },
+    "김혜연": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "나얼": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "나윤권": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "나플라": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "나훈아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 7
+    },
+    "남진": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "남진,장윤정": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "너드커넥션(Nerd Connection)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q110114541",
+      "entity_label": "너드커넥션"
+    },
+    "넬": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q482948",
+      "entity_label": "넬"
+    },
+    "노라조": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q9050614",
+      "entity_label": "노라조"
+    },
+    "노사연": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "녹색지대": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16161403",
+      "entity_label": "녹색지대"
+    },
+    "높은음자리": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "닐로": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "다비치": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4,
+      "entity_id": "Q483209",
+      "entity_label": "다비치"
+    },
+    "다비치(Narr.하하)": {
+      "entity_type": "duo",
+      "credit_kind": "narration",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "narration_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q483209",
+      "entity_label": "다비치"
+    },
+    "다이나믹듀오": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3,
+      "entity_id": "Q5318904",
+      "entity_label": "다이나믹 듀오"
+    },
+    "다이나믹듀오(feat.정인)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "대성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "더 레이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "더 크로스": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "데이식스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4,
+      "entity_id": "Q20898046",
+      "entity_label": "데이식스"
+    },
+    "델리스파이스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12592921",
+      "entity_label": "델리스파이스"
+    },
+    "동방신기": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q192983",
+      "entity_label": "동방신기"
+    },
+    "디셈버": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4,
+      "entity_id": "Q12593785",
+      "entity_label": "디셈버"
+    },
+    "디핵(D-Hack),PATEKO": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "딘": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "뜨거운감자": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "래원(Layone)(Feat.이영지)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "래원(Layone)(Feat.자메즈)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "러브홀릭스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q624991",
+      "entity_label": "러브홀릭스"
+    },
+    "레드벨벳": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q17466114",
+      "entity_label": "레드벨벳"
+    },
+    "로꼬,펀치": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "로이킴": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 10
+    },
+    "로제(ROSE),Bruno Mars": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "리쌍": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q490010",
+      "entity_label": "리쌍"
+    },
+    "리쌍(Feat.알리)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "린": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "린(Feat.해금)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "릴러말즈(Feat.ASH ISLAND)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "릴보이(Feat.기리보이,빅나티(서동현))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "마크툽(MAKTUB)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "마크툽(MAKTUB),구윤회": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "먼데이키즈": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q626127",
+      "entity_label": "먼데이 키즈"
+    },
+    "멜로망스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q31177557",
+      "entity_label": "멜로망스"
+    },
+    "무한궤도": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16097166",
+      "entity_label": "무한궤도"
+    },
+    "문문": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "문성재": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "문희옥": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "미란이,먼치맨,쿤디판다(Khundi Panda),머쉬베놈(Feat.저스디스)(Prod.그루비룸)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit",
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "미스에이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "바다새": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "바비": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "바이브": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q174531",
+      "entity_label": "바이브"
+    },
+    "바이브(Feat.장혜진)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박강성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박구윤": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박군": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박다혜,마크툽(MAKTUB)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박명수": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "박봄": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박상철": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "박완규": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박재정": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박정식": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박정현": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "박주희": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박현빈": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "박화요비": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "박효신": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4
+    },
+    "방탄소년단": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q13580495",
+      "entity_label": "방탄소년단"
+    },
+    "배금성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "백아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "백예린": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "백지영": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "뱅크": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16179894",
+      "entity_label": "뱅크"
+    },
+    "버즈": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 8
+    },
+    "범진": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "베이식(Feat.릴러말즈)(Prod.TOIL)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "변진섭": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "보아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "볼빨간사춘기": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "review",
+      "reason_codes": [
+        "historical_duo_current_solo_project"
+      ],
+      "confidence": "high",
+      "file_count": 5,
+      "entity_id": "Q26960605",
+      "entity_label": "볼빨간사춘기"
+    },
+    "부활": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q624811",
+      "entity_label": "부활"
+    },
+    "브라운아이즈": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "블락비": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q498326",
+      "entity_label": "블락비"
+    },
+    "블랙핑크": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5,
+      "entity_id": "Q25056945",
+      "entity_label": "블랙핑크"
+    },
+    "비스트": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q269595",
+      "entity_label": "하이라이트 (음악 그룹)"
+    },
+    "비와이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "빅나티(서동현)(Feat.JAMIE(제이미))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "빅마마": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q482875",
+      "entity_label": "빅마마"
+    },
+    "빅뱅": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 19,
+      "entity_id": "Q282104",
+      "entity_label": "빅뱅"
+    },
+    "빈지노": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "빈첸(이병재)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "서문탁": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "서인국,정은지": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "서주경": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "설운도": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "성시경": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5
+    },
+    "소녀시대": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3,
+      "entity_id": "Q20153",
+      "entity_label": "소녀시대"
+    },
+    "소리새": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "소유(씨스타)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "소찬휘": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "손디아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "솔개트리오": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "솔리드": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12602794",
+      "entity_label": "솔리드"
+    },
+    "송민호(Feat.태양)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "송이한": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "수퍼비,UNEDUCATED KID": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "순순희(지환)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q109460782",
+      "entity_label": "순순희"
+    },
+    "스탠딩에그": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12603708",
+      "entity_label": "스탠딩 에그"
+    },
+    "스텔라장": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "시아준수": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "신성우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "신영숙,옥주현,임혜영": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "신예영": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "신용재": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "신유": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "신현희와김루트": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "신형원": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "심수봉": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "싸이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 9
+    },
+    "싸이(Feat.박정현)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "싸이(Feat.성시경)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "씨잼,비와이": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "아웃사이더": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "아이오아이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q23688122",
+      "entity_label": "아이오아이"
+    },
+    "아일릿(ILLIT)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q122179261",
+      "entity_label": "아일릿"
+    },
+    "안예은": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4
+    },
+    "안재욱": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "안치환": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "알리": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "애쉬그레이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "야다": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12606086",
+      "entity_label": "야다"
+    },
+    "얀": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "양다일": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "양홍원(Feat.Bryn)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "어니언스": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "어반자카파": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12606541",
+      "entity_label": "어반자카파"
+    },
+    "어쿠루브": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q22974452",
+      "entity_label": "어쿠루브"
+    },
+    "어쿠스틱콜라보": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "에이치코드(Feat.전상근)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "에이티즈": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q59793088",
+      "entity_label": "에이티즈"
+    },
+    "에일리": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 6
+    },
+    "에픽하이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q18788",
+      "entity_label": "에픽하이"
+    },
+    "에픽하이(Feat.송민호,사이먼도미닉,The Quiett)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "에픽하이(Feat.융진(캐스커))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "엔믹스(NMIXX)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q109307762",
+      "entity_label": "엔믹스"
+    },
+    "엔플라잉": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q15727149",
+      "entity_label": "엔플라잉"
+    },
+    "염따(Feat.NORTHFACEGAWD,저스디스,래원(Layone))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "영탁": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "오강혁": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "오반": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "오승연 외": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "오혁": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "우디": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "우순실": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "우연이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "우원재(Feat.로꼬,그레이)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "울랄라세션": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q154787",
+      "entity_label": "울랄라세션"
+    },
+    "윙크": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q12609630",
+      "entity_label": "윙크 (음악 그룹)"
+    },
+    "유정석": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "유진표": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "유해준": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "윤도현": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "윤도현밴드": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 3,
+      "entity_id": "Q484078",
+      "entity_label": "YB"
+    },
+    "윤딴딴": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "윤수현": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "윤종신": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "윤태규": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "윤하": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4
+    },
+    "이기찬": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이동은(라이어밴드)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이루(Feat.Daylight)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이무진": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4
+    },
+    "이문세": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "이범용,한명훈": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이선희": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이소라": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이수": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "이승기": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이승재": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이승철": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 6
+    },
+    "이연실": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이영지(Feat.도경수(D.O.))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이용": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이은하": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이재성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이적": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이정현": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이찬원": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "이창섭": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이클립스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "이하이": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "이하이(Feat.B.I)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "인디고": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "임영웅": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "임재범": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "임창정": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "임한별": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "임현정": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "임희숙": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "자두": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q626071",
+      "entity_label": "더 자두"
+    },
+    "자우림": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q494321",
+      "entity_label": "자우림"
+    },
+    "자자": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "자전거탄풍경": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "잔나비": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "장덕철": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q55710580",
+      "entity_label": "장덕철"
+    },
+    "장민호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "장범준": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "장윤정": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 7
+    },
+    "장철웅": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "재지팩트": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12614870",
+      "entity_label": "재지팩트"
+    },
+    "저스디스,R.Tee,던말릭,허성현(rosy),KHAN,맥대디,로스(Los)(Prod.R.Tee)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "저스디스,키드밀리,NO_EL(장용준),양홍원(Young B)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "전영호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "전철": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "정국": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "정동하": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "정승환": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "정우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "정인": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "정준일": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "제네더질라(Feat.저스디스)(Prod.Lil Moshpit)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조PD(Feat.인순이)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조광일": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조덕배": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "조승구": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조승우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "조영남": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조용필": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 6
+    },
+    "조유진,박기영": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조장혁": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조정석": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조째즈(Prod.로코베리)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "조항조": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5
+    },
+    "죠지": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "주니퍼": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "주병선": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "주호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "중식이": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q109461944",
+      "entity_label": "중식이"
+    },
+    "지아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "지코": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "진미령": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "진성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "진시몬": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "찬열(EXO),펀치": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "창모(Feat.수퍼비)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "창모,해쉬스완,ASHISLAND,김효은": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "체리필터": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q484763",
+      "entity_label": "체리필터"
+    },
+    "첸,백현,시우민(EXO)": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "최백호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "최성수": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "최유리": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5
+    },
+    "최진희": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "추가열": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "카더가든": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "카라": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q124459",
+      "entity_label": "카라"
+    },
+    "코요태": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2,
+      "entity_id": "Q487219",
+      "entity_label": "코요태"
+    },
+    "쿤디판다(Khundi Panda)(Feat.저스디스)(Prod.그루비룸)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "쿨": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 4,
+      "entity_id": "Q12620658",
+      "entity_label": "쿨"
+    },
+    "크러쉬": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "키네틱플로우": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q12620786",
+      "entity_label": "키네틱 플로우"
+    },
+    "타샤니": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "탑현": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "태양": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "태연": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "태진아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "투빅": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1,
+      "entity_id": "Q12580566",
+      "entity_label": "2bic"
+    },
+    "트와이스": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q20645861",
+      "entity_label": "트와이스"
+    },
+    "티아라": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q495383",
+      "entity_label": "티아라"
+    },
+    "티아라,초신성": {
+      "entity_type": "unknown",
+      "credit_kind": "multi",
+      "decision": "exclude",
+      "reason_codes": [
+        "multi_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "펀치": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "페노메코": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "포스트맨": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16097862",
+      "entity_label": "포스트맨"
+    },
+    "포지션": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q19795072",
+      "entity_label": "포지션"
+    },
+    "폴킴": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "프라이머리(Feat.개코,Zion.T)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "프라이머리(Feat.다이나믹듀오)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "프리스타일": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "플라워": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q16097868",
+      "entity_label": "플라워"
+    },
+    "하동균": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "하모(hamo)": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "medium",
+      "file_count": 1
+    },
+    "하하": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "하현우": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "한동근": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "한로로": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 5
+    },
+    "한승기": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "한요한(Feat.NO_EL(장용준),양홍원(Young B))": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "한혜진": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "함중아": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "해바라기": {
+      "entity_type": "duo",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "duo_entity",
+        "manual_disambiguation"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "허각": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "허각(Feat.존박)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "헤이즈(Feat.딘,DJ Friz)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "헤이즈(Feat.신용재)": {
+      "entity_type": "unknown",
+      "credit_kind": "featured",
+      "decision": "exclude",
+      "reason_codes": [
+        "featured_artist_credit"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "혁오": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q20668424",
+      "entity_label": "혁오"
+    },
+    "호미들(Prod.Cashbanger)": {
+      "entity_type": "group",
+      "credit_kind": "single",
+      "decision": "exclude",
+      "reason_codes": [
+        "group_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1,
+      "entity_id": "Q110118456",
+      "entity_label": "호미들"
+    },
+    "홍광호": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "홍수철": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "홍이삭": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 2
+    },
+    "홍진영": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 3
+    },
+    "환희": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "황가람": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "황인욱": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    },
+    "휘성": {
+      "entity_type": "person",
+      "credit_kind": "single",
+      "decision": "include",
+      "reason_codes": [
+        "person_entity"
+      ],
+      "confidence": "high",
+      "file_count": 1
+    }
+  },
+  "track_overrides": {
+    "강승모||무정 부르스": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "강진||땡벌": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "금잔디||오라버니": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "김수희||남행열차": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "김수희||애모": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "김연자||아모르 파티": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "김혜연||토요일 밤에": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||고장난 벽시계": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||고향역": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||사내": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||사랑": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||영영": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||테스형!": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "나훈아||홍시(울엄마)": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "남진,장윤정||당신이 좋아": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "남진||둥지": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "남진||빈잔": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "문성재||부산 갈매기": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "문희옥||평행선": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박구윤||뿐이고": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박군||한잔해": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박상철||무조건": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박상철||자옥아": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박상철||황진이": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박정식||천년바위": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박주희||자기야": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "박현빈||곤드레 만드레": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "배금성||사랑이 비를 맞아요": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "서주경||당돌한 여자": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "설운도||누이": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "소리새||그대 그리고 나": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "신유||시계바늘": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "심수봉||백만송이 장미": {
+      "decision": "review",
+      "trot_status": "trot_adjacent_ballad",
+      "reason_codes": [
+        "trot_adjacent_ballad"
+      ],
+      "confidence": "medium",
+      "matched_file_count": 1
+    },
+    "심수봉||사랑밖엔 난 몰라": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "오강혁||만년사랑": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "우연이||우연히": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "윤수현||꽃길": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "이연실||목로주점": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "이은하||미소를 띄우며 나를 보낸 그 모습처럼": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "이찬원||시절인연(꼰대인턴OST)": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "이찬원||진또배기": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "임영웅||별빛 같은 나의 사랑아": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "임영웅||사랑은 늘 도망가(신사와아가씨OST)": {
+      "decision": "review",
+      "trot_status": "trot_adjacent_ballad",
+      "reason_codes": [
+        "trot_adjacent_ballad"
+      ],
+      "confidence": "medium",
+      "matched_file_count": 2
+    },
+    "장윤정||꽃": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "장윤정||목포행 완행열차": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "장윤정||사랑 참": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "장윤정||사랑아": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "장윤정||옆집누나": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "장윤정||초혼": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 2
+    },
+    "조승구||꽃바람 여인": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조영남||화개장터": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조용필||기다리는 아픔": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조용필||모나리자": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조용필||바람의 노래": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조항조||거짓말": {
+      "decision": "review",
+      "trot_status": "enka_hold",
+      "reason_codes": [
+        "enka_hold"
+      ],
+      "confidence": "medium",
+      "matched_file_count": 1
+    },
+    "조항조||고맙소": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조항조||남자라는 이유로": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "조항조||만약에": {
+      "decision": "review",
+      "trot_status": "enka_hold",
+      "reason_codes": [
+        "enka_hold"
+      ],
+      "confidence": "medium",
+      "matched_file_count": 1
+    },
+    "조항조||옹이": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "주병선||칠갑산": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "진미령||미운 사랑": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "진성||동전 인생": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "진성||보릿고개": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "진성||안동역에서": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "진시몬||보약같은 친구": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "최백호||낭만에 대하여": {
+      "decision": "review",
+      "trot_status": "trot_adjacent_ballad",
+      "reason_codes": [
+        "trot_adjacent_ballad"
+      ],
+      "confidence": "medium",
+      "matched_file_count": 1
+    },
+    "최진희||꼬마 인형": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "최진희||천상재회": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "태진아||동반자": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "한혜진||갈색추억": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "함중아||내게도 사랑이": {
+      "decision": "exclude",
+      "trot_status": "exact",
+      "reason_codes": [
+        "trot_exact_genre"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "홍진영||사랑의 배터리": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "홍진영||산다는 건(Cheer Up)": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    },
+    "홍진영||오늘 밤에 (Love Tonight)": {
+      "decision": "exclude",
+      "trot_status": "corrected",
+      "reason_codes": [
+        "trot_title_artist_correction"
+      ],
+      "confidence": "high",
+      "matched_file_count": 1
+    }
+  }
+}
