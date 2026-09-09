@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/v1/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users", "/auth/sessions", "/auth/tokens/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
@@ -52,7 +53,8 @@ public class SecurityConfig {
                         .bearerTokenResolver(request -> {
                             if ("/auth/tokens/refresh".equals(request.getRequestURI())
                                     || "/callbacks/voice-analyses".equals(request.getRequestURI())
-                                    || "/internal/embedding-catalog/active".equals(request.getRequestURI())) {
+                                    || "/internal/embedding-catalog/active".equals(request.getRequestURI())
+                                    || request.getRequestURI().startsWith("/internal/catalog-media/vocal-stems/")) {
                                 return null;
                             }
                             return new DefaultBearerTokenResolver().resolve(request);

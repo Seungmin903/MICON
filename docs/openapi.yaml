@@ -44,7 +44,46 @@ tags:
   - name: "찜"
   - name: "추천"
   - name: "회원"
+  - name: "카탈로그 미디어"
 paths:
+  "/internal/catalog-media/vocal-stems/{songId}":
+    get:
+      tags: ["카탈로그 미디어"]
+      summary: "AI용 보컬 stem 다운로드 참조 조회"
+      description: "운영 DB의 READY 보컬 stem object key를 검증하고 최대 10분의 비공개 S3 다운로드 URL을 발급한다. 일반 회원 JWT로 접근할 수 없다."
+      operationId: "micon083"
+      servers:
+        - url: "{backendUrl}"
+          description: "백엔드 서버"
+          variables:
+            backendUrl:
+              default: "http://localhost:8080"
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: "songId"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int64"
+            minimum: 1
+      x-direction: "AI → 백"
+      x-api-type: "API"
+      x-work-status: "구현"
+      x-backend-status: "테스트 완료"
+      x-frontend-status: "해당 없음"
+      x-permission: "AI 서비스"
+      x-auth-token: "AI_SERVICE_TOKEN"
+      responses:
+        "200":
+          description: "검증된 메타데이터와 단기 다운로드 URL"
+        "401":
+          description: "AI 서비스 토큰 누락 또는 불일치"
+        "404":
+          description: "곡이 존재하지 않음"
+        "409":
+          description: "READY 보컬 stem이 없거나 저장 경로 계약 불일치"
   "/artists":
     get:
       tags: ["선호 정보"]
