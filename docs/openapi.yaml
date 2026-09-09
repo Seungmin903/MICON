@@ -763,14 +763,14 @@ paths:
     post:
       tags: ["추천"]
       summary: "개인화 추천 작업 생성 API"
-      description: "분석·선호·조건·후보 곡 또는 카탈로그 버전으로 추천한다. 낮은 신뢰도의 음색 기준을 제외한다."
+      description: "저장된 사용자 임베딩·음역 프로필·선호 조건으로 추천 작업을 생성한다. 추천 서버의 실제 경로는 POST /recommendations이다."
       operationId: "micon030"
       servers:
         - url: "{aiUrl}"
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -780,9 +780,19 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationJobRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "202":
+          description: "추천 작업 접수 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationJobAccepted"
   "/recommendation-jobs/{jobId}":
     get:
       tags: ["추천"]
@@ -794,7 +804,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -2451,6 +2461,52 @@ components:
         createdAt:
           type: "string"
           format: "date-time"
+    RecommendationJobRequest:
+      type: "object"
+      required: ["voiceAnalysisId", "topK", "mode", "genres", "preferredArtists", "voiceProfile", "userEmbedding"]
+      properties:
+        voiceAnalysisId: { type: "integer", format: "int64" }
+        sourceSongId: { type: ["integer", "null"], format: "int64" }
+        topK:
+          type: "integer"
+          minimum: 1
+          maximum: 50
+          description: "각 추천 섹션의 최대 곡 수"
+        mode: { type: "string", enum: ["timbre", "range"] }
+        genres:
+          type: "array"
+          items: { type: "string" }
+        preferredArtists:
+          type: "array"
+          items: { type: "string" }
+        voiceProfile:
+          $ref: "#/components/schemas/RecommendationVoiceProfile"
+        userEmbedding:
+          type: "object"
+          additionalProperties: true
+          description: "음성 분석 AI가 생성한 임베딩 객체. 내부 필드와 차원은 AI 연동 합의 후 확정한다."
+        embeddingRef: { type: ["string", "null"] }
+    RecommendationVoiceProfile:
+      type: "object"
+      properties:
+        stableLowMidi: { type: ["number", "null"] }
+        stableHighMidi: { type: ["number", "null"] }
+        medianMidi: { type: ["number", "null"] }
+        pitchDistribution: { type: ["object", "array", "null"] }
+        rangeConfidence: { type: ["number", "null"] }
+        timbreLabel: { type: ["string", "null"] }
+        timbreVector: { type: ["object", "array", "null"] }
+        timbreConfidence: { type: ["number", "null"] }
+        observedCoreLowMidi: { type: ["number", "null"] }
+        observedCoreHighMidi: { type: ["number", "null"] }
+        observedMedianMidi: { type: ["number", "null"] }
+        pitchHistogram: { type: ["object", "array", "null"] }
+    RecommendationJobAccepted:
+      type: "object"
+      required: ["id", "status"]
+      properties:
+        id: { type: "string" }
+        status: { type: "string", enum: ["queued"] }
     RecommendationApiResponse:
       type: "object"
       required: ["code", "message", "data"]

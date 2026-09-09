@@ -15,6 +15,10 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
     Optional<Recommendation> findFirstByUserIdOrderByGeneratedAtDescIdDesc(Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select recommendation from Recommendation recommendation where recommendation.id = :id")
+    Optional<Recommendation> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select recommendation from Recommendation recommendation where recommendation.jobId = :jobId")
     Optional<Recommendation> findByJobIdForUpdate(@Param("jobId") String jobId);
 }
