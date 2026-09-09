@@ -2,6 +2,7 @@ package com.micon.backend.voice.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
+import com.micon.backend.setting.repository.SettingRepository;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.user.domain.UserStatus;
@@ -26,17 +27,26 @@ public class RecordingUploadService {
     private final VoiceRecordingRepository recordings;
     private final VoiceStorage storage;
     private final VoiceStorageProperties properties;
+    private final SettingRepository settings;
 
     public RecordingUploadService(UserRepository users, VoiceRecordingRepository recordings,
-                                  VoiceStorage storage, VoiceStorageProperties properties) {
-        this.users = users; this.recordings = recordings; this.storage = storage; this.properties = properties;
+                                  VoiceStorage storage, VoiceStorageProperties properties,
+                                  SettingRepository settings) {
+        this.users = users;
+        this.recordings = recordings;
+        this.storage = storage;
+        this.properties = properties;
+        this.settings = settings;
     }
 
     @Transactional
-    public Long upload(long userId, MultipartFile file, short attemptNo, boolean keepOriginal) {
+    public Long upload(long userId, MultipartFile file, short attemptNo, Boolean keepOriginalOverride) {
         validate(file, attemptNo);
         User user = users.findByIdAndStatus(userId, UserStatus.ACTIVE)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_ACTIVE));
+        boolean keepOriginal = keepOriginalOverride != null
+                ? keepOriginalOverride
+                : settings.findSaveOriginalRecording(userId);
         String key = properties.prefix() + "/" + userId + "/" + UUID.randomUUID();
         VoiceRecording recording = recordings.save(new VoiceRecording(user, attemptNo, key, file.getContentType(), keepOriginal));
         try {
