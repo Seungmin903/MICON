@@ -24,4 +24,10 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
         return restClient.post().uri("/voice-analysis-jobs")
                 .body(command).retrieve().body(Result.class);
     }
+
+    @Override
+    public void cancel(String jobId) {
+        restClient.post().uri("/voice-analysis-jobs/{jobId}/cancel", jobId)
+                .retrieve().toBodilessEntity();
+    }
 }

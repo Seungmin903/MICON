@@ -61,6 +61,18 @@ public class VoiceAnalysisController {
         return ResponseEntity.ok(ApiResponse.success(service.get(userId(jwt), analysisId)));
     }
 
+    @PostMapping("/{analysisId}/cancel")
+    public ResponseEntity<ApiResponse<VoiceAnalysisResponse>> cancel(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable long analysisId) {
+        return ResponseEntity.ok(ApiResponse.success(service.cancel(userId(jwt), analysisId)));
+    }
+
+    @PostMapping("/{analysisId}/retry")
+    public ResponseEntity<ApiResponse<VoiceAnalysisResponse>> retry(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable long analysisId) {
+        return ResponseEntity.ok(ApiResponse.success(service.retry(userId(jwt), analysisId)));
+    }
+
     private long userId(Jwt jwt) {
         try {
             return Long.parseLong(jwt.getSubject());

@@ -5,6 +5,8 @@ import com.micon.backend.voice.domain.VoiceAnalysisMethod;
 public interface VoiceAnalysisJobGateway {
     Result submit(Command command);
 
+    void cancel(String jobId);
+
     record Command(long voiceAnalysisId, String recordingUrl, VoiceAnalysisMethod method,
                    Long songId, String guideVersion) {
     }

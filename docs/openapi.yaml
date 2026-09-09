@@ -1896,14 +1896,23 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/AnalysisId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "취소 상태가 반영된 음성 분석"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceAnalysisApiResponse" }
+        "404":
+          description: "분석이 없거나 본인 소유가 아님"
+        "409":
+          description: "이미 종료된 분석"
   "/voice-analyses/{analysisId}/report":
     get:
       tags: ["분석 리포트"]
@@ -1969,14 +1978,23 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/AnalysisId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "새 AI 작업으로 재시작된 음성 분석"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceAnalysisApiResponse" }
+        "404":
+          description: "분석이 없거나 본인 소유가 아님"
+        "409":
+          description: "실패 상태가 아니거나 원본 녹음을 재사용할 수 없음"
   "/voice-analysis-jobs":
     post:
       tags: ["음성 분석"]
@@ -2053,8 +2071,8 @@ paths:
         - serviceAuth: []
       x-direction: "백 → AI"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"

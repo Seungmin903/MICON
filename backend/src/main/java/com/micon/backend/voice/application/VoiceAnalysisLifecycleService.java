@@ -55,9 +55,48 @@ public class VoiceAnalysisLifecycleService {
         analysis.fail("AI_DISPATCH_FAILED", abbreviate(reason), LocalDateTime.now());
     }
 
+    @Transactional
+    public String cancel(long userId, long analysisId) {
+        VoiceAnalysis analysis = ownedAndLocked(userId, analysisId);
+        ensureActiveUser(analysis);
+        try {
+            analysis.cancel(LocalDateTime.now());
+        } catch (IllegalStateException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
+        return analysis.getJobId();
+    }
+
+    @Transactional
+    public VoiceAnalysis prepareRetry(long userId, long analysisId) {
+        VoiceAnalysis analysis = ownedAndLocked(userId, analysisId);
+        ensureActiveUser(analysis);
+        VoiceRecording recording = analysis.getRecording();
+        if (recording.getUploadStatus() != RecordingUploadStatus.UPLOADED || recording.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
+        }
+        try {
+            analysis.prepareRetry();
+        } catch (IllegalStateException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
+        return analysis;
+    }
+
     private VoiceAnalysis locked(long analysisId) {
         return analyses.findByIdForUpdate(analysisId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+    }
+
+    private VoiceAnalysis ownedAndLocked(long userId, long analysisId) {
+        return analyses.findByIdAndUserIdForUpdate(analysisId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+    }
+
+    private void ensureActiveUser(VoiceAnalysis analysis) {
+        if (analysis.getUser().getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.ACCOUNT_NOT_ACTIVE);
+        }
     }
 
     private String abbreviate(String reason) {

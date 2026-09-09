@@ -147,4 +147,27 @@ public class VoiceAnalysis {
         this.qualityStatus = qualityStatus == null ? VoiceQualityStatus.INSUFFICIENT_VOICE : qualityStatus;
         this.completedAt = completedAt;
     }
+
+    public void cancel(LocalDateTime completedAt) {
+        if (status != VoiceAnalysisStatus.READY && status != VoiceAnalysisStatus.RECORDING
+                && status != VoiceAnalysisStatus.UPLOADING && status != VoiceAnalysisStatus.ANALYZING) {
+            throw new IllegalStateException("analysis cannot be canceled from " + status);
+        }
+        this.status = VoiceAnalysisStatus.CANCELED;
+        this.completedAt = completedAt;
+    }
+
+    public void prepareRetry() {
+        if (status != VoiceAnalysisStatus.FAILED) {
+            throw new IllegalStateException("only FAILED analysis can be retried");
+        }
+        this.status = VoiceAnalysisStatus.READY;
+        this.jobId = null;
+        this.failureCode = null;
+        this.failureReason = null;
+        this.analysisVersion = null;
+        this.qualityStatus = null;
+        this.startedAt = null;
+        this.completedAt = null;
+    }
 }
