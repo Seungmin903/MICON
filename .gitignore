@@ -40,6 +40,9 @@ target/
 
 # Python / AI
 __pycache__/
+.pytest_cache/
+/catalog-releases/
+/catalog-cache/
 .venv/
 venv/
 *.egg-info/

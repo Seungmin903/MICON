@@ -76,6 +76,10 @@ concurrent = 1
 GitLab 프로젝트 설정은 `project_type`, `locked=true`, `run_untagged=false`, `access_level=ref_protected`, 최대 실행 시간 600초로 유지한다. 인증 토큰은 GitLab에서 생성 직후 한 번만 받아 서버 설정에 저장하며 문서·Git·채팅에 복사하지 않는다.
 
 MySQL 검증은 Java 작업 컨테이너(1 CPU·1 GiB)와 MySQL 서비스(1 CPU·1 GiB)를 사용한다.
+227의 `embedding-catalog-tests`도 기존 allowlist의 Python 이미지와 같은 MySQL 이미지를 사용한다.
+모의 S3(moto)는 Python 프로세스 안에서 실행하며 실제 AWS 키/버킷과 운영 DB를 사용하지 않는다.
+`mysql-song-import`는 실제 V1~V7 Flyway·두 번 적재 검증 뒤 임베딩 BE 인증/DB 조회 테스트도 실행한다.
+새 Runner 권한이나 임의 서비스 이미지를 허용할 필요는 없다.
 서비스에는 호스트 포트/운영 볼륨/운영 비밀을 제공하지 않는다. 이미지 digest 변경 시 CI와 위 allowlist를 함께 검토한다.
 설정 적용 전 pause 및 실행 중 job 0건 확인 → root 전용 백업 → 설정 반영 → Runner 검증 → pause 해제 순서를 지킨다.
 Protected 제한을 풀어 MR 브랜치를 실행하지 않는다. 병합 전 격리 컨테이너의 동일 명령 검증과 병합 후 실제 파이프라인 결과는 구분해서 기록한다.

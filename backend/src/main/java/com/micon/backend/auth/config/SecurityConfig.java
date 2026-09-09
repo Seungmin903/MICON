@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/v1/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users", "/auth/sessions", "/auth/tokens/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
@@ -50,7 +51,8 @@ public class SecurityConfig {
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(request -> {
                             if ("/auth/tokens/refresh".equals(request.getRequestURI())
-                                    || "/callbacks/voice-analyses".equals(request.getRequestURI())) {
+                                    || "/callbacks/voice-analyses".equals(request.getRequestURI())
+                                    || "/internal/embedding-catalog/active".equals(request.getRequestURI())) {
                                 return null;
                             }
                             return new DefaultBearerTokenResolver().resolve(request);

@@ -49,6 +49,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	maxHeapSize = '256m'
+	maxParallelForks = 1
 }
 
 // Use the application's Flyway/MySQL dependencies without booting Spring or

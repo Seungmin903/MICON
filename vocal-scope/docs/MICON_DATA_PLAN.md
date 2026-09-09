@@ -12,7 +12,7 @@ Figma 와이어프레임(MICON 부제), Notion 요구사항 명세서 v2.0·장�
 | 곡 일괄 분석 | **50곡 시범 배치 먼저**, 결과 확인 후 890곡 | `model-server/batch_analyze.py`, 후보는 한국어·솔로·가사 보유·장르 분산 |
 | 가사 소스 | 카탈로그 가사(889/890곡)를 넣고 **Whisper 생략**, wav2vec2 강제정렬만 | 곡당 −50 s, 오탈자 제거 |
 | "편안한 음역" 정의 | coreRange(5–95 % 발성 시간)로 대체하지 않고 **안정 음역**(반음별 안정도 통과 연속 구간)으로 구현 | 용어집 §5 "안정 음역 = 편안 음역의 기술적 근사", 요구사항 ANL-003 P0. 구현 전까지 coreRange는 "핵심 음역(테시투라)"로만 표기 |
-| DB | **MySQL 8**(팀 결정, 2026-09-02) + 오디오는 DB 밖(경로만). 개발 초기엔 같은 컬럼의 SQLite(`outputs/micon_catalog.sqlite`), MySQL용 INSERT 덤프는 `--mysql-dump` | JSON 컬럼으로 음표·마디 저장, ngram FULLTEXT로 한국어 검색, 음색 임베딩은 후속(MySQL 9 VECTOR 또는 별도 저장소) |
+| DB | **MySQL 8** + 오디오는 DB 밖(경로만). 개발 초기 SQLite/덤프는 로컬 산출물 계약 | 음색 임베딩은 **개인 비공개 S3 NPY + MySQL V7 메타데이터/활성 배치 + AI 로컬 캐시**로 결정. [전용 계약](../../docs/operations/EMBEDDING_CATALOG.md). MySQL 9 VECTOR 도입은 필요하지 않음 |
 | 추천 키 기본값 근거 | 트레이너 답변 "최고음보다 3키 낮게" | 공식은 요구사항 §15 미확정 항목 |
 
 ## 2. 카탈로그 현황 (`Desktop\노래 모음`)
