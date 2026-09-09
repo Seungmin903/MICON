@@ -26,11 +26,37 @@ data class RecommendJobDto(
 @JsonClass(generateAdapter = false)
 data class RecommendResultDto(
     val algorithm: AlgorithmDto? = null,
+    /** 업로드한 녹음에서 서버가 관찰한 사용자 음역 프로파일. 리포트의 "나의 음역대"가 이 값으로 채워진다 */
+    val query: QueryDto? = null,
     /** 응답의 중심(shelves-v1). 섹션마다 기준이 다르고 곡이 겹치지 않는다 */
     val shelves: List<ShelfDto> = emptyList(),
     /** shelves[0].items 복사본 — 이전 클라이언트 호환용 */
     val recommendations: List<RecommendationDto> = emptyList(),
     @Json(name = "catalog_track_count") val catalogTrackCount: Int? = null,
+)
+
+@JsonClass(generateAdapter = false)
+data class QueryDto(
+    val pitchProfile: PitchProfileDto? = null,
+    val pitchError: String? = null,
+)
+
+/**
+ * 서버 `pitch_profile.summarize_pitch_profile` 요약 (histogram 은 서버가 응답에서 뺀다).
+ * reliable=false 면 음역 계산이 꺼진 응답이므로 프로필을 덮어쓰지 않는다.
+ */
+@JsonClass(generateAdapter = false)
+data class PitchProfileDto(
+    val lowestMidi: Int,
+    val highestMidi: Int,
+    val coreLowMidi: Int,
+    val medianMidi: Int,
+    val coreHighMidi: Int,
+    val reliable: Boolean = false,
+    val qualityReasons: List<String> = emptyList(),
+    val confidence: Float? = null,
+    val voicedSeconds: Float? = null,
+    val noteCount: Int? = null,
 )
 
 /** 추천 섹션 하나. key: voice | original_key | favorite_artists | challenge | discovery */

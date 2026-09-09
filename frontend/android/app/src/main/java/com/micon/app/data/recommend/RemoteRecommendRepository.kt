@@ -67,7 +67,27 @@ class RemoteRecommendRepository(
         val job = gateway.awaitJob(
             gateway.recommend(audio, topK = limit, mode = mode, genres = UserStore.preferredGenres.toList(), preferredArtists = UserStore.preferredArtists.toList()).id,
         )
-        return job.result ?: throw RecommendException("추천 결과가 비어 있습니다.")
+        val result = job.result ?: throw RecommendException("추천 결과가 비어 있습니다.")
+        applyMeasuredProfile(result)      // 항목 매핑(부담 구간) 전에 — 실제 안정 음역으로 계산되게
+        return result
+    }
+
+    /**
+     * 서버가 녹음에서 관찰한 음역 4개(전체·주요)를 [UserStore.profile] 에 반영한다. 곡 분석 화면의 "내 음역 범위·안정 음역대"가 실제 값이 되는 경로.
+     * 음역 외 항목(안정성·특성 등)은 건드리지 않는다 — 리포트 화면 소관. 신뢰도가 낮으면(reliable=false) 덮어쓰지 않는다.
+     */
+    private fun applyMeasuredProfile(result: RecommendResultDto) {
+        val p = result.query?.pitchProfile ?: return
+        if (!p.reliable) return
+        val base = UserStore.profile.value ?: UserStore.VoiceProfile()
+        UserStore.setProfile(
+            base.copy(
+                lowMidi = p.lowestMidi, highMidi = p.highestMidi,
+                comfortLow = p.coreLowMidi, comfortHigh = p.coreHighMidi,        // 안정 음역 = 주요 음역(5~95 %) 근사 (용어집 §5)
+                recommendLow = p.coreLowMidi, recommendHigh = p.coreHighMidi,
+                measuredAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     /** 서버 항목 → 앱 항목. 앱이 열 수 없는 곡(song_id 없음)은 null. 부담 구간은 로컬 음표가 있을 때만 붙인다. */

@@ -115,6 +115,22 @@ class RemoteRecommendRepositoryTest {
     }
 
     @Test
+    fun `server pitch profile becomes the measured voice profile`() = runBlocking {
+        UserStore.setProfile(null)
+        val repo = RemoteRecommendRepository(FixtureGateway(job), EmptySongs, LocalRecommendRepository(EmptySongs)) { File("dummy.wav") }
+        repo.shelves(8)
+        val p = checkNotNull(UserStore.profile.value)
+        val q = job.result!!.query!!.pitchProfile!!
+        assertEquals(q.lowestMidi, p.lowMidi); assertEquals(q.highestMidi, p.highMidi)
+        assertEquals(q.coreLowMidi, p.comfortLow); assertEquals(q.coreHighMidi, p.comfortHigh)
+        assertEquals(q.coreLowMidi, p.recommendLow); assertEquals(q.coreHighMidi, p.recommendHigh)
+        // 신뢰도 낮은 응답은 덮어쓰지 않는다
+        val shaky = job.copy(result = job.result!!.copy(query = job.result!!.query!!.copy(pitchProfile = q.copy(reliable = false, lowestMidi = 1))))
+        RemoteRecommendRepository(FixtureGateway(shaky), EmptySongs, LocalRecommendRepository(EmptySongs)) { File("dummy.wav") }.shelves(8)
+        assertEquals(q.lowestMidi, UserStore.profile.value!!.lowMidi)
+    }
+
+    @Test
     fun `without a recording or for catalog modes it falls back to local`() = runBlocking {
         val gateway = FixtureGateway(job)
         val repo = RemoteRecommendRepository(gateway, EmptySongs, LocalRecommendRepository(EmptySongs)) { null }
