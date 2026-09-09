@@ -13,6 +13,7 @@ class BackendCdContractTests(unittest.TestCase):
         cls.pipeline = (ROOT / "ci/Jenkinsfile.backend").read_text(encoding="utf-8")
         cls.deploy = (ROOT / "infra/deploy/deploy_backend_release.sh").read_text(encoding="utf-8")
         cls.install = (ROOT / "infra/deploy/install_backend_release.sh").read_text(encoding="utf-8")
+        cls.rollback = (ROOT / "infra/deploy/rollback_backend_release.sh").read_text(encoding="utf-8")
 
     def test_pipeline_is_main_only_and_serial(self):
         self.assertIn("restricted to the main branch", self.pipeline)
@@ -52,6 +53,19 @@ class BackendCdContractTests(unittest.TestCase):
         self.assertIn('docker compose -f "$COMPOSE_FILE" down', self.deploy)
         self.assertNotIn("down -v", self.deploy)
         self.assertNotIn("docker system prune", self.deploy)
+
+    def test_previous_release_is_recorded_for_explicit_safe_rollback(self):
+        self.assertIn("backend-release.previous.env", self.deploy)
+        self.assertIn("--confirm-db-compatible", self.rollback)
+        self.assertIn("does not match the active Nginx slot", self.rollback)
+        self.assertIn("previous backend slot image does not match recorded state", self.rollback)
+        health = self.rollback.index("check_health.py")
+        catalog = self.rollback.index("check_catalog_media.py")
+        switch = self.rollback.index("switch_backend_slot.sh")
+        self.assertLess(health, catalog)
+        self.assertLess(catalog, switch)
+        self.assertNotIn("down -v", self.rollback)
+        self.assertNotIn("docker system prune", self.rollback)
 
     def test_pipeline_does_not_publish_gitlab_status(self):
         for forbidden in ("updateGitlabCommitStatus", "gitlabCommitStatus", "PRIVATE-TOKEN"):

@@ -21,6 +21,18 @@ DEPLOY_ENV=/etc/micon/runtime/backend-deploy.env
 COMPOSE_FILE="$REPOSITORY_ROOT/infra/compose/backend.compose.yml"
 STATE_DIR=/var/lib/micon
 STATE_FILE="$STATE_DIR/backend-release.env"
+PREVIOUS_STATE_FILE="$STATE_DIR/backend-release.previous.env"
+
+if [ -e "$STATE_FILE" ]; then
+    if [ ! -f "$STATE_FILE" ] || [ -L "$STATE_FILE" ] || [ "$(stat -c %u "$STATE_FILE")" != 0 ]; then
+        echo "backend release state must be a root-owned regular file" >&2
+        exit 1
+    fi
+    case "$(stat -c %a "$STATE_FILE")" in
+        600|640) ;;
+        *) echo "backend release state must have mode 0600 or 0640" >&2; exit 1 ;;
+    esac
+fi
 
 "$REPOSITORY_ROOT/infra/deploy/prepare_backend_host.sh"
 
@@ -105,6 +117,11 @@ route_switched=true
 
 image_id="$(docker image inspect --format '{{.Id}}' "$MICON_BACKEND_IMAGE")"
 install -d -o root -g root -m 0750 "$STATE_DIR"
+if [ -f "$STATE_FILE" ]; then
+    previous_temp="$(mktemp "$STATE_DIR/backend-release.previous.XXXXXX")"
+    install -o root -g root -m 0640 "$STATE_FILE" "$previous_temp"
+    mv -Tf "$previous_temp" "$PREVIOUS_STATE_FILE"
+fi
 state_temp="$(mktemp "$STATE_DIR/backend-release.XXXXXX")"
 chown root:root "$state_temp"
 chmod 0640 "$state_temp"

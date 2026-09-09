@@ -27,7 +27,17 @@ Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client�
 6. root-owned source로 바꾼 뒤 비활성 blue/green 슬롯에서 이미지 build → Flyway → readiness 3회 → 카탈로그 S3 실제 GET을 실행한다.
 7. 모든 gate가 성공하면 Nginx slot switch를 실행하고 공개 API의 BE 401 응답을 확인한다.
 8. 전환 전 실패 시 후보 Compose만 `down`한다. 볼륨·DB·기존 active slot은 삭제하지 않는다.
-9. 성공 시 `/var/lib/micon/backend-release.env`에 SHA, image ID, slot, port, UTC 시각만 기록한다.
+9. 성공 시 `/var/lib/micon/backend-release.env`에 SHA, image ID, slot, port, UTC 시각만 기록하고, 기존 정상 상태는 `/var/lib/micon/backend-release.previous.env`로 한 세대 보존한다.
+
+## 직전 정상본 원복
+
+직전 슬롯 컨테이너가 계속 실행 중이고 변경된 DB migration이 직전 BE와 호환된다고 담당자가 확인한 경우에만 아래 명령을 실행한다.
+
+```bash
+sudo /path/to/release/infra/deploy/rollback_backend_release.sh --confirm-db-compatible
+```
+
+스크립트는 현재·직전 상태 파일과 Nginx 활성 링크, 직전 컨테이너의 실제 image ID를 대조한다. 이어서 직전 슬롯의 readiness 3회와 카탈로그 S3 실제 GET을 다시 통과한 뒤에만 라우팅을 전환하고 두 상태 파일을 맞바꾼다. DB 호환성은 자동 판정할 수 없으므로 확인 인자 없이 실행되지 않는다. DB·S3 객체·AWS 키·볼륨은 변경하거나 되돌리지 않는다.
 
 서버에서 읽는 `/etc/micon/runtime/backend-deploy.env`는 비밀이 아닌 gate 입력이며 root 0600이다. 기본 파일은 song_id 1과 현재 버킷·리전·승인 prefix를 사용한다. AWS/DB/JWT/AI 토큰 값은 이 파일에 넣지 않는다.
 
