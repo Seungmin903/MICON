@@ -33,7 +33,7 @@ class HealthTests(unittest.TestCase):
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         cls.worker = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.worker.start()
-        cls.url = f"http://127.0.0.1:{cls.server.server_port}/actuator/health"
+        cls.url = f"http://127.0.0.1:{cls.server.server_port}/actuator/health/readiness"
 
     @classmethod
     def tearDownClass(cls):
@@ -86,12 +86,13 @@ class HealthTests(unittest.TestCase):
     def test_configuration_rejects_external_or_sensitive_urls(self):
         for url in ("http://example.com:80/actuator/health",
                     "http://127.0.0.1:8080/healthz",
-                    "http://user:secret@localhost:8080/actuator/health",
-                    "http://localhost:8080/actuator/health?token=secret",
-                    "http://localhost:8080/actuator/health#fragment",
-                    "http://localhost/actuator/health",
-                    "http://localhost:0/actuator/health",
-                    "file:///actuator/health"):
+                    "http://127.0.0.1:8080/actuator/health",
+                    "http://user:secret@localhost:8080/actuator/health/readiness",
+                    "http://localhost:8080/actuator/health/readiness?token=secret",
+                    "http://localhost:8080/actuator/health/readiness#fragment",
+                    "http://localhost/actuator/health/readiness",
+                    "http://localhost:0/actuator/health/readiness",
+                    "file:///actuator/health/readiness"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 validate_url(url)
 
@@ -114,17 +115,41 @@ class HealthTests(unittest.TestCase):
 
         self.assertFalse(wait_for_ready(
             self.url, deadline=3, interval=1, timeout=1, probe=slow_probe,
-            clock=lambda: ticks[0], report=lambda _: None))
+            required_successes=1, clock=lambda: ticks[0], report=lambda _: None))
 
     def test_retry_then_success(self):
         ticks = [0.0]
-        outcomes = iter([(False, "not_up"), (True, "ready")])
+        outcomes = iter([
+            (False, "not_up"),
+            (True, "ready"),
+            (True, "ready"),
+            (True, "ready"),
+        ])
         self.assertTrue(wait_for_ready(
             self.url, deadline=5, interval=1, timeout=1,
             probe=lambda *_: next(outcomes), clock=lambda: ticks[0],
             sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds),
             report=lambda _: None))
-        self.assertEqual(ticks[0], 1)
+        self.assertEqual(ticks[0], 3)
+
+    def test_failure_resets_success_streak(self):
+        ticks = [0.0]
+        outcomes = iter([
+            (True, "ready"),
+            (True, "ready"),
+            (False, "not_up"),
+            (True, "ready"),
+            (True, "ready"),
+            (True, "ready"),
+        ])
+        messages = []
+        self.assertTrue(wait_for_ready(
+            self.url, deadline=10, interval=1, timeout=1,
+            probe=lambda *_: next(outcomes), clock=lambda: ticks[0],
+            sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds),
+            report=messages.append))
+        self.assertIn("success_streak=0/3", messages[2])
+        self.assertEqual(ticks[0], 5)
 
     def test_deadline_failure(self):
         ticks = [0.0]
@@ -141,6 +166,11 @@ class HealthTests(unittest.TestCase):
         for deadline in (-1, 0, 61, float("nan"), float("inf")):
             with self.subTest(deadline=deadline), self.assertRaises(ValueError):
                 wait_for_ready(self.url, deadline=deadline)
+
+    def test_invalid_required_successes(self):
+        for count in (0, 11, 1.5, True):
+            with self.subTest(count=count), self.assertRaises(ValueError):
+                wait_for_ready(self.url, required_successes=count)
 
 
 if __name__ == "__main__":

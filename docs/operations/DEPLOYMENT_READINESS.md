@@ -11,6 +11,7 @@
 | 개인 S3 | 실제 버킷·리전·BE 전용 IAM·서버 키 저장 완료. CLI 합성 객체와 후보 BE의 실제 카탈로그 WAV GET·SHA-256 검증 완료 |
 | 팀원 데이터 | 정영주 384곡 메타데이터·`song_media`와 보컬 stem S3 연결 완료. 후보 BE 내부 API에서 song_id 1 실제 GET 검증 완료 |
 | 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 사용자 녹음 upload/GET/delete, AI 접근, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
+| 배포 gate | readiness 3회 연속 성공과 카탈로그 S3 실제 GET·SHA-256 검사를 로컬 24개 테스트 및 서버 후보에서 통과. Jenkins 연결·Nginx 전환은 미완료 |
 
 실제 S3 설정·검증은 S15P21B110-211 및 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절에 기록했다. S15P21B110-228에서 Flyway V8~V10과 보컬 stem 384건을 운영 DB에 반영했으며 BE 배포는 아직 실행하지 않았다. 아래 2026-09-07 스냅샷은 과거 기록이며 현재 전체 개발 상태로 읽지 않는다.
 

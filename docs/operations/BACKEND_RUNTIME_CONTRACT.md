@@ -105,7 +105,7 @@ management.endpoint.health.group.readiness.include=readinessState,db
 management.endpoint.health.group.liveness.include=livenessState
 ```
 
-SMTP는 readiness에서 제외한다. 메일 장애는 비밀번호 복구 기능 실패로 별도 감지하고 사용자에게 재시도를 안내하며, 다른 기능 전체의 트래픽을 차단하지 않는다. 메일 발송 검증 없이 복구 기능을 정상으로 보고하지 않는다. 156의 검사 도구는 readiness 및 연속 성공 조건으로 별도 수정해야 한다.
+SMTP는 readiness에서 제외한다. 메일 장애는 비밀번호 복구 기능 실패로 별도 감지하고 사용자에게 재시도를 안내하며, 다른 기능 전체의 트래픽을 차단하지 않는다. 메일 발송 검증 없이 복구 기능을 정상으로 보고하지 않는다. 156 브랜치의 검사 도구는 readiness 3회 연속 성공과 실제 카탈로그 S3 GET을 검사하도록 구현·후보 검증했다.
 
 gate 실행 계약: 개별 요청 timeout 5초, 최대 60초 내 2초 간격 재시도, 연속 3회 성공 후에만 전환한다. 시간 내 미충족이면 전환하지 않고 기존 버전을 유지한다. 전환 후 주요 API smoke 실패 시 이전 이미지·upstream으로 복구한다. 156에서 이 조건의 모의/실제 검증을 담당한다.
 
