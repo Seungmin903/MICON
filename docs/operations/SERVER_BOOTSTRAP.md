@@ -2,12 +2,12 @@
 
 ## 2026-09-09 후속 확인과 저장소 결정
 
-- SSAFY 서버 `j15b110.p.ssafy.io`를 BE·MySQL 실행에 계속 사용하고, S3만 개인 AWS 계정 자원으로 분리하기로 했다. [S3 운영 계약](S3_VOICE_STORAGE.md)에 계정·권한·팀원 업로드 절차를 정리했다. 개인 버킷 생성·키 발급·BE 주입은 아직 미완료다.
+- SSAFY 서버 `j15b110.p.ssafy.io`를 BE·MySQL 실행에 계속 사용하고, S3만 개인 AWS 계정 자원으로 분리했다. [S3 운영 계약](S3_VOICE_STORAGE.md)에 실제 버킷·전용 IAM·서버 키 파일과 10:54 KST의 CLI 업로드/GET/삭제 검증을 기록했다. BE 컨테이너 주입·통합 및 팀원 업로더 발급은 미완료다.
 - SSH 읽기 전용 조회에서 Ubuntu 24.04.4 LTS, 메모리 15GiB, 루트 디스크 309G/여유 약 304G, 리전 ap-northeast-2를 확인했다.
 - UFW active, inbound 22/80/443 허용 및 outgoing allow 유지. Nginx active·설정 검사 성공, Docker 29.8.0·Compose 5.5.1을 확인했다.
 - `micon-mysql-1`은 MySQL 8.4.11 healthy이며 DB 호스트 포트는 게시하지 않았다. DB 데이터/스키마 전체 검증이나 BE/AI 배포 성공을 뜻하지 않는다. [MySQL 운영 구성](MYSQL_RUNTIME.md)
 - 서버의 기본 AWS 신원은 SSAFY `AmazonLightsailInstanceRole`이다. S3 버킷 전체 목록·역할 정책 목록 조회는 AccessDenied였다. 이 조회 거부만으로 모든 S3 작업이 불가능하다고 결론 내리지 않는다. 개인 S3에는 별도 개인 계정 전용 신원을 사용하며 SSAFY 역할은 변경하지 않는다.
-- 이 후속 문서 갱신에서 서버 변경·추가 포트 개방·SQL 실행·AWS 자원 생성은 하지 않았다.
+- S15P21B110-211에서 개인 버킷용 IAM 사용자·키를 생성하고 서버 `/etc/micon/secrets/aws_credentials`에 `root:root 0600`으로 저장했다. 호스트 기본 인증·방화벽·기존 서비스는 유지했으며 추가 포트 개방·SQL 실행·BE 배포는 하지 않았다.
 
 ## 아래는 2026-09-07 초기 구축 기록
 

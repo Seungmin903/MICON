@@ -2,7 +2,7 @@
 
 기준: 2026-09-07, develop `61d2c84` + 이 MR의 Android CI 변경. 규칙 원본은 [JIRA_GIT_RULES.md](../../JIRA_GIT_RULES.md) V3.0이다.
 
-2026-09-09 갱신: develop `fcc00d2`에는 BE API·S3 연동 코드와 `vocal-scope/`가 있다. **코드 존재와 운영 통합 완료는 다르다.** BE·MySQL은 SSAFY 서버, 파일 저장은 개인 AWS S3를 사용하며 실제 개인 버킷 생성·연결은 미완료다. 아래 명령은 Windows PowerShell 기준이다.
+2026-09-09 갱신: develop `fcc00d2`에는 BE API·S3 연동 코드와 `vocal-scope/`가 있다. **코드 존재와 운영 통합 완료는 다르다.** BE·MySQL은 SSAFY 서버, 파일 저장은 개인 AWS S3를 사용한다. [S3 운영 계약](S3_VOICE_STORAGE.md)의 버킷·BE 전용 IAM·서버 키 저장과 CLI 직접 연결은 검증했으나 BE 배포/통합과 팀원 로컬 업로드 권한은 아직 준비 중이다. 운영 BE 키를 로컬 개발용으로 공유하지 않는다. 아래 명령은 Windows PowerShell 기준이다.
 
 ## 누가 무엇을 준비하나
 

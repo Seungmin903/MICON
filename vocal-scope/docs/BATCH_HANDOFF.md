@@ -125,7 +125,7 @@ mysql -u root -p micon < ..\..\outputs\micon_catalog.mysql.sql
 
 ### 4-6. SSAFY 서버 + 개인 S3 운영 인수 (2026-09-09)
 
-1. [공통 S3 운영 계약](../../docs/operations/S3_VOICE_STORAGE.md)의 실제 버킷·서울 리전·별도 업로더 인증을 인프라에게 받습니다. 개인 버킷 생성·권한 주입은 아직 미완료입니다. BE 녹음용 키나 루트 키를 공유하지 않습니다.
+1. [공통 S3 운영 계약](../../docs/operations/S3_VOICE_STORAGE.md)의 실제 버킷·서울 리전을 확인하고 별도 업로더 인증을 인프라에게 받습니다. 2026-09-09 버킷·BE 서버 인증과 CLI 연결은 검증했지만 팀원 catalog 업로더는 아직 발급하지 않았습니다. BE 녹음용 키나 루트 키를 공유하지 않습니다.
 2. 업로드 권한·음원/가사 이용 권리·민감정보를 확인한 산출물만 전용 폴더에 모읍니다. workspace 전체·캐시·키·DB 덤프를 일괄 업로드하지 않습니다. 공통 문서의 sync dry-run으로 신규 `catalog/<batch-id>/` 대상·용량을 확인한 뒤 업로드합니다.
 3. 곡 ID↔object key·크기·체크섬·데이터 버전 manifest와 다운로드 표본을 검증합니다. 실제 앱/AI가 사용할 Opus·npz·JSON 등 파일 목록은 담당자와 맞춥니다.
 4. `songs.audio_path`·`song_artifacts.path`의 PC 절대경로를 운영 object key/파일 참조로 매핑합니다. 현재 적재기에 S3 경로 변환을 구현했다는 뜻이 아닙니다. `s3://...` 문자열이나 만료 URL을 기존 로컬 파일 API에 넣기만 하면 스트리밍된다고 가정하지 않습니다.

@@ -12,7 +12,7 @@ Jira 파트 코드는 `AI`.
 
 ## 운영 파일·DB 인수 계약 (2026-09-09)
 
-BE·MySQL은 SSAFY 서버, 파일은 개인 AWS 계정의 비공개 S3에 둔다. [S3 운영 계약](../docs/operations/S3_VOICE_STORAGE.md)을 공통 기준으로 사용한다. 개인 버킷 생성·인증 주입은 아직 미완료이며, AI 서비스의 실제 배포 위치·인증은 별도 확정한다.
+BE·MySQL은 SSAFY 서버, 파일은 개인 AWS 계정의 비공개 S3에 둔다. [S3 운영 계약](../docs/operations/S3_VOICE_STORAGE.md)을 공통 기준으로 사용한다. 2026-09-09 개인 버킷·BE 전용 IAM·서버 키 파일과 CLI 직접 연결 검증은 완료했다. BE 컨테이너·AI 통합 검증은 미완료이며 AI 서비스의 실제 배포 위치·인증은 별도 확정한다. BE 키를 AI/팀원에게 공유하지 않는다.
 
 - 녹음 분석 요청에서는 BE가 발급한 만료 있는 presigned GET URL을 사용한다. AI 분석 API나 Android에 BE의 AWS 키를 전달하지 않는다. AI 실행 환경의 outbound HTTPS·다운로드 시간·URL 만료 처리를 검증한다.
 - 담당자 로컬의 승인된 데이터는 별도 업로더 권한으로 `catalog/<batch-id>/`에 올린다. 대용량 원본·키·DB 덤프를 Git에 커밋하지 않는다.
