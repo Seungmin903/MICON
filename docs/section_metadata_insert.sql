@@ -2,7 +2,8 @@
 -- Songs: 384 (catalog metadata: 211, sourceFolder-derived: 173)
 -- Sections: 1968
 -- Expected song-genre relations: 221
--- Run order: MICON_COMPLETE_DDL.sql -> genre_seed.sql -> this file
+-- Run order: backend Flyway migrations -> genre_seed.sql -> this file
+-- MICON_COMPLETE_DDL.sql is only for a separate empty reference database.
 -- Populates SONG, SONG_METADATA, SINGER, SONG_SINGER, SONG_ANALYSIS, SONG_SECTION and SONG_GENRE.
 -- SONG_NOTE and SONG_MEDIA are untouched because this source has no note or S3 object data.
 
