@@ -22,7 +22,7 @@ Jira: S15P21B110-156 / 연계: 153·154·155. 2026-09-10 기준 Flyway V1~V10과
 2. 테스트한 소스로 이미지 생성 → SHA 태그/digest 기록. 배포 중 새 소스를 다시 가져오지 않는다.
 3. 이전 정상 버전과 라우팅 설정을 보존하고 후보 컨테이너를 기존 서비스와 별도 포트에 준비한다. DB 초기화·migration 자동 실행 여부는 BE/DB 계약 확정 전 반드시 확인한다.
 4. 아래 readiness gate와 카탈로그 S3 실제 GET gate를 충족해야 다음 단계에 진입한다. 사용자 녹음 쓰기 경로는 별도로 합성 녹음 업로드 → presigned URL 실제 GET → 해당 테스트 녹음 삭제를 검증해야 한다. URL 발급만으로 권한 검증을 대신하지 않는다. 실패하면 기존 Nginx 라우팅을 유지한다.
-5. 확정된 Nginx 설정의 `nginx -t` 성공 후 reload한다. 실패 시 기존 설정 유지/복원. 설정 파일명과 upstream 포트는 154 구현 후 이 문서에 추가한다.
+5. [Nginx BE 라우팅](NGINX_BACKEND_ROUTING.md)의 switch 도구로 대상 readiness 재확인 → 설정 백업 → `nginx -t` → reload → 공개 401 smoke를 실행한다. 실패 시 도구가 이전 site·slot을 복원한다.
 6. HTTPS 경로의 상태와 대표 API 기능을 별도로 검사한다. Actuator UP만으로 곡 데이터·추천·인증 전체가 정상이라고 판단하지 않는다.
 7. 위 검증 완료 후에만 현재 정상 버전을 갱신한다. 이전 이미지·컨테이너·설정은 정해진 보존기간 동안 유지한다.
 
@@ -70,8 +70,8 @@ sudo python3 infra/deploy/check_catalog_media.py \
 - 로그: 확정된 Compose 파일/서비스를 대상으로 제한된 최근 로그만 조회하고 민감정보를 가린다. 사용자 데이터나 JWT/DB 환경파일을 복사하지 않는다.
 - 재시작: 원인과 영향 범위를 확인한 뒤 해당 앱 서비스만 대상으로 한다. DB/Redis나 서버 전체를 일괄 재시작하지 않는다. 재시작 후 health gate와 HTTPS 기능 검사를 다시 한다.
 - 전환 전 실패: 이전 서비스가 계속 트래픽을 받게 유지한다. 실패한 후보를 정상 버전으로 기록하지 않는다.
-- 전환 후 실패: 이전 후보의 health 및 스키마 호환성을 먼저 확인 → 보존된 Nginx 설정 복원 → `nginx -t` → reload → HTTPS 기능 재검증. 이전 이미지가 없거나 health가 나쁘면 무조건 롤백을 강행하지 않는다.
-- 이전 정상 이미지로 재생성이 필요하면 보존된 digest·환경설정으로 후보를 준비하고 같은 health gate를 거친다. **Compose와 라우팅 계약이 없으므로 현재 실행 가능한 단일 롤백 명령은 아직 제공하지 않는다.**
+- 전환 후 실패: 이전 슬롯의 health 및 스키마 호환성을 먼저 확인 → `sudo infra/nginx/switch_backend_slot.sh <이전-slot>` → HTTPS 기능 재검증. 이전 이미지가 없거나 health가 나쁘면 무조건 롤백을 강행하지 않는다.
+- 이전 정상 이미지로 재생성이 필요하면 보존된 digest·환경설정으로 반대 슬롯에 준비하고 같은 health·S3 gate를 거친다. 라우팅 원복 도구는 구현했지만 실제 성공 전환·원복은 리뷰 후에 검증한다.
 - `docker compose down -v`, DB 볼륨 삭제, 임의 SQL undo, 이전 버전 APK 강제 설치는 복구 절차로 사용하지 않는다.
 - 이미지 롤백으로 AWS 키·S3 데이터·DB 데이터가 되돌아가지는 않는다. 이전 이미지도 현재 유효한 전용 자격 증명으로 검증하며, 폐기/노출된 키를 복구하지 않는다. S3 전체 삭제나 catalog/ 덮어쓰기는 복구 절차가 아니다. 키 회전은 S3 운영 계약을 따른다.
 
@@ -101,4 +101,4 @@ sudo python3 infra/deploy/check_catalog_media.py \
 python3 -m unittest discover -s infra/deploy -p 'test_*.py' -v
 ```
 
-SSAFY 서버 후보 포트 18081에서도 readiness 3회 연속 성공과 song_id 1의 44,304,432바이트 S3 WAV·SHA-256 일치를 확인했다. Nginx 전환, 사용자 녹음 쓰기 smoke, 단일 명령 롤백 및 팀원의 복구 재현은 별도 미검증 항목이므로 156 전체를 Done으로 표시하지 않는다.
+SSAFY 서버 후보 포트 18081에서도 readiness 3회 연속 성공과 song_id 1의 44,304,432바이트 S3 WAV·SHA-256 일치를 확인했다. Nginx 후보 syntax와 BE가 꺼진 fail-closed 전환도 확인했다. 성공 전환·실제 원복, 사용자 녹음 쓰기 smoke 및 팀원의 복구 재현은 별도 미검증 항목이므로 156 전체를 Done으로 표시하지 않는다.
