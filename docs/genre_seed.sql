@@ -1,5 +1,5 @@
 -- MICON genre seed data
--- Target: MySQL 8.0.16+ / MICON_COMPLETE_DDL.sql
+-- Target: MySQL 8.4 / backend Flyway migrations applied first
 -- Safe to run repeatedly because normalized_name is unique.
 
 SET NAMES utf8mb4;

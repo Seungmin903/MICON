@@ -50,3 +50,21 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Use the application's Flyway/MySQL dependencies without booting Spring or
+// compiling unrelated application code. This task only targets disposable MySQL.
+sourceSets {
+	mysqlVerification {
+		compileClasspath = configurations.runtimeClasspath
+		runtimeClasspath = output + compileClasspath
+	}
+}
+
+tasks.register('verifySongImport', JavaExec) {
+	group = 'verification'
+	description = 'Apply real Flyway migrations and assert two catalog imports on empty test MySQL.'
+	classpath = sourceSets.mysqlVerification.runtimeClasspath
+	mainClass = 'com.micon.verification.SongImportVerifier'
+	workingDir = rootDir.parentFile
+	maxHeapSize = '256m'
+}

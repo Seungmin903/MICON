@@ -2,7 +2,7 @@
 
 Jira: `S15P21B110-212`
 
-## 2026-09-09 적용·검증 기록
+## 2026-09-09 최초 설치 기록 (212)
 
 - GitLab Runner ID `2102`, 설명 `micon-ssafy-protected`, 버전 `18.11.0`을 등록했다.
 - GitLab API 기준 `online`, `project_type`, Locked·Protected 활성화, untagged 비활성화, 태그 `micon-protected`, 최대 600초를 확인했다.
@@ -12,13 +12,21 @@ Jira: `S15P21B110-212`
 - 설치 뒤 MySQL healthy, Nginx 설정 검사 성공, `/healthz` 200, 개인 S3 리전 조회 성공을 확인했다. `/api/v1/health` 503은 아직 BE 컨테이너가 없는 기존 상태와 같다.
 - 실제 GitLab 작업 실행은 이 문서와 `.gitlab-ci.yml`이 리뷰 후 `develop`에 병합된 뒤 처음 검증한다. 현재 설정은 MR 소스 브랜치 코드를 실행하지 않는다.
 
+## 2026-09-09 곡 적재 CI 보완 (219)
+
+- 기존 MySQL 작업의 `disallowed image`를 확인하고, 아래 Java 이미지·MySQL 서비스 allowlist를 서버에 적용했다.
+- Runner pause 후 실행 job 0건을 확인하고 원본 설정을 root 전용으로 백업했다.
+- 설정 반영·재시작 후 `gitlab-runner verify` 성공, `online`·`paused=false`·Protected 유지를 확인했다.
+- 변경된 CI Lint는 오류·경고 0건이며, 별도 컨테이너에서 동일 Gradle 명령으로 실제 Flyway와 적재 2회가 통과했다.
+- **이 변경의 실제 GitLab pipeline 성공은 MR 병합 후 확인해야 한다.** 운영 DB 적재와 BE 기동은 수행하지 않았다.
+
 ## 역할과 실행 범위
 
 이 Runner는 GitLab 프로젝트 `s15-ai-speech-sub1/S15P21B110`의 보호된 `develop` 브랜치에서 경량 검증만 수행한다.
 
 - Runner 태그: `micon-protected`
 - 실행 조건: `develop` 브랜치에 반영된 커밋
-- 실행 작업: BE 런타임 계약 테스트 7개, 배포 health 검사 테스트 16개
+- 실행 작업: BE 런타임 계약 테스트 7개, 배포 health 검사 테스트 16개, Flyway·MySQL 곡 적재 검증
 - 동시 실행: 1개
 - 작업 제한 시간: 10분
 - Jenkins 역할: Android MR CI와 향후 `main` 배포는 기존 Jenkins 구성을 유지한다.
@@ -49,13 +57,28 @@ concurrent = 1
     image = "python:3.13-alpine"
     privileged = false
     volumes = ["/cache"]
-    allowed_images = ["python:3.13-alpine"]
+    allowed_images = [
+      "python:3.13-alpine",
+      "eclipse-temurin:21-jdk-jammy@sha256:d48e921b83506f58910295b35fd02978c7f4c57fef41bceee6a460d7d97bc251"
+    ]
+    allowed_services = [
+      "mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb"
+    ]
+    services_limit = 1
+    service_cpus = "1"
+    service_memory = "1g"
+    service_memory_swap = "1g"
     cpus = "1"
     memory = "1g"
     memory_swap = "1g"
 ```
 
 GitLab 프로젝트 설정은 `project_type`, `locked=true`, `run_untagged=false`, `access_level=ref_protected`, 최대 실행 시간 600초로 유지한다. 인증 토큰은 GitLab에서 생성 직후 한 번만 받아 서버 설정에 저장하며 문서·Git·채팅에 복사하지 않는다.
+
+MySQL 검증은 Java 작업 컨테이너(1 CPU·1 GiB)와 MySQL 서비스(1 CPU·1 GiB)를 사용한다.
+서비스에는 호스트 포트/운영 볼륨/운영 비밀을 제공하지 않는다. 이미지 digest 변경 시 CI와 위 allowlist를 함께 검토한다.
+설정 적용 전 pause 및 실행 중 job 0건 확인 → root 전용 백업 → 설정 반영 → Runner 검증 → pause 해제 순서를 지킨다.
+Protected 제한을 풀어 MR 브랜치를 실행하지 않는다. 병합 전 격리 컨테이너의 동일 명령 검증과 병합 후 실제 파이프라인 결과는 구분해서 기록한다.
 
 ## 일상 점검
 

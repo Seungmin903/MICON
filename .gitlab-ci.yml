@@ -22,16 +22,20 @@ runtime-contract-tests:
 
 mysql-song-import:
   stage: verify
-  image: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+  timeout: 10 minutes
+  image: eclipse-temurin:21-jdk-jammy@sha256:d48e921b83506f58910295b35fd02978c7f4c57fef41bceee6a460d7d97bc251
   services:
     - name: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
       alias: mysql
   variables:
     MYSQL_ROOT_PASSWORD: ci-root-password
     MYSQL_DATABASE: micon
-    MYSQL_HOST: mysql
-    MYSQL_USER: root
-    MYSQL_PASSWORD: ci-root-password
+    MYSQL_ROOT_HOST: '%'
+    MICON_MYSQL_TEST: '1'
+    MICON_TEST_DB_HOST: mysql
+    MICON_TEST_DB_PASSWORD: ci-root-password
+    GRADLE_USER_HOME: '$CI_PROJECT_DIR/.gradle-ci'
+    GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx384m'
   script:
     - sh infra/mysql/verify-song-import.sh
 
