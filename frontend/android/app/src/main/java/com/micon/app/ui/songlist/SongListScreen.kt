@@ -35,6 +35,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.engine.EngineClient
@@ -55,11 +56,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class SongListViewModel(private val repo: SongRepository, private val engine: EngineClient) : ViewModel() {
+class SongListViewModel(private val repo: SongRepository, private val engine: EngineClient, private val recommend: RecommendRepository) : ViewModel() {
     data class State(
         val query: String = "",
         val analyzedOnly: Boolean = true,      // 분석 완료 곡만(연습 가능). 전체 곡을 보이려면 false.
         val songs: List<SongSummary> = emptyList(),
+        val keys: Map<String, Int?> = emptyMap(),   // songId → 추천 키 배지 (RecommendRepository.fit, 없으면 배지 없음)
         val loading: Boolean = true,
         val engineOk: Boolean? = null,
         val engineStatus: String = "",
@@ -119,6 +121,8 @@ class SongListViewModel(private val repo: SongRepository, private val engine: En
                 .onSuccess { songs ->
                     UserStore.seedLikesIfEmpty(songs.map { it.id })
                     _state.update { it.copy(songs = songs, loading = false) }
+                    val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
+                    _state.update { it.copy(keys = it.keys + keys) }
                 }
                 .onFailure { e -> _state.update { it.copy(loading = false, error = e.message ?: e.toString()) } }
         }
@@ -152,7 +156,7 @@ private fun FilterChip(label: String, selected: Boolean, muted: Boolean = false,
 @Composable
 fun SongListScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit = {}) {
     val container = rememberAppContainer()
-    val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.engine) } })
+    val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.engine, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val liked by UserStore.liked.collectAsStateWithLifecycle()
 
@@ -196,7 +200,7 @@ fun SongListScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit = {}) {
                         artist = song.artist,
                         imageUrl = song.imageUrl,
                         onClick = { onSongClick(song.id) },
-                        keyBadge = UserStore.recommendedKey(song.id),
+                        keyBadge = state.keys[song.id],
                         liked = song.id in liked,
                         onLike = { UserStore.toggleLike(song.id) },
                         // 분류(발라드·댄스…)를 우선 보이고, 가사 싱크가 없는 곡만 그 상태를 표시

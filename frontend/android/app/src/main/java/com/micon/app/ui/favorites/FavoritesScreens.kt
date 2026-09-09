@@ -44,6 +44,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.local.UserStore
@@ -64,8 +65,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** 곡 카탈로그를 한 번 읽어 id → SongSummary 조회에 쓴다. */
-class FavoritesViewModel(private val repo: SongRepository) : ViewModel() {
-    data class State(val loading: Boolean = true, val songs: Map<String, SongSummary> = emptyMap())
+class FavoritesViewModel(private val repo: SongRepository, private val recommend: RecommendRepository) : ViewModel() {
+    data class State(val loading: Boolean = true, val songs: Map<String, SongSummary> = emptyMap(), val keys: Map<String, Int?> = emptyMap())
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
@@ -74,6 +75,8 @@ class FavoritesViewModel(private val repo: SongRepository) : ViewModel() {
             val songs = runCatching { repo.search("", analyzedOnly = true, limit = 300) }.getOrDefault(emptyList())
             UserStore.seedLikesIfEmpty(songs.map { it.id })
             _state.value = State(false, songs.associateBy { it.id })
+            val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
+            _state.value = _state.value.copy(keys = keys)
         }
     }
 }
@@ -84,7 +87,7 @@ private enum class Tab(val label: String) { ALL("전체"), PRACTICING("연습 �
 @Composable
 fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (String) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
-    val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs) } })
+    val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val liked by UserStore.liked.collectAsStateWithLifecycle()
     val setlists by UserStore.setlists.collectAsStateWithLifecycle()
@@ -136,7 +139,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (String) -> U
                 items(songs, key = { it.id }) { song ->
                     SongRow(
                         title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
-                        keyBadge = UserStore.recommendedKey(song.id), liked = true, onLike = { UserStore.toggleLike(song.id) },
+                        keyBadge = state.keys[song.id], liked = true, onLike = { UserStore.toggleLike(song.id) },
                     )
                 }
                 if (songs.isEmpty()) item { Text("찜한 곡이 없어요. 연습 탭에서 하트를 눌러 보세요.", Modifier.padding(24.dp), color = Grey) }
@@ -149,7 +152,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (String) -> U
 @Composable
 fun SetlistScreen(setlistId: String, onBack: () -> Unit, onSongClick: (String) -> Unit) {
     val container = rememberAppContainer()
-    val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs) } })
+    val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val setlists by UserStore.setlists.collectAsStateWithLifecycle()
     val liked by UserStore.liked.collectAsStateWithLifecycle()
@@ -178,7 +181,7 @@ fun SetlistScreen(setlistId: String, onBack: () -> Unit, onSongClick: (String) -
             items(songs, key = { it.id }) { song ->
                 SongRow(
                     title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
-                    keyBadge = UserStore.recommendedKey(song.id), liked = song.id in liked, onLike = { UserStore.toggleLike(song.id) },
+                    keyBadge = state.keys[song.id], liked = song.id in liked, onLike = { UserStore.toggleLike(song.id) },
                 )
             }
         }

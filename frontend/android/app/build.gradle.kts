@@ -24,6 +24,7 @@ fun localSetting(name: String, default: String = ""): String =
 
 val engineBaseUrl = localSetting("ENGINE_BASE_URL", "http://10.0.2.2:8787/")
 val apiBaseUrl = localSetting("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
+val recommendBaseUrl = localSetting("RECOMMEND_BASE_URL", "")   // 비어 있으면 앱 안 로컬 계산만 사용
 val googleWebClientId = localSetting("GOOGLE_WEB_CLIENT_ID")
 val kakaoNativeAppKey = localSetting("KAKAO_NATIVE_APP_KEY")
 val naverClientId = localSetting("NAVER_CLIENT_ID")
@@ -83,6 +84,7 @@ android {
 
         buildConfigField("String", "ENGINE_BASE_URL", "\"$engineBaseUrl\"")
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "RECOMMEND_BASE_URL", "\"$recommendBaseUrl\"")
 
         resValue("string", "google_web_client_id", googleWebClientId)
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)

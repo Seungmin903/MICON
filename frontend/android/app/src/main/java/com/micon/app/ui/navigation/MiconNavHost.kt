@@ -38,7 +38,7 @@ import com.micon.app.ui.onboarding.SignupScreen
 import com.micon.app.ui.onboarding.SplashScreen
 import com.micon.app.ui.practice.PracticeScreen
 import com.micon.app.ui.recommend.RecommendScreen
-import com.micon.app.ui.recommend.SongMatchDetailScreen
+import com.micon.app.ui.recommend.SongTurntableScreen
 import com.micon.app.ui.report.QuickAnalysisScreen
 import com.micon.app.ui.report.VoiceReportScreen
 import com.micon.app.ui.result.ResultScreen
@@ -149,7 +149,8 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (!sessionVerified) return@composable
             val songId = entry.arguments?.getString("songId") ?: return@composable
-            SongMatchDetailScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(songId)) })
+            // 턴테이블 → 아래로 스크롤하면 검은 시트가 올라오며 곡 분석. 캐러셀로 곡이 바뀌면 그 곡으로 연습에 들어간다.
+            SongTurntableScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(it)) })
         }
 
         // ---- 탭: 리포트 ----
@@ -227,6 +228,9 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
         composable(Routes.DEV_SEED_PROFILE, deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_SEED_PROFILE}" })) {
             if (!sessionVerified) return@composable
             com.micon.app.data.local.UserStore.setProfile(com.micon.app.data.local.UserStore.VoiceProfile())
+            // 선호 가수도 같이 심어 "선호 가수" 섹션까지 보이게 (개발용 카탈로그에 분석된 곡이 있는 가수)
+            com.micon.app.data.local.UserStore.preferredArtists = setOf("한로로", "백아", "볼빨간사춘기", "이승철", "조항조", "싸이")
+            com.micon.app.data.local.UserStore.nickname = "유림"
             androidx.compose.runtime.LaunchedEffect(Unit) { nav.navigate(Routes.REPORT) { popUpTo(Routes.DEV_SEED_PROFILE) { inclusive = true } } }
         }
     }

@@ -48,9 +48,15 @@ object UserStore {
     )
     val setlists = _setlists.asStateFlow()
 
+    /** 화면에 부르는 이름 ("유림님 음색에 딱인 곡"). 백엔드 users API 가 생기면 로그인 응답에서 채운다. null 이면 "내 …" 로 쓴다. */
+    var nickname: String? = null
+
     /** 온보딩 선호 조사 결과 */
     var preferredArtists: Set<String> = emptySet()
     var preferredGenres: Set<String> = emptySet()
+
+    /** 간편 분석이 남긴 마지막 보컬 녹음(WAV). 추천 서버 업로드에 쓴다. 원본 저장 정책은 별도(기본 OFF) — 세션 캐시일 뿐. */
+    var lastRecording: java.io.File? = null
 
     /** Clear account-scoped temporary state before another account can use the app. */
     fun clearUserData() {
@@ -59,6 +65,7 @@ object UserStore {
         _setlists.value = emptyList()
         preferredArtists = emptySet()
         preferredGenres = emptySet()
+        lastRecording = null
     }
 
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
@@ -75,13 +82,5 @@ object UserStore {
 
     fun addSetlist(name: String) = _setlists.update { it + Setlist("sl-${System.currentTimeMillis()}", name, emptyList()) }
 
-    /**
-     * 추천 키(song_fit.recommended_key) 임시값. 트레이너 답변 "최고음보다 3키 낮게" 후보를 흉내낸다.
-     * 곡 최고음이 없으면 id 해시로 0/+1/+2/없음 중 하나를 준다(목록 배지 예시용).
-     */
-    fun recommendedKey(songId: String, songHighMidi: Int? = null): Int? {
-        val p = _profile.value
-        if (songHighMidi != null && p != null) return (p.comfortHigh - songHighMidi + 3).coerceIn(-6, 5)
-        return when (Math.floorMod(songId.hashCode(), 4)) { 0 -> 0; 1 -> 1; 2 -> 2; else -> null }
-    }
+    // 추천 키·적합도는 RecommendRepository(LocalRecommendRepository) 가 계산한다. 임시 recommendedKey() 는 제거했다.
 }

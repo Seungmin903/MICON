@@ -2,6 +2,7 @@ package com.micon.app.ui.common
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -74,6 +76,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.micon.app.R
 import coil.compose.AsyncImage
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
@@ -180,24 +183,21 @@ fun MiconSearchBar(
     }
 }
 
-/** LP 판 모양 앨범 아트. imageUrl 이 없으면 제목 첫 글자를 보라 배경에 보인다. */
+/**
+ * LP 판 모양 앨범 아트 = 디자인 에셋 링(`lp_ring.png`, 가운데가 뚫려 있고 흰 구멍 포함) 아래에 앨범아트를 깐다.
+ * 에셋의 뚫린 지름은 0.828·size — 아트는 0.85·size 로 조금 더 크게 깔아 링이 가장자리를 덮는다. imageUrl 이 없으면 제목 첫 글자.
+ */
 @Composable
 fun VinylArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier, fallbackText: String = "") {
-    Box(modifier.size(size).clip(CircleShape).background(Color(0xFF15161C)), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val r = this.size.minDimension / 2f
-            listOf(0.93f, 0.86f, 0.79f).forEach { k ->
-                drawCircle(Color.White.copy(alpha = 0.14f), radius = r * k, style = Stroke(width = r * 0.025f))
-            }
-        }
-        Box(Modifier.size(size * 0.66f).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF9F8DF7), Color(0xFF6C5CE7)))), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size * 0.85f).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF9F8DF7), Color(0xFF6C5CE7)))), contentAlignment = Alignment.Center) {
             if (imageUrl != null) {
                 AsyncImage(model = imageUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
                 Text(fallbackText.take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.22f).sp)
             }
         }
-        Box(Modifier.size(size * 0.12f).clip(CircleShape).background(Color.White))
+        Image(painterResource(R.drawable.lp_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -341,17 +341,22 @@ fun MiconTextField(
 
 /** 흰 카드 (둥근 16dp, 얇은 그림자). */
 @Composable
-fun MiconCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(18.dp), content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Paper, shadowElevation = 3.dp) {
+fun MiconCard(
+    modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(18.dp),
+    color: Color = Paper,                       // 어두운 배경(턴테이블 시트) 위에서는 어두운 카드로
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = color, shadowElevation = if (color == Paper) 3.dp else 0.dp) {
         Column(Modifier.padding(padding), content = content)
     }
 }
 
 /** 카드 제목 행: 왼쪽 굵은 제목, 오른쪽 슬롯(보라 라벨 등). */
 @Composable
-fun CardTitle(text: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+fun CardTitle(text: String, modifier: Modifier = Modifier, color: Color = Ink, trailing: @Composable () -> Unit = {}) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.weight(1f))
         trailing()
     }
 }

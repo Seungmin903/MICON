@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.audio.InstrumentalPlayer
+import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongRepository
 import com.micon.app.data.engine.EngineClient
@@ -66,12 +67,14 @@ class SongDetailViewModel(
     appContext: Context,
     private val repo: SongRepository,
     private val engine: EngineClient,
+    private val recommend: RecommendRepository,
     private val songId: String,
 ) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
         val detail: SongDetail? = null,
+        val recommendedKey: Int? = null,                        // RecommendRepository.fit. null = 평가 불가
         val melody: List<Pair<Double, Double>> = emptyList(),   // (초, MIDI) 다운샘플
         val playing: Boolean = false,
         val positionSec: Double = 0.0,
@@ -114,8 +117,9 @@ class SongDetailViewModel(
             try {
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
                 val notes = runCatching { repo.karaokeNotes(songId) }.getOrNull() ?: emptyList()
+                val fit = runCatching { recommend.fit(songId) }.getOrNull()
                 _state.update {
-                    it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0)
+                    it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0, recommendedKey = fit?.recommendedKey)
                 }
                 // 미리 듣기는 원곡. 원곡이 없으면 onError 에서 반주로 폴백.
                 player.load(engine.originalUrl(songId))
@@ -174,7 +178,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(
         key = "song-$songId",
-        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.engine, songId) } },
+        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.engine, container.recommend, songId) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
@@ -200,7 +204,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
                     // 1) 결론 먼저: 이 노래가 내 음역에 맞는지, 키를 얼마나 바꾸면 되는지 (노래방식 음이름)
                     val songHigh = a?.highestMidi ?: state.melody.maxOfOrNull { it.second.toInt() } ?: 72
                     val songLow = a?.lowestMidi ?: state.melody.minOfOrNull { it.second.toInt() } ?: 55
-                    val key = if (profile != null) (UserStore.recommendedKey(songId, songHigh) ?: 0) else 0
+                    val key = if (profile != null) (state.recommendedKey ?: 0) else 0   // RecommendRepository.fit 결과 (임시 해시 계산 제거)
                     SongFitCard(
                         songLow = songLow, songHigh = songHigh,
                         comfortLow = profile?.comfortLow ?: 55, comfortHigh = profile?.comfortHigh ?: 67,
