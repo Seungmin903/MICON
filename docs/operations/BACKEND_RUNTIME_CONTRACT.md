@@ -2,7 +2,7 @@
 
 Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-08.
 
-2026-09-09 저장소 계약 갱신: develop `fcc00d2`의 S3·AI 환경변수를 반영한다. 운영 구조는 **SSAFY 서버(BE·MySQL) + 개인 AWS 계정 S3**로 선택했다. 계정·권한·팀원 업로드 절차의 기준은 [S3 운영 계약](S3_VOICE_STORAGE.md)이다. 개인 버킷 생성·인증 주입·통합 업로드는 아직 미완료다. 아래 2026-09-08 결정은 당시 계약이며 이번 변경에서 서버·SQL·라우팅을 적용하지 않는다.
+2026-09-09 저장소 계약 갱신: develop `fcc00d2`의 S3·AI 환경변수를 반영한다. 운영 구조는 **SSAFY 서버(BE·MySQL) + 개인 AWS 계정 S3**로 선택했다. 실제 버킷·리전·전용 IAM·서버 키 파일은 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절을 따른다. S15P21B110-211에서 서버 CLI 업로드/GET/삭제 검증까지 완료했으나 BE 컨테이너 마운트·앱/DB/AI 통합은 미완료다. 아래 2026-09-08 결정은 당시 계약이며 이번 S3 설정에서 SQL·라우팅·BE 배포는 실행하지 않았다.
 
 **사용자의 결정 위임에 따라 인프라 계약을 정한 리뷰본이다.** 현재 코드 사실과 앞으로 적용할 계약을 분리한다. MR은 문서·예제 검토용이며 팀원 승인 또는 운영 검증 완료를 뜻하지 않는다. SQL 및 본인 프런트 구현 보류를 유지한다. 150의 범위는 계약 문서화이며 실제 구현·배포 검증은 149·153·154·155·156 및 FE 후속 작업에 인계한다.
 
@@ -36,7 +36,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 분석용 S3 presigned GET URL 만료 Duration. 실제 다운로드 시간·보안 요구 검증 |
 | AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
 | VOICE_RECORDING_MAX_SIZE | 25MB | multipart 파일 및 전체 요청 제한. 부가정보 포함 경계 크기는 시험 필요 |
-| VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정의 비공개 버킷 실제 이름. 생성/검증 전 임의 값 사용 금지 |
+| VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정 비공개 버킷 `micon-b110-prod-apne2-20260909`. 운영 실행기에 명시 주입; 추적 예제는 빈 값 유지 |
 | VOICE_STORAGE_REGION | ap-northeast-2 | 개인 버킷과 일치하는 서울 리전 |
 | VOICE_STORAGE_PREFIX | voice-recordings | 객체 prefix. IAM의 voice-recordings/*와 함께 변경; catalog/와 분리 |
 | VOICE_STORAGE_PLAYBACK_URL_TTL | 10m | 녹음 재생 presigned GET URL 만료 Duration |

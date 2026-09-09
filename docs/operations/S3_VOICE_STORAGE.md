@@ -1,6 +1,54 @@
 # SSAFY 서버 + 개인 AWS S3 운영 계약
 
-Jira: S15P21B110-210. 결정일: 2026-09-09. 기준 코드: develop `fcc00d2`. 서버는 SSAFY 제공 자원을 유지하고, 파일 저장소만 인프라 담당자의 개인 AWS 계정에 만든다. 이 문서는 설정·인수 절차이며 **개인 버킷 생성, 키 발급, 서버 주입, 실제 업로드는 아직 완료하지 않았다.**
+설계 Jira: S15P21B110-210 / 실제 설정·검증: S15P21B110-211. 결정·검증일: 2026-09-09. 코드 계약: develop `fcc00d2`, 문서 후속 기준: `42f7cee`. 서버는 SSAFY 제공 자원을 유지하고, 파일 저장소만 인프라 담당자의 개인 AWS 계정을 사용한다. **비공개 버킷·BE 전용 IAM·서버 키 저장과 서버 CLI 직접 연결 검증은 완료했다. BE 컨테이너 배포·앱/DB/AI 통합 및 팀원 업로더 발급은 아직 미완료다.**
+
+## 0. 실제 적용 상태와 인계 값 (2026-09-09 KST)
+
+| 항목 | 확인한 값 / 상태 |
+|---|---|
+| 버킷 | `micon-b110-prod-apne2-20260909` — 10:34 생성 |
+| 리전 | 서울 `ap-northeast-2` |
+| 개인 AWS 계정 | `559896294099` / 인프라 담당자 소유·비용 부담 |
+| 버킷 보안 | Block Public Access 네 항목 ON, Bucket owner enforced(ACL 비활성), SSE-S3 `AES256`, 버전 관리 OFF |
+| IAM 사용자 / 정책 | `micon-backend-prod` / 인라인 `MiconVoiceStorageOnly` 1개. 콘솔 로그인 없음, 액세스 키 1개 |
+| 허용 범위 | 버킷의 `GetBucketLocation` 및 `voice-recordings/*`의 `GetObject`, `PutObject`, `DeleteObject`만 허용 |
+| 서버 비밀 파일 | `/etc/micon/secrets/aws_credentials`, 프로필 `micon-backend`, `root:root 0600`; 상위 secrets 디렉터리 `0700` |
+| 호스트 기본 인증 | SSAFY `AmazonLightsailInstanceRole` 유지. 개인 프로필은 해당 검증 명령에만 명시 |
+| 아직 미적용 | BE 컨테이너 읽기 전용 마운트·환경변수, catalog 업로더, 비용 알림, 보관/인수 정책, HTTPS 강제 버킷 Deny 정책 |
+
+키 값·키 ID는 이 문서에 기록하지 않는다. 생성 직후 SSH 표준 입력으로 서버 파일에 전달했고, 서버 신원 검증 후 로컬 임시 키 CSV를 삭제했다. shared credentials 파일은 평문 비밀 파일이므로 파일 권한으로 접근을 제한하며 서버 백업·운영자 접근에도 같은 보호가 필요하다. [AWS 액세스 키 관리](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html)
+
+### 서버 직접 연결 결과 — 10:54 KST
+
+서버에서 전용 credentials 파일과 `AWS_PROFILE=micon-backend`, `AWS_EC2_METADATA_DISABLED=true`를 명시해 검증했다. 실제 사용자 음성이 아닌 **합성 텍스트 1건, 61바이트**만 `voice-recordings/_infra-smoke/`의 고유 key에 사용했다.
+
+| 검사 | 결과 |
+|---|---|
+| STS 신원 / 버킷 위치 | 개인 계정 `user/micon-backend-prod` / `ap-northeast-2` 일치 |
+| PutObject | 성공, 응답 기본 암호화 `AES256` |
+| GetObject | 성공, 원본과 SHA-256 일치 |
+| 유효 120초 presigned URL 실제 GET | HTTP **200**, 원본과 체크섬 일치. URL 원문 미기록 |
+| 같은 기존 객체 무인증 GET | HTTP **403** |
+| ListBucket / catalog 경로 GET | `AccessDenied` (예상 거부; catalog 검사는 존재하지 않는 시험 key이므로 정책 검토와 함께 해석) |
+| DeleteObject / 삭제 후 기존 URL GET | 삭제 성공 / HTTP **403**. ListBucket 없는 신원에서 403만으로 객체 부재를 단정하지 않음 |
+| 별도 관리자 콘솔 객체 목록 | 삭제 후 **0개** 확인. 서버 임시 파일도 정리 |
+
+원본 SHA-256: `7d8b039f5abd096a55f57032e16a468aa6c1dc2c943694ef92f48651936f7dd5`. 이 검증은 서버→S3 인증·파일 통신의 증거이며, 음성 형식 검증·Java SDK 런타임·API 인증/소유권·DB 적재·AI 분석·URL 만료 시험의 증거가 아니다. 확인 시 실행 중인 Docker 컨테이너는 MySQL만 있었고 BE는 배포하지 않았다.
+
+### BE 배포 담당자에게 전달할 값
+
+아래 값은 **향후 BE 서비스에 주입할 비밀 아닌 설정**이다. 현재 실행 중인 앱에 적용됐다는 의미가 아니다. `.env.example`은 계속 빈 값으로 유지한다.
+
+```dotenv
+VOICE_STORAGE_BUCKET=micon-b110-prod-apne2-20260909
+VOICE_STORAGE_REGION=ap-northeast-2
+VOICE_STORAGE_PREFIX=voice-recordings
+AWS_SHARED_CREDENTIALS_FILE=/run/secrets/aws_credentials
+AWS_PROFILE=micon-backend
+AWS_EC2_METADATA_DISABLED=true
+```
+
+호스트 `/etc/micon/secrets/aws_credentials` → 컨테이너 `/run/secrets/aws_credentials`를 읽기 전용으로 마운트한다. 아직 BE 이미지 실행 UID/GID가 검증되지 않았으므로 현재 `0600`을 non-root 컨테이너가 읽을 수 있다고 가정하지 않는다. 아래 4절에 따라 소유권·마운트·실제 컨테이너 신원을 검증한 다음 앱 smoke를 진행한다. 팀원 로컬 업로드에는 이 BE 키를 공유하지 않고 5절의 별도 업로더를 준비한다.
 
 ## 1. 구성과 담당 범위
 
@@ -8,7 +56,7 @@ Jira: S15P21B110-210. 결정일: 2026-09-09. 기준 코드: develop `fcc00d2`. �
 |---|---|---|
 | Nginx·Spring BE | SSAFY 서버 `j15b110.p.ssafy.io` | 앱 API, 인증·인가, 파일 업로드·삭제·다운로드 URL 발급 |
 | MySQL | SSAFY 서버의 비공개 Docker 네트워크 | 사용자·곡·녹음 메타데이터. DB 포트 외부 공개 없음 |
-| S3 | 개인 AWS 계정 / 서울 `ap-northeast-2` | 비공개 객체 저장. 실제 버킷 이름·계정 ID는 생성 시 확정 |
+| S3 | 개인 AWS 계정 / 서울 `ap-northeast-2` | 비공개 객체 저장. 실제 버킷·계정은 0절 인계 값 참조 |
 | BE의 AWS 인증 | 개인 계정의 전용 `micon-backend-prod` IAM 사용자 | 해당 버킷의 `voice-recordings/`만 읽기·쓰기·삭제 |
 | 팀원 데이터 업로드 | 개인 계정의 별도 업로더 권한 / 개인별 프로필 | 지정된 `catalog/` 경로에 로컬 데이터 업로드 |
 | Android·AI 분석 요청 | BE가 발급한 만료 있는 presigned GET URL | AWS 키 없이 허용된 객체 다운로드. AI 배포 위치는 별도 확정 |
@@ -23,8 +71,8 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 
 | 항목 | 전달 대상 / 내용 |
 |---|---|
-| 개인 AWS 계정 ID, 비용·소유 책임자 | 인프라 운영 기록에 실제 값 확정. 루트 로그인 공유 금지 |
-| 실제 버킷 이름, 리전 | BE·AI·업로더에게 공유. 이 문서의 `<BUCKET_NAME>`을 확정값으로 대체 |
+| 개인 AWS 계정 ID, 비용·소유 책임자 | 0절에 실제 계정 기록. 루트 로그인 공유 금지; 비용 알림·프로젝트 종료 인수 책임은 추가 확정 |
+| 실제 버킷 이름, 리전 | 0절의 값을 BE·AI·업로더에게 공유. 아래 정책/명령 예제의 `<BUCKET_NAME>`은 `micon-b110-prod-apne2-20260909`로 대체 |
 | 파일 경로 | BE `voice-recordings/`, 초기 카탈로그 `catalog/<batch-id>/` |
 | 업로더 인증 | 팀원별 별도 자격 증명 또는 임시 세션을 안전한 경로로 전달. BE 키 재사용 금지 |
 | BE 런타임 설정 | 아래 프로필 이름·컨테이너 경로·환경변수를 배포 담당자에게 전달 |
@@ -35,7 +83,7 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 
 ## 3. 개인 계정 버킷 및 IAM 설정
 
-아래는 실행 전 검토할 설정이다. 이미 존재하는 버킷의 정책·버전 관리·수명 주기를 통째로 덮어쓰지 않는다. 개인 계정 관리자가 계정 ID를 확인한 뒤 전용 버킷을 생성한다.
+아래는 설정 기준이다. 실제 생성·적용 여부는 0절을 우선하며, 미적용 예제를 이미 적용된 정책으로 읽지 않는다. 이미 존재하는 버킷의 정책·버전 관리·수명 주기를 통째로 덮어쓰거나 동일 목적의 버킷을 중복 생성하지 않는다.
 
 - 리전 `ap-northeast-2`. SSAFY 서버에서 관측한 리전과 일치한다.
 - 계정/버킷의 Block Public Access 네 항목 모두 켬. 정적 웹사이트와 public-read ACL 사용 안 함.
@@ -47,7 +95,7 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 
 ### BE 전용 사용자 정책
 
-개인 계정에 콘솔 로그인 없는 전용 `micon-backend-prod` IAM 사용자를 만들고 아래 최소권한 정책을 연결한다. 루트 키나 `AmazonS3FullAccess`는 사용하지 않는다. `<BUCKET_NAME>`은 실제 버킷 이름으로 치환한다. 경로를 바꾸면 환경변수와 정책을 함께 바꿔야 한다.
+개인 계정에 콘솔 로그인 없는 전용 `micon-backend-prod` IAM 사용자를 생성했고, 아래 정책의 버킷을 0절 값으로 치환해 인라인 `MiconVoiceStorageOnly`로 연결했다. 루트 키나 `AmazonS3FullAccess`는 사용하지 않았다. 경로를 바꾸면 환경변수와 정책을 함께 바꿔야 한다.
 
 ```json
 {
@@ -73,7 +121,7 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 
 ### 카탈로그 업로더 정책 (BE와 분리)
 
-팀원별 업로더 신원에 다음 정책을 적용한다. DB 덤프·음성 개인정보를 임의로 이 공통 경로에 올리지 않는다. 담당자별 접근 분리가 필요하면 `catalog/<담당경로>/`로 정책을 더 좁힌다.
+아직 생성하지 않은 팀원별 업로더 신원에 사용할 정책 예제다. 담당자·데이터 범위 확정 후 별도로 발급하며 BE 사용자에게 추가하지 않는다. DB 덤프·음성 개인정보를 임의로 이 공통 경로에 올리지 않는다. 담당자별 접근 분리가 필요하면 `catalog/<담당경로>/`로 정책을 더 좁힌다.
 
 ```json
 {
@@ -120,13 +168,13 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 }
 ```
 
-`Principal: "*"`는 이 Deny 문장에서 HTTP 접근을 막는 대상이며 공개 Allow가 아니다.
+`Principal: "*"`는 이 Deny 문장에서 HTTP 접근을 막는 대상이며 공개 Allow가 아니다. **이 HTTPS 강제 버킷 정책은 아직 적용하지 않았다.** 현재 검증 요청은 모두 HTTPS를 사용했으며, 버킷 정책과 CORS는 비어 있다. HTTPS 사용 성공과 HTTP 차단 강제는 별개다.
 
 ## 4. SSAFY 서버에 BE 인증 연결
 
 현재 BE의 AWS SDK for Java 2.x 클라이언트와 presigner는 기본 자격 증명 체인을 사용한다. 전용 shared credentials 파일을 지정하면 기존 S3 코드를 바꾸지 않고 개인 계정 신원으로 요청할 수 있다. Spring profile과 AWS profile은 별개다.
 
-인프라 담당자가 키를 안전하게 전달받아 저장소 밖 서버 파일 `/etc/micon/secrets/aws_credentials`에 다음 형식으로 저장한다. 아래는 자리표시자이며 실제 키가 아니다. 키 값을 명령행 인자·shell history에 남기지 않는다.
+서버 `/etc/micon/secrets/aws_credentials`에는 다음 형식으로 키를 저장했다. 아래는 자리표시자이며 실제 키가 아니다. 재발급/회전 시에도 키 값을 명령행 인자·shell history에 남기지 않는다. 기존 파일을 확인 없이 덮어쓰지 않는다.
 
 ```ini
 [micon-backend]
@@ -183,7 +231,8 @@ aws s3 sync 'C:\micon\catalog-export' 's3://<BUCKET_NAME>/catalog/import-2026090
 
 ## 6. 실제 연결 완료 조건
 
-- [ ] 개인 계정·실제 버킷 이름 확정, 비공개·암호화·소유권·IAM 정책 적용.
+- [x] 개인 계정·실제 버킷 이름 확정, 비공개·암호화·소유권·BE 최소권한 IAM 정책 적용.
+- [x] 서버 전용 파일 `0600` 저장, 개인 프로필 신원 및 CLI 합성 파일 업로드·GET·무인증 거부·삭제 검증. BE 런타임 검증과 구분.
 - [ ] 비용 알림 금액/수신자와 보관·프로젝트 종료 책임 확정. AWS Budgets 알림은 자동 과금 차단이 아니다. 저장량·요청·인터넷 전송·multipart 잔여 데이터 비용을 확인한다. [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 - [ ] BE 실행 사용자로 마운트 파일 읽기 성공, 런타임 profile 신원이 개인 계정 전용 사용자임을 확인. 호스트 기본 프로필의 STS 결과로 대신하지 않음.
 - [ ] 신규 합성 테스트 녹음 업로드 → DB 메타데이터 조회 → 발급 URL 실제 GET → 해당 테스트 녹음 삭제 검증. BE IAM에는 ListBucket이 없으므로 버킷 전체 목록 검사를 필수 gate로 쓰지 않음.

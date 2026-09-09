@@ -9,7 +9,7 @@ Jira 파트 코드는 `BE`.
 
 ## 운영 배포 계약
 
-[환경변수 예제](.env.example)와 [BE 운영 실행 계약](../docs/operations/BACKEND_RUNTIME_CONTRACT.md)을 참고한다. BE·MySQL은 SSAFY 서버, 비공개 S3는 개인 AWS 계정을 사용한다. [S3 운영 계약](../docs/operations/S3_VOICE_STORAGE.md)에 전용 IAM 정책, shared credentials 마운트, 업로더 권한을 정리했다. 실제 개인 버킷 생성·서버 주입·통합 검증은 미완료다. 예제에 실제 비밀값을 기입하지 않는다.
+[환경변수 예제](.env.example)와 [BE 운영 실행 계약](../docs/operations/BACKEND_RUNTIME_CONTRACT.md)을 참고한다. BE·MySQL은 SSAFY 서버, 비공개 S3는 개인 AWS 계정을 사용한다. [S3 운영 계약](../docs/operations/S3_VOICE_STORAGE.md)에 실제 버킷·리전·전용 IAM·서버 키 파일·배포 인계 값을 정리했다. 2026-09-09 서버 CLI 업로드/GET/삭제 검증은 완료했지만 BE 컨테이너 마운트·실제 Java 런타임과 앱/DB/AI 통합 검증은 미완료다. 예제에 실제 비밀값을 기입하지 않는다.
 
 ## 로컬 실행 환경 변수
 
