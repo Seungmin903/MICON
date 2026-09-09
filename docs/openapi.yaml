@@ -829,8 +829,12 @@ paths:
       x-permission: "본인"
       x-auth-token: "Access Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "202":
+          description: "추천 작업 생성 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationApiResponse"
   "/recommendations/{recommendationId}":
     get:
       tags: ["추천"]
@@ -853,8 +857,12 @@ paths:
       x-permission: "본인"
       x-auth-token: "Access Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "추천 상태 및 결과 조회 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationApiResponse"
   "/recommendations/{recommendationId}/songs/{songId}":
     get:
       tags: ["추천"]
@@ -877,8 +885,12 @@ paths:
       x-permission: "본인"
       x-auth-token: "Access Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "추천곡 상세 조회 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationSongDetailApiResponse"
   "/recommendations/latest":
     get:
       tags: ["추천"]
@@ -901,8 +913,12 @@ paths:
       x-permission: "본인"
       x-auth-token: "Access Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "최신 추천 상태 및 결과 조회 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationApiResponse"
   "/recordings":
     get:
       tags: ["음성 데이터"]
@@ -2435,6 +2451,74 @@ components:
         createdAt:
           type: "string"
           format: "date-time"
+    RecommendationApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code: { type: "string", example: "SUCCESS" }
+        message: { type: "string" }
+        data:
+          $ref: "#/components/schemas/RecommendationResponse"
+    RecommendationResponse:
+      type: "object"
+      required: ["recommendationId", "status", "progress", "generatedAt", "shelves"]
+      properties:
+        recommendationId: { type: "integer", format: "int64" }
+        jobId: { type: ["string", "null"] }
+        status:
+          type: "string"
+          enum: ["GENERATING", "COMPLETED", "EMPTY", "FAILED"]
+        progress: { type: "integer", minimum: 0, maximum: 100 }
+        failureCode: { type: ["string", "null"] }
+        failureReason: { type: ["string", "null"] }
+        algorithmVersion: { type: ["string", "null"] }
+        scoringVersion: { type: ["string", "null"] }
+        compositionVersion: { type: ["string", "null"] }
+        generatedAt: { type: "string", format: "date-time" }
+        completedAt: { type: ["string", "null"], format: "date-time" }
+        expiresAt: { type: ["string", "null"], format: "date-time" }
+        shelves:
+          type: "array"
+          description: "모든 섹션을 합쳐 중복 없는 추천곡을 최대 50개 반환한다."
+          items:
+            $ref: "#/components/schemas/RecommendationShelf"
+    RecommendationShelf:
+      type: "object"
+      required: ["key", "title", "order", "items"]
+      properties:
+        key: { type: "string" }
+        title: { type: "string" }
+        metric: { type: ["string", "null"] }
+        order: { type: "integer", minimum: 1 }
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/RecommendationSong"
+    RecommendationSong:
+      type: "object"
+      required: ["songId", "overallRank", "position"]
+      properties:
+        songId: { type: "integer", format: "int64" }
+        overallRank: { type: "integer", minimum: 1, maximum: 50 }
+        position: { type: "integer", minimum: 1 }
+        axis: { type: ["string", "null"] }
+        label: { type: ["string", "null"] }
+        recommendedKey: { type: ["integer", "null"] }
+        finalScore: { type: ["number", "null"] }
+        timbreScore: { type: ["number", "null"] }
+        rangeFit: { type: ["object", "null"], additionalProperties: true }
+        metrics: { type: ["object", "null"], additionalProperties: true }
+        reasonText: { type: ["string", "null"] }
+        scoringVersion: { type: ["string", "null"] }
+        compositionVersion: { type: ["string", "null"] }
+    RecommendationSongDetailApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code: { type: "string", example: "SUCCESS" }
+        message: { type: "string" }
+        data:
+          $ref: "#/components/schemas/RecommendationSong"
   securitySchemes:
     bearerAuth:
       type: "http"
