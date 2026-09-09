@@ -2,13 +2,25 @@
   "$defs": {
     "Algorithm": {
       "additionalProperties": true,
-      "description": "scoring.recommend() 의 algorithm 블록 + 배치·게이트. 알려지지 않은 필드는 통과.",
+      "description": "알려지지 않은 필드는 통과.",
       "properties": {
         "scoring_version": {
           "title": "Scoring Version",
           "type": "string"
         },
-        "range_scoring_version": {
+        "shelves_version": {
+          "title": "Shelves Version",
+          "type": "string"
+        },
+        "applied_mode": {
+          "title": "Applied Mode",
+          "type": "string"
+        },
+        "range_enabled": {
+          "title": "Range Enabled",
+          "type": "boolean"
+        },
+        "range_fallback_reason": {
           "anyOf": [
             {
               "type": "string"
@@ -18,41 +30,26 @@
             }
           ],
           "default": null,
-          "title": "Range Scoring Version"
-        },
-        "requested_mode": {
-          "title": "Requested Mode",
-          "type": "string"
-        },
-        "applied_mode": {
-          "title": "Applied Mode",
-          "type": "string"
-        },
-        "composition": {
-          "$ref": "#/$defs/Composition"
+          "title": "Range Fallback Reason"
         },
         "language_gate": {
           "$ref": "#/$defs/LanguageGate"
         },
-        "range_filter": {
-          "$ref": "#/$defs/RangeFilter"
-        },
-        "catalog_filter": {
-          "additionalProperties": {
-            "type": "integer"
+        "preferred_artists": {
+          "default": [],
+          "items": {
+            "type": "string"
           },
-          "title": "Catalog Filter",
-          "type": "object"
+          "title": "Preferred Artists",
+          "type": "array"
         }
       },
       "required": [
         "scoring_version",
-        "requested_mode",
+        "shelves_version",
         "applied_mode",
-        "composition",
-        "language_gate",
-        "range_filter",
-        "catalog_filter"
+        "range_enabled",
+        "language_gate"
       ],
       "title": "Algorithm",
       "type": "object"
@@ -87,53 +84,6 @@
       "title": "AxisScores",
       "type": "object"
     },
-    "Composition": {
-      "properties": {
-        "version": {
-          "title": "Version",
-          "type": "string"
-        },
-        "quota": {
-          "additionalProperties": {
-            "type": "integer"
-          },
-          "description": "축별 할당 수",
-          "title": "Quota",
-          "type": "object"
-        },
-        "filled": {
-          "additionalProperties": {
-            "type": "integer"
-          },
-          "description": "실제 채운 수. consensus 가 모자라면 다른 축이 채움",
-          "title": "Filled",
-          "type": "object"
-        },
-        "consensus_top_n": {
-          "title": "Consensus Top N",
-          "type": "integer"
-        },
-        "order": {
-          "description": "배치 순서 규칙. final_score desc",
-          "title": "Order",
-          "type": "string"
-        },
-        "candidate_count": {
-          "title": "Candidate Count",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "version",
-        "quota",
-        "filled",
-        "consensus_top_n",
-        "order",
-        "candidate_count"
-      ],
-      "title": "Composition",
-      "type": "object"
-    },
     "LanguageGate": {
       "properties": {
         "enabled": {
@@ -162,40 +112,24 @@
           "title": "Allowed"
         },
         "excluded_count": {
-          "title": "Excluded Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excluded Count"
         }
       },
       "required": [
         "enabled",
         "genres",
-        "allowed",
-        "excluded_count"
+        "allowed"
       ],
       "title": "LanguageGate",
-      "type": "object"
-    },
-    "RangeFilter": {
-      "properties": {
-        "enabled": {
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "min_score": {
-          "title": "Min Score",
-          "type": "number"
-        },
-        "excluded_count": {
-          "title": "Excluded Count",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "enabled",
-        "min_score",
-        "excluded_count"
-      ],
-      "title": "RangeFilter",
       "type": "object"
     },
     "RangeFit": {
@@ -279,7 +213,15 @@
           "title": "Query",
           "type": "object"
         },
+        "shelves": {
+          "items": {
+            "$ref": "#/$defs/Shelf"
+          },
+          "title": "Shelves",
+          "type": "array"
+        },
         "recommendations": {
+          "description": "shelves[0].items 복사본 (호환용)",
           "items": {
             "$ref": "#/$defs/Recommendation"
           },
@@ -302,7 +244,7 @@
       "required": [
         "algorithm",
         "query",
-        "recommendations",
+        "shelves",
         "catalog_track_count"
       ],
       "title": "RecommendResult",
@@ -311,10 +253,23 @@
     "Recommendation": {
       "properties": {
         "position": {
-          "description": "목록 위치. 서버가 정한 순서이며 클라이언트는 재정렬하지 않는다",
+          "description": "섹션 안 위치. 서버가 정한 순서이며 클라이언트는 재정렬하지 않는다",
           "minimum": 1,
           "title": "Position",
           "type": "integer"
+        },
+        "shelf": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "소속 섹션 key (voice | original_key | favorite_artists | challenge | discovery)",
+          "title": "Shelf"
         },
         "track_id": {
           "description": "카탈로그 내부 id",
@@ -345,36 +300,77 @@
           "$ref": "#/$defs/TrackMetadata"
         },
         "axis": {
-          "enum": [
-            "ECAPA",
-            "SINGER_BYOL",
-            "CONSENSUS"
+          "anyOf": [
+            {
+              "enum": [
+                "ECAPA",
+                "SINGER_BYOL",
+                "CONSENSUS"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Axis",
-          "type": "string"
+          "default": null,
+          "description": "음색 섹션(voice)에서만. 두 축 할당 결과",
+          "title": "Axis"
         },
         "label": {
-          "description": "화면에 그대로 표시하는 문구",
-          "title": "Label",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "음색 섹션에서 화면에 그대로 표시하는 문구",
+          "title": "Label"
         },
         "axis_scores": {
-          "$ref": "#/$defs/AxisScores"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AxisScores"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "axis_rank": {
-          "additionalProperties": {
-            "type": "integer"
-          },
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "후보군 안 축별 순위(1~). 로그용",
-          "title": "Axis Rank",
-          "type": "object"
+          "title": "Axis Rank"
         },
         "confidence": {
-          "description": "해당 축의 query 구간 일치율. 로그·진단용, 순서에 쓰지 않음",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Confidence",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "해당 축의 query 구간 일치율. 로그·진단용",
+          "title": "Confidence"
         },
         "timbre_score": {
           "maximum": 1,
@@ -412,6 +408,12 @@
           "title": "Final Score",
           "type": "number"
         },
+        "metrics": {
+          "additionalProperties": true,
+          "description": "섹션별 표시 지표 (coverage0, center0, artist_similarity, high_ratio0 …)",
+          "title": "Metrics",
+          "type": "object"
+        },
         "scoring_version": {
           "title": "Scoring Version",
           "type": "string"
@@ -428,11 +430,6 @@
         "title",
         "artist",
         "metadata",
-        "axis",
-        "label",
-        "axis_scores",
-        "axis_rank",
-        "confidence",
         "timbre_score",
         "range_fit",
         "recommended_key",
@@ -441,6 +438,47 @@
         "composition_version"
       ],
       "title": "Recommendation",
+      "type": "object"
+    },
+    "Shelf": {
+      "additionalProperties": true,
+      "description": "추천 섹션 하나. 섹션 간 같은 곡은 없다.",
+      "properties": {
+        "key": {
+          "enum": [
+            "voice",
+            "original_key",
+            "favorite_artists",
+            "challenge",
+            "discovery"
+          ],
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "metric": {
+          "description": "이 섹션이 어떤 지표로 뽑혔는지 한 줄 (화면 부제로 그대로 사용 가능)",
+          "title": "Metric",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Recommendation"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "metric",
+        "items"
+      ],
+      "title": "Shelf",
       "type": "object"
     },
     "TrackMetadata": {
@@ -517,6 +555,24 @@
           ],
           "default": null,
           "title": "Tj Id"
+        },
+        "artist_gender": {
+          "anyOf": [
+            {
+              "enum": [
+                "female",
+                "male",
+                "mixed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "성별 필터용. 카탈로그에 아직 데이터 없음 → null",
+          "title": "Artist Gender"
         }
       },
       "title": "TrackMetadata",
@@ -560,6 +616,14 @@
         "type": "string"
       },
       "title": "Genres",
+      "type": "array"
+    },
+    "preferred_artists": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Preferred Artists",
       "type": "array"
     },
     "result": {

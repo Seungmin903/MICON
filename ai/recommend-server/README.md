@@ -25,19 +25,33 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 |---|---|---|
 | `GET /health` | — | `{ok, service, version}` |
 | `GET /recommendations/status` | — | 카탈로그 곡 수·모델·누락 설정 |
-| `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(≤20), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복 가능, 온보딩 선호 장르) | job `{id, status, progress, message, genres}` |
+| `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(섹션당, ≤50), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복, 온보딩 선호 장르), `preferredArtists`(반복, 온보딩 선호 가수) | job `{id, status, progress, message, genres, preferred_artists}` |
 | `GET /recommendations/{jobId}` | — | job. `status=complete` 면 `result.recommendations[]` |
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
 
-`result.recommendations[]` 한 항목:
+**응답의 중심은 `result.shelves[]`** (`shelves-v1`, `timbre_recommender/shelves.py`). 섹션마다 1차 지표가 다르고 한 곡은 한 섹션에만 나온다(우선순위 순). `result.recommendations[]` 는 첫 섹션 items 복사본(호환용).
+
+| key | 제목 | 1차 지표 | 음역 조건 | 랩 |
+|---|---|---|---|---|
+| `voice` | 내 목소리와 닮은 곡 | 음색 두 축 할당 → final_score | 키 ±3 안에서 부담 0 | 제외 |
+| `original_key` | 키 안 바꾸고 바로 부를 곡 | 곡 중심음 ↔ 내 중심음 근접 | 최적 키 0, 원키 커버리지 ≥ 0.95 | 제외 |
+| `favorite_artists` | 선호 가수 좋아하면 | 본인 곡 → 가수 임베딩 유사도 | 부담 0 | 제외 |
+| `challenge` (실험, 기본 꺼짐) | 고음 한 단계 도전 | 상한 위 시간 비율 작은 순 | 원키 상한 초과 1~3반음, 그 비율 3~20% | 제외 |
+| `discovery` | 새로운 발견 | 무작위(일자 시드), 가수·장르 중복 없이 | 부담 0 (랩은 조건 없음) | 허용 |
+
+곡 프로파일 음표 신뢰도 < 0.55 인 곡(랩·불안정 추출)은 음역 조건이 있는 섹션에서 제외한다. 각 item 의 `shelf` 가 소속 섹션, `metrics` 가 그 섹션의 표시 지표다.
+`metadata.artist_gender` 는 성별 필터용 자리이며 아직 데이터가 없다(null).
+
+`shelves[].items[]` 한 항목:
 
 | 필드 | 뜻 |
 |---|---|
 | `position` | 목록 위치 1~. **`final_score` 내림차순**이라 앞일수록 적합. 화면의 "적합할수록 크게" 규칙과 같은 뜻. 클라이언트 재정렬 금지 |
 | `song_id` | 앱 `songs.song_id` (`tj-번호`). `metadata.tj_id` 에서 유도 |
-| `axis`, `label` | 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안, 없으면 자리 비움) |
+| `shelf`, `metrics` | 소속 섹션 key 와 그 섹션의 표시 지표(`coverage0`·`center0`·`artist_similarity`·`high_ratio0`·`genre` …) |
+| `axis`, `label` | `voice` 섹션에서만. 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안). 다른 섹션은 null |
 | `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |
 | `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(반음). 사용자 음역 프로파일이 없으면 null |
 | `final_score` | 최종 점수. 클라이언트 계산 금지 |

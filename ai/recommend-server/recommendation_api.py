@@ -22,8 +22,10 @@ from pitch_engine import extract_vocal_melody
 from pitch_profile import summarize_pitch_profile
 from schemas import RecommendResult
 from timbre_recommender.catalog import CatalogIndex
-from timbre_recommender.composition import apply_composition
+from timbre_recommender.composition import allowed_languages
+from timbre_recommender.contracts import SCORING_VERSION
 from timbre_recommender.embedding import embed_vocal_audio
+from timbre_recommender.shelves import SHELVES_VERSION, build_shelves, score_all_tracks
 from timbre_recommender.pitch_range import RANGE_CATALOG_FILENAME, RangeCatalog
 from timbre_recommender.scoring import RankerConfig, recommend
 
@@ -36,6 +38,7 @@ ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".ogg", ".webm"}
 MAX_BYTES = 250 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
 CANDIDATE_POOL = 400  # compose 전에 후보 전체를 받는다. 최종 개수는 topK 가 정한다.
+MAX_TOP_K = 50        # 섹션당 최대 곡 수. BE 가 필터(성별·언어)용으로 넉넉히 저장할 수 있게 20 → 50 (2026-09-09)
 LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
@@ -118,6 +121,63 @@ def _cleanup_query_artifacts(job_dir: Path) -> None:
             path.unlink()
 
 
+def build_result(
+    catalog: CatalogIndex,
+    ranges: RangeCatalog,
+    *,
+    query: dict[str, np.ndarray],
+    pitch_profile: dict[str, Any] | None,
+    pitch_error: str | None,
+    mode: str,
+    top_k: int,
+    genres: tuple[str, ...] = (),
+    preferred_artists: tuple[str, ...] = (),
+    excluded_track_ids: tuple[str, ...] = (),
+    seed: int | None = None,
+) -> dict[str, Any]:
+    """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
+    range_enabled = bool(pitch_profile and pitch_profile.get("reliable", False))
+    fallback = None
+    if pitch_profile is None:
+        fallback = pitch_error or "pitch_profile_unavailable"
+    elif not range_enabled:
+        fallback = ",".join(pitch_profile.get("qualityReasons") or ["unreliable_pitch_profile"])
+    fav = [t for t in catalog.tracks if t.artist in set(preferred_artists)]
+    artist_query = {k: np.vstack([catalog.embeddings(t, k) for t in fav]) for k in ("ecapa", "singer_byol")} if fav else None
+    rows = score_all_tracks(
+        catalog, ranges, query, query_profile=pitch_profile if range_enabled else None, mode=mode, genres=genres, artist_query=artist_query,
+    )
+    rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
+    if seed is None:
+        seed = int(time.strftime("%Y%m%d"))          # 새로운 발견: 하루 단위로 섞임
+    shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists, range_enabled=range_enabled, seed=seed)
+    allowed = allowed_languages(genres)
+    public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
+    result = {
+        "algorithm": {
+            "scoring_version": SCORING_VERSION,
+            "shelves_version": SHELVES_VERSION,
+            "requested_mode": mode,
+            "applied_mode": mode if range_enabled else "timbre_only",
+            "range_enabled": range_enabled,
+            "range_fallback_reason": fallback,
+            "language_gate": {"enabled": allowed is not None, "genres": list(genres), "allowed": sorted(allowed) if allowed else None},
+            "preferred_artists": list(preferred_artists),
+            "catalog_scored": len(rows),
+        },
+        "query": {"segments": {k: int(len(v)) for k, v in query.items()}, "pitchProfile": public_profile, "pitchError": pitch_error},
+        "shelves": shelves,
+        "recommendations": shelves[0]["items"] if shelves else [],
+        "catalog_track_count": len(catalog.tracks),
+        "limitations": [
+            "관찰 음역은 업로드 샘플 기준이며 생리적 한계가 아니다.",
+            "음색 점수는 후보군과 무관한 절대 유사도이지 성공 확률이 아니다.",
+            "artist_gender 는 카탈로그에 아직 없다(null).",
+        ],
+    }
+    return RecommendResult.model_validate(result).model_dump()   # 응답 스키마 고정(schemas.py)
+
+
 def _resolved_device(requested: str) -> str:
     import torch
 
@@ -135,6 +195,7 @@ def _process(
     mode: str,
     excluded_track_ids: tuple[str, ...],
     genres: tuple[str, ...] = (),
+    preferred_artists: tuple[str, ...] = (),
 ) -> None:
     job_dir = input_path.parent
     try:
@@ -185,28 +246,22 @@ def _process(
                 expected_track_ids={track.track_id for track in catalog.tracks},
                 verify_hashes=True,
             )
-            result = recommend(
-                catalog,
-                {
+            result = build_result(
+                catalog, ranges,
+                query={
                     "ecapa": np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
                     "singer_byol": np.load(f"{prefix}.singer_byol.npy", allow_pickle=False),
                 },
-                config=RankerConfig(top_k=CANDIDATE_POOL),
-                excluded_track_ids=excluded_track_ids,
-                query_pitch_profile=pitch_profile,
-                catalog_pitch_profiles=ranges.profiles if pitch_profile is not None else None,
-                mode=mode,
+                pitch_profile=pitch_profile, pitch_error=pitch_error, mode=mode, top_k=top_k,
+                genres=genres, preferred_artists=preferred_artists, excluded_track_ids=excluded_track_ids,
             )
-            result["query"]["pitchError"] = pitch_error
-            result = apply_composition(result, top_k=top_k, genres=genres)
-            result = RecommendResult.model_validate(result).model_dump()   # 응답 스키마 고정(schemas.py)
         _update(
             job_id,
             status="complete",
             progress=100,
             message=(
                 "음색과 음역 추천이 완료되었습니다."
-                if result["algorithm"]["range_scoring"]["enabled"]
+                if result["algorithm"]["range_enabled"]
                 else "음역 신뢰도가 낮아 음색 추천으로 완료했습니다."
             ),
             result=result,
@@ -279,6 +334,7 @@ async def create_recommendation(
     mode: str = Form("timbre"),
     sourceTrackId: str = Form(""),
     genres: list[str] = Form([]),
+    preferredArtists: list[str] = Form([]),
 ) -> dict[str, Any]:
     config, missing = _configuration_status()
     if missing:
@@ -317,6 +373,7 @@ async def create_recommendation(
         "mode": mode,
         "sourceTrackId": source_track_id or None,
         "genres": [g.strip() for g in genres if g and g.strip()],
+        "preferred_artists": [a.strip() for a in preferredArtists if a and a.strip()],
         "createdAt": time.time(),
         "status": "queued",
         "progress": 8,
@@ -329,10 +386,11 @@ async def create_recommendation(
         _process,
         job_id,
         input_path,
-        max(1, min(int(topK), 20)),
+        max(1, min(int(topK), MAX_TOP_K)),
         mode,
         excluded_track_ids,
         tuple(JOBS[job_id]["genres"]),
+        tuple(JOBS[job_id]["preferred_artists"]),
     )
     return JOBS[job_id]
 
