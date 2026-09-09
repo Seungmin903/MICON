@@ -16,6 +16,8 @@ services:
       FLYWAY_USER: micon_migrator
     networks:
       - backend
+    volumes:
+      - ../../backend/src/main/resources/db/migration:/flyway/sql:ro
     secrets:
       - mysql_migration_password
     read_only: true
@@ -53,10 +55,26 @@ services:
       - backend
       - egress
     secrets:
-      - mysql_app_password
-      - jwt_secret
-      - ai_service_token
-      - aws_credentials
+      - source: mysql_app_password
+        target: mysql_app_password
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: jwt_secret
+        target: jwt_secret
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: ai_service_token
+        target: ai_service_token
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: aws_credentials
+        target: aws_credentials
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
     healthcheck:
       test:
         - CMD

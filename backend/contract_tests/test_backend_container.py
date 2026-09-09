@@ -27,6 +27,8 @@ class BackendContainerContractTests(unittest.TestCase):
             self.assertNotIn(f"{name}=", self.compose)
         self.assertIn("AWS_SHARED_CREDENTIALS_FILE: /run/secrets/aws_credentials", self.compose)
         self.assertIn("load_secret DB_PASSWORD required", self.entrypoint)
+        self.assertGreaterEqual(self.compose.count('uid: "10001"'), 4)
+        self.assertGreaterEqual(self.compose.count("mode: 0400"), 4)
 
     def test_database_is_internal_but_backend_has_egress(self):
         self.assertIn("name: micon_backend", self.compose)
@@ -38,6 +40,7 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("condition: service_completed_successfully", self.compose)
         self.assertIn('SPRING_FLYWAY_ENABLED: "false"', self.compose)
         self.assertIn("mysql_migration_password", self.compose)
+        self.assertIn("../../backend/src/main/resources/db/migration:/flyway/sql:ro", self.compose)
 
     def test_container_is_hardened_and_has_readiness_healthcheck(self):
         self.assertGreaterEqual(self.compose.count("read_only: true"), 2)
