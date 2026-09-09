@@ -17,6 +17,9 @@ class BackendContainerContractTests(unittest.TestCase):
         cls.production = (ROOT / "backend/src/main/resources/application-prod.properties").read_text(encoding="utf-8")
         cls.security = (ROOT / "backend/src/main/java/com/micon/backend/auth/config/SecurityConfig.java").read_text(encoding="utf-8")
         cls.host_prep = (ROOT / "infra/deploy/prepare_backend_host.sh").read_text(encoding="utf-8")
+        cls.runtime_env = (ROOT / "infra/compose/backend.env.example").read_text(encoding="utf-8")
+        cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/voice/application/VoiceAnalysisService.java").read_text(encoding="utf-8")
+        cls.recommendation_service = (ROOT / "backend/src/main/java/com/micon/backend/recommendation/application/RecommendationDispatchService.java").read_text(encoding="utf-8")
 
     def test_image_is_pinned_and_runs_as_non_root(self):
         self.assertIn("@sha256:", self.dockerfile)
@@ -61,6 +64,17 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("management.endpoint.health.group.liveness.include=livenessState", self.production)
         self.assertIn("management.endpoint.health.show-details=never", self.production)
         self.assertIn('"/actuator/health/**"', self.security)
+
+    def test_unintegrated_ai_flows_are_disabled_by_default(self):
+        self.assertIn("AI_SONG_FIT_ENABLED=false", self.runtime_env)
+        self.assertIn("AI_VOICE_ANALYSIS_ENABLED=false", self.runtime_env)
+        self.assertIn("AI_RECOMMENDATION_ENABLED=false", self.runtime_env)
+        self.assertIn("AI_RECOMMENDATION_POLLING_ENABLED=false", self.runtime_env)
+        self.assertIn("AI_RECOMMENDATION_BASE_URL=http://micon-recommendation:8788", self.runtime_env)
+        self.assertIn("ai.voice-analysis-enabled:false", self.voice_service)
+        self.assertIn("ai.recommendation.enabled:false", self.recommendation_service)
+        self.assertIn("if (!enabled)", self.voice_service)
+        self.assertIn("if (!enabled)", self.recommendation_service)
 
 
 if __name__ == "__main__":

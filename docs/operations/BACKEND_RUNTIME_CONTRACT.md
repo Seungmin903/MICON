@@ -32,10 +32,12 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | MAIL_STARTTLS | false | true/false. 제공자 TLS 방식과 일치; enable=true만으로 TLS 필수 강제가 되었다고 보지 않음 |
 | AI_BASE_URL | http://localhost:8000 | BE에서 접근 가능한 AI 서비스 주소. AI 위치·네트워크는 별도 확인; 운영 localhost fallback 금지 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
+| AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 분석용 S3 presigned GET URL 만료 Duration. 실제 다운로드 시간·보안 요구 검증 |
 | AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
 | AI_RECOMMENDATION_BASE_URL | http://localhost:8788 | BE에서 접근 가능한 추천 AI 서비스 주소. 운영에서는 명시적으로 주입하고 localhost fallback을 사용하지 않음 |
+| AI_RECOMMENDATION_ENABLED | false | true/false. 추천 작업 제출·조회 계약과 서비스 인증을 통합 검증한 뒤에만 true |
 | AI_RECOMMENDATION_SERVICE_TOKEN | AI_SERVICE_TOKEN 값 | 추천 AI 서비스 인증용 비밀값. 별도 값이 없으면 공통 AI 서비스 토큰을 사용하며 추적 파일에 기록하지 않음 |
 | AI_RECOMMENDATION_CONNECT_TIMEOUT | 3s | 추천 AI 연결 제한 시간인 양의 Spring Duration |
 | AI_RECOMMENDATION_READ_TIMEOUT | 10s | 추천 작업 접수·상태 조회 응답 제한 시간인 양의 Spring Duration |

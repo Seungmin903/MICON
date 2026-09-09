@@ -12,7 +12,7 @@ Spring BE는 `backend/Dockerfile`로 빌드하고 `infra/compose/backend.compose
 - 비밀값은 이미지·Git·환경 예제·명령행 인자에 넣지 않는다. 비밀 파일을 회전한 뒤에는 준비 스크립트를 다시 실행해 앱 전용 사본을 갱신한다.
 - Flyway는 앱보다 먼저 전용 `micon_migrator` 계정으로 V1~현재 migration을 검증·적용한다. 성공한 경우에만 앱을 시작하고 앱 자체 Flyway는 끈다. `repair`, `baseline`, 볼륨 삭제는 자동화하지 않는다.
 - readiness는 DB를 포함한 `/actuator/health/readiness`, liveness는 DB를 제외한 `/actuator/health/liveness`다. 둘 다 상세 component를 노출하지 않는다.
-- AI·추천 서비스가 준비되기 전에는 관련 feature flag를 `false`로 유지한다. SMTP가 실제로 준비되지 않은 동안 비밀번호 복구 메일을 정상 기능으로 표시하지 않는다.
+- AI·추천 서비스가 준비되기 전에는 관련 feature flag를 `false`로 유지한다. 현재 BE는 추천 작업을 JSON으로 제출하지만 `ai/recommend-server`는 8788 포트에서 multipart 음원을 받으므로 계약이 일치하지 않는다. 두 API 계약과 서비스 인증을 맞추고 통합 테스트를 통과하기 전에는 `AI_RECOMMENDATION_POLLING_ENABLED`를 켜지 않는다. SMTP가 실제로 준비되지 않은 동안 비밀번호 복구 메일을 정상 기능으로 표시하지 않는다.
 
 ## 최초 호스트 준비
 

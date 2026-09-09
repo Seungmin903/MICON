@@ -24,27 +24,32 @@ public class VoiceAnalysisService {
     private final VoiceAnalysisLifecycleService lifecycle;
     private final VoiceAnalysisJobGateway aiGateway;
     private final VoiceStorage storage;
+    private final boolean enabled;
     private final String guideVersion;
     private final Duration downloadUrlTtl;
 
     public VoiceAnalysisService(VoiceAnalysisRepository analyses, VoiceAnalysisLifecycleService lifecycle,
                                 VoiceAnalysisJobGateway aiGateway, VoiceStorage storage,
+                                @Value("${ai.voice-analysis-enabled:false}") boolean enabled,
                                 @Value("${ai.voice-analysis-guide-version:v1}") String guideVersion,
                                 @Value("${ai.voice-analysis-download-url-ttl:30m}") Duration downloadUrlTtl) {
         this.analyses = analyses;
         this.lifecycle = lifecycle;
         this.aiGateway = aiGateway;
         this.storage = storage;
+        this.enabled = enabled;
         this.guideVersion = guideVersion;
         this.downloadUrlTtl = downloadUrlTtl;
     }
 
     public VoiceAnalysisResponse create(long userId, VoiceAnalysisRequest request) {
+        requireEnabled();
         VoiceAnalysis analysis = lifecycle.create(userId, request);
         return dispatch(analysis);
     }
 
     public VoiceAnalysisResponse retry(long userId, long analysisId) {
+        requireEnabled();
         return dispatch(lifecycle.prepareRetry(userId, analysisId));
     }
 
@@ -71,6 +76,12 @@ public class VoiceAnalysisService {
             return VoiceAnalysisResponse.from(lifecycle.start(analysis.getId(), result.jobId()));
         } catch (RuntimeException exception) {
             lifecycle.fail(analysis.getId(), exception.getMessage());
+            throw new BusinessException(ErrorCode.VOICE_ANALYSIS_DISPATCH_FAILED);
+        }
+    }
+
+    private void requireEnabled() {
+        if (!enabled) {
             throw new BusinessException(ErrorCode.VOICE_ANALYSIS_DISPATCH_FAILED);
         }
     }
