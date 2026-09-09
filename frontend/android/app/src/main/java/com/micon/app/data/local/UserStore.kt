@@ -48,9 +48,15 @@ object UserStore {
     )
     val setlists = _setlists.asStateFlow()
 
+    /** 화면에 부르는 이름 ("유림님 음색에 딱인 곡"). 백엔드 users API 가 생기면 로그인 응답에서 채운다. null 이면 "내 …" 로 쓴다. */
+    var nickname: String? = null
+
     /** 온보딩 선호 조사 결과 */
     var preferredArtists: Set<String> = emptySet()
     var preferredGenres: Set<String> = emptySet()
+
+    /** 간편 분석이 남긴 마지막 보컬 녹음(WAV). 추천 서버 업로드에 쓴다. 원본 저장 정책은 별도(기본 OFF) — 세션 캐시일 뿐. */
+    var lastRecording: java.io.File? = null
 
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
 

@@ -114,7 +114,7 @@ object RangeFitCalculator {
         val boundaryFit = exp(-(lowExcess + highExcess) / CORE_EXCESS_DECAY)
         val softFit = coverageFit * boundaryFit
         val score = (W_BASE * base + W_SOFT * softFit).coerceIn(0.0, 1.0)
-        return RangeFit(score.toFloat(), coverage.toFloat(), centerScore.toFloat(), spanFit.toFloat(), softFit.toFloat())
+        return RangeFit(score.toFloat(), coverage.toFloat(), centerScore.toFloat(), spanFit.toFloat(), softFit.toFloat(), song.coreLow, song.coreHigh)
     }
 
     /**

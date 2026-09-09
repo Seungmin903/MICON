@@ -9,6 +9,10 @@ ENGINE_BASE_URL=http://10.0.2.2:8787/
 # 앱 백엔드(Spring/MySQL, 예정). 아직 없으면 그대로 둔다.
 API_BASE_URL=http://10.0.2.2:8080/api/v1/
 
+# 추천 서버(ai/recommend-server, FastAPI 8788). 비워 두면 앱 안 로컬 계산(음역만)으로 동작한다.
+# 서버를 켜고 시험할 때만: RECOMMEND_BASE_URL=http://10.0.2.2:8788/
+RECOMMEND_BASE_URL=
+
 # 소셜 로그인 키 (비어 있어도 빌드된다. 해당 기능만 동작하지 않음)
 GOOGLE_WEB_CLIENT_ID=
 KAKAO_NATIVE_APP_KEY=

@@ -39,8 +39,8 @@ data class TimbreMatch(
     val axis: TimbreAxis,
     /** 서버 문구 그대로 표시. 예 "목소리 물성이 가까운 가수" */
     val label: String,
-    /** 로그·디버그용. 화면에 표시하지 않는다. */
-    val axisScores: AxisScores,
+    /** 로그·디버그용. 화면에 표시하지 않는다. 서버가 생략하면 null */
+    val axisScores: AxisScores?,
 )
 
 /** ECAPA = 목소리 물성, SINGER_BYOL = 부르는 방식, CONSENSUS = 두 축 합의 */
@@ -61,6 +61,9 @@ data class RangeFit(
     val spanFit: Float,
     /** 커버리지 sigmoid × 경계 초과 감점 */
     val softFit: Float,
+    /** 곡 주요 음역(5~95 %). 로컬 카탈로그에 분석이 없는 곡(서버 추천)도 상세에서 음역 막대를 그릴 수 있게 */
+    val songCoreLowMidi: Int? = null,
+    val songCoreHighMidi: Int? = null,
 )
 
 data class StrainSections(

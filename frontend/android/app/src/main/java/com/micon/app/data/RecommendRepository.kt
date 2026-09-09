@@ -19,10 +19,40 @@ interface RecommendRepository {
      * 프로필이 없거나 [mode] 를 지원할 데이터가 없으면 개인화하지 않은 기본 추천을 돌려준다(REC-004).
      */
     suspend fun recommend(mode: RecommendMode, limit: Int = 10): RecommendResult
+
+    /**
+     * 추천 섹션 목록(shelves-v1) — 추천 탭이 좌우로 넘기는 페이지 하나가 섹션 하나. 순서·곡은 구현(서버)이 정한 그대로.
+     * 고음 도전(`challenge`)은 화면에서 쓰지 않으므로 구현이 빼고 준다.
+     *
+     * [reshuffle] 은 "새로운 발견" 다시 뽑기 횟수. 이 섹션만 무작위(하루 단위)라 값이 바뀌면 다른 순서가 나온다.
+     */
+    suspend fun shelves(limit: Int = 10, reshuffle: Int = 0): RecommendShelves
 }
 
-/** 추천 화면의 필터 칩과 1:1. 음역대·음색은 개인화, 장르·인기는 기본 추천 기준. */
+/** 이전 모드 기반 API 용. 추천 탭은 [RecommendRepository.shelves] 를 쓴다. */
 enum class RecommendMode { RANGE, TIMBRE, GENRE, POPULAR }
+
+data class RecommendShelves(
+    /** false 면 "기본 추천"으로 표시하고 개인화 문구를 쓰지 않는다(REC-004). */
+    val personalized: Boolean,
+    val shelves: List<RecommendShelf>,
+)
+
+/** 섹션 하나. [key] 는 서버 문자열 그대로([ShelfKeys]). 제목·설명(metric)도 서버 문구를 그대로 보인다. */
+data class RecommendShelf(
+    val key: String,
+    val title: String,
+    val metric: String?,
+    val items: List<RecommendedSong>,
+)
+
+object ShelfKeys {
+    const val VOICE = "voice"
+    const val ORIGINAL_KEY = "original_key"
+    const val FAVORITE_ARTISTS = "favorite_artists"
+    const val CHALLENGE = "challenge"
+    const val DISCOVERY = "discovery"
+}
 
 data class RecommendResult(
     val mode: RecommendMode,

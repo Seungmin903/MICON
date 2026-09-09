@@ -135,7 +135,7 @@ class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
 
     private fun finish() {
         if (_state.value.step == Step.DONE) return
-        capture.stop()
+        UserStore.lastRecording = capture.stop()          // 추천 서버 업로드용 (RemoteRecommendRepository)
         // TODO: 저장된 WAV 를 엔진에 올려(POST /jobs, sourceType=vocal) 실제 음역·안정도를 계산한다.
         UserStore.setProfile(UserStore.VoiceProfile())
         _state.update { it.copy(step = Step.DONE, micRunning = false) }
