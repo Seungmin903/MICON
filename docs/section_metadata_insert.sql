@@ -9121,7 +9121,7 @@ INSERT INTO `song_metadata` (
     `release_date`, `release_date_raw`, `display_image_url`, `primary_language`, `languages`,
     `source_genres`, `lyrics_plain`, `lyrics_synced`, `image_type`, `metadata_review_status`
 ) VALUES (
-    @song_id, 'cd03ea02e49caaa5', '{"sectionCatalogRows":[184],"sectionCatalogMatchStatus":"matched"}', '[{"type":"composer","artist":{"name":"Claude François"}},{"type":"composer","artist":{"name":"Jacques Revaux"}},{"type":"lyricist","artist":{"name":"Paul Anka"}},{"type":"previous attribution","artist":{"name":"Gilles Thibaut"}},{"type":"translator","artist":{"name":"Bobby Cruz"}}]', 'My Way', '1969-02', '1969-02', 'http://coverartarchive.org/release/2776ab19-e6f8-415d-8f89-239599ac0690/13323216053.jpg', 'eng', '["eng"]', '["Ballad","Jazz","Pop"]', 'And now, the end is near
+    @song_id, 'cd03ea02e49caaa5', '{"sectionCatalogRows":[184],"sectionCatalogMatchStatus":"matched"}', '[{"type":"composer","artist":{"name":"Claude François"}},{"type":"composer","artist":{"name":"Jacques Revaux"}},{"type":"lyricist","artist":{"name":"Paul Anka"}},{"type":"previous attribution","artist":{"name":"Gilles Thibaut"}},{"type":"translator","artist":{"name":"Bobby Cruz"}}]', 'My Way', NULL, '1969-02', 'http://coverartarchive.org/release/2776ab19-e6f8-415d-8f89-239599ac0690/13323216053.jpg', 'eng', '["eng"]', '["Ballad","Jazz","Pop"]', 'And now, the end is near
 And so I face the final curtain
 My friend, I''ll say it clear
 I''ll state my case, of which I''m certain
@@ -22158,7 +22158,7 @@ INSERT INTO `song_metadata` (
     `release_date`, `release_date_raw`, `display_image_url`, `primary_language`, `languages`,
     `source_genres`, `lyrics_plain`, `lyrics_synced`, `image_type`, `metadata_review_status`
 ) VALUES (
-    @song_id, '525a091f0bd0873a', '{"sectionCatalogRows":[862],"sectionCatalogMatchStatus":"matched"}', NULL, '2008 연가', '2008', '2008', 'https://i.ytimg.com/vi/m4LGuu5b57c/hqdefault.jpg', 'kor', '["kor"]', '["R&B","K-Pop"]', '꿈에서라도 만난다면
+    @song_id, '525a091f0bd0873a', '{"sectionCatalogRows":[862],"sectionCatalogMatchStatus":"matched"}', NULL, '2008 연가', NULL, '2008', 'https://i.ytimg.com/vi/m4LGuu5b57c/hqdefault.jpg', 'kor', '["kor"]', '["R&B","K-Pop"]', '꿈에서라도 만난다면
 가지 말라고 하겠어요
 마지막 인사도 없이
 떠나간 내 사랑

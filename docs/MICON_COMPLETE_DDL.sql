@@ -628,7 +628,7 @@ CREATE TABLE `practice_session` (
     CONSTRAINT `fk_practice_session_song`
         FOREIGN KEY (`song_id`) REFERENCES `song` (`song_id`),
     CONSTRAINT `fk_practice_session_section`
-        FOREIGN KEY (`section_id`) REFERENCES `song_section` (`section_id`) ON DELETE SET NULL,
+        FOREIGN KEY (`section_id`) REFERENCES `song_section` (`section_id`),
     CONSTRAINT `fk_practice_session_recording`
         FOREIGN KEY (`recording_id`) REFERENCES `voice_recording` (`recording_id`) ON DELETE SET NULL,
     CONSTRAINT `fk_practice_session_voice_analysis`
