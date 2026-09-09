@@ -62,12 +62,15 @@ public class VocalTimbreAnalysis {
     }
 
     public String getTimbreLabel() { return timbreLabel; }
+    public String getTimbreVector() { return timbreVector; }
     public BigDecimal getRhythmScore() { return rhythmScore; }
     public BigDecimal getPronunciationScore() { return pronunciationScore; }
     public BigDecimal getConfidence() { return confidence; }
     public String getExplanation() { return explanation; }
     public BigDecimal getValidSingleSec() { return validSingleSec; }
     public Integer getValidChunkCount() { return validChunkCount; }
+    public String getUserEmbedding() { return userEmbedding; }
+    public String getEmbeddingRef() { return embeddingRef; }
     public BigDecimal getChunkCohesion() { return chunkCohesion; }
     public BigDecimal getObservedCoreLowMidi() { return observedCoreLowMidi; }
     public BigDecimal getObservedCoreHighMidi() { return observedCoreHighMidi; }
