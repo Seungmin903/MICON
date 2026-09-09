@@ -64,7 +64,7 @@ public class RecordingController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestPart("file") MultipartFile file,
             @RequestParam(defaultValue = "1") short attemptNo,
-            @RequestParam(defaultValue = "false") boolean keepOriginal) {
+            @RequestParam(required = false) Boolean keepOriginal) {
         Long id = uploadService.upload(userId(jwt), file, attemptNo, keepOriginal);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(new RecordingUploadResponse(id)));
     }
