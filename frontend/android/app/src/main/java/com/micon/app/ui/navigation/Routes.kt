@@ -18,6 +18,7 @@ object Routes {
     const val LOGIN = "login"
     const val SIGNUP = "signup"
     const val SURVEY = "survey"
+    const val EDIT_PREFERENCES = "settings/preferences"
 
     // 하단 탭 5개 (Figma: 추천 · 리포트 · 연습 · 평가 · 찜)
     const val RECOMMEND = "recommend"

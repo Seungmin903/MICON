@@ -17,6 +17,20 @@ sealed class ApiResult<out T> {
     data class Error(val throwable: Throwable) : ApiResult<Nothing>()
 }
 
-data class RefreshTokenRequest(val refreshToken: String)
+data class TokenPair(val accessToken: String, val refreshToken: String)
 
-data class TokenPair(val accessToken: String = "", val refreshToken: String = "")
+data class EmailAuthRequest(
+    val email: String,
+    val password: String,
+    val deviceId: String? = null,
+    val deviceName: String? = "MICON Android",
+)
+
+data class AuthResponse(
+    val userId: Long,
+    val email: String,
+    val accessToken: String,
+    val refreshToken: String,
+)
+
+data class CurrentUser(val userId: Long, val email: String)

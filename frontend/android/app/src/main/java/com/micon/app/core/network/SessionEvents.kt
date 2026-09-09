@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * 네트워크 계층에서 UI 로 올리는 세션 이벤트.
- * MiconRoot 에서 collect 해 세션 만료 시 로그인/랜딩으로 보내면 된다(TODO: 인증 계약 확정 후).
+ * MiconRoot collects these events and clears protected navigation history.
  */
 object SessionEvents {
     enum class Event { EXPIRED }
