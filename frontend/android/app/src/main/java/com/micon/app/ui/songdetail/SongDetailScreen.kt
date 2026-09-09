@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,8 +40,8 @@ import com.micon.app.data.SongRepository
 import com.micon.app.data.engine.EngineClient
 import com.micon.app.data.engine.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
+import com.micon.app.scoring.KaraokeNames
 import com.micon.app.ui.charts.KeyChangeGraph
-import com.micon.app.ui.charts.KeyChangeLegend
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconHeader
@@ -47,6 +51,8 @@ import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
+import com.micon.app.ui.theme.Lavender
+import com.micon.app.ui.theme.Pink
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.delay
@@ -70,14 +76,26 @@ class SongDetailViewModel(
         val playing: Boolean = false,
         val positionSec: Double = 0.0,
         val durationSec: Double = 0.0,
+        val source: String = "original",      // "original" = 원곡, "instrumental" = 반주(원곡 파일이 서버에 없을 때 폴백)
     )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
     private val player = InstrumentalPlayer(appContext, engine.okHttp)
+    private var triedInstrumental = false
 
     init {
-        player.onError = { msg -> _state.update { it.copy(error = "반주 재생 오류: $msg") } }
+        player.onError = { msg ->
+            // 원곡이 서버에 없으면(404) 반주로 한 번 폴백한다
+            val detail = _state.value.detail
+            if (_state.value.source == "original" && !triedInstrumental && detail?.hasInstrumental == true) {
+                triedInstrumental = true
+                player.load(engine.instrumentalUrl(songId, 0))
+                _state.update { it.copy(source = "instrumental", error = null) }
+            } else {
+                _state.update { it.copy(error = "재생 오류: $msg") }
+            }
+        }
         player.onEnded = { _state.update { it.copy(playing = false) } }
         load()
         viewModelScope.launch {
@@ -99,7 +117,8 @@ class SongDetailViewModel(
                 _state.update {
                     it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0)
                 }
-                if (detail.hasInstrumental) player.load(engine.instrumentalUrl(songId, 0))
+                // 미리 듣기는 원곡. 원곡이 없으면 onError 에서 반주로 폴백.
+                player.load(engine.originalUrl(songId))
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: e.toString()) }
             }
@@ -128,10 +147,27 @@ class SongDetailViewModel(
         _state.update { it.copy(playing = player.isPlaying) }
     }
 
+    /** 진행 바 탐색. 재생 중이 아니어도 위치만 옮긴다. */
+    fun seekTo(seconds: Double) {
+        val target = seconds.coerceIn(0.0, maxOf(0.0, _state.value.durationSec))
+        player.seekTo(target)
+        _state.update { it.copy(positionSec = target) }
+    }
+
     override fun onCleared() { player.release() }
 }
 
-/** Figma "노래 연습- 노래 상세정보": 헤더, 플레이어 카드, 키 변화 그래프. 하단 탭이 보이는 화면. */
+/** 범례 한 항목: 색 표시 + 말 라벨 */
+@Composable
+private fun LegendItem(color: Color, label: String, wide: Boolean = false) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = if (wide) 22.dp else 16.dp, height = if (wide) 12.dp else 4.dp).background(color, RoundedCornerShape(3.dp)))
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 12.sp, color = Grey, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Figma "노래 연습- 노래 상세정보": 헤더, 플레이어 카드, 노래 적합 카드, 높낮이 흐름. 하단 탭이 보이는 화면. */
 @Composable
 fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit, onSettings: () -> Unit = {}) {
     val container = rememberAppContainer()
@@ -159,25 +195,41 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
                     PlayerCard(
                         title = d.summary.title, artist = d.summary.artist, imageUrl = d.summary.imageUrl,
                         positionSec = state.positionSec, durationSec = state.durationSec, playing = state.playing, onToggle = vm::toggle,
+                        onSeek = vm::seekTo, caption = if (state.source == "instrumental") "원곡 파일이 없어 반주로 재생합니다" else null,
                     )
+                    // 1) 결론 먼저: 이 노래가 내 음역에 맞는지, 키를 얼마나 바꾸면 되는지 (노래방식 음이름)
+                    val songHigh = a?.highestMidi ?: state.melody.maxOfOrNull { it.second.toInt() } ?: 72
+                    val songLow = a?.lowestMidi ?: state.melody.minOfOrNull { it.second.toInt() } ?: 55
+                    val key = if (profile != null) (UserStore.recommendedKey(songId, songHigh) ?: 0) else 0
+                    SongFitCard(
+                        songLow = songLow, songHigh = songHigh,
+                        comfortLow = profile?.comfortLow ?: 55, comfortHigh = profile?.comfortHigh ?: 67,
+                        recommendedKey = key, noteCount = a?.noteCount, durationSec = (d.summary.durationMs ?: 0) / 1000.0,
+                        hasProfile = profile != null,
+                    )
+                    // 2) 노래 높낮이 흐름: 어디가 높은지 한눈에. 라벨은 말로.
                     MiconCard {
-                        CardTitle("키 변화 그래프")
-                        Spacer(Modifier.height(14.dp))
-                        KeyChangeLegend(Modifier.padding(horizontal = 16.dp))
+                        CardTitle("노래 높낮이 흐름")
+                        Spacer(Modifier.height(4.dp))
+                        Text("시간에 따라 멜로디가 얼마나 높아지는지 보여 줘요. 연보라 띠 위로 올라간 곳이 나한테 높은 부분이에요.", fontSize = 12.sp, color = Grey, lineHeight = 17.sp)
                         Spacer(Modifier.height(10.dp))
                         if (state.melody.isEmpty()) {
                             Text("분석된 음표가 없어 그래프를 그릴 수 없습니다.", fontSize = 13.sp, color = Grey, modifier = Modifier.padding(vertical = 40.dp))
                         } else {
-                            val key = UserStore.recommendedKey(songId, a?.highestMidi) ?: 0
+                            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                LegendItem(Purple, "원곡")
+                                if (key != 0) LegendItem(Pink, "키 ${if (key > 0) "+$key" else key} 적용")
+                                if (profile != null) LegendItem(Lavender, "내 편안한 음역", wide = true)
+                            }
+                            Spacer(Modifier.height(8.dp))
                             KeyChangeGraph(
                                 melody = state.melody,
                                 shifted = if (key != 0) state.melody.map { it.first to it.second + key } else null,
-                                bandLow = profile?.comfortLow ?: 48,
-                                bandHigh = profile?.comfortHigh ?: 72,
-                            )
-                            Text(
-                                "보라: 곡 멜로디 · 분홍: 추천 키(${if (key > 0) "+$key" else key}) 적용 시 · 연보라 띠: 내 편안한 음역",
-                                fontSize = 12.sp, color = Grey, modifier = Modifier.padding(top = 6.dp),
+                                bandLow = profile?.comfortLow,
+                                bandHigh = profile?.comfortHigh,
+                                labelOf = { KaraokeNames.koreanShort(it) },
+                                peakLabel = "가장 높은 곳 · ${KaraokeNames.korean(songHigh)}",
+                                height = 240.dp,
                             )
                         }
                     }

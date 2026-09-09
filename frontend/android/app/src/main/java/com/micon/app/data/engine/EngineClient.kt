@@ -41,6 +41,9 @@ class EngineClient(val baseUrl: String, logging: Boolean = true) {
         .build()
         .create(EngineApi::class.java)
 
+    /** 원곡(mp3) 스트리밍 URL — 곡 상세의 미리 듣기용. 엔진에 원곡 파일이 없으면 404 → 호출자가 반주로 폴백. */
+    fun originalUrl(jobId: String): String = "${baseUrl}jobs/$jobId/files/original"
+
     /** 반주 스트리밍 URL (ExoPlayer 에 그대로). semitones=0 이면 원키. */
     fun instrumentalUrl(jobId: String, semitones: Int = 0): String =
         "${baseUrl}jobs/$jobId/files/instrumental" + if (semitones != 0) "?semitones=$semitones" else ""

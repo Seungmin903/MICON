@@ -147,7 +147,11 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier) {
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.RESULT}" }),
         ) { entry ->
             val jobId = entry.arguments?.getString("jobId") ?: return@composable
-            ResultScreen(jobId = jobId, onBack = { nav.popBackStack() })
+            ResultScreen(
+                jobId = jobId,
+                onBack = { nav.popBackStack() },
+                onHome = { nav.navigate(Routes.PRACTICE) { popUpTo(Routes.PRACTICE) { inclusive = false }; launchSingleTop = true } },
+            )
         }
 
         // ---- 탭: 찜 ----

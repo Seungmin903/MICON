@@ -57,6 +57,7 @@ Android Studio(또는 CLI)에서 실제 기능을 만들 때 이 폴더에서 **
 | `POST /jobs` (202, multipart) | `audio` 파일, `sourceType=mix|vocal`, `lyrics`(≤20,000자), `separator` | job 객체(`status=queued`) | 원곡 분석 시작(배치 완료 곡은 불필요) |
 | `GET /jobs/{id}` | — | job 객체 `{id, kind, status, progress 0–100, message, result, error}` | **진행률 폴링**(1–2 s), 결과 읽기 |
 | `POST /jobs/{id}/compare` (202, multipart) | `audio`(webm/wav/m4a 등), `sourceType=mix|vocal`, `allowTranspose`, `octaveTolerant` | performance job(`kind=performance`, `referenceJobId`) | **부른 노래 채점**(MR 없이 부르면 `sourceType=vocal`로 분리 생략) |
+| `DELETE /jobs/{id}` | — | `{id, deleted:true}`; reference 곡·분석 중이면 409 | **부른 노래 기록 삭제**(평가 탭, workspace 파일까지 제거) |
 | `POST /jobs/{id}/comparison` (JSON) | `{allowTranspose?, octaveTolerant?}` | job(`result.comparison` 갱신) | 옵션만 바꿔 재채점 |
 | `POST /jobs/{id}/instrumental-key` (JSON) | `{semitones}` −6…+5 | `{semitones, file, url, seconds, range}` | 키 변경 반주 미리 렌더(6분 곡 ≈9 s) |
 | `GET /jobs/{id}/files/instrumental?semitones=N` | — | `audio/ogg`(Opus) 또는 `audio/wav` | **반주 스트리밍**(ExoPlayer로 재생) |
