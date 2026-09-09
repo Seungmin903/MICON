@@ -5,6 +5,7 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.recommendation.domain.Recommendation;
 import com.micon.backend.recommendation.domain.RecommendationMode;
 import com.micon.backend.recommendation.domain.RecommendationRepository;
+import com.micon.backend.recommendation.domain.RecommendationStatus;
 import com.micon.backend.voice.domain.VoiceAnalysis;
 import com.micon.backend.voice.domain.VoiceAnalysisRepository;
 import org.springframework.stereotype.Service;
@@ -24,10 +25,15 @@ public class RecommendationLifecycleService {
     }
 
     @Transactional
-    public long create(long userId, long voiceAnalysisId, RecommendationMode mode) {
-        VoiceAnalysis analysis = analyses.findByIdAndUserId(voiceAnalysisId, userId)
+    public Created create(long userId, long voiceAnalysisId, RecommendationMode mode) {
+        VoiceAnalysis analysis = analyses.findByIdAndUserIdForUpdate(voiceAnalysisId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
-        return recommendations.saveAndFlush(new Recommendation(analysis.getUser(), analysis, mode)).getId();
+        if (recommendations.existsByVoiceAnalysisIdAndStatus(voiceAnalysisId, RecommendationStatus.GENERATING)) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_GENERATING);
+        }
+        Recommendation recommendation = recommendations.saveAndFlush(
+                new Recommendation(analysis.getUser(), analysis, mode));
+        return new Created(recommendation.getId(), recommendation.getGeneratedAt());
     }
 
     @Transactional
@@ -50,5 +56,8 @@ public class RecommendationLifecycleService {
             return "AI recommendation request failed";
         }
         return reason.length() <= 1000 ? reason : reason.substring(0, 1000);
+    }
+
+    public record Created(long recommendationId, LocalDateTime generatedAt) {
     }
 }

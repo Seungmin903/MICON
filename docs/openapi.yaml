@@ -815,8 +815,8 @@ paths:
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "추천 작업 상태 또는 결과 조회 성공"
   "/recommendations":
     post:
       tags: ["추천"]
@@ -2535,7 +2535,7 @@ components:
         expiresAt: { type: ["string", "null"], format: "date-time" }
         shelves:
           type: "array"
-          description: "모든 섹션을 합쳐 중복 없는 추천곡을 최대 50개 반환한다."
+          description: "섹션 사이에 곡이 중복되지 않으며 각 섹션은 최대 50곡을 반환한다."
           items:
             $ref: "#/components/schemas/RecommendationShelf"
     RecommendationShelf:
@@ -2548,6 +2548,7 @@ components:
         order: { type: "integer", minimum: 1 }
         items:
           type: "array"
+          maxItems: 50
           items:
             $ref: "#/components/schemas/RecommendationSong"
     RecommendationSong:
@@ -2555,8 +2556,8 @@ components:
       required: ["songId", "overallRank", "position"]
       properties:
         songId: { type: "integer", format: "int64" }
-        overallRank: { type: "integer", minimum: 1, maximum: 50 }
-        position: { type: "integer", minimum: 1 }
+        overallRank: { type: "integer", minimum: 1, maximum: 32767 }
+        position: { type: "integer", minimum: 1, maximum: 50 }
         axis: { type: ["string", "null"] }
         label: { type: ["string", "null"] }
         recommendedKey: { type: ["integer", "null"] }

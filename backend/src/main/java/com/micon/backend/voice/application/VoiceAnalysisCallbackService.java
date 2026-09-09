@@ -10,6 +10,7 @@ import com.micon.backend.voice.api.VoiceAnalysisCallbackResponse;
 import com.micon.backend.voice.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 public class VoiceAnalysisCallbackService {
@@ -17,10 +18,13 @@ public class VoiceAnalysisCallbackService {
     private final VocalRangeAnalysisRepository ranges;
     private final VocalTimbreAnalysisRepository timbres;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher events;
 
     public VoiceAnalysisCallbackService(VoiceAnalysisRepository analyses, VocalRangeAnalysisRepository ranges,
-                                        VocalTimbreAnalysisRepository timbres, ObjectMapper objectMapper) {
+                                        VocalTimbreAnalysisRepository timbres, ObjectMapper objectMapper,
+                                        ApplicationEventPublisher events) {
         this.analyses = analyses; this.ranges = ranges; this.timbres = timbres; this.objectMapper = objectMapper;
+        this.events = events;
     }
 
     @Transactional
@@ -53,6 +57,7 @@ public class VoiceAnalysisCallbackService {
                 json(t.userEmbedding()), t.embeddingRef(), t.chunkCohesion(), t.observedCoreLowMidi(),
                 t.observedCoreHighMidi(), t.observedMedianMidi(), json(t.pitchHistogram()), request.measuredAt()));
         analysis.complete(request.analysisVersion(), request.qualityStatus(), request.measuredAt());
+        events.publishEvent(new VoiceAnalysisCompletedEvent(analysis.getId(), analysis.getUser().getId()));
     }
 
     private String json(JsonNode value) {

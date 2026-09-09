@@ -60,11 +60,11 @@ public class RecommendationSong {
         if (songId == null || songId <= 0) {
             throw new IllegalArgumentException("songId must be positive");
         }
-        if (overallRank < 1 || overallRank > 50) {
-            throw new IllegalArgumentException("overallRank must be between 1 and 50");
+        if (overallRank < 1 || overallRank > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("overallRank must be positive");
         }
-        if (shelfPosition < 1 || shelfPosition > Short.MAX_VALUE) {
-            throw new IllegalArgumentException("shelfPosition must be positive");
+        if (shelfPosition < 1 || shelfPosition > 50) {
+            throw new IllegalArgumentException("shelfPosition must be between 1 and 50");
         }
         this.id = new RecommendationSongId(recommendation.getId(), songId);
         this.recommendation = recommendation;

@@ -61,7 +61,7 @@ class RecommendationPersistenceIntegrationTests {
     }
 
     @Test
-    void databaseLimitsARecommendationToFiftyDistinctRanks() {
+    void databaseAllowsFiftySongsPerShelf() {
         Fixture fixture = fixture("recommendation-limit@micon.com");
         Recommendation recommendation = fixture.recommendation();
         RecommendationShelf shelf = shelves.saveAndFlush(
@@ -70,10 +70,11 @@ class RecommendationPersistenceIntegrationTests {
         for (int rank = 1; rank <= 50; rank++) {
             insertSong(recommendation.getId(), shelf.getId(), 1000L + rank, rank, rank);
         }
+        RecommendationShelf secondShelf = shelves.saveAndFlush(
+                new RecommendationShelf(recommendation, "range", "음역 추천", 2, "rangeFit"));
+        insertSong(recommendation.getId(), secondShelf.getId(), 1051L, 51, 1);
 
-        assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), 1051L, 51, 51))
-                .isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(countSongs(recommendation.getId())).isEqualTo(50);
+        assertThat(countSongs(recommendation.getId())).isEqualTo(51);
     }
 
     @Test

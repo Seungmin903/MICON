@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,7 +41,9 @@ class RecommendationDispatchServiceTest {
     void submitsTopFiftyWithModeAndStoresReturnedJobId() {
         RecommendationInput input = input();
         when(inputs.assemble(1L, 10L)).thenReturn(input);
-        when(lifecycle.create(1L, 10L, RecommendationMode.RANGE)).thenReturn(20L);
+        LocalDateTime generatedAt = LocalDateTime.of(2026, 9, 9, 23, 0);
+        when(lifecycle.create(1L, 10L, RecommendationMode.RANGE))
+                .thenReturn(new RecommendationLifecycleService.Created(20L, generatedAt));
         when(gateway.submit(org.mockito.ArgumentMatchers.any())).thenReturn(
                 new RecommendationJobGateway.Result("recommend-job-1", "queued"));
 
@@ -53,13 +56,15 @@ class RecommendationDispatchServiceTest {
         assertThat(command.getValue().mode()).isEqualTo(RecommendationMode.RANGE);
         assertThat(command.getValue().topK()).isEqualTo(50);
         verify(lifecycle).assignJob(20L, "recommend-job-1");
-        assertThat(result).isEqualTo(new RecommendationDispatchResult(20L, "recommend-job-1", "queued"));
+        assertThat(result).isEqualTo(
+                new RecommendationDispatchResult(20L, "recommend-job-1", "queued", generatedAt));
     }
 
     @Test
     void recordsFailureWhenAiCannotBeReached() {
         when(inputs.assemble(1L, 10L)).thenReturn(input());
-        when(lifecycle.create(1L, 10L, RecommendationMode.OVERALL)).thenReturn(20L);
+        when(lifecycle.create(1L, 10L, RecommendationMode.OVERALL))
+                .thenReturn(new RecommendationLifecycleService.Created(20L, LocalDateTime.now()));
         when(gateway.submit(org.mockito.ArgumentMatchers.any()))
                 .thenThrow(new RuntimeException("connection timed out"));
 
@@ -73,7 +78,8 @@ class RecommendationDispatchServiceTest {
     @Test
     void recordsFailureWhenAiReturnsBlankJobId() {
         when(inputs.assemble(1L, 10L)).thenReturn(input());
-        when(lifecycle.create(1L, 10L, RecommendationMode.TIMBRE)).thenReturn(20L);
+        when(lifecycle.create(1L, 10L, RecommendationMode.TIMBRE))
+                .thenReturn(new RecommendationLifecycleService.Created(20L, LocalDateTime.now()));
         when(gateway.submit(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new RecommendationJobGateway.Result(" ", "queued"));
 
