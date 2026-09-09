@@ -19,6 +19,20 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 `setup.ps1` 은 `models/recommender/` 에 가중치를, `workspace/recommender/config.json` 에 이 checkout 의 절대경로 설정을 만든다. 둘 다 Git 제외.
 `nvidia-smi` 가 있으면 CUDA 빌드 PyTorch 로 바꿔 설치한다. 추론(30초 녹음)은 CPU 로도 수 초라 EC2 CPU 인스턴스로 충분하다. 곡 적재(Demucs 분리)는 GPU PC 에서 오프라인으로 한다.
 
+## 배포 (Docker, EC2 CPU)
+
+```bash
+cd ai/recommend-server
+docker build -t micon-recommend .                                   # CPU torch + 의존성 + 가중치 116 MB 다운로드. 이미지 약 3 GB
+docker run -d --name micon-recommend --restart unless-stopped -p 8788:8788 micon-recommend
+curl http://127.0.0.1:8788/health
+```
+
+- 이미지에 들어가는 것: 코드, 카탈로그 인덱스(`recommender-assets/catalog-index`, Git LFS 이므로 빌드 머신에 `git lfs pull` 필요), 모델 가중치(빌드 시 Hugging Face 에서 받아 SHA-256 검증).
+- 들어가지 않는 것: 원본 음원·분리 보컬·사용자 녹음. 녹음은 요청 body 로만 들어오고 `workspace/recommender/jobs/` 에 잠시 머문다 — 컨테이너를 지우면 같이 사라진다.
+- DB·S3 를 읽지 않는다. BE 는 위 API 만 호출한다. 카탈로그를 바꾸면 인덱스를 커밋하고 이미지를 다시 빌드한다.
+- 권장 사양: vCPU 2 · 메모리 4 GB 이상(t3.large 급), 디스크 여유 5 GB. 30초 녹음 1건 추론은 CPU 2코어에서 수십 초.
+
 ## API
 
 | 메서드·경로 | 요청 | 응답 |
