@@ -4,6 +4,10 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
+# Read by AWS SDK directly, not by Spring application.properties placeholders.
+AWS_SDK_ENVIRONMENT_NAMES = {
+    'AWS_SHARED_CREDENTIALS_FILE', 'AWS_PROFILE', 'AWS_EC2_METADATA_DISABLED',
+}
 
 
 class RuntimeContractTests(unittest.TestCase):
@@ -17,7 +21,7 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_example_matches_current_placeholder_names(self):
         names = set(re.findall(r'\$\{([A-Z][A-Z0-9_]*)(?::[^}]*)?\}', self.properties))
-        self.assertEqual(names, {key for key, _ in self.entries})
+        self.assertEqual(names | AWS_SDK_ENVIRONMENT_NAMES, {key for key, _ in self.entries})
 
     def test_example_has_no_duplicate_variables(self):
         keys = [key for key, _ in self.entries]

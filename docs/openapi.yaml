@@ -2,7 +2,13 @@ openapi: "3.1.0"
 info:
   title: "MICON 통합 API"
   version: "1.0.0"
-  description: "프론트엔드, 백엔드, AI 서버 간 API를 하나로 관리하는 통합 명세입니다. 요청·응답 상세 스키마와 상태 코드는 구현 과정에서 보완해야 합니다."
+  description: >-
+    프론트엔드, 백엔드, AI 서버 간 API를 하나로 관리하는 통합 명세입니다.
+    요청·응답 상세 스키마와 상태 코드는 구현 과정에서 보완해야 합니다.
+    운영 구조는 SSAFY 서버의 BE·MySQL과 개인 AWS 계정의 비공개 S3를 사용합니다.
+    녹음 파일 접근에는 BE가 발급한 만료 있는 URL을 사용하며 앱/AI에 AWS 키를 전달하지 않습니다.
+    버킷·권한·서버 인증과 실제 준비 상태는 docs/operations/S3_VOICE_STORAGE.md를 참고합니다.
+    이 설명은 개인 S3 생성·배포·DB 적재 완료를 의미하지 않습니다.
 servers:
   - url: "{backendUrl}"
     description: "백엔드 서버"

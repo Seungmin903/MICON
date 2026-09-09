@@ -4,6 +4,8 @@
 엔진·DB·Android 앱이 그대로 쓰는 `workspace/tj-<n>/` 작업 폴더로 바꾸는 절차와 데이터 계약을 적는다.
 배치를 만든 스크립트 원본은 남아 있지 않다. **결과물 폴더가 유일한 소스**이므로 그 형식을 여기서 고정한다.
 
+2026-09-09 운영 인수: 이 문서의 import는 로컬 workspace/앱 데이터 변환이며 S3 업로드나 SSAFY MySQL 반영이 아니다. 운영은 [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md)를 사용한다. 원본 결과 폴더는 보존하고 승인된 배포용 산출물만 신규 catalog/ batch에 업로드한다. PC 절대경로의 object key 매핑·DB 적재·실제 파일 제공은 [배치 인수 절차](BATCH_HANDOFF.md)에 따라 별도 검증한다.
+
 ## 1. 입력: `vocal-scope/outputs/stem-pitch/` (git 제외)
 
 | 파일 | 내용 |

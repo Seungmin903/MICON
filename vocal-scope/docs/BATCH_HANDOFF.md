@@ -109,7 +109,9 @@ Get-Content ..\..\smoke.log -Tail 3
 
 시범 50곡 기준값: f0 합의 0.86, 옥타브 불일치 < 0.05, 가사 정렬 0.21(낮음 — 청취 검증 전이라 `lyricStatus`로만 구분). `f0Agreement < 0.6`이거나 음역이 4옥타브를 넘는 곡(예: tj-38028 F2–G♯6)은 의심 목록에 적어 둡니다.
 
-### 4-5. DB 적재
+### 4-5. 개발용 DB 산출물 생성 및 로컬 적재
+
+아래 명령은 개발용 빈 DB에서 검토할 로컬 예시이며 SSAFY 운영 DB에 직접 실행하는 절차가 아닙니다. 운영 앱 계정으로 root를 사용하지 않습니다. 기존 스키마/데이터에 재실행하기 전 변경 범위를 확인합니다.
 
 ```powershell
 & $PY build_catalog_db.py --catalog $V6 --audio-root $AUDIO --out ..\..\outputs\micon_catalog.sqlite --mysql-dump ..\..\outputs\micon_catalog.mysql.sql
@@ -120,6 +122,15 @@ mysql -u root -p micon < ..\..\outputs\micon_catalog.mysql.sql
 ```
 
 재실행 가능(`INSERT … ON DUPLICATE KEY UPDATE`). `songs.audio_path`·`song_artifacts.path`에는 **이 PC의 절대경로**가 들어가므로, 앱 서버가 다른 곳이면 opus 파일과 함께 경로 치환이 필요합니다(오디오는 DB 밖).
+
+### 4-6. SSAFY 서버 + 개인 S3 운영 인수 (2026-09-09)
+
+1. [공통 S3 운영 계약](../../docs/operations/S3_VOICE_STORAGE.md)의 실제 버킷·서울 리전·별도 업로더 인증을 인프라에게 받습니다. 개인 버킷 생성·권한 주입은 아직 미완료입니다. BE 녹음용 키나 루트 키를 공유하지 않습니다.
+2. 업로드 권한·음원/가사 이용 권리·민감정보를 확인한 산출물만 전용 폴더에 모읍니다. workspace 전체·캐시·키·DB 덤프를 일괄 업로드하지 않습니다. 공통 문서의 sync dry-run으로 신규 `catalog/<batch-id>/` 대상·용량을 확인한 뒤 업로드합니다.
+3. 곡 ID↔object key·크기·체크섬·데이터 버전 manifest와 다운로드 표본을 검증합니다. 실제 앱/AI가 사용할 Opus·npz·JSON 등 파일 목록은 담당자와 맞춥니다.
+4. `songs.audio_path`·`song_artifacts.path`의 PC 절대경로를 운영 object key/파일 참조로 매핑합니다. 현재 적재기에 S3 경로 변환을 구현했다는 뜻이 아닙니다. `s3://...` 문자열이나 만료 URL을 기존 로컬 파일 API에 넣기만 하면 스트리밍된다고 가정하지 않습니다.
+5. BE/DB 담당자가 실제 Flyway 스키마와 덤프의 호환성을 검토하고 승인된 전용 적재 절차로 SSAFY MySQL에 반영합니다. 파일 업로드와 DB import는 별도 완료 조건입니다. 운영 DB 포트를 공개하거나 위 root import를 그대로 실행하지 않습니다.
+6. 음원 제공 주체·catalog 읽기 권한·인증된 다운로드/스트리밍 경로를 구현·검증한 후 곡 목록·연습 재생·AI 입력을 통합 확인합니다. 현재 BE 녹음 권한에는 catalog/ 접근이 없으며 이 문서가 자동 적재/배포 완료를 뜻하지 않습니다.
 
 ## 5. 산출물 구조
 
