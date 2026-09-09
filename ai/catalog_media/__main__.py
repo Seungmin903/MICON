@@ -10,10 +10,18 @@ import sys
 import pymysql
 from botocore.exceptions import BotoCoreError, ClientError
 
-from ai.embedding_catalog.prepare import read_bounded
 from .contract import read_mapping, require
 from .registry import CatalogMediaRegistry
 from .storage import CatalogMediaStore
+
+
+def read_bounded(path: Path, maximum: int) -> bytes:
+    require(path.is_file() and path.stat().st_size <= maximum,
+            f"Missing or oversized input: {path.name}")
+    with path.open("rb") as stream:
+        result = stream.read(maximum + 1)
+    require(len(result) <= maximum, "Input grew beyond its limit")
+    return result
 
 
 def database():
