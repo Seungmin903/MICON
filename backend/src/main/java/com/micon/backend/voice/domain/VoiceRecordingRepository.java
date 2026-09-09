@@ -7,10 +7,16 @@ import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface VoiceRecordingRepository extends JpaRepository<VoiceRecording, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select recording from VoiceRecording recording join fetch recording.user where recording.id = :recordingId")
     Optional<VoiceRecording> findByIdForUpdate(@Param("recordingId") Long recordingId);
+
+    Page<VoiceRecording> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
+
+    Optional<VoiceRecording> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
 }

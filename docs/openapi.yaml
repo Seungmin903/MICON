@@ -913,14 +913,24 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - name: "page"
+          in: "query"
+          schema: { type: "integer", minimum: 0, default: 0 }
+        - name: "size"
+          in: "query"
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20 }
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "삭제되지 않은 본인 녹음 목록"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingPageApiResponse" }
     post:
       tags: ["녹음"]
       summary: "측정·연습 녹음 업로드 API"
@@ -993,19 +1003,26 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/RecordingId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "본인 녹음 메타데이터"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingDetailApiResponse" }
+        "404":
+          description: "녹음이 없거나 본인 소유가 아님"
   "/recordings/{recordingId}/content":
     get:
       tags: ["음성 데이터"]
       summary: "원본 녹음 재생 API"
-      description: "소유권 확인 후 보관 중인 녹음을 제공한다."
+      description: "소유권 확인 후 보관 중인 녹음의 단기 Presigned GET URL을 제공한다."
       operationId: "micon040"
       servers:
         - url: "{backendUrl}"
@@ -1017,14 +1034,23 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "진행 중"
+      x-backend-status: "구현 완료"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
+      parameters:
+        - $ref: "#/components/parameters/RecordingId"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "10분간 유효한 재생 URL"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordingPlaybackApiResponse" }
+        "404":
+          description: "녹음이 없거나 본인 소유가 아님"
+        "409":
+          description: "녹음 업로드가 완료되지 않음"
   "/setlists":
     get:
       tags: ["세트리스트"]
@@ -2107,6 +2133,13 @@ paths:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
 components:
   parameters:
+    RecordingId:
+      name: "recordingId"
+      in: "path"
+      required: true
+      schema:
+        type: "integer"
+        format: "int64"
     AnalysisId:
       name: "analysisId"
       in: "path"
@@ -2121,6 +2154,60 @@ components:
       schema:
         type: "string"
   schemas:
+    RecordingDetail:
+      type: "object"
+      required: ["recordingId", "attemptNo", "mediaType", "keepOriginal", "uploadStatus", "createdAt"]
+      properties:
+        recordingId: { type: "integer", format: "int64" }
+        attemptNo: { type: "integer" }
+        mediaType: { type: "string" }
+        fileBytes: { type: ["integer", "null"], format: "int64" }
+        durationMs: { type: ["integer", "null"] }
+        sampleRate: { type: ["integer", "null"] }
+        keepOriginal: { type: "boolean" }
+        uploadStatus:
+          type: "string"
+          enum: ["UPLOADING", "UPLOADED", "FAILED", "DELETE_PENDING", "DELETED"]
+        deleteScheduledAt: { type: ["string", "null"], format: "date-time" }
+        createdAt: { type: "string", format: "date-time" }
+    RecordingDetailApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code: { type: "string", example: "SUCCESS" }
+        message: { type: "string" }
+        data: { $ref: "#/components/schemas/RecordingDetail" }
+    RecordingPageApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code: { type: "string", example: "SUCCESS" }
+        message: { type: "string" }
+        data:
+          type: "object"
+          required: ["content", "page", "size", "totalElements", "totalPages"]
+          properties:
+            content:
+              type: "array"
+              items: { $ref: "#/components/schemas/RecordingDetail" }
+            page: { type: "integer" }
+            size: { type: "integer" }
+            totalElements: { type: "integer", format: "int64" }
+            totalPages: { type: "integer" }
+    RecordingPlaybackApiResponse:
+      type: "object"
+      required: ["code", "message", "data"]
+      properties:
+        code: { type: "string", example: "SUCCESS" }
+        message: { type: "string" }
+        data:
+          type: "object"
+          required: ["recordingId", "contentUrl", "mediaType", "expiresAt"]
+          properties:
+            recordingId: { type: "integer", format: "int64" }
+            contentUrl: { type: "string", format: "uri" }
+            mediaType: { type: "string" }
+            expiresAt: { type: "string", format: "date-time" }
     VoiceAnalysisSummary:
       type: "object"
       required: ["analysisId", "recordingId", "method", "status", "createdAt"]
