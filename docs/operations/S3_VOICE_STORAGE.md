@@ -244,4 +244,4 @@ aws s3 sync 'C:\micon\catalog-export' 's3://<BUCKET_NAME>/catalog/import-2026090
 
 키 회전은 새 키 준비 → 서버 파일 교체/필요한 재시작 → 실제 업로드·재생·삭제 확인 → 이전 키 비활성화·폐기 순서로 수행한다. 이미지 롤백과 자격 증명 회전은 별개이며 폐기/노출된 키를 복구하지 않는다. 키 노출 시 해당 키를 신속히 차단하고 영향 확인·교체 후 재검증한다. 개인 계정에는 MFA를 적용하고 프로젝트 종료 시 데이터 인수·삭제와 비용 책임을 정리한다.
 
-관련 문서: [BE 실행 계약](BACKEND_RUNTIME_CONTRACT.md), [환경변수 예제](../../backend/.env.example), [MySQL 운영 구성](MYSQL_RUNTIME.md), [서버 릴리스](SERVER_RELEASE_RUNBOOK.md), [배포 체크리스트](DEPLOYMENT_READINESS.md).
+관련 문서: [담당 팀원용 카탈로그 업로드 안내](S3_CATALOG_UPLOAD_GUIDE.md), [BE 실행 계약](BACKEND_RUNTIME_CONTRACT.md), [환경변수 예제](../../backend/.env.example), [MySQL 운영 구성](MYSQL_RUNTIME.md), [서버 릴리스](SERVER_RELEASE_RUNBOOK.md), [배포 체크리스트](DEPLOYMENT_READINESS.md).
