@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import sys
 import unicodedata
+from datetime import date
 from pathlib import Path
 
 
@@ -51,6 +52,20 @@ def sql_json(value: object) -> str:
 
 def normalized_text(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+
+
+def normalized_release_date(value: object) -> str | None:
+    """Return a MySQL DATE only for complete ISO dates; preserve partial text separately."""
+    if value is None:
+        return None
+    candidate = str(value).strip()
+    if not candidate:
+        return None
+    try:
+        date.fromisoformat(candidate)
+    except ValueError:
+        return None
+    return candidate
 
 
 def split_source_folder(source_folder: str) -> tuple[str, str]:
@@ -157,7 +172,8 @@ def prepare_record(raw: dict[str, object], line_number: int) -> dict[str, object
         "duration_ms": round(float(analysis["duration"]) * 1000),
         "artists": artists,
         "album_name": raw.get("album_name"),
-        "release_date": raw.get("release_date"),
+        "release_date": normalized_release_date(raw.get("release_date")),
+        "release_date_raw": raw.get("release_date"),
         "display_image_url": raw.get("display_image_url"),
         "image_type": IMAGE_TYPES[raw.get("image_type")],
         "language": language,
@@ -239,7 +255,7 @@ def render_record(record: dict[str, object]) -> list[str]:
             [
                 "@song_id", track, sql_json(record["external_ids"]), sql_json(record["credits"]),
                 sql_nullable_string(record["album_name"]), sql_nullable_string(record["release_date"]),
-                sql_nullable_string(record["release_date"]),
+                sql_nullable_string(record["release_date_raw"]),
                 sql_nullable_string(record["display_image_url"]), sql_nullable_string(record["language"]),
                 sql_json(record["languages"]), sql_json(record["source_genres"]),
                 sql_nullable_string(record["lyrics_plain"]), sql_json(record["lyrics_synced"]),
