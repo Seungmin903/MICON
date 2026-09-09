@@ -38,4 +38,21 @@ mysql-song-import:
     GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx384m'
   script:
     - sh infra/mysql/verify-song-import.sh
+    - cd backend && sh ./gradlew --no-daemon --max-workers=1 --console=plain test --tests '*EmbeddingCatalog*'
+
+embedding-catalog-tests:
+  stage: verify
+  timeout: 10 minutes
+  services:
+    - name: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+      alias: mysql
+  variables:
+    MYSQL_ROOT_PASSWORD: ci-root-password
+    MYSQL_ROOT_HOST: '%'
+    MICON_MYSQL_TEST: '1'
+    MICON_TEST_DB_HOST: mysql
+    MICON_TEST_DB_PASSWORD: ci-root-password
+  script:
+    - 'pip install --disable-pip-version-check --only-binary=:all: -r ai/embedding_catalog/requirements-test.txt'
+    - python -m pytest ai/embedding_catalog/tests -v
 

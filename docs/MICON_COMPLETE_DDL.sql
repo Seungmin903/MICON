@@ -1,4 +1,7 @@
 -- MICON complete schema
+-- Reference DDL only; deployed databases use backend Flyway V1..V7.
+-- Embedding catalog additions are defined in V7__create_embedding_catalog.sql.
+-- Do not execute this reference DDL alongside Flyway on a deployed database.
 -- Target: MySQL 8.0.16+
 -- Intended for an empty database. This script does not DROP existing objects.
 

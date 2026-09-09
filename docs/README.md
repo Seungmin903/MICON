@@ -16,6 +16,7 @@
 - [배포 준비 체크리스트](operations/DEPLOYMENT_READINESS.md) — API 계약·서버 배포·APK 배포·QA
 - [SSAFY 서버 + 개인 S3 운영 계약](operations/S3_VOICE_STORAGE.md) — 계정 분리, 비공개 버킷·IAM·서버 인증, 팀원 업로드와 DB 적재 구분
 - [담당 팀원용 S3 카탈로그 업로드 안내](operations/S3_CATALOG_UPLOAD_GUIDE.md) — 개인 업로더 프로필 설정, dry-run·업로드·완료 보고 절차
+- [곡 임베딩 S3 적재·활성화](operations/EMBEDDING_CATALOG.md) — ECAPA·Singer-BYOL, Flyway V7, ID 매핑·조건부 업로드·롤백·AI 캐시
 - [BE 운영 실행 계약](operations/BACKEND_RUNTIME_CONTRACT.md) — DB·AI·S3 환경변수와 배포 조건
 - [MySQL 운영 구성](operations/MYSQL_RUNTIME.md) — SSAFY 서버의 DB 네트워크·영속성
 - [서버 릴리스 Runbook](operations/SERVER_RELEASE_RUNBOOK.md) — 후보 검증·전환·복구, S3 사전 조건
