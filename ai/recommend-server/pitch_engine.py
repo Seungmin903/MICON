@@ -16,6 +16,7 @@ Pipeline (all curves live on a shared 10 ms frame grid, hop 160 @ 16 kHz):
 from __future__ import annotations
 
 import math
+import os
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -138,16 +139,23 @@ def _frequency_to_bin(frequency: float, ceil: bool = False) -> int:
     return int(math.ceil(value)) if ceil else int(math.floor(value))
 
 
+def _crepe_model(device: str) -> str:
+    """GPU 는 full, CPU 는 tiny. 2코어 CPU 에서 full 은 30초 입력에 84초, tiny 는 5초였고 프로파일 5개 값(최저·주요 하한·중앙·주요 상한·최고)은
+    같았다(2026-09-09, 밤편지 90초·30초 클립). 환경변수 RECOMMEND_CREPE_MODEL 로 강제할 수 있다."""
+    return os.environ.get("RECOMMEND_CREPE_MODEL") or ("full" if device == "cuda" else "tiny")
+
+
 def _crepe_probabilities(audio: np.ndarray, device: str) -> np.ndarray:
-    """Whole-track CREPE-full per-bin sigmoid probabilities, shape [frames, 360], float32 on CPU."""
+    """Whole-track CREPE per-bin sigmoid probabilities, shape [frames, 360], float32 on CPU. Model capacity: _crepe_model."""
     audio_tensor = torch.from_numpy(np.ascontiguousarray(audio, dtype=np.float32)).unsqueeze(0)
     chunks: list[np.ndarray] = []
+    model = _crepe_model(device)
     with torch.inference_mode():
         generator = torchcrepe.preprocess(
             audio_tensor, SAMPLE_RATE, HOP_LENGTH, batch_size=CREPE_BATCH, device=device, pad=True
         )
         for frames in generator:
-            probabilities = torchcrepe.infer(frames, model="full", device=device)
+            probabilities = torchcrepe.infer(frames, model=model, device=device)
             chunks.append(probabilities.float().cpu().numpy())
     probabilities = np.concatenate(chunks, axis=0)
     low = max(0, _frequency_to_bin(FMIN))
