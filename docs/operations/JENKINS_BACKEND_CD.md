@@ -19,7 +19,7 @@ Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client�
 
 ## Pipeline 순서
 
-1. Jenkins SCM checkout 후 `BRANCH_NAME`, `GIT_BRANCH`, GitLab source branch 중 하나가 정확히 `main`인지 확인한다. MR target이 main이라는 이유만으로 배포하지 않는다.
+1. Jenkins SCM checkout 후 `BRANCH_NAME`, `GIT_BRANCH`, GitLab source branch 중 하나가 정확히 `main`인지 확인하고, checkout의 HEAD가 로컬 `refs/remotes/origin/main`과 정확히 같은 SHA인지 다시 검사한다. MR target이 main이라는 이유만으로 배포하지 않는다.
 2. BE contract, deploy gate 전체 Python 테스트와 Gradle `test bootJar`를 실행한다.
 3. 정확한 40자리 commit SHA의 `git archive`를 만들고 SHA-256을 기록한다.
 4. host key 검증을 끄지 않고 archive를 서버 `/home/ubuntu/micon-releases/incoming/`으로 전송한다.

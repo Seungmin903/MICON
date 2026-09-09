@@ -16,6 +16,8 @@ class BackendCdContractTests(unittest.TestCase):
 
     def test_pipeline_is_main_only_and_serial(self):
         self.assertIn("restricted to the main branch", self.pipeline)
+        self.assertIn("refs/remotes/origin/main", self.pipeline)
+        self.assertIn("does not match the reviewed origin/main revision", self.pipeline)
         self.assertIn("disableConcurrentBuilds()", self.pipeline)
         self.assertNotIn("abortPrevious: true", self.pipeline)
 

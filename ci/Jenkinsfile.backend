@@ -31,6 +31,13 @@ pipeline {
                     if (!(env.RELEASE_SHA ==~ /[0-9a-f]{40}/)) {
                         error('Checkout did not produce a full commit SHA')
                     }
+                    def reviewedMainSha = sh(
+                        returnStdout: true,
+                        script: 'git rev-parse --verify refs/remotes/origin/main'
+                    ).trim()
+                    if (env.RELEASE_SHA != reviewedMainSha) {
+                        error('Checkout HEAD does not match the reviewed origin/main revision')
+                    }
                 }
             }
         }
