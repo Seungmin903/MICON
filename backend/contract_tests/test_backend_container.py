@@ -15,6 +15,7 @@ class BackendContainerContractTests(unittest.TestCase):
         cls.compose = (ROOT / "infra/compose/backend.compose.yml").read_text(encoding="utf-8")
         cls.production = (ROOT / "backend/src/main/resources/application-prod.properties").read_text(encoding="utf-8")
         cls.security = (ROOT / "backend/src/main/java/com/micon/backend/auth/config/SecurityConfig.java").read_text(encoding="utf-8")
+        cls.host_prep = (ROOT / "infra/deploy/prepare_backend_host.sh").read_text(encoding="utf-8")
 
     def test_image_is_pinned_and_runs_as_non_root(self):
         self.assertIn("@sha256:", self.dockerfile)
@@ -27,8 +28,10 @@ class BackendContainerContractTests(unittest.TestCase):
             self.assertNotIn(f"{name}=", self.compose)
         self.assertIn("AWS_SHARED_CREDENTIALS_FILE: /run/secrets/aws_credentials", self.compose)
         self.assertIn("load_secret DB_PASSWORD required", self.entrypoint)
-        self.assertGreaterEqual(self.compose.count('uid: "10001"'), 4)
-        self.assertGreaterEqual(self.compose.count("mode: 0400"), 4)
+        self.assertGreaterEqual(self.compose.count("/etc/micon/backend-secrets/"), 4)
+        self.assertIn("-o \"$BACKEND_UID\"", self.host_prep)
+        self.assertIn("-m 0400", self.host_prep)
+        self.assertIn("require_secret aws_credentials", self.host_prep)
 
     def test_database_is_internal_but_backend_has_egress(self):
         self.assertIn("name: micon_backend", self.compose)

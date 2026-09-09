@@ -55,26 +55,10 @@ services:
       - backend
       - egress
     secrets:
-      - source: mysql_app_password
-        target: mysql_app_password
-        uid: "10001"
-        gid: "10001"
-        mode: 0400
-      - source: jwt_secret
-        target: jwt_secret
-        uid: "10001"
-        gid: "10001"
-        mode: 0400
-      - source: ai_service_token
-        target: ai_service_token
-        uid: "10001"
-        gid: "10001"
-        mode: 0400
-      - source: aws_credentials
-        target: aws_credentials
-        uid: "10001"
-        gid: "10001"
-        mode: 0400
+      - mysql_app_password
+      - jwt_secret
+      - ai_service_token
+      - aws_credentials
     healthcheck:
       test:
         - CMD
@@ -109,10 +93,10 @@ secrets:
   mysql_migration_password:
     file: /etc/micon/secrets/mysql_migration_password
   mysql_app_password:
-    file: /etc/micon/secrets/mysql_app_password
+    file: /etc/micon/backend-secrets/mysql_app_password
   jwt_secret:
-    file: /etc/micon/secrets/jwt_secret
+    file: /etc/micon/backend-secrets/jwt_secret
   ai_service_token:
-    file: /etc/micon/secrets/ai_service_token
+    file: /etc/micon/backend-secrets/ai_service_token
   aws_credentials:
-    file: /etc/micon/secrets/aws_credentials
+    file: /etc/micon/backend-secrets/aws_credentials
