@@ -103,10 +103,12 @@ import com.micon.app.ui.theme.InkSoft
 import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Orange
+import com.micon.app.ui.theme.Paper
 import com.micon.app.ui.theme.Pink
 import com.micon.app.ui.theme.PinkBg
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.PurpleMid
+import com.micon.app.ui.theme.RecommendBackground
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -247,17 +249,27 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
-    fun open(item: RecommendedSong) { vm.onTap(item); onSongClick(item.song.id) }
-    fun openId(id: String) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
-
     val pagerState = rememberPagerState { state.shelves.size.coerceAtLeast(1) }
     val shelf = state.shelves.getOrNull(pagerState.currentPage)
+
+    /** 턴테이블 화면이 좌우로 넘길 수 있게, 지금 보고 있는 섹션의 곡 목록·제목·앨범 이미지를 함께 넘긴다 */
+    fun open(item: RecommendedSong) {
+        vm.onTap(item)
+        val pageSongs = (shelf?.items ?: state.searchItems).map { it.song }
+        setSongCarousel(
+            ids = pageSongs.map { it.id },
+            title = if (shelf != null && state.personalized) shelfTitle(shelf, state.userName) else "추천곡",
+            images = pageSongs.associate { it.id to it.imageUrl },
+        )
+        onSongClick(item.song.id)
+    }
+    fun openId(id: String) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
 
     // 시안: 검색바 없음, 제목 옆 🔍 만. 누르면 제목 자리가 검색창으로 바뀌고, 다시 누르면 검색을 접고 지운다.
     var searchOpen by remember { mutableStateOf(false) }
     var openFilter by remember { mutableStateOf<String?>(null) }     // "era" | "genre" — 열려 있는 드롭다운
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(RecommendBackground)) {
         MiconHeader(onSettings = onSettings)
         Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (searchOpen) {
@@ -364,26 +376,23 @@ private fun EmptyRecommend(searching: Boolean, onAction: () -> Unit, actionLabel
  * 넓이 총합이 [BUBBLE_COVERAGE] 로 고정이라 장수를 늘리면 LP 가 그만큼 작아지고 **간격은 그대로** 유지된다.
  * (5장 → 8장으로 늘리면서 LP 지름이 정확히 81 % 가 됐다)
  */
-private val BUBBLE_WEIGHTS = listOf(1f, 0.92f, 0.88f, 0.84f, 0.80f, 0.76f, 0.72f, 0.66f)
+private val BUBBLE_WEIGHTS = listOf(1f, 0.92f, 0.88f, 0.84f, 0.80f, 0.76f, 0.72f)
 
 /** 원들이 영역 넓이에서 차지할 목표 비율. 이 값이 LP 사이 간격을 정한다 — 높일수록 빽빽하다. */
-private const val BUBBLE_COVERAGE = 0.66f
-
-/** 화면 밖으로 나가도 되는 최대치(가로 폭 기준). 가장자리 LP 가 이만큼 잘려 나가며 화면을 꽉 채운다. */
-private const val BUBBLE_BLEED = 0.10f
+private const val BUBBLE_COVERAGE = 0.62f
 
 /**
- * 원 배치 계산. 가로 1 · 세로 [aspect] 인 영역에 원들을 **겹치지 않게** 놓는다. 반환은 (중심x, 중심y, 지름)이고 단위는 모두 가로 폭.
+ * 원 배치 계산. 가로 1 · 세로 [aspect] 인 영역에 원들을 **겹치지 않고 영역 안쪽에 완전히** 놓는다.
+ * 반환은 (중심x, 중심y, 지름)이고 단위는 모두 가로 폭.
  *
- * 넓이 비율([coverage])로 지름을 정하고 → 해바라기 나선으로 고르게 뿌린 뒤 → "겹친 만큼 밀어내기 + 영역 쪽으로 당기기"를 반복한다.
- * 가장자리 LP 는 [bleed] 만큼 화면 밖으로 나가 잘린다 — 그래야 여백 없이 꽉 찬다. 겹침은 어떤 경우에도 없다.
+ * 넓이 비율([coverage])로 지름을 정하고 → 해바라기 나선으로 고르게 뿌린 뒤 → "겹친 만큼 밀어내기 + 영역 안으로 당기기"를 반복한다.
+ * LP 를 화면 밖으로 흘려 보내면(bleed) 위쪽 필터 바와 겹쳐 보이고 잘린 모양도 예쁘지 않아 쓰지 않는다 — 전부 안쪽에 넣는다.
  * 화면 비율마다 그때그때 다시 풀기 때문에 기기가 달라도 결과가 깨지지 않는다. 못 풀면 3 % 줄여 다시(최대 10 회).
  */
 internal fun packBubbles(
     aspect: Float,
     weights: List<Float> = BUBBLE_WEIGHTS,
     coverage: Float = BUBBLE_COVERAGE,
-    bleed: Float = BUBBLE_BLEED,
 ): List<Triple<Float, Float, Float>> {
     val n = weights.size
     var k = sqrt(coverage * aspect / (PI.toFloat() / 4 * weights.sumOf { (it * it).toDouble() }.toFloat()))
@@ -409,14 +418,14 @@ internal fun packBubbles(
                     x[j] += dx * push; y[j] += dy * push
                 }
             }
-            for (i in 0 until n) {                               // 영역 쪽으로 (bleed 만큼은 밖으로 나가도 된다)
-                x[i] = x[i].coerceAtLeast(r[i] - bleed).coerceAtMost(1f - r[i] + bleed)
-                y[i] = y[i].coerceAtLeast(r[i] - bleed).coerceAtMost(aspect - r[i] + bleed)
+            for (i in 0 until n) {                               // 영역 안으로 (반지름이 커 범위가 뒤집혀도 예외 없이)
+                x[i] = x[i].coerceAtLeast(r[i]).coerceAtMost(1f - r[i])
+                y[i] = y[i].coerceAtLeast(r[i]).coerceAtMost(aspect - r[i])
             }
         }
         last = List(n) { Triple(x[it], y[it], 2 * r[it]) }
-        // 원이 화면보다 커지지 않고(장수가 적을 때) 서로 겹치지 않아야 통과
-        val inside = (0 until n).all { i -> 2 * r[i] <= 1f + 2 * bleed && 2 * r[i] <= aspect + 2 * bleed }
+        // 영역 안에 다 들어오고(장수가 적으면 원이 영역보다 커질 수 있다) 서로 겹치지 않아야 통과
+        val inside = (0 until n).all { i -> 2 * r[i] <= 1f + 1e-3f && 2 * r[i] <= aspect + 1e-3f }
         val apart = (0 until n).all { i -> (i + 1 until n).all { j -> hypot(x[j] - x[i], y[j] - y[i]) >= r[i] + r[j] - 1e-3f } }
         if (inside && apart) return last
         k *= 0.97f
@@ -500,12 +509,34 @@ fun SongMatchDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> 
     }
 }
 
+/** 분석 본문 색. 흰 화면(기존 상세)과 검은 시트(턴테이블) 두 곳에서 같은 내용을 쓴다. */
+internal data class MatchPalette(
+    val card: Color, val sub: Color, val title: Color, val body: Color, val muted: Color, val track: Color, val accent: Color,
+)
+
+internal val LightMatch = MatchPalette(Paper, GreyBg, Ink, InkSoft, Grey, GreyLight, Purple)
+internal val DarkMatch = MatchPalette(
+    card = Color(0xFF1A2230), sub = Color(0xFF141B27), title = Color.White,
+    body = Color(0xFFD3D8E3), muted = Color(0xFF98A0B0), track = Color(0xFF2A3444), accent = Color(0xFFB3A5FF),
+)
+
 /**
  * 곡 분석 및 추천 본문. 적합도·추천 키·부담 구간은 [SongFit] 을 **그리기만** 한다(계산은 RecommendRepository).
  * fit == null → "평가 불가" (프로필 없음 또는 곡 음역 정보 없음, ERR-004). 음색·리듬은 데이터가 없으면 0점이 아닌 "평가 불가".
+ *
+ * [showHeader] 를 끄면 맨 위 곡 제목 카드를 그리지 않는다 — 턴테이블 화면은 시트 머리에 이미 제목·가수가 있다.
+ * [scroll] 을 넘기면 바깥 스크롤에 얹혀 그려진다(자체 스크롤 없음).
  */
 @Composable
-private fun MatchBody(detail: SongDetail, fit: SongFit?, profile: UserStore.VoiceProfile?, onPractice: () -> Unit) {
+internal fun MatchBody(
+    detail: SongDetail,
+    fit: SongFit?,
+    profile: UserStore.VoiceProfile?,
+    onPractice: () -> Unit,
+    palette: MatchPalette = LightMatch,
+    showHeader: Boolean = true,
+    ownScroll: Boolean = true,
+) {
     val song = detail.summary
     val a = detail.analysis
     // 곡 음역: 로컬 분석이 있으면 전체 음역, 없으면(서버 추천 곡) 서버가 준 주요 음역(5~95 %)
@@ -522,62 +553,65 @@ private fun MatchBody(detail: SongDetail, fit: SongFit?, profile: UserStore.Voic
     val axisLow = minOf(songLow, userLow) - 2
     val axisHigh = maxOf(songHigh, userHigh) + 2
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        MiconCard {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(96.dp).clip(RoundedCornerShape(14.dp)).background(LavenderDeep)) {
-                    song.imageUrl?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                }
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    // 적합도는 숫자 대신 말로만 (찰떡궁합 / 잘 맞아요 / 도전해 보세요)
-                    Text(fitLabel, fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(8.dp))
-                    Text(song.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
-                    Spacer(Modifier.height(4.dp))
-                    Text(song.artist, fontSize = 15.sp, color = Grey)
+    val scrollMod = if (ownScroll) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth()
+    Column(scrollMod.padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (showHeader) {
+            MiconCard(color = palette.card) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(96.dp).clip(RoundedCornerShape(14.dp)).background(LavenderDeep)) {
+                        song.imageUrl?.let { AsyncImage(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        // 적합도는 숫자 대신 말로만 (찰떡궁합 / 잘 맞아요 / 도전해 보세요)
+                        Text(fitLabel, fontSize = 14.sp, color = palette.accent, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Text(song.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.title)
+                        Spacer(Modifier.height(4.dp))
+                        Text(song.artist, fontSize = 15.sp, color = palette.muted)
+                    }
                 }
             }
         }
 
-        MiconCard {
-            CardTitle("음역대 매칭 분석") {
+        MiconCard(color = palette.card) {
+            CardTitle("음역대 매칭 분석", color = palette.title) {
                 Text(
                     when { fit == null -> "데이터 부족"; fitPct!! >= 75 -> "안정적인 소화 가능"; else -> "일부 구간 주의" },
-                    fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp, color = palette.accent, fontWeight = FontWeight.SemiBold,
                 )
             }
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("1옥타브 (Low)", fontSize = 12.sp, color = Grey); Text("2옥타브", fontSize = 12.sp, color = Grey); Text("3옥타브 (High)", fontSize = 12.sp, color = Grey)
+                Text("1옥타브 (Low)", fontSize = 12.sp, color = palette.muted); Text("2옥타브", fontSize = 12.sp, color = palette.muted); Text("3옥타브 (High)", fontSize = 12.sp, color = palette.muted)
             }
             Spacer(Modifier.height(12.dp))
             if (profile != null) {
-                RangeBarRow("내 음역 범위 (${karaokeOctaveName(profile.lowMidi)} ~ ${karaokeOctaveName(profile.highMidi)})", profile.lowMidi, profile.highMidi, axisLow, axisHigh, LavenderDeep)
+                RangeBarRow("내 음역 범위 (${karaokeOctaveName(profile.lowMidi)} ~ ${karaokeOctaveName(profile.highMidi)})", profile.lowMidi, profile.highMidi, axisLow, axisHigh, LavenderDeep, palette)
             } else {
-                Text("내 음역 범위: 목소리 분석 후 표시됩니다", fontSize = 13.sp, color = Grey)
+                Text("내 음역 범위: 목소리 분석 후 표시됩니다", fontSize = 13.sp, color = palette.muted)
             }
             Spacer(Modifier.height(12.dp))
             if (hasSongRange) {
                 RangeBarRow(
                     (if (coreOnly) "곡 주요 음역 " else "곡 음역 범위 ") + "(${karaokeOctaveName(songLow)} ~ ${karaokeOctaveName(songHigh)})",
-                    songLow, songHigh, axisLow, axisHigh, Purple,
+                    songLow, songHigh, axisLow, axisHigh, palette.accent, palette,
                 )
             } else {
-                Text("곡 음역 범위: 분석 정보 없음", fontSize = 13.sp, color = Grey)
+                Text("곡 음역 범위: 분석 정보 없음", fontSize = 13.sp, color = palette.muted)
             }
             Spacer(Modifier.height(14.dp))
             if (profile == null) {
-                Text("리포트 탭에서 목소리를 분석하면 이 곡과 내 음역을 비교해 드려요.", fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp)
+                Text("리포트 탭에서 목소리를 분석하면 이 곡과 내 음역을 비교해 드려요.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
             } else if (!hasSongRange) {
-                Text("이 곡은 음역 분석 정보가 없어 적합도를 평가할 수 없어요.", fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp)
+                Text("이 곡은 음역 분석 정보가 없어 적합도를 평가할 수 없어요.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
             } else if (coreOnly) {
-                Text("곡의 주요 음역(자주 부르는 5~95 % 구간)은 추천 서버 분석 기준이에요. 최고음·최저음은 곡 분석이 추가되면 표시됩니다.", fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp)
+                Text("곡의 주요 음역(자주 부르는 5~95 % 구간)은 추천 서버 분석 기준이에요. 최고음·최저음은 곡 분석이 추가되면 표시됩니다.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
             } else {
                 Text(
                     buildAnnotatedString {
                         append("이 곡의 최고음은 ")
-                        withStyle(SpanStyle(color = Purple, fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(songHigh)) }
+                        withStyle(SpanStyle(color = palette.accent, fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(songHigh)) }
                         append("로, 회원님의 안정 음역대인 ")
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(karaokeOctaveName(profile.comfortHigh)) }
                         append(
@@ -585,69 +619,59 @@ private fun MatchBody(detail: SongDetail, fit: SongFit?, profile: UserStore.Voic
                             else "보다 ${songHigh - profile.comfortHigh}키 높아 고음 구간에서 부담이 있을 수 있습니다.",
                         )
                     },
-                    fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp,
+                    fontSize = 15.sp, color = palette.body, lineHeight = 22.sp,
                 )
             }
         }
 
-        MiconCard {
-            CardTitle("곡 맞춤 설정 추천")
+        MiconCard(color = palette.card) {
+            CardTitle("곡 맞춤 설정 추천", color = palette.title)
             Spacer(Modifier.height(14.dp))
-            SubCard("권장 키 조절", keyText) {
+            SubCard("권장 키 조절", keyText, palette) {
                 val rangeReason = fit?.reasons?.firstOrNull { it != fit.timbre?.label }
                 Text(
                     rangeReason ?: when { fit == null -> "곡 음역 정보와 내 프로필이 있어야 계산돼요"; key == 0 -> "원곡 키가 내 주요 음역과 맞아요"; else -> "곡의 주요 음역을 내 음역에 맞추는 조정이에요" },
-                    fontSize = 13.sp, color = Purple,
+                    fontSize = 13.sp, color = palette.accent,
                 )
             }
             Spacer(Modifier.height(12.dp))
-            SubCard("음색 적합도", fit?.timbre?.label ?: "평가 불가") {
-                Text(if (fit?.timbre != null) "두 축 중 ${fit.timbre.axis} 기준" else "음색 추천은 서버 연결 후 제공돼요", fontSize = 13.sp, color = Grey)
+            SubCard("음색 적합도", fit?.timbre?.label ?: "평가 불가", palette) {
+                Text(if (fit?.timbre != null) "두 축 중 ${fit.timbre.axis} 기준" else "음색 추천은 서버 연결 후 제공돼요", fontSize = 13.sp, color = palette.muted)
             }
-            Spacer(Modifier.height(12.dp))
-            SubCard("리듬 적합도", fit?.rhythmFit?.let { "${(it * 100).roundToInt()}%" } ?: "평가 불가") {
-                Text("리듬 분석 데이터가 아직 없어요", fontSize = 13.sp, color = Grey)
-            }
+            // 리듬 적합도는 데이터가 없어 "평가 불가"만 뜨므로 카드를 두지 않는다. 리듬 분석이 생기면 SongFit.rhythmFit 으로 되살린다.
         }
 
-        MiconCard {
+        MiconCard(color = palette.card) {
             val strain = fit?.strainSections
-            CardTitle("부담 구간") {
+            CardTitle("부담 구간", color = palette.title) {
                 Text(
                     if (strain == null) "평가 불가" else "원키 ${strain.original.size}곳 → 추천 키 ${strain.atKey.size}곳",
-                    fontSize = 13.sp, color = Grey,
+                    fontSize = 13.sp, color = palette.muted,
                 )
             }
             Spacer(Modifier.height(14.dp))
             when {
-                strain == null -> Text("프로필과 곡 음표가 있어야 계산돼요", fontSize = 13.sp, color = Grey)
-                strain.atKey.isEmpty() -> Text("추천 키로 부르면 안정 음역을 넘는 구간이 없어요", fontSize = 14.sp, color = InkSoft)
+                strain == null -> Text("프로필과 곡 음표가 있어야 계산돼요", fontSize = 13.sp, color = palette.muted)
+                strain.atKey.isEmpty() -> Text("추천 키로 부르면 안정 음역을 넘는 구간이 없어요", fontSize = 14.sp, color = palette.body)
                 else -> strain.atKey.take(5).forEachIndexed { i, s ->
                     if (i > 0) Spacer(Modifier.height(8.dp))
-                    HighlightRow("부담", "안정 음역 +${s.maxExcessSemitones}반음 초과", "${ScoringMath.formatTime(s.startSec)} ~ ${ScoringMath.formatTime(s.endSec)}", "고음 주의")
+                    HighlightRow("부담", "안정 음역 +${s.maxExcessSemitones}반음 초과", "${ScoringMath.formatTime(s.startSec)} ~ ${ScoringMath.formatTime(s.endSec)}", "고음 주의", palette)
                 }
             }
         }
 
-        if (fit != null && fit.reasons.size > 1) {
-            MiconCard {
-                CardTitle("추천 사유")
-                Spacer(Modifier.height(10.dp))
-                fit.reasons.forEach { Text("• $it", fontSize = 14.sp, color = InkSoft, lineHeight = 22.sp) }
-            }
-        }
-
+        // 추천 사유 카드는 두지 않는다 — 첫 사유는 "권장 키 조절" 안에서 이미 보인다.
         PrimaryButton("이 곡 연습하기", onPractice, Modifier.fillMaxWidth())
         Spacer(Modifier.height(20.dp))
     }
 }
 
 @Composable
-private fun RangeBarRow(label: String, low: Int, high: Int, axisLow: Int, axisHigh: Int, color: Color) {
+private fun RangeBarRow(label: String, low: Int, high: Int, axisLow: Int, axisHigh: Int, color: Color, palette: MatchPalette) {
     Column {
-        Text(label, fontSize = 13.sp, color = InkSoft)
+        Text(label, fontSize = 13.sp, color = palette.body)
         Spacer(Modifier.height(6.dp))
-        BoxWithConstraints(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(GreyLight)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(palette.track)) {
             val span = (axisHigh - axisLow).coerceAtLeast(1)
             val x0 = maxWidth * (low - axisLow) / span
             val x1 = maxWidth * (high - axisLow) / span
@@ -657,12 +681,12 @@ private fun RangeBarRow(label: String, low: Int, high: Int, axisLow: Int, axisHi
 }
 
 @Composable
-private fun SubCard(label: String, value: String, stars: Int = 0, hint: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(16.dp)) {
-        Text(label, fontSize = 13.sp, color = Grey)
+private fun SubCard(label: String, value: String, palette: MatchPalette, stars: Int = 0, hint: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().background(palette.sub, RoundedCornerShape(12.dp)).padding(16.dp)) {
+        Text(label, fontSize = 13.sp, color = palette.muted)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.title)
             if (stars > 0) {
                 Spacer(Modifier.width(6.dp))
                 repeat(3) { i -> Icon(if (i < stars) Icons.Filled.Star else Icons.Outlined.StarOutline, null, Modifier.size(18.dp), tint = Orange) }
@@ -674,13 +698,13 @@ private fun SubCard(label: String, value: String, stars: Int = 0, hint: @Composa
 }
 
 @Composable
-private fun HighlightRow(badge: String, title: String, time: String, tag: String) {
-    Row(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun HighlightRow(badge: String, title: String, time: String, tag: String, palette: MatchPalette) {
+    Row(Modifier.fillMaxWidth().background(palette.sub, RoundedCornerShape(12.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         SoftChip(badge, bg = PinkBg, fg = Pink)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
-            Text(time, fontSize = 13.sp, color = Grey)
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = palette.title)
+            Text(time, fontSize = 13.sp, color = palette.muted)
         }
         Text(tag, fontSize = 13.sp, color = Pink, fontWeight = FontWeight.SemiBold)
     }

@@ -112,7 +112,9 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
             return RecommendShelf(key, title, metric, picked.mapIndexed { i, (s, f) -> RecommendedSong(i + 1, s, f, f.reasons) })
         }
         fun coverage(f: SongFit) = f.rangeFit?.coverage ?: 0f
-        val daySeed = System.currentTimeMillis() / 86_400_000L + reshuffle   // 새로운 발견: 하루 단위로 섞이고, 다시 뽑으면 또 달라진다
+        // 새로운 발견: 하루 단위로 섞이고, 다시 뽑을 때마다 또 달라진다.
+        // reshuffle 을 큰 소수로 곱해 연속된 값이 비슷한 순서를 내지 않게 한다.
+        val daySeed = System.currentTimeMillis() / 86_400_000L * 1_000_003L + reshuffle * 2_654_435_761L
         return RecommendShelves(
             personalized = true,
             // 빈 섹션은 빼서 페이지가 헛돌지 않게 (선호 가수를 안 골랐으면 그 섹션이 통째로 없다)

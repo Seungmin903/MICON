@@ -3,7 +3,13 @@ package com.micon.app.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RadialGradientShader
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
 
 // ---------------------------------------------------------------------------
 // Figma(MICON) 팔레트. 흰 배경 + 보라 포인트.
@@ -36,6 +42,25 @@ val Black = Color(0xFF111111)
 
 /** 프로토타입 화면 호환용 별칭 */
 val LavenderSoft = Lavender
+
+/**
+ * 추천 탭 배경: 위아래 흰색 → 가운데 남보라(#3120B3) 세로 그라데이션 (시안 `추천곡 (2).png` 에서 픽셀로 뽑은 값).
+ * PNG 를 깔면 화면 비율마다 늘어나므로 브러시로 그린다 — 어떤 기기에서도 같은 모양이고 가운데가 항상 화면 한가운데다.
+ * (방사형도 만들어 봤지만 진한 부분이 LP 에 가려져 연보라로만 보여 선형으로 되돌렸다)
+ */
+val RecommendBackground: Brush = Brush.verticalGradient(
+    0.0f to Color(0xFFFFFFFF),
+    0.1f to Color(0xFFD5D1EF),
+    0.2f to Color(0xFFACA5E0),
+    0.3f to Color(0xFF8277D1),
+    0.4f to Color(0xFF574AC1),
+    0.5f to Color(0xFF3120B3),
+    0.6f to Color(0xFF5B4DC2),
+    0.7f to Color(0xFF8479D1),
+    0.8f to Color(0xFFADA6E0),
+    0.9f to Color(0xFFD5D2EF),
+    1.0f to Color(0xFFFFFFFF),
+)
 
 private val LightColors = lightColorScheme(
     primary = Purple,

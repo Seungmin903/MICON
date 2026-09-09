@@ -341,17 +341,22 @@ fun MiconTextField(
 
 /** 흰 카드 (둥근 16dp, 얇은 그림자). */
 @Composable
-fun MiconCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(18.dp), content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Paper, shadowElevation = 3.dp) {
+fun MiconCard(
+    modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(18.dp),
+    color: Color = Paper,                       // 어두운 배경(턴테이블 시트) 위에서는 어두운 카드로
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = color, shadowElevation = if (color == Paper) 3.dp else 0.dp) {
         Column(Modifier.padding(padding), content = content)
     }
 }
 
 /** 카드 제목 행: 왼쪽 굵은 제목, 오른쪽 슬롯(보라 라벨 등). */
 @Composable
-fun CardTitle(text: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+fun CardTitle(text: String, modifier: Modifier = Modifier, color: Color = Ink, trailing: @Composable () -> Unit = {}) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+        Text(text, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.weight(1f))
         trailing()
     }
 }
