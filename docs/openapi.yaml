@@ -44,7 +44,46 @@ tags:
   - name: "찜"
   - name: "추천"
   - name: "회원"
+  - name: "카탈로그 미디어"
 paths:
+  "/internal/catalog-media/vocal-stems/{songId}":
+    get:
+      tags: ["카탈로그 미디어"]
+      summary: "AI용 보컬 stem 다운로드 참조 조회"
+      description: "운영 DB의 READY 보컬 stem object key를 검증하고 최대 10분의 비공개 S3 다운로드 URL을 발급한다. 일반 회원 JWT로 접근할 수 없다."
+      operationId: "micon083"
+      servers:
+        - url: "{backendUrl}"
+          description: "백엔드 서버"
+          variables:
+            backendUrl:
+              default: "http://localhost:8080"
+      security:
+        - serviceAuth: []
+      parameters:
+        - name: "songId"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int64"
+            minimum: 1
+      x-direction: "AI → 백"
+      x-api-type: "API"
+      x-work-status: "구현"
+      x-backend-status: "테스트 완료"
+      x-frontend-status: "해당 없음"
+      x-permission: "AI 서비스"
+      x-auth-token: "AI_SERVICE_TOKEN"
+      responses:
+        "200":
+          description: "검증된 메타데이터와 단기 다운로드 URL"
+        "401":
+          description: "AI 서비스 토큰 누락 또는 불일치"
+        "404":
+          description: "곡이 존재하지 않음"
+        "409":
+          description: "READY 보컬 stem이 없거나 저장 경로 계약 불일치"
   "/artists":
     get:
       tags: ["선호 정보"]
@@ -763,14 +802,14 @@ paths:
     post:
       tags: ["추천"]
       summary: "개인화 추천 작업 생성 API"
-      description: "분석·선호·조건·후보 곡 또는 카탈로그 버전으로 추천한다. 낮은 신뢰도의 음색 기준을 제외한다."
+      description: "저장된 사용자 임베딩·음역 프로필·선호 조건으로 추천 작업을 생성한다. 추천 서버의 실제 경로는 POST /recommendations이다."
       operationId: "micon030"
       servers:
         - url: "{aiUrl}"
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -780,9 +819,19 @@ paths:
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationJobRequest"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "202":
+          description: "추천 작업 접수 성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationJobAccepted"
   "/recommendation-jobs/{jobId}":
     get:
       tags: ["추천"]
@@ -794,7 +843,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -805,8 +854,8 @@ paths:
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "추천 작업 상태 또는 결과 조회 성공"
   "/recommendations":
     post:
       tags: ["추천"]
@@ -2451,6 +2500,52 @@ components:
         createdAt:
           type: "string"
           format: "date-time"
+    RecommendationJobRequest:
+      type: "object"
+      required: ["voiceAnalysisId", "topK", "mode", "genres", "preferredArtists", "voiceProfile", "userEmbedding"]
+      properties:
+        voiceAnalysisId: { type: "integer", format: "int64" }
+        sourceSongId: { type: ["integer", "null"], format: "int64" }
+        topK:
+          type: "integer"
+          minimum: 1
+          maximum: 50
+          description: "각 추천 섹션의 최대 곡 수"
+        mode: { type: "string", enum: ["timbre", "range"] }
+        genres:
+          type: "array"
+          items: { type: "string" }
+        preferredArtists:
+          type: "array"
+          items: { type: "string" }
+        voiceProfile:
+          $ref: "#/components/schemas/RecommendationVoiceProfile"
+        userEmbedding:
+          type: "object"
+          additionalProperties: true
+          description: "음성 분석 AI가 생성한 임베딩 객체. 내부 필드와 차원은 AI 연동 합의 후 확정한다."
+        embeddingRef: { type: ["string", "null"] }
+    RecommendationVoiceProfile:
+      type: "object"
+      properties:
+        stableLowMidi: { type: ["number", "null"] }
+        stableHighMidi: { type: ["number", "null"] }
+        medianMidi: { type: ["number", "null"] }
+        pitchDistribution: { type: ["object", "array", "null"] }
+        rangeConfidence: { type: ["number", "null"] }
+        timbreLabel: { type: ["string", "null"] }
+        timbreVector: { type: ["object", "array", "null"] }
+        timbreConfidence: { type: ["number", "null"] }
+        observedCoreLowMidi: { type: ["number", "null"] }
+        observedCoreHighMidi: { type: ["number", "null"] }
+        observedMedianMidi: { type: ["number", "null"] }
+        pitchHistogram: { type: ["object", "array", "null"] }
+    RecommendationJobAccepted:
+      type: "object"
+      required: ["id", "status"]
+      properties:
+        id: { type: "string" }
+        status: { type: "string", enum: ["queued"] }
     RecommendationApiResponse:
       type: "object"
       required: ["code", "message", "data"]
@@ -2479,7 +2574,7 @@ components:
         expiresAt: { type: ["string", "null"], format: "date-time" }
         shelves:
           type: "array"
-          description: "모든 섹션을 합쳐 중복 없는 추천곡을 최대 50개 반환한다."
+          description: "섹션 사이에 곡이 중복되지 않으며 각 섹션은 최대 50곡을 반환한다."
           items:
             $ref: "#/components/schemas/RecommendationShelf"
     RecommendationShelf:
@@ -2492,6 +2587,7 @@ components:
         order: { type: "integer", minimum: 1 }
         items:
           type: "array"
+          maxItems: 50
           items:
             $ref: "#/components/schemas/RecommendationSong"
     RecommendationSong:
@@ -2499,8 +2595,8 @@ components:
       required: ["songId", "overallRank", "position"]
       properties:
         songId: { type: "integer", format: "int64" }
-        overallRank: { type: "integer", minimum: 1, maximum: 50 }
-        position: { type: "integer", minimum: 1 }
+        overallRank: { type: "integer", minimum: 1, maximum: 32767 }
+        position: { type: "integer", minimum: 1, maximum: 50 }
         axis: { type: ["string", "null"] }
         label: { type: ["string", "null"] }
         recommendedKey: { type: ["integer", "null"] }

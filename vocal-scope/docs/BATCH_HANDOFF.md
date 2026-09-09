@@ -1,5 +1,10 @@
 # VocalScope 배치 추출기 인수 문서 (2026-09-03)
 
+곡 음색 임베딩 인수는 [S3 임베딩 계약](../../docs/operations/EMBEDDING_CATALOG.md)을 사용한다.
+ECAPA·Singer-BYOL NPY와 segments.json을 정확한 `song_metadata.catalog_track_id`로 묶고,
+전용 prepare/upload → 인프라 register/activate → AI cache refresh 순으로 전달한다.
+아래의 로컬 SQLite/분석 덤프 절차로 운영 임베딩 테이블을 생성하거나 CSV 행 순서로 곡 ID를 매칭하지 않는다.
+
 다른 PC에서 **TJ 카탈로그 890곡의 음원 → 메타데이터(조성·BPM·박자·음역·성구·음표·가사 정렬) → MySQL** 을 돌리기 위한 문서입니다. 웹 프론트(:3000)는 필요 없습니다. 웹앱까지 포함한 전체 설치는 루트 `PIPELINE.md` §2, 알고리즘은 `docs/MODEL_PIPELINE.md`, 출력 필드 전수 목록은 `docs/DATA_INVENTORY.md`, DB 스키마는 `docs/micon_schema.sql`, 화면↔데이터 계획은 `docs/MICON_DATA_PLAN.md`를 보세요.
 
 ## 0. 한눈에

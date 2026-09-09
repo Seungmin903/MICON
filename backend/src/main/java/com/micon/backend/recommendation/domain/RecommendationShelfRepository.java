@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface RecommendationShelfRepository extends JpaRepository<RecommendationShelf, Long> {
     List<RecommendationShelf> findByRecommendationIdOrderByOrder(Long recommendationId);
+    void deleteByRecommendationId(Long recommendationId);
 }

@@ -36,4 +36,7 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
     Page<VoiceAnalysis> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Optional<VoiceAnalysis> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
+
+    Optional<VoiceAnalysis> findFirstByUserIdAndStatusOrderByCompletedAtDescIdDesc(
+            Long userId, VoiceAnalysisStatus status);
 }

@@ -117,11 +117,21 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 }
 ```
 
-현재 `S3VoiceStorage`의 업로드·재생/AI 분석용 URL·삭제에 대응한다. BE에 전체 버킷 열람, 버킷 생성·삭제, `catalog/` 접근 권한은 주지 않는다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
+현재 `S3VoiceStorage`의 녹음 업로드·재생/AI 분석용 URL·삭제에 대응한다. S15P21B110-228의 보컬 stem 연결 시에는 이 정책을 넓히지 않고 별도 `MiconCatalogMediaReadOnly` 인라인 정책으로 승인된 `catalog/정영주/section-384-v1/vocals/*` GetObject만 추가한다. BE에 전체 버킷 열람, 버킷 생성·삭제, catalog 쓰기·삭제 권한은 주지 않는다. 자세한 등록·API 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
 
 ### 카탈로그 업로더 정책 (BE와 분리)
 
-아직 생성하지 않은 팀원별 업로더 신원에 사용할 정책 예제다. 담당자·데이터 범위 확정 후 별도로 발급하며 BE 사용자에게 추가하지 않는다. DB 덤프·음성 개인정보를 임의로 이 공통 경로에 올리지 않는다. 담당자별 접근 분리가 필요하면 `catalog/<담당경로>/`로 정책을 더 좁힌다.
+담당 구분: **정영주 = 곡 메타데이터 DB 적재 + 음원·MR 제거 음원 S3 업로드**,
+**지유림 = 곡 임베딩 S3 업로드**. 두 사람의 개인 AWS 신원과 prefix를 각각
+`catalog/정영주/`, `catalog/지유림/`로 분리한다. 정영주의 곡 DB 적재 계정은 별도이며 지유림에게 DB 쓰기 권한을 주지 않는다.
+인프라의 임베딩 참조 등록·활성화 계정과도 구분한다. 실제 발급/적용은 별도 검증 작업이다.
+
+아직 생성하지 않은 일반 파일용 업로더 신원에 사용할 정책 예제다. 담당자·데이터 범위 확정 후 별도로 발급하며 BE 사용자에게 추가하지 않는다. DB 덤프·음성 개인정보를 임의로 이 공통 경로에 올리지 않는다. 담당자별 접근은 `catalog/<담당경로>/`로 좁힌다.
+
+**곡 임베딩 업로더에는 아래 일반 정책 대신 [조건부 쓰기 전용 정책](../../infra/iam/catalog-uploader-policy.json)을 적용한다.**
+AI/importer의 읽기는 [별도 reader 정책](../../infra/iam/catalog-reader-policy.json)을 사용한다.
+임베딩은 [전용 적재·활성화 계약](EMBEDDING_CATALOG.md)에 따라 S3에 파일, MySQL V7에 ID/체크섬/활성 상태를 저장한다.
+BE의 기존 녹음용 키 권한이나 버킷 공개/Versioning 설정을 바꾸지 않는다. 이 문서의 일반 sync 예시는 임베딩 배치에는 적용하지 않는다.
 
 ```json
 {
@@ -138,13 +148,13 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
       "Effect": "Allow",
       "Action": "s3:ListBucket",
       "Resource": "arn:aws:s3:::<BUCKET_NAME>",
-      "Condition": {"StringLike": {"s3:prefix": ["catalog/", "catalog/*"]}}
+      "Condition": {"StringLike": {"s3:prefix": ["catalog/<OWNER>/", "catalog/<OWNER>/*"]}}
     },
     {
       "Sid": "UploadAndReadCatalog",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
-      "Resource": "arn:aws:s3:::<BUCKET_NAME>/catalog/*"
+      "Resource": "arn:aws:s3:::<BUCKET_NAME>/catalog/<OWNER>/*"
     }
   ]
 }

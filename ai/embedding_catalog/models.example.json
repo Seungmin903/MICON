@@ -1,0 +1,17 @@
+{
+  "ecapa": {
+    "dimension": 192,
+    "version": "ecapa-voxceleb-0575cb64",
+    "checkpoint_sha256": "0575cb64845e6b9a10db9bcb74d5ac32b326b8dc90352671d345e2ee3d0126a2",
+    "preprocessing": "mono 4 s -> per-window RMS 0.1 -> 16 kHz -> L2",
+    "normalization": "l2"
+  },
+  "singer_byol": {
+    "dimension": 1000,
+    "version": "singer-byol-509f96f2",
+    "checkpoint_sha256": "509f96f23a1076325f4164fa4176fa282e709da203d30b109fa05b1b6cb3c978",
+    "preprocessing": "mono 4 s at 44.1 kHz -> per-window peak normalize -> L2",
+    "normalization": "l2",
+    "code_revision": "24751d11c6c169adc53be906fd36560df447f974"
+  }
+}
