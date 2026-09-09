@@ -1,0 +1,102 @@
+name: micon-backend-${MICON_BACKEND_SLOT:-candidate}
+
+services:
+  migrate:
+    image: flyway/flyway:11.19.1@sha256:7afc70d61f09d20333caaebd5d6661cd51d7ad075d415c3681d8a65722466b2a
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        export FLYWAY_PASSWORD="$$(cat /run/secrets/mysql_migration_password)"
+        exec flyway -connectRetries=12 migrate
+    environment:
+      FLYWAY_URL: jdbc:mysql://mysql:3306/micon?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Seoul
+      FLYWAY_USER: micon_migrator
+    networks:
+      - backend
+    volumes:
+      - ../../backend/src/main/resources/db/migration:/flyway/sql:ro
+    secrets:
+      - mysql_migration_password
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  backend:
+    image: ${MICON_BACKEND_IMAGE:?Set MICON_BACKEND_IMAGE to an immutable commit tag}
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    container_name: micon-backend-${MICON_BACKEND_SLOT:-candidate}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - ${MICON_BACKEND_ENV_FILE:-/etc/micon/runtime/backend.env}
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/mysql_app_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      AI_SERVICE_TOKEN_FILE: /run/secrets/ai_service_token
+      AI_RECOMMENDATION_SERVICE_TOKEN_FILE: /run/secrets/ai_service_token
+      AWS_SHARED_CREDENTIALS_FILE: /run/secrets/aws_credentials
+      AWS_PROFILE: micon-backend
+      AWS_EC2_METADATA_DISABLED: "true"
+      SPRING_FLYWAY_ENABLED: "false"
+    ports:
+      - 127.0.0.1:${MICON_BACKEND_BIND_PORT:?Set the approved loopback slot port}:8080
+    networks:
+      - backend
+      - egress
+    secrets:
+      - mysql_app_password
+      - jwt_secret
+      - ai_service_token
+      - aws_credentials
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - --max-time
+        - "3"
+        - http://127.0.0.1:8080/actuator/health/readiness
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 40s
+
+networks:
+  backend:
+    name: micon_backend
+    external: true
+  egress:
+    driver: bridge
+
+secrets:
+  mysql_migration_password:
+    file: /etc/micon/secrets/mysql_migration_password
+  mysql_app_password:
+    file: /etc/micon/backend-secrets/mysql_app_password
+  jwt_secret:
+    file: /etc/micon/backend-secrets/jwt_secret
+  ai_service_token:
+    file: /etc/micon/backend-secrets/ai_service_token
+  aws_credentials:
+    file: /etc/micon/backend-secrets/aws_credentials

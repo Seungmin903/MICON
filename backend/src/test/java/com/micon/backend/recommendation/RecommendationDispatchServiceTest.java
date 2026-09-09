@@ -34,7 +34,18 @@ class RecommendationDispatchServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new RecommendationDispatchService(inputs, lifecycle, gateway);
+        service = new RecommendationDispatchService(inputs, lifecycle, gateway, true);
+    }
+
+    @Test
+    void rejectsDispatchBeforeCreatingStateWhenIntegrationIsDisabled() {
+        service = new RecommendationDispatchService(inputs, lifecycle, gateway, false);
+
+        assertThatThrownBy(() -> service.dispatch(1L, 10L, RecommendationMode.TIMBRE))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.RECOMMENDATION_DISPATCH_FAILED));
+        org.mockito.Mockito.verifyNoInteractions(inputs, lifecycle, gateway);
     }
 
     @Test

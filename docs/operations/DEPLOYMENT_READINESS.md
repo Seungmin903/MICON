@@ -8,9 +8,9 @@
 |---|---|
 | 서버·DB | SSAFY SSH·Nginx·Docker 및 MySQL 8.4.11 healthy, DB 호스트 포트 미게시. Flyway V1~V10과 384곡 `VOCAL_STEM` 참조 적재·재실행 검증 완료 |
 | BE S3 코드 | develop `f9a5cd4`에 녹음 업로드·재생/분석용 URL·삭제와 보컬 stem 내부 조회 코드 존재 |
-| 개인 S3 | 실제 버킷·리전·BE 전용 IAM·서버 키 저장 완료. 녹음용 권한과 승인 보컬 stem GetObject를 분리 적용하고 허용·거부 경계를 서버에서 검증. BE 컨테이너 마운트/신원은 미검증 |
-| 팀원 데이터 | 정영주 384곡 메타데이터·보컬 stem과 DB–S3 ID 검증 완료. `song_media` 384건 등록·멱등 재실행 완료, BE 내부 URL 실제 GET은 남음 |
-| 운영 검증 | BE 실제 신원 확인과 녹음 업로드·GET·삭제, AI 접근, 비용/보관/인수 정책 검증 필요 |
+| 개인 S3 | 실제 버킷·리전·BE 전용 IAM·서버 키 저장 완료. CLI 합성 객체와 후보 BE의 실제 카탈로그 WAV GET·SHA-256 검증 완료 |
+| 팀원 데이터 | 정영주 384곡 메타데이터·`song_media`와 보컬 stem S3 연결 완료. 후보 BE 내부 API에서 song_id 1 실제 GET 검증 완료 |
+| 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 사용자 녹음 upload/GET/delete, AI 접근, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
 
 실제 S3 설정·검증은 S15P21B110-211 및 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절에 기록했다. S15P21B110-228에서 Flyway V8~V10과 보컬 stem 384건을 운영 DB에 반영했으며 BE 배포는 아직 실행하지 않았다. 아래 2026-09-07 스냅샷은 과거 기록이며 현재 전체 개발 상태로 읽지 않는다.
 
@@ -66,12 +66,11 @@
 - [x] Nginx HTTP→HTTPS, 유효 인증서, edge 상태 확인과 자동 갱신 모의시험을 검증한다.
 - [ ] 배포할 BE/AI 커밋과 실행 환경을 확정한다.
 - [x] 개인 S3 비공개 버킷·prefix 최소권한·서버 BE 인증 파일을 준비하고 CLI 직접 연결을 검증한다.
-- [ ] 실제 BE 컨테이너의 파일 읽기·개인 프로필 신원을 확인한다. AWS 키를 이미지/Android CI/APK에 넣지 않는다.
+- [x] 실제 후보 BE 컨테이너의 staged secret 읽기와 개인 프로필 카탈로그 GET을 확인했다. AWS 키는 이미지/Android CI/APK에 넣지 않았다.
 - [ ] 후보 BE에서 테스트 녹음 업로드·presigned URL 실제 GET·삭제를 확인한다. S3 실패 시 전환하지 않으며 DB readiness만으로 통과시키지 않는다.
-- [x] 정영주 384곡 S3·DB ID 검증 결과를 `song_media`에 등록하고 멱등 재실행을 검증한다. 진행 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다.
-- [ ] 후보 BE의 AI 전용 URL을 발급해 실제 GET·길이·해시 표본을 검증한다.
-- [x] Flyway V1~V10, 최소권한 적재 계정, 적재 전·후 백업과 무결성 검증을 완료한다. 자격 증명은 저장소 밖에서 관리한다.
-- [ ] 컨테이너/서비스 실행 및 HTTPS 라우팅 구성을 작업 브랜치에서 준비한다.
+- [x] 정영주 384곡 S3·DB ID 검증 결과를 `song_media`에 등록하고 BE AI 전용 URL의 실제 GET·바이트·SHA-256을 검증했다. 진행 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다.
+- [x] Flyway V1~V10, 최소권한 적재 계정, 적재 전·후 백업과 무결성 검증을 완료했다. 자격 증명은 저장소 밖에서 관리한다.
+- [x] BE Dockerfile·Compose·호스트 secret 준비와 후보 loopback 실행을 작업 브랜치에서 준비했다. HTTPS 라우팅은 아직이다.
 - [ ] 상태 확인 요청의 경로·상태 코드·응답 시간과 배포 커밋을 기록한다.
 
 ### 2. 앱 연결용 빌드

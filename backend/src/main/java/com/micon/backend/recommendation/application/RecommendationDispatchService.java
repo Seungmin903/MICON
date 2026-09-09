@@ -4,6 +4,7 @@ import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.recommendation.client.RecommendationJobGateway;
 import com.micon.backend.recommendation.domain.RecommendationMode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,16 +14,22 @@ public class RecommendationDispatchService {
     private final RecommendationInputAssembler inputs;
     private final RecommendationLifecycleService lifecycle;
     private final RecommendationJobGateway gateway;
+    private final boolean enabled;
 
     public RecommendationDispatchService(RecommendationInputAssembler inputs,
                                          RecommendationLifecycleService lifecycle,
-                                         RecommendationJobGateway gateway) {
+                                         RecommendationJobGateway gateway,
+                                         @Value("${ai.recommendation.enabled:false}") boolean enabled) {
         this.inputs = inputs;
         this.lifecycle = lifecycle;
         this.gateway = gateway;
+        this.enabled = enabled;
     }
 
     public RecommendationDispatchResult dispatch(long userId, long voiceAnalysisId, RecommendationMode mode) {
+        if (!enabled) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_DISPATCH_FAILED);
+        }
         RecommendationMode requestedMode = mode == null ? RecommendationMode.OVERALL : mode;
         RecommendationInput input = inputs.assemble(userId, voiceAnalysisId);
         RecommendationLifecycleService.Created created = lifecycle.create(userId, voiceAnalysisId, requestedMode);
