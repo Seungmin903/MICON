@@ -58,7 +58,7 @@ pipeline {
                     git archive --format=tar.gz -o "$archive" "$RELEASE_SHA"
                     sha256sum "$archive" > "$archive.sha256"
                 '''
-                archiveArtifacts artifacts: '.micon-release/*.sha256', fingerprint: true
+                archiveArtifacts artifacts: '.micon-release/*', fingerprint: true
             }
         }
 

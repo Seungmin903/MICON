@@ -32,6 +32,8 @@ class BackendCdContractTests(unittest.TestCase):
         self.assertIn("sha256sum", self.pipeline)
         self.assertIn("release archive checksum mismatch", self.install)
         self.assertIn("unsafe path", self.install)
+        self.assertIn("superseded", self.install)
+        self.assertNotIn("rm -rf", self.install)
 
     def test_deploy_uses_inactive_slot_and_all_gates_before_switch(self):
         self.assertIn("candidate_slot=green", self.deploy)

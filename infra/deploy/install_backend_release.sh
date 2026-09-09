@@ -18,6 +18,7 @@ release_root="$HOME/micon-releases"
 incoming_dir="$release_root/incoming"
 archive="$incoming_dir/micon-backend-$release_sha.tar.gz"
 destination="$release_root/$release_sha"
+superseded_root="$release_root/superseded"
 
 if [ ! -f "$archive" ]; then
     echo "release archive is missing" >&2
@@ -28,9 +29,17 @@ if [ "$actual_archive_sha" != "$expected_archive_sha" ]; then
     echo "release archive checksum mismatch" >&2
     exit 1
 fi
-if [ -e "$destination" ]; then
-    echo "release destination already exists; refusing overwrite" >&2
-    exit 1
+if [ -e "$destination" ] || [ -L "$destination" ]; then
+    case "$destination" in
+        "$release_root"/[0-9a-f]*) ;;
+        *) echo "unsafe existing release destination" >&2; exit 1 ;;
+    esac
+    install -d -m 0700 "$superseded_root"
+    timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    superseded_destination="$(mktemp -d "$superseded_root/$release_sha-$timestamp.XXXXXX")"
+    rmdir "$superseded_destination"
+    mv -T "$destination" "$superseded_destination"
+    echo "previous same-SHA release preserved for a clean retry"
 fi
 
 temporary_dir="$(mktemp -d "$release_root/.extract-$release_sha.XXXXXX")"

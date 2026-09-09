@@ -23,7 +23,7 @@ Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client�
 2. BE contract, deploy gate 전체 Python 테스트와 Gradle `test bootJar`를 실행한다.
 3. 정확한 40자리 commit SHA의 `git archive`를 만들고 SHA-256을 기록한다.
 4. host key 검증을 끄지 않고 archive를 서버 `/home/ubuntu/micon-releases/incoming/`으로 전송한다.
-5. 서버 installer가 archive SHA-256과 경로 traversal을 검사하고 기존 release 디렉터리를 덮어쓰지 않은 채 새 경로에 푼다.
+5. 서버 installer가 archive SHA-256과 경로 traversal을 검사한다. 같은 SHA 재시도 시 기존 release를 `superseded/` 아래에 보존하고 깨끗한 새 경로에 푼다.
 6. root-owned source로 바꾼 뒤 비활성 blue/green 슬롯에서 이미지 build → Flyway → readiness 3회 → 카탈로그 S3 실제 GET을 실행한다.
 7. 모든 gate가 성공하면 Nginx slot switch를 실행하고 공개 API의 BE 401 응답을 확인한다.
 8. 전환 전 실패 시 후보 Compose만 `down`한다. 볼륨·DB·기존 active slot은 삭제하지 않는다.
