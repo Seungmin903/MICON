@@ -1,0 +1,23 @@
+# VocalScope AI 엔진 — 2026-09-03 검증 환경(.venv-model, Python 3.11.9)의 실제 버전으로 고정.
+# torch는 여기서 CPU 빌드가 먼저 설치되고, setup.ps1이 GPU가 있으면 같은 버전을 CUDA 인덱스(cu130 → cu128 → cu126)에서 재설치한다.
+demucs==4.1.0
+melband-roformer-infer==0.1.5
+torch==2.13.0
+torchaudio==2.11.0
+torchcrepe==0.0.24
+transformers==5.16.1
+openai-whisper==20250625
+librosa==0.11.0
+numpy==1.26.4
+scipy==1.17.1
+soundfile==0.14.0
+pretty_midi==0.2.11.post0
+mido==1.3.3
+music21==9.7.1
+pedalboard==0.9.24
+ml_collections==1.1.0
+PyYAML==6.0.3
+imageio-ffmpeg==0.6.0
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20

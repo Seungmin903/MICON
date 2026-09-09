@@ -9,14 +9,22 @@ ENGINE_BASE_URL=http://10.0.2.2:8787/
 # 앱 백엔드(Spring/MySQL, 예정). 아직 없으면 그대로 둔다.
 API_BASE_URL=http://10.0.2.2:8080/api/v1/
 
+# 추천 서버(ai/recommend-server, FastAPI 8788). 비워 두면 앱 안 로컬 계산(음역만)으로 동작한다.
+# 서버를 켜고 시험할 때만: RECOMMEND_BASE_URL=http://10.0.2.2:8788/
+RECOMMEND_BASE_URL=
+
 # 소셜 로그인 키 (비어 있어도 빌드된다. 해당 기능만 동작하지 않음)
 GOOGLE_WEB_CLIENT_ID=
 KAKAO_NATIVE_APP_KEY=
 NAVER_CLIENT_ID=
 NAVER_CLIENT_SECRET=
 
-# Release 서명 (네 값이 모두 있을 때만 release signingConfig 가 만들어진다)
+# Release 서명 (실제 키는 저장소 밖 보관. Jenkins에는 local.properties 대신 Credentials/환경변수 사용)
+# 네 서명값·버전·명시적 HTTPS 주소가 없으면 Release 빌드는 실패한다. Debug 기본 동작은 유지.
 RELEASE_STORE_FILE=
 RELEASE_STORE_PASSWORD=
 RELEASE_KEY_ALIAS=
 RELEASE_KEY_PASSWORD=
+RELEASE_VERSION_CODE=
+PREVIOUS_RELEASE_VERSION_CODE=
+RELEASE_VERSION_NAME=

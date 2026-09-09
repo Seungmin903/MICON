@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.net.URI
+import java.io.File
 
 plugins {
     alias(libs.plugins.android.application)
@@ -22,6 +24,7 @@ fun localSetting(name: String, default: String = ""): String =
 
 val engineBaseUrl = localSetting("ENGINE_BASE_URL", "http://10.0.2.2:8787/")
 val apiBaseUrl = localSetting("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
+val recommendBaseUrl = localSetting("RECOMMEND_BASE_URL", "")   // 비어 있으면 앱 안 로컬 계산만 사용
 val googleWebClientId = localSetting("GOOGLE_WEB_CLIENT_ID")
 val kakaoNativeAppKey = localSetting("KAKAO_NATIVE_APP_KEY")
 val naverClientId = localSetting("NAVER_CLIENT_ID")
@@ -31,6 +34,40 @@ val releaseSigningKeys = listOf(
     "RELEASE_STORE_FILE", "RELEASE_STORE_PASSWORD", "RELEASE_KEY_ALIAS", "RELEASE_KEY_PASSWORD"
 )
 val hasReleaseSigning = releaseSigningKeys.all { localSetting(it).isNotBlank() }
+val releaseVersionCode = localSetting("RELEASE_VERSION_CODE")
+val releaseVersionName = localSetting("RELEASE_VERSION_NAME")
+val previousReleaseVersionCode = localSetting("PREVIOUS_RELEASE_VERSION_CODE")
+
+// Do not silently produce an unsigned or emulator-targeting release APK.
+val validateReleaseConfiguration by tasks.registering {
+    notCompatibleWithConfigurationCache("Release signing settings must not be cached")
+    doLast {
+        check(hasReleaseSigning) { "Release signing settings are required; values are not logged." }
+        val store = File(localSetting("RELEASE_STORE_FILE"))
+        check(store.isAbsolute && store.isFile && store.name != "debug.keystore") {
+            "A real Release keystore at an absolute path is required."
+        }
+        val code = releaseVersionCode.toIntOrNull()
+        val previous = previousReleaseVersionCode.toIntOrNull()
+        check(code != null && code in 1..2100000000 && previous != null && previous >= 0 && code > previous) {
+            "Explicit increasing RELEASE_VERSION_CODE and PREVIOUS_RELEASE_VERSION_CODE are required."
+        }
+        check(releaseVersionName.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))) {
+            "RELEASE_VERSION_NAME must be a filename-safe version."
+        }
+        for (value in listOf(apiBaseUrl, engineBaseUrl)) {
+            val uri = runCatching { URI(value) }.getOrNull()
+            check(uri != null && uri.scheme == "https" && !uri.host.isNullOrBlank() &&
+                uri.userInfo == null && uri.query == null && uri.fragment == null &&
+                uri.path.endsWith("/") && uri.host !in listOf("localhost", "127.0.0.1", "10.0.2.2", "[::1]")) {
+                "Release API and engine URLs must be explicit HTTPS base URLs, not emulator defaults."
+            }
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(validateReleaseConfiguration)
+}
 
 android {
     namespace = "com.micon.app"
@@ -40,13 +77,14 @@ android {
         applicationId = "com.micon.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode.toIntOrNull() ?: 1
+        versionName = releaseVersionName.ifBlank { "0.1.0" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "ENGINE_BASE_URL", "\"$engineBaseUrl\"")
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "RECOMMEND_BASE_URL", "\"$recommendBaseUrl\"")
 
         resValue("string", "google_web_client_id", googleWebClientId)
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
@@ -135,6 +173,7 @@ dependencies {
     // --- Test ---
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

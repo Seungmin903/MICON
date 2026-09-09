@@ -8,7 +8,8 @@
 - Figma: https://www.figma.com/design/gD9LvKcDIDlSXf5Kds76LJ (참고용 와이어프레임, 확정 디자인 아님)
 - 위치: 팀 저장소 `S15P21B110/frontend/android/` (모노레포. 루트 `README.md` 에 전체 구조)
 - 앱 문서: `docs/` (`ANDROID_START_GUIDE.md` 가 진입점, 화면 스크린샷은 `docs/screenshots/`)
-- 엔진·데이터 계약 문서: AI 파트 `feat/vocalScope` 브랜치의 `vocal-scope/docs/` (DATA_INVENTORY, MICON_DATA_PLAN, micon_schema.sql)
+- 엔진·데이터 계약 문서: develop의 [VocalScope](../../vocal-scope/README.md), [배치·DB 인수](../../vocal-scope/docs/BATCH_HANDOFF.md)
+- 운영 저장 구조: [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md). AWS 키는 BuildConfig/APK에 넣지 않는다. 녹음은 BE API와 발급된 만료 URL을 사용하며, 카탈로그 파일 제공·DB 적재는 별도 통합 검증이 필요하다.
 
 ## 고정 버전
 
@@ -141,7 +142,7 @@ Figma 가 아직 정하지 않은 값(적합도 공식, 추천 키, 난이도, �
 
 ## 데이터 소스 (현재 → 목표)
 
-- 곡 목록·상세·음표: `assets/micon_catalog.sqlite` (33 MB, MySQL `micon` 덤프와 같은 컬럼, 890곡 + 50곡 분석)
+- 곡 목록·상세·음표: `assets/micon_catalog.sqlite` (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 211곡 분석. 생성 절차: `vocal-scope/docs/STEM_PITCH_IMPORT.md`)
   → 앱 백엔드(MySQL 8) REST API 가 생기면 `SongRepository` 구현만 교체하고 asset 삭제.
   **Git LFS 로 관리한다** (루트 `.gitattributes` 의 `*.sqlite`). 파일을 갱신하면 커밋만 하면 되고, 받는 쪽은 `git lfs pull`.
 - 반주·채점: 엔진 직접 호출 (`/jobs/{id}/files/instrumental`, `/jobs/{id}/compare`). 실시간 작업이므로 백엔드가 생겨도 유지.

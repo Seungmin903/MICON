@@ -1,0 +1,171 @@
+package com.micon.backend.practice.repository;
+
+import com.micon.backend.practice.api.PracticeRequest.PracticeScope;
+import com.micon.backend.practice.api.PracticeResponse;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class PracticeRepository {
+
+	private final NamedParameterJdbcTemplate jdbcTemplate;
+
+	public PracticeRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	public Optional<SongRow> findPracticeReadySong(Long songId) {
+		String sql = """
+				SELECT song_id, duration_ms, practice_ready
+				FROM SONG
+				WHERE song_id = :songId
+				""";
+		return jdbcTemplate.query(sql, Map.of("songId", songId), (resultSet, rowNumber) -> new SongRow(
+			resultSet.getLong("song_id"),
+			resultSet.getObject("duration_ms", Long.class),
+			resultSet.getBoolean("practice_ready")
+		)).stream().findFirst();
+	}
+
+	public boolean isUploadedRecordingOwnedBy(Long recordingId, Long userId) {
+		String sql = """
+				SELECT COUNT(*)
+				FROM VOICE_RECORDING
+				WHERE recording_id = :recordingId
+				  AND user_id = :userId
+				  AND upload_status = 'UPLOADED'
+				""";
+		Long count = jdbcTemplate.queryForObject(sql,
+			Map.of("recordingId", recordingId, "userId", userId), Long.class);
+		return count != null && count > 0;
+	}
+
+	public boolean sectionBelongsToSong(Long sectionId, Long songId) {
+		String sql = "SELECT COUNT(*) FROM SONG_SECTION WHERE section_id = :sectionId AND song_id = :songId";
+		Long count = jdbcTemplate.queryForObject(sql,
+			Map.of("sectionId", sectionId, "songId", songId), Long.class);
+		return count != null && count > 0;
+	}
+
+	public boolean hasReadyInstrumental(Long songId, int selectedKey) {
+		String sql = """
+				SELECT COUNT(*)
+				FROM SONG_MEDIA
+				WHERE song_id = :songId
+				  AND semitones = :selectedKey
+				  AND generation_status = 'READY'
+				  AND ((:selectedKey = 0 AND kind IN ('INSTRUMENTAL', 'INSTRUMENTAL_KEY'))
+				       OR (:selectedKey <> 0 AND kind = 'INSTRUMENTAL_KEY'))
+				""";
+		Long count = jdbcTemplate.queryForObject(sql,
+			Map.of("songId", songId, "selectedKey", selectedKey), Long.class);
+		return count != null && count > 0;
+	}
+
+	public void create(
+		Long practiceId,
+		Long userId,
+		Long songId,
+		Long sectionId,
+		Long recordingId,
+		int selectedKey,
+		BigDecimal playbackSpeed,
+		Integer customStartMs,
+		Integer customEndMs,
+		PracticeScope scope
+	) {
+		String sql = """
+				INSERT INTO PRACTICE_SESSION (
+				    practice_id, user_id, song_id, section_id, recording_id,
+				    selected_key, playback_speed, custom_start_ms, custom_end_ms,
+				    status, started_at, created_at, practice_scope
+				) VALUES (
+				    :practiceId, :userId, :songId, :sectionId, :recordingId,
+				    :selectedKey, :playbackSpeed, :customStartMs, :customEndMs,
+				    'IN_PROGRESS', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), :practiceScope
+				)
+				""";
+		jdbcTemplate.update(sql, new MapSqlParameterSource()
+			.addValue("practiceId", practiceId)
+			.addValue("userId", userId)
+			.addValue("songId", songId)
+			.addValue("sectionId", sectionId)
+			.addValue("recordingId", recordingId)
+			.addValue("selectedKey", selectedKey)
+			.addValue("playbackSpeed", playbackSpeed)
+			.addValue("customStartMs", customStartMs)
+			.addValue("customEndMs", customEndMs)
+			.addValue("practiceScope", scope.name()));
+	}
+
+	public Optional<PracticeResponse.Detail> findOwned(Long practiceId, Long userId) {
+		String sql = """
+				SELECT ps.practice_id, ps.song_id, s.title AS song_title, ps.section_id,
+				       ps.recording_id, ps.voice_analysis_id, ps.selected_key, ps.playback_speed,
+				       ps.custom_start_ms, ps.custom_end_ms, ps.practice_scope, ps.status,
+				       ps.started_at, ps.ended_at, ps.duration_ms, ps.created_at
+				FROM PRACTICE_SESSION ps
+				JOIN SONG s ON s.song_id = ps.song_id
+				WHERE ps.practice_id = :practiceId AND ps.user_id = :userId
+				""";
+		return jdbcTemplate.query(sql, Map.of("practiceId", practiceId, "userId", userId),
+			(resultSet, rowNumber) -> new PracticeResponse.Detail(
+				resultSet.getLong("practice_id"),
+				resultSet.getLong("song_id"),
+				resultSet.getString("song_title"),
+				resultSet.getObject("section_id", Long.class),
+				resultSet.getLong("recording_id"),
+				resultSet.getObject("voice_analysis_id", Long.class),
+				resultSet.getInt("selected_key"),
+				resultSet.getBigDecimal("playback_speed"),
+				resultSet.getObject("custom_start_ms", Integer.class),
+				resultSet.getObject("custom_end_ms", Integer.class),
+				resultSet.getString("practice_scope"),
+				resultSet.getString("status"),
+				resultSet.getObject("started_at", LocalDateTime.class),
+				resultSet.getObject("ended_at", LocalDateTime.class),
+				resultSet.getObject("duration_ms", Integer.class),
+				resultSet.getObject("created_at", LocalDateTime.class)
+			)).stream().findFirst();
+	}
+
+	public int complete(Long practiceId, Long userId, int durationMs, Long voiceAnalysisId) {
+		String sql = """
+				UPDATE PRACTICE_SESSION
+				SET status = 'COMPLETED', ended_at = CURRENT_TIMESTAMP(6),
+				    duration_ms = :durationMs, voice_analysis_id = :voiceAnalysisId
+				WHERE practice_id = :practiceId AND user_id = :userId
+				  AND status IN ('IN_PROGRESS', 'PAUSED')
+				""";
+		return jdbcTemplate.update(sql, new MapSqlParameterSource()
+			.addValue("practiceId", practiceId)
+			.addValue("userId", userId)
+			.addValue("durationMs", durationMs)
+			.addValue("voiceAnalysisId", voiceAnalysisId));
+	}
+
+	public int cancel(Long practiceId, Long userId) {
+		String sql = """
+				UPDATE PRACTICE_SESSION
+				SET status = 'ABORTED', ended_at = CURRENT_TIMESTAMP(6)
+				WHERE practice_id = :practiceId AND user_id = :userId
+				  AND status IN ('READY', 'IN_PROGRESS', 'PAUSED')
+				""";
+		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
+	}
+
+	public boolean identifierExists(Long practiceId) {
+		Long count = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM PRACTICE_SESSION WHERE practice_id = :practiceId",
+			Map.of("practiceId", practiceId), Long.class);
+		return count != null && count > 0;
+	}
+
+	public record SongRow(Long songId, Long durationMs, boolean practiceReady) {
+	}
+}

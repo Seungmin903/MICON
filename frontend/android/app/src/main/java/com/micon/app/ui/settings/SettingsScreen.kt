@@ -1,5 +1,6 @@
 package com.micon.app.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.Save
@@ -30,32 +32,45 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.BuildConfig
-import com.micon.app.core.auth.TokenManager
+import com.micon.app.appContainer
+import com.micon.app.data.backend.NetworkAuthRepository
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Pink
 import com.micon.app.ui.theme.Purple
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 /** Figma "설정": 섹션 라벨 + 아이콘 행 + 토글, 회원 탈퇴는 핑크. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}) {
+fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
     var keepOriginal by remember { mutableStateOf(true) } // TODO: 기본값 상충(명세 ON vs SET-002 OFF) 결정 후 저장소 연동
+    val backend = LocalContext.current.appContainer.backend
+    val auth = remember(backend) { NetworkAuthRepository(backend.api) }
+    val scope = rememberCoroutineScope()
+    var loggingOut by remember { mutableStateOf(false) }
+    BackHandler(enabled = loggingOut) { }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        BackHeader("설정", onBack)
+        BackHeader("설정", { if (!loggingOut) onBack() })
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             Spacer(Modifier.height(28.dp))
+            SectionTitle("나의 음악 취향")
+            SettingRow(Icons.Outlined.FavoriteBorder, "관심 장르·아티스트 수정") { if (!loggingOut) onEditPreferences() }
+            Spacer(Modifier.height(20.dp))
             SectionTitle("녹음 및 음성 데이터")
             SettingRow(Icons.Outlined.Mic, "마이크 권한 설정") { /* TODO: 앱 설정 화면 인텐트 */ }
             SettingRow(Icons.Outlined.Notifications, "알림 설정") { }
@@ -75,7 +90,12 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}) {
             SectionTitle("개인정보 및 보안")
             SettingRow(Icons.Outlined.Shield, "개인정보 설정") { }
             SettingRow(Icons.Outlined.Delete, "음성데이터 삭제") { /* TODO: BackendApi 음성 데이터 삭제 */ }
-            SettingRow(Icons.Outlined.PersonOff, "로그아웃") { TokenManager.clear(); onLogout() }
+            SettingRow(Icons.Outlined.PersonOff, if (loggingOut) "로그아웃 중…" else "로그아웃") {
+                if (!loggingOut) {
+                    loggingOut = true
+                    scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() }
+                }
+            }
             SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { /* TODO: 확인 다이얼로그 → BackendApi 탈퇴 */ }
             Spacer(Modifier.height(32.dp))
             SectionTitle("개발자")

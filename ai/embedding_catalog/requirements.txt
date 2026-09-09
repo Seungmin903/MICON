@@ -1,0 +1,3 @@
+numpy==2.3.3
+boto3==1.40.45
+PyMySQL[rsa]==1.1.2

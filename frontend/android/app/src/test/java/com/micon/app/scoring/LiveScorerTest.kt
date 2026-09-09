@@ -40,17 +40,40 @@ class LiveScorerTest {
     }
 
     @Test
-    fun `60 cents high is sharp, 200 cents is wrong, octave error is folded`() {
-        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60, 0), note(2.0, 2.5, 60, 1), note(3.0, 3.5, 60, 2)))
-        scorer.feed(1.0, 1.5, 60.6)      // +60¢
-        scorer.feed(2.0, 2.5, 62.0)      // +200¢
+    fun `120 cents high is sharp, 300 cents is wrong, 60 cents is still good, octave error is folded`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60, 0), note(2.0, 2.5, 60, 1), note(3.0, 3.5, 60, 2), note(4.0, 4.5, 60, 3)))
+        scorer.feed(1.0, 1.5, 61.2)      // +120¢ → sharp (라이브 완화: 70¢ 까지 good)
+        scorer.feed(2.0, 2.5, 63.0)      // +300¢ → wrong (2반음 초과)
         scorer.feed(3.0, 3.5, 72.1)      // 한 옥타브 위 +10¢ → fold → good
-        val done = scorer.tick(4.0)
-        assertEquals(listOf(LiveStatus.SHARP, LiveStatus.WRONG, LiveStatus.GOOD), done.map { it.status })
-        assertEquals(60, done[0].cents)
-        assertEquals(200, done[1].cents)
+        scorer.feed(4.0, 4.5, 60.6)      // +60¢ → good (예전 기준으론 sharp)
+        val done = scorer.tick(5.0)
+        assertEquals(listOf(LiveStatus.SHARP, LiveStatus.WRONG, LiveStatus.GOOD, LiveStatus.GOOD), done.map { it.status })
+        assertEquals(120, done[0].cents)
+        assertEquals(300, done[1].cents)
         assertEquals(10, done[2].cents)
-        assertEquals(0.0, done[1].pitchScore!!, 1e-9)   // 150¢ 이상 → 0
+        assertEquals(0.0, done[1].pitchScore!!, 1e-9)   // 250¢ 이상 → 0
+        assertEquals(0.95, done[3].pitchScore!!, 1e-6)  // 1 - (60-50)/(250-50)
+    }
+
+    @Test
+    fun `notes shorter than the live minimum are skipped and excluded from totals`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.1, 60, 0), note(1.1, 1.6, 62, 1)))
+        scorer.feed(1.0, 1.6, 62.0)
+        val done = scorer.tick(2.0)
+        assertEquals(1, done.size)                              // 0.1 s 음표는 판정 목록에 없다
+        assertEquals(LiveStatus.SKIPPED, scorer.notes[0].status)
+        assertEquals(LiveStatus.GOOD, scorer.notes[1].status)
+        assertEquals(1, scorer.totals().judged)
+    }
+
+    @Test
+    fun `a scoop into the note does not spoil the pitch judgement`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.6, 60)))
+        scorer.feed(1.0, 1.2, 58.5)      // 처음 200 ms 는 1.5 반음 아래에서 끌어올림
+        scorer.feed(1.2, 1.6, 60.05)     // 나머지는 정확
+        val done = scorer.tick(2.0)
+        assertEquals(LiveStatus.GOOD, done.single().status)
+        assertTrue(abs(done.single().cents!!) <= 10)
     }
 
     @Test
@@ -71,10 +94,11 @@ class LiveScorerTest {
         val first = done[0]
         assertEquals(LiveStatus.GOOD, first.status)
         assertTrue("deviation ${first.deviation}", abs(first.deviation!! - 0.2) < 0.03)
-        // 1 - (0.2-0.06)/(0.4-0.06) ≈ 0.588
-        assertEquals(0.588, first.timingScore!!, 0.05)
+        // 1 - (0.2-0.12)/(0.6-0.12) ≈ 0.833
+        assertEquals(0.833, first.timingScore!!, 0.05)
         val second = done[1]
-        assertEquals(LiveStatus.WRONG, second.status)   // 62 목표에 60 → −200¢
+        assertEquals(LiveStatus.FLAT, second.status)    // 62 목표에 60 → −200¢: 라이브 기준(2반음 초과가 다른 음)으론 "낮게"
+        assertEquals(-200, second.cents)
         assertNull(second.deviation)
         assertEquals(0.5, second.timingScore!!, 1e-9)
     }

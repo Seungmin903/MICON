@@ -8,7 +8,9 @@ import com.micon.app.data.engine.dto.CompareOptions
 import com.micon.app.data.engine.dto.SemitonesRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -49,6 +51,13 @@ interface EngineApi {
         @Part("allowTranspose") allowTranspose: RequestBody,
         @Part("octaveTolerant") octaveTolerant: RequestBody,
     ): Job
+
+    /**
+     * 부른 노래(performance job) 기록 삭제 — 평가 탭. 결과 JSON·녹음·분석 파일이 엔진 workspace 에서 지워진다.
+     * 카탈로그 곡(reference job)은 409, 분석 중인 기록도 409.
+     */
+    @DELETE("jobs/{id}")
+    suspend fun deleteJob(@Path("id") performanceJobId: String): Response<Unit>
 
     /** 옵션만 바꿔 재채점 (오디오 재분석 없음) */
     @POST("jobs/{id}/comparison")

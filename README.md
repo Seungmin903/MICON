@@ -9,8 +9,9 @@ FE(Android), BE, AI, 문서를 하나의 저장소에서 관리하는 모노레�
 .
 ├── frontend/
 │   └── android/        # MICON Android 앱 (Kotlin · Jetpack Compose)
-├── backend/            # 앱 백엔드 (Spring / MySQL 8, 예정)
-├── ai/                 # 음성 분석 엔진·음원 처리·추천 (vocal-scope 등, 파트 브랜치에서 합류 예정)
+├── backend/            # 앱 백엔드 (Spring / MySQL 8 / S3 연동)
+├── ai/                 # AI 파트 안내·운영 인수 계약
+├── vocal-scope/        # 로컬 음성 분석 엔진·음원 처리·배치 도구
 ├── docs/               # 프로젝트 공통 문서
 ├── .gitlab/            # MR 템플릿
 ├── CLAUDE.md           # AI 에이전트용 요약 규칙
@@ -29,6 +30,8 @@ git config --unset core.hooksPath        # 예전에 .githooks 로 바꿔둔 사
 Android 앱 빌드 절차는 [frontend/android/README.md](frontend/android/README.md).
 팀원별 준비물·로컬 실행·실기기 연결은 [로컬 실행 안내](docs/operations/LOCAL_DEVELOPMENT.md)를 먼저 확인한다.
 현재 운영 환경의 적용 결과와 미완료 범위는 [서버 설정 기록](docs/operations/SERVER_BOOTSTRAP.md), [배포 준비 체크리스트](docs/operations/DEPLOYMENT_READINESS.md)에 구분해 기록한다.
+
+운영 구조는 **SSAFY 서버의 BE·MySQL + 개인 AWS 계정의 비공개 S3**다. 버킷·인증·권한·팀원 로컬 데이터 업로드 안내는 [S3 운영 계약](docs/operations/S3_VOICE_STORAGE.md), 전체 환경변수는 [BE 실행 계약](docs/operations/BACKEND_RUNTIME_CONTRACT.md)을 따른다. 2026-09-09 개인 버킷·BE 전용 IAM·서버 키 저장 및 CLI 업로드/GET/삭제 검증을 완료했다. BE 컨테이너 연결·앱/DB/AI 통합과 팀원 업로더 발급은 미완료이며, 파일 업로드와 DB 적재는 별도 절차다.
 
 ## Git 규칙 요약
 
