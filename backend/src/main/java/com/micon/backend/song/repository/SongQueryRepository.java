@@ -11,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -91,6 +93,14 @@ public class SongQueryRepository {
 				""";
 		List<SongDetailRow> rows = jdbcTemplate.query(sql, Map.of("songId", songId), SONG_DETAIL_ROW_MAPPER);
 		return rows.stream().findFirst();
+	}
+
+	public Set<Long> findExistingIds(Set<Long> songIds) {
+		if (songIds.isEmpty()) {
+			return Set.of();
+		}
+		String sql = "SELECT song_id FROM SONG WHERE song_id IN (:songIds)";
+		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), Long.class));
 	}
 
 	public List<String> findArtists(Long songId) {

@@ -7,12 +7,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface RecommendationRepository extends JpaRepository<Recommendation, Long> {
 
     Optional<Recommendation> findByIdAndUserId(Long id, Long userId);
 
     Optional<Recommendation> findFirstByUserIdOrderByGeneratedAtDescIdDesc(Long userId);
+
+    boolean existsByVoiceAnalysisIdAndStatus(Long voiceAnalysisId, RecommendationStatus status);
+
+    List<Recommendation> findByStatusAndJobIdIsNotNullOrderByGeneratedAt(RecommendationStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select recommendation from Recommendation recommendation where recommendation.id = :id")

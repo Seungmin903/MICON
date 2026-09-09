@@ -84,6 +84,19 @@ class RecommendationDispatchIntegrationTest {
         assertThat(failed.getFailureReason()).isEqualTo("AI connection timed out");
     }
 
+    @Test
+    void rejectsAnotherGeneratingRecommendationForSameAnalysis() {
+        VoiceAnalysis analysis = completedAnalysis("recommend-duplicate@micon.com");
+        when(gateway.submit(any())).thenReturn(new RecommendationJobGateway.Result("job-first", "queued"));
+        service.dispatch(analysis.getUser().getId(), analysis.getId(), RecommendationMode.OVERALL);
+
+        assertThatThrownBy(() -> service.dispatch(
+                analysis.getUser().getId(), analysis.getId(), RecommendationMode.OVERALL))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.RECOMMENDATION_ALREADY_GENERATING));
+    }
+
     private VoiceAnalysis completedAnalysis(String email) {
         User user = users.saveAndFlush(new User(email, passwordEncoder.encode("Password123!")));
         VoiceRecording recording = recordings.saveAndFlush(

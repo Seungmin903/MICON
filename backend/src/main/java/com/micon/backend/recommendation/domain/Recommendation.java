@@ -119,7 +119,9 @@ public class Recommendation {
         if (progress < 0 || progress > 100) {
             throw new IllegalArgumentException("progress must be between 0 and 100");
         }
-        this.progress = (short) progress;
+        if (progress > this.progress) {
+            this.progress = (short) progress;
+        }
     }
 
     public void complete(String algorithmVersion, String scoringVersion, String compositionVersion,
@@ -134,11 +136,14 @@ public class Recommendation {
         this.expiresAt = expiresAt;
     }
 
-    public void completeEmpty(String algorithmVersion, LocalDateTime completedAt, LocalDateTime expiresAt) {
+    public void completeEmpty(String algorithmVersion, String scoringVersion, String compositionVersion,
+                              LocalDateTime completedAt, LocalDateTime expiresAt) {
         requireGenerating();
         this.status = RecommendationStatus.EMPTY;
         this.progress = 100;
         this.algorithmVersion = algorithmVersion;
+        this.scoringVersion = scoringVersion;
+        this.compositionVersion = compositionVersion;
         this.completedAt = requiredTime(completedAt);
         this.expiresAt = expiresAt;
     }

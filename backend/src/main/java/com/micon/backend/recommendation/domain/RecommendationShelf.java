@@ -29,7 +29,7 @@ public class RecommendationShelf {
     @Column(nullable = false, length = 100)
     private String title;
 
-    @Column(length = 50)
+    @Column(length = 255)
     private String metric;
 
     @Column(name = "shelf_order", nullable = false)
