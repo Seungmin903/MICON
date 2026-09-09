@@ -54,5 +54,5 @@ embedding-catalog-tests:
     MICON_TEST_DB_PASSWORD: ci-root-password
   script:
     - 'pip install --disable-pip-version-check --only-binary=:all: -r ai/embedding_catalog/requirements-test.txt'
-    - python -m pytest ai/embedding_catalog/tests -v
+    - python -m pytest ai/embedding_catalog/tests ai/catalog_media/tests -v
 

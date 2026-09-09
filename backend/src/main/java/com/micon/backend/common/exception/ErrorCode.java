@@ -42,6 +42,7 @@ public enum ErrorCode {
     RECOMMENDATION_SONG_NOT_FOUND(HttpStatus.NOT_FOUND, "RECOMMENDATION_SONG_NOT_FOUND", "추천 결과에서 곡을 찾을 수 없습니다."),
     SONG_FIT_EVALUATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SONG_FIT_EVALUATION_FAILED", "곡 적합도 계산에 실패했습니다."),
     EMBEDDING_CATALOG_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "EMBEDDING_CATALOG_UNAVAILABLE", "사용 가능한 임베딩 카탈로그가 없습니다."),
+    CATALOG_MEDIA_NOT_READY(HttpStatus.CONFLICT, "CATALOG_MEDIA_NOT_READY", "사용 가능한 곡 미디어가 없습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다.");
 
     private final HttpStatus status;

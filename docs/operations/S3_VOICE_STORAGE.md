@@ -117,7 +117,7 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 }
 ```
 
-현재 `S3VoiceStorage`의 업로드·재생/AI 분석용 URL·삭제에 대응한다. BE에 전체 버킷 열람, 버킷 생성·삭제, `catalog/` 접근 권한은 주지 않는다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
+현재 `S3VoiceStorage`의 녹음 업로드·재생/AI 분석용 URL·삭제에 대응한다. S15P21B110-228의 보컬 stem 연결 시에는 이 정책을 넓히지 않고 별도 `MiconCatalogMediaReadOnly` 인라인 정책으로 승인된 `catalog/정영주/section-384-v1/vocals/*` GetObject만 추가한다. BE에 전체 버킷 열람, 버킷 생성·삭제, catalog 쓰기·삭제 권한은 주지 않는다. 자세한 등록·API 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
 
 ### 카탈로그 업로더 정책 (BE와 분리)
 
