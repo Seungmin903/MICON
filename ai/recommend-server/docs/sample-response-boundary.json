@@ -1,0 +1,374 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "status": "complete",
+  "progress": 100,
+  "message": "음색과 음역 추천이 완료되었습니다.",
+  "mode": "timbre",
+  "genres": [
+    "팝"
+  ],
+  "preferred_artists": [],
+  "result": {
+    "algorithm": {
+      "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+      "shelves_version": "shelves-v1",
+      "applied_mode": "timbre",
+      "range_enabled": true,
+      "range_fallback_reason": null,
+      "language_gate": {
+        "enabled": true,
+        "genres": [
+          "팝"
+        ],
+        "allowed": [
+          "en"
+        ],
+        "excluded_count": null
+      },
+      "preferred_artists": [],
+      "requested_mode": "timbre",
+      "catalog_scored": 73
+    },
+    "query": {
+      "segments": {
+        "ecapa": 9,
+        "singer_byol": 9
+      },
+      "pitchProfile": {
+        "schemaVersion": 1,
+        "profileKind": "catalog_song",
+        "method": "duration-weighted rounded notes; core 5th-95th percentile",
+        "histogramMidiMin": 36,
+        "histogramMidiMax": 95,
+        "lowestMidi": 52,
+        "highestMidi": 76,
+        "coreLowMidi": 54,
+        "medianMidi": 59,
+        "coreHighMidi": 66,
+        "lowest": "E3",
+        "highest": "E5",
+        "coreRange": "F♯3–F♯4",
+        "noteCount": 242,
+        "voicedSeconds": 144.14,
+        "confidence": 0.7174,
+        "f0AgreementRatio": 0.9223,
+        "octaveMismatchRatio": 0.0102,
+        "comparedFrames": 14381,
+        "reliable": true,
+        "qualityReasons": [],
+        "pitchMethod": "CREPE full (segment Viterbi) + pYIN cross-check + VAD",
+        "separation": {
+          "backend": "htdemucs",
+          "model": "htdemucs",
+          "requested": "htdemucs",
+          "seconds": 19.5
+        }
+      },
+      "pitchError": null
+    },
+    "shelves": [
+      {
+        "key": "voice",
+        "title": "내 목소리와 닮은 곡",
+        "metric": "음색 유사도 순. 음역은 게이트만(키 ±3 안에서 부담 없음). 키는 부르는 방법으로 표시",
+        "items": [
+          {
+            "position": 1,
+            "shelf": "voice",
+            "track_id": "tj-00281-52ceab7628c6",
+            "song_id": "tj-00281",
+            "title": "이름 모를 소녀",
+            "artist": "김정호",
+            "metadata": {
+              "album_name": "이름 모를 소녀 / 사랑의 진실",
+              "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/38/d2/22/38d222a0-ed01-0bfa-a358-53db00144d3f/525342_Vol_1.jpg/100x100bb.jpg",
+              "genres": [
+                "K-Pop"
+              ],
+              "language": null,
+              "release_date": "1983-02-25",
+              "tj_id": "TJ-00281",
+              "artist_gender": null
+            },
+            "axis": "ECAPA",
+            "label": "목소리 물성이 가까운 가수",
+            "axis_scores": null,
+            "axis_rank": null,
+            "confidence": null,
+            "timbre_score": 0.63811,
+            "range_fit": {
+              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "score": 0.993656,
+              "coverage": 0.998316,
+              "centerScore": 1.0,
+              "spanFit": 1.0,
+              "softFit": 0.981409,
+              "keyShift": 0,
+              "songCoreLowMidi": 54,
+              "songCoreHighMidi": 66,
+              "catalogProfileReliable": true,
+              "baseScore": 0.998905,
+              "coverageFit": 0.981409,
+              "boundaryFit": 1.0,
+              "centerDistanceSemitones": 0.0,
+              "lowCoreExcessSemitones": 0.0,
+              "highCoreExcessSemitones": 0.0,
+              "totalCoreExcessSemitones": 0.0,
+              "paddedObservedLowMidi": 52,
+              "paddedObservedHighMidi": 68,
+              "songCoreRange": "F♯3–F♯4",
+              "shiftedCoreLowMidi": 54,
+              "shiftedCoreHighMidi": 66,
+              "shiftedCoreRange": "F♯3–F♯4",
+              "paddedObservedRange": "E3–G♯4",
+              "rangeContributionApplied": true
+            },
+            "recommended_key": 0,
+            "final_score": 0.726997,
+            "metrics": {
+              "axis_scores": {
+                "ecapa": 1.0,
+                "singer_byol": 1.0,
+                "consensus": 1.0
+              },
+              "confidence": 0.9388
+            },
+            "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+            "composition_version": "shelves-v1"
+          }
+        ],
+        "composition": {
+          "version": "two-axis-quota-v1",
+          "quota": {
+            "ecapa": 1,
+            "singer_byol": 0,
+            "consensus": 0
+          },
+          "filled": {
+            "ecapa": 1,
+            "singer_byol": 0,
+            "consensus": 0
+          },
+          "consensus_top_n": 10,
+          "order": "final_score desc",
+          "candidate_count": 21
+        }
+      },
+      {
+        "key": "original_key",
+        "title": "키 안 바꾸고 바로 부를 곡",
+        "metric": "최적 키 0 · 원키 커버리지 ≥ 0.95. 곡 중심음이 내 중심음에 가까운 순",
+        "items": [
+          {
+            "position": 1,
+            "shelf": "original_key",
+            "track_id": "tj-07098-33d135a6ea79",
+            "song_id": "tj-07098",
+            "title": "Take Me Home, Country Roads",
+            "artist": "John Denver",
+            "metadata": {
+              "album_name": "Road Trip Sing-Alongs",
+              "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/01/59/41/01594149-3762-533f-2248-486263240aca/886445816068.jpg/100x100bb.jpg",
+              "genres": [
+                "Pop"
+              ],
+              "language": "en",
+              "release_date": "1971-01-01",
+              "tj_id": "TJ-07098",
+              "artist_gender": null
+            },
+            "axis": null,
+            "label": null,
+            "axis_scores": null,
+            "axis_rank": null,
+            "confidence": null,
+            "timbre_score": 0.485856,
+            "range_fit": {
+              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "score": 0.991125,
+              "coverage": 0.993868,
+              "centerScore": 1.0,
+              "spanFit": 1.0,
+              "softFit": 0.979715,
+              "keyShift": 0,
+              "songCoreLowMidi": 52,
+              "songCoreHighMidi": 65,
+              "catalogProfileReliable": true,
+              "baseScore": 0.996014,
+              "coverageFit": 0.979715,
+              "boundaryFit": 1.0,
+              "centerDistanceSemitones": 0.0,
+              "lowCoreExcessSemitones": 0.0,
+              "highCoreExcessSemitones": 0.0,
+              "totalCoreExcessSemitones": 0.0,
+              "paddedObservedLowMidi": 52,
+              "paddedObservedHighMidi": 68,
+              "songCoreRange": "E3–F4",
+              "shiftedCoreLowMidi": 52,
+              "shiftedCoreHighMidi": 65,
+              "shiftedCoreRange": "E3–F4",
+              "paddedObservedRange": "E3–G♯4",
+              "rangeContributionApplied": true
+            },
+            "recommended_key": 0,
+            "final_score": 0.612173,
+            "metrics": {
+              "coverage0": 0.9939,
+              "center0": 1.0
+            },
+            "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+            "composition_version": "shelves-v1"
+          }
+        ]
+      },
+      {
+        "key": "discovery",
+        "title": "새로운 발견",
+        "metric": "선택 안 한 장르 중 부를 수 있고 음색 중앙값 이상인 곡을 가수·장르 중복 없이 섞어 매일 다른 순서",
+        "items": [
+          {
+            "position": 1,
+            "shelf": "discovery",
+            "track_id": "tj-20899-c81e919af420",
+            "song_id": "tj-20899",
+            "title": "Halo",
+            "artist": "Beyoncé",
+            "metadata": {
+              "album_name": "I Am… Sasha Fierce",
+              "display_image_url": "http://coverartarchive.org/release/423ef3ec-9ba6-45c2-a51a-697b26dba00b/35915240837-500.jpg",
+              "genres": [
+                "Ballad",
+                "R&B",
+                "Hip-Hop"
+              ],
+              "language": "en",
+              "release_date": "2008-11-12",
+              "tj_id": "TJ-20899",
+              "artist_gender": null
+            },
+            "axis": null,
+            "label": null,
+            "axis_scores": null,
+            "axis_rank": null,
+            "confidence": null,
+            "timbre_score": 0.447816,
+            "range_fit": {
+              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "score": 0.478926,
+              "coverage": 0.840904,
+              "centerScore": 0.188876,
+              "spanFit": 0.22313,
+              "softFit": 0.154814,
+              "keyShift": -5,
+              "songCoreLowMidi": 56,
+              "songCoreHighMidi": 78,
+              "catalogProfileReliable": true,
+              "baseScore": 0.617832,
+              "coverageFit": 0.693827,
+              "boundaryFit": 0.22313,
+              "centerDistanceSemitones": 5.0,
+              "lowCoreExcessSemitones": 1.0,
+              "highCoreExcessSemitones": 5.0,
+              "totalCoreExcessSemitones": 6.0,
+              "paddedObservedLowMidi": 52,
+              "paddedObservedHighMidi": 68,
+              "songCoreRange": "G♯3–F♯5",
+              "shiftedCoreLowMidi": 51,
+              "shiftedCoreHighMidi": 73,
+              "shiftedCoreRange": "D♯3–C♯5",
+              "paddedObservedRange": "E3–G♯4",
+              "rangeContributionApplied": true
+            },
+            "recommended_key": -5,
+            "final_score": 0.455594,
+            "metrics": {
+              "genre": "Ballad",
+              "timbre_score": 0.4478
+            },
+            "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+            "composition_version": "shelves-v1"
+          }
+        ],
+        "excluded_tags": [
+          "K-Pop",
+          "Pop"
+        ],
+        "seed": 20260908
+      }
+    ],
+    "recommendations": [
+      {
+        "position": 1,
+        "shelf": "voice",
+        "track_id": "tj-00281-52ceab7628c6",
+        "song_id": "tj-00281",
+        "title": "이름 모를 소녀",
+        "artist": "김정호",
+        "metadata": {
+          "album_name": "이름 모를 소녀 / 사랑의 진실",
+          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/38/d2/22/38d222a0-ed01-0bfa-a358-53db00144d3f/525342_Vol_1.jpg/100x100bb.jpg",
+          "genres": [
+            "K-Pop"
+          ],
+          "language": null,
+          "release_date": "1983-02-25",
+          "tj_id": "TJ-00281",
+          "artist_gender": null
+        },
+        "axis": "ECAPA",
+        "label": "목소리 물성이 가까운 가수",
+        "axis_scores": null,
+        "axis_rank": null,
+        "confidence": null,
+        "timbre_score": 0.63811,
+        "range_fit": {
+          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "score": 0.993656,
+          "coverage": 0.998316,
+          "centerScore": 1.0,
+          "spanFit": 1.0,
+          "softFit": 0.981409,
+          "keyShift": 0,
+          "songCoreLowMidi": 54,
+          "songCoreHighMidi": 66,
+          "catalogProfileReliable": true,
+          "baseScore": 0.998905,
+          "coverageFit": 0.981409,
+          "boundaryFit": 1.0,
+          "centerDistanceSemitones": 0.0,
+          "lowCoreExcessSemitones": 0.0,
+          "highCoreExcessSemitones": 0.0,
+          "totalCoreExcessSemitones": 0.0,
+          "paddedObservedLowMidi": 52,
+          "paddedObservedHighMidi": 68,
+          "songCoreRange": "F♯3–F♯4",
+          "shiftedCoreLowMidi": 54,
+          "shiftedCoreHighMidi": 66,
+          "shiftedCoreRange": "F♯3–F♯4",
+          "paddedObservedRange": "E3–G♯4",
+          "rangeContributionApplied": true
+        },
+        "recommended_key": 0,
+        "final_score": 0.726997,
+        "metrics": {
+          "axis_scores": {
+            "ecapa": 1.0,
+            "singer_byol": 1.0,
+            "consensus": 1.0
+          },
+          "confidence": 0.9388
+        },
+        "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
+        "composition_version": "shelves-v1"
+      }
+    ],
+    "catalog_track_count": 374,
+    "limitations": [
+      "관찰 음역은 업로드 샘플 기준이며 생리적 한계가 아니다.",
+      "음색 점수는 후보군과 무관한 절대 유사도이지 성공 확률이 아니다.",
+      "artist_gender 는 카탈로그에 아직 없다(null)."
+    ]
+  },
+  "error": null,
+  "sample_note": "경계 샘플: topK=1 · 선호 가수 없음 · 장르 팝(언어 게이트 en). 섹션은 비거나 1곡"
+}

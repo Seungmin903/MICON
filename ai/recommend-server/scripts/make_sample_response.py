@@ -57,6 +57,42 @@ def main() -> None:
     (DOCS / "sample-response.json").write_text(json.dumps(job.model_dump(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (DOCS / "response-schema.json").write_text(json.dumps(Job.model_json_schema(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"query={query_track.track_id} shelves={len(result['shelves'])} -> docs/sample-response.json, docs/response-schema.json")
+
+    # --- 경계·결측·실패 샘플 (S15P21B110-147: 정상 외 예시). FE 는 이 셋으로 null 처리·빈 섹션·실패 화면을 고정한다.
+    query_emb = {key: np.asarray(catalog.embeddings(query_track, key)) for key in ("ecapa", "singer_byol")}
+    variants = {
+        # 결측: 음역 프로파일 없음(유성 구간 미검출). range_fit·recommended_key 전부 null, 음역 조건 섹션은 음색만으로 채움
+        "sample-response-no-profile.json": Job(
+            id="00000000-0000-4000-8000-000000000001", status="complete", progress=100, message="음색과 음역 추천이 완료되었습니다.",
+            mode=args.mode, genres=list(genres), preferred_artists=list(artists),
+            result=build_result(
+                catalog, ranges, query=query_emb, pitch_profile=None, pitch_error="보컬 활동(유성 구간)을 감지하지 못했습니다.",
+                mode=args.mode, top_k=args.top_k, genres=genres, preferred_artists=artists, excluded_track_ids=(query_track.track_id,), seed=20260908,
+            ),
+            sample_note="결측 샘플: 음역 프로파일 없음 → range_fit·recommended_key 는 null, algorithm.range_fallback_reason 에 사유, original_key 섹션 비어 있음",
+        ),
+        # 경계: topK=1, 선호 가수 없음(favorite_artists 비거나 없음), 장르 팝 → 언어 게이트 en 만
+        "sample-response-boundary.json": Job(
+            id="00000000-0000-4000-8000-000000000002", status="complete", progress=100, message="음색과 음역 추천이 완료되었습니다.",
+            mode=args.mode, genres=["팝"], preferred_artists=[],
+            result=build_result(
+                catalog, ranges, query=query_emb, pitch_profile=ranges.profiles[query_track.track_id], pitch_error=None,
+                mode=args.mode, top_k=1, genres=("팝",), preferred_artists=(), excluded_track_ids=(query_track.track_id,), seed=20260908,
+            ),
+            sample_note="경계 샘플: topK=1 · 선호 가수 없음 · 장르 팝(언어 게이트 en). 섹션은 비거나 1곡",
+        ),
+        # 실패: result 없음, error 에 사유. 진행률 100
+        "sample-response-failed.json": Job(
+            id="00000000-0000-4000-8000-000000000003", status="failed", progress=100, message="맞춤 추천에 실패했습니다.",
+            mode=args.mode, genres=list(genres), preferred_artists=list(artists), result=None, error="보컬 오디오가 너무 짧습니다.",
+            sample_note="실패 샘플: status=failed, result=null, error 에 사용자 안내 문장",
+        ),
+    }
+    for name, variant in variants.items():
+        dumped = variant.model_dump()
+        (DOCS / name).write_text(json.dumps(dumped, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        r = dumped["result"]
+        print(f"-> docs/{name}: status={variant.status} shelves={[(s['key'], len(s['items'])) for s in r['shelves']] if r else None}")
     for shelf in result["shelves"]:
         print(f"\n[{shelf['key']}] {shelf['title']} — {shelf['metric']}")
         for r in shelf["items"]:

@@ -45,6 +45,17 @@ curl http://127.0.0.1:8788/health
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
 
+샘플 4종 (`docs/`). FE 는 이 넷으로 정상·null·빈 섹션·실패 화면을 고정한다.
+
+| 파일 | 상황 | 확인할 것 |
+|---|---|---|
+| `sample-response.json` | 정상 | 섹션 4개(challenge 기본 꺼짐), `range_fit`·`recommended_key` 있음 |
+| `sample-response-no-profile.json` | 결측 — 음역 프로파일 없음 | `query.pitchProfile=null`, `query.pitchError` 문장, 모든 item 의 `range_fit`·`recommended_key`=null, `algorithm.range_enabled=false`·`applied_mode=timbre_only`·`range_fallback_reason` 에 사유. `original_key` 섹션은 빈 배열 |
+| `sample-response-boundary.json` | 경계 — topK=1, 선호 가수 없음, 장르 팝 | 섹션이 비거나 1곡, `favorite_artists` 없음, 언어 게이트 en |
+| `sample-response-failed.json` | 실패 | `status=failed`, `result=null`, `error` 에 사용자 안내 문장 |
+
+값 범위와 등급: `final_score`·`range_fit.score` 는 0~1. 표시 등급 경계(FE): ≥0.90 찰떡궁합 · ≥0.75 잘 맞아요 · 그 밖 도전해 보세요. **가창 난이도는 서버가 제공하지 않는다** — 필드 자체가 없으며 FE 가 표시하지 않거나 자체 규칙을 쓴다. 추천 사유는 `label`(음색, voice 섹션만) 하나이고 음역 사유 문장은 FE 규칙이 만든다.
+
 **응답의 중심은 `result.shelves[]`** (`shelves-v1`, `timbre_recommender/shelves.py`). 섹션마다 1차 지표가 다르고 한 곡은 한 섹션에만 나온다(우선순위 순). `result.recommendations[]` 는 첫 섹션 items 복사본(호환용).
 
 | key | 제목 | 1차 지표 | 음역 조건 | 랩 |
