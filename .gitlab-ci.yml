@@ -1,0 +1,22 @@
+stages:
+  - verify
+
+default:
+  image: python:3.13-alpine
+  tags:
+    - micon-protected
+  interruptible: true
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - when: never
+
+runtime-contract-tests:
+  stage: verify
+  timeout: 10 minutes
+  script:
+    - python --version
+    - python -m unittest discover -s backend/contract_tests -v
+    - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
+
