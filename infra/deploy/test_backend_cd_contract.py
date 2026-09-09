@@ -54,6 +54,19 @@ class BackendCdContractTests(unittest.TestCase):
         self.assertNotIn("down -v", self.deploy)
         self.assertNotIn("docker system prune", self.deploy)
 
+    def test_deploy_and_rollback_share_a_nonblocking_server_lock(self):
+        for script in (self.deploy, self.rollback):
+            self.assertIn("/run/lock/micon-backend-deploy.lock", script)
+            self.assertIn("flock -n 9", script)
+
+    def test_release_state_is_prepared_before_route_switch(self):
+        image = self.deploy.index("docker image inspect")
+        state = self.deploy.index('state_temp="$(mktemp')
+        switch = self.deploy.index("switch_backend_slot.sh")
+        self.assertLess(image, switch)
+        self.assertLess(state, switch)
+        self.assertIn('rm -f "$state_temp"', self.deploy)
+
     def test_previous_release_is_recorded_for_explicit_safe_rollback(self):
         self.assertIn("backend-release.previous.env", self.deploy)
         self.assertIn("--confirm-db-compatible", self.rollback)

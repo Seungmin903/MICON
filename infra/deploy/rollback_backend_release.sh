@@ -16,6 +16,17 @@ STATE_DIR=/var/lib/micon
 STATE_FILE="$STATE_DIR/backend-release.env"
 PREVIOUS_STATE_FILE="$STATE_DIR/backend-release.previous.env"
 DEPLOY_ENV=/etc/micon/runtime/backend-deploy.env
+LOCK_FILE=/run/lock/micon-backend-deploy.lock
+
+if ! command -v flock >/dev/null 2>&1; then
+    echo "flock is required for serialized backend rollback" >&2
+    exit 1
+fi
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "another backend deploy or rollback is already running" >&2
+    exit 1
+fi
 
 validate_root_state() {
     state_path="$1"

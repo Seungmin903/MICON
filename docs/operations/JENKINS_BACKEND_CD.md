@@ -13,7 +13,7 @@ Jira: S15P21B110-155. 연계: 153·154·156. 기준일: 2026-09-10 KST.
 | `micon-server-ssh` | SSH Username with private key | 배포 전용 서버 SSH 키와 사용자 `ubuntu`. Git·문서·환경변수 파일에 키 원문 저장 금지 |
 | `micon-server-known-hosts` | Secret file | 관리자가 지문을 별도로 확인한 `j15b110.p.ssafy.io` known_hosts 한 줄 |
 
-Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client가 필요하다. 서버에는 Docker Compose v2+, nginx, Python 3와 배포 사용자에 필요한 제한된 sudo 권한이 필요하다.
+Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client가 필요하다. 서버에는 Docker Compose v2+, nginx, Python 3, util-linux의 `flock`과 배포 사용자에 필요한 제한된 sudo 권한이 필요하다.
 
 현재 로컬 PEM을 Jenkins workspace나 저장소로 복사하지 않는다. Jenkins 관리자 화면에서 credential을 등록하는 작업은 영구 접근 권한 생성이므로 인프라 담당자가 대상·지문·키를 확인한 뒤 수행한다. 이 브랜치 작업에서는 credential과 Jenkins job을 생성하지 않았다.
 
@@ -26,7 +26,7 @@ Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client�
 5. 서버 installer가 archive SHA-256과 경로 traversal을 검사한다. 같은 SHA 재시도 시 기존 release를 `superseded/` 아래에 보존하고 깨끗한 새 경로에 푼다.
 6. root-owned source로 바꾼 뒤 비활성 blue/green 슬롯에서 이미지 build → Flyway → readiness 3회 → 카탈로그 S3 실제 GET을 실행한다.
 7. 모든 gate가 성공하면 Nginx slot switch를 실행하고 공개 API의 BE 401 응답을 확인한다.
-8. 전환 전 실패 시 후보 Compose만 `down`한다. 볼륨·DB·기존 active slot은 삭제하지 않는다.
+8. 서버의 공통 non-blocking lock으로 Jenkins·수동 배포·원복의 동시 실행을 거부한다. 전환 전 실패 시 후보 Compose만 `down`하고 준비 중인 상태 파일을 제거한다. 볼륨·DB·기존 active slot은 삭제하지 않는다.
 9. 성공 시 `/var/lib/micon/backend-release.env`에 SHA, image ID, slot, port, UTC 시각만 기록하고, 기존 정상 상태는 `/var/lib/micon/backend-release.previous.env`로 한 세대 보존한다.
 
 ## 직전 정상본 원복

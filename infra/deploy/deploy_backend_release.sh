@@ -22,6 +22,19 @@ COMPOSE_FILE="$REPOSITORY_ROOT/infra/compose/backend.compose.yml"
 STATE_DIR=/var/lib/micon
 STATE_FILE="$STATE_DIR/backend-release.env"
 PREVIOUS_STATE_FILE="$STATE_DIR/backend-release.previous.env"
+LOCK_FILE=/run/lock/micon-backend-deploy.lock
+
+if ! command -v flock >/dev/null 2>&1; then
+    echo "flock is required for serialized backend deployment" >&2
+    exit 1
+fi
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "another backend deploy or rollback is already running" >&2
+    exit 1
+fi
+
+install -d -o root -g root -m 0750 "$STATE_DIR"
 
 if [ -e "$STATE_FILE" ]; then
     if [ ! -f "$STATE_FILE" ] || [ -L "$STATE_FILE" ] || [ "$(stat -c %u "$STATE_FILE")" != 0 ]; then
@@ -36,7 +49,7 @@ fi
 
 "$REPOSITORY_ROOT/infra/deploy/prepare_backend_host.sh"
 
-if [ ! -f "$DEPLOY_ENV" ] || [ "$(stat -c %u "$DEPLOY_ENV")" != 0 ]; then
+if [ ! -f "$DEPLOY_ENV" ] || [ -L "$DEPLOY_ENV" ] || [ "$(stat -c %u "$DEPLOY_ENV")" != 0 ]; then
     echo "backend deployment settings must be a root-owned regular file" >&2
     exit 1
 fi
@@ -83,9 +96,17 @@ export MICON_BACKEND_ENV_FILE=/etc/micon/runtime/backend.env
 
 candidate_started=false
 route_switched=false
+state_temp=
+previous_temp=
 cleanup_failed_candidate() {
     result=$?
     trap - EXIT HUP INT TERM
+    if [ -n "$state_temp" ] && [ -e "$state_temp" ]; then
+        rm -f "$state_temp"
+    fi
+    if [ -n "$previous_temp" ] && [ -e "$previous_temp" ]; then
+        rm -f "$previous_temp"
+    fi
     if [ "$result" -ne 0 ] && [ "$candidate_started" = true ] && [ "$route_switched" = false ]; then
         docker compose -f "$COMPOSE_FILE" down || true
         echo "backend_release cleanup=candidate_removed route=unchanged" >&2
@@ -112,15 +133,10 @@ python3 "$REPOSITORY_ROOT/infra/deploy/check_catalog_media.py" \
     --allowed-prefix "$MICON_CATALOG_ALLOWED_PREFIX" \
     --timeout 30
 
-"$REPOSITORY_ROOT/infra/nginx/switch_backend_slot.sh" "$candidate_slot"
-route_switched=true
-
 image_id="$(docker image inspect --format '{{.Id}}' "$MICON_BACKEND_IMAGE")"
-install -d -o root -g root -m 0750 "$STATE_DIR"
 if [ -f "$STATE_FILE" ]; then
     previous_temp="$(mktemp "$STATE_DIR/backend-release.previous.XXXXXX")"
     install -o root -g root -m 0640 "$STATE_FILE" "$previous_temp"
-    mv -Tf "$previous_temp" "$PREVIOUS_STATE_FILE"
 fi
 state_temp="$(mktemp "$STATE_DIR/backend-release.XXXXXX")"
 chown root:root "$state_temp"
@@ -133,7 +149,16 @@ chmod 0640 "$state_temp"
     printf 'PORT=%s\n' "$candidate_port"
     printf 'DEPLOYED_AT_UTC=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$state_temp"
+
+"$REPOSITORY_ROOT/infra/nginx/switch_backend_slot.sh" "$candidate_slot"
+route_switched=true
+
 mv -Tf "$state_temp" "$STATE_FILE"
+state_temp=
+if [ -n "$previous_temp" ]; then
+    mv -Tf "$previous_temp" "$PREVIOUS_STATE_FILE"
+    previous_temp=
+fi
 
 trap - EXIT HUP INT TERM
 printf 'backend_release result=active sha=%s slot=%s port=%s image_id=%s\n' \
