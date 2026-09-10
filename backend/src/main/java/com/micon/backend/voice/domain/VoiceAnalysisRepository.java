@@ -43,5 +43,8 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
 
     Optional<VoiceAnalysis> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
 
+    Optional<VoiceAnalysis> findFirstByUserIdAndStatusOrderByCompletedAtDescIdDesc(
+            Long userId, VoiceAnalysisStatus status);
+
     long countByUserIdAndRecordingIdLessThanEqual(Long userId, Long recordingId);
 }
