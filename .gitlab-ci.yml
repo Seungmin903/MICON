@@ -67,6 +67,8 @@ embedding-catalog-tests:
 notify_mm_mr:
   stage: notify
   image: python:3.13-alpine
+  tags:
+    - micon-notify
   variables:
     GIT_STRATEGY: none
   script:
