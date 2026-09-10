@@ -88,17 +88,27 @@ if ! systemctl reload nginx.service; then
 fi
 
 smoke_body="$backup_dir/public-smoke.json"
-if ! public_status="$(curl --silent --show-error --max-time 10 \
-    --output "$smoke_body" --write-out '%{http_code}' \
-    "https://$DOMAIN/api/v1/songs")"; then
-    restore_previous
-    nginx -t
-    systemctl reload nginx.service
-    rm -f "$smoke_body"
-    echo "public API smoke request failed; previous route restored" >&2
-    exit 1
-fi
-if [ "$public_status" != 401 ] || ! grep -q '"code":"UNAUTHENTICATED"' "$smoke_body"; then
+public_smoke_ready=false
+public_smoke_attempt=1
+# systemctl reload returns after signalling Nginx. During the worker handover a
+# request can still reach the previous bootstrap worker, so allow a short,
+# bounded convergence window before deciding that the new route is unhealthy.
+while [ "$public_smoke_attempt" -le 10 ]; do
+    public_status=
+    if public_status="$(curl --silent --show-error --max-time 3 \
+        --output "$smoke_body" --write-out '%{http_code}' \
+        "https://$DOMAIN/api/v1/songs")" \
+        && [ "$public_status" = 401 ] \
+        && grep -q '"code":"UNAUTHENTICATED"' "$smoke_body"; then
+        public_smoke_ready=true
+        break
+    fi
+    if [ "$public_smoke_attempt" -lt 10 ]; then
+        sleep 1
+    fi
+    public_smoke_attempt=$((public_smoke_attempt + 1))
+done
+if [ "$public_smoke_ready" != true ]; then
     restore_previous
     nginx -t
     systemctl reload nginx.service
@@ -108,5 +118,5 @@ if [ "$public_status" != 401 ] || ! grep -q '"code":"UNAUTHENTICATED"' "$smoke_b
 fi
 rm -f "$smoke_body"
 
-printf 'nginx_backend result=active slot=%s port=%s previous=%s backup=%s\n' \
-    "$slot" "$port" "${previous_slot:-bootstrap}" "$backup_dir"
+printf 'nginx_backend result=active slot=%s port=%s previous=%s smoke_attempts=%s backup=%s\n' \
+    "$slot" "$port" "${previous_slot:-bootstrap}" "$public_smoke_attempt" "$backup_dir"
