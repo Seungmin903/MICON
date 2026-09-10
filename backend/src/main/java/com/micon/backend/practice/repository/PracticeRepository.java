@@ -5,6 +5,12 @@ import com.micon.backend.practice.api.PracticeResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Collection;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import javax.sql.DataSource;
+import org.springframework.dao.DataAccessResourceFailureException;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -167,5 +173,35 @@ public class PracticeRepository {
 	}
 
 	public record SongRow(Long songId, Long durationMs, boolean practiceReady) {
+	}
+
+	public int clearVoiceAnalysisReferences(Collection<Long> analysisIds) {
+		if (analysisIds.isEmpty() || !tableExists("PRACTICE_SESSION")) {
+			return 0;
+		}
+		return jdbcTemplate.update("""
+				UPDATE PRACTICE_SESSION
+				SET voice_analysis_id = NULL
+				WHERE voice_analysis_id IN (:analysisIds)
+				""", Map.of("analysisIds", analysisIds));
+	}
+
+	private boolean tableExists(String tableName) {
+		DataSource dataSource = jdbcTemplate.getJdbcTemplate().getDataSource();
+		if (dataSource == null) {
+			throw new DataAccessResourceFailureException("DataSource is not available");
+		}
+		try (Connection connection = dataSource.getConnection();
+			 ResultSet tables = connection.getMetaData().getTables(
+				 connection.getCatalog(), null, null, new String[] {"TABLE"})) {
+			while (tables.next()) {
+				if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+					return true;
+				}
+			}
+			return false;
+		} catch (SQLException exception) {
+			throw new DataAccessResourceFailureException("Failed to inspect database tables", exception);
+		}
 	}
 }
