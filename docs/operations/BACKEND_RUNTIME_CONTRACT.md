@@ -52,6 +52,10 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | VOICE_STORAGE_MAX_FILE_BYTES | 26214400 | S3 업로드 전 파일 크기 상한(바이트), 프록시·multipart 제한과 함께 검증 |
 | CATALOG_MEDIA_ALLOWED_PREFIX | catalog/정영주/section-384-v1/vocals/ | S15P21B110-228에서 승인한 보컬 stem 경로. DB object key와 정확히 일치해야 하며 다른 catalog 경로는 서명 거부 |
 | CATALOG_MEDIA_DOWNLOAD_URL_TTL | 10m | AI 전용 보컬 stem presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
+| VOICE_DATA_POLICY_VERSION | UNCONFIRMED | 공개 음성 데이터 정책 버전. 정책 승인 전에는 `UNCONFIRMED`를 유지하고 확정 버전처럼 표시하지 않음 |
+| VOICE_DATA_COLLECTION_PURPOSE | 코드의 한국어 기본값 | 공개 수집 목적 문구. 기획·개인정보 정책 승인 후 운영 환경에 명시 |
+| VOICE_DATA_RETENTION_PERIOD | 정책 확정 전 | 공개 보관 기간 문구. 실제 삭제·보관 동작과 일치하도록 승인 후 명시 |
+| VOICE_DATA_DELETION_POLICY | 코드의 한국어 기본값 | 공개 삭제 정책 문구. 개별·전체 삭제와 원본 보관 동작을 바꿀 때 함께 갱신 |
 | AWS_SHARED_CREDENTIALS_FILE | SDK 기본 탐색 경로 | Spring placeholder 아님. BE 컨테이너의 /run/secrets/aws_credentials로 명시; 호스트 파일 읽기 전용 마운트 |
 | AWS_PROFILE | SDK default 프로필 | Spring profile 아님. 개인 계정 BE 전용 프로필 micon-backend 사용 |
 | AWS_EC2_METADATA_DISABLED | SDK 기본값 false | BE에 true 명시하여 SSAFY 인스턴스 역할로의 fallback 차단 |
