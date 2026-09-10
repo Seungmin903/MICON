@@ -10,9 +10,10 @@
 | BE S3 코드 | develop `f9a5cd4`에 녹음 업로드·재생/분석용 URL·삭제와 보컬 stem 내부 조회 코드 존재 |
 | 개인 S3 | 실제 버킷·리전·BE 전용 IAM·서버 키 저장 완료. CLI 합성 객체와 후보 BE의 실제 카탈로그 WAV GET·SHA-256 검증 완료 |
 | 팀원 데이터 | 정영주 384곡 메타데이터·`song_media`와 보컬 stem S3 연결 완료. 후보 BE 내부 API에서 song_id 1 실제 GET 검증 완료 |
-| 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 사용자 녹음 upload/GET/delete, AI 접근, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
+| 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 미통합 음성 분석·추천 제출은 기본 비활성화. 사용자 녹음 upload/GET/delete, AI 계약 정합화, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
 | 배포 gate | readiness 3회 연속 성공과 카탈로그 S3 실제 GET·SHA-256 검사를 로컬 24개 테스트 및 서버 후보에서 통과. Jenkins 연결·Nginx 전환은 미완료 |
 | Nginx | `/api/v1/` prefix 제거, 관리·internal 외부 차단, blue/green 전환·실패 시 복원 도구 구현. 서버 격리 syntax와 후보 down fail-closed 확인; 실제 reload·성공 전환은 리뷰 후 필요 |
+| BE CD | main 전용 별도 Jenkinsfile, origin/main SHA 대조, SHA archive·검증·비활성 slot·전체 gate·전환 전 정리와 직전 정상 상태 기반 원복 명령 구현. Jenkins SSH credential/known_hosts/job/webhook 및 전체 실행·실제 전환/원복은 미완료 |
 
 실제 S3 설정·검증은 S15P21B110-211 및 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절에 기록했다. S15P21B110-228에서 Flyway V8~V10과 보컬 stem 384건을 운영 DB에 반영했으며 BE 배포는 아직 실행하지 않았다. 아래 2026-09-07 스냅샷은 과거 기록이며 현재 전체 개발 상태로 읽지 않는다.
 
@@ -73,7 +74,7 @@
 - [x] 정영주 384곡 S3·DB ID 검증 결과를 `song_media`에 등록하고 BE AI 전용 URL의 실제 GET·바이트·SHA-256을 검증했다. 진행 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다.
 - [x] Flyway V1~V10, 최소권한 적재 계정, 적재 전·후 백업과 무결성 검증을 완료했다. 자격 증명은 저장소 밖에서 관리한다.
 - [x] BE Dockerfile·Compose·호스트 secret 준비와 후보 loopback 실행을 작업 브랜치에서 준비했다. HTTPS 라우팅은 아직이다.
-- [ ] 상태 확인 요청의 경로·상태 코드·응답 시간과 배포 커밋을 기록한다.
+- [x] MR 스택 최종 커밋 `ef9a1acbcfe83f301f3abaef12619ade06ed1aa1` 후보에서 `/actuator/health/readiness` HTTP 200 `UP` 3회와 카탈로그 S3 gate를 기록했다. 후보는 검증 뒤 제거했으며 공개 API는 기존 503을 유지한다.
 
 ### 2. 앱 연결용 빌드
 
@@ -112,7 +113,7 @@
 
 ## CI/CD 후속 연결
 
-서버 배포와 APK 생성·배포는 별도 단계로 구성한다. `main` 자동 서버 배포는 팀 규칙상 목표이며 현재 Jenkins에 구현됐다는 의미가 아니다.
+서버 배포와 APK 생성·배포는 별도 단계로 구성한다. `ci/Jenkinsfile.backend`에 `main` 전용 서버 Pipeline을 구현했지만 Jenkins credential/job/webhook을 실제 생성하거나 활성화한 상태는 아니다.
 현재 검증 브랜치를 임의로 main/develop으로 전환하지 않고 MR 리뷰·합의 후 자동 트리거를 연결한다.
 기존 Jenkins 저장소 URL 내장 토큰은 Credentials 이전 및 교체가 필요하다. 권한 범위를 확인한 뒤 사용자가 비밀값을 직접 입력하는 방식으로 처리한다.
 
@@ -122,4 +123,4 @@
 
 ## 아직 하지 않은 작업
 
-BE/AI/DB 운영 배포, 앱 운영 주소 빌드·실기기 QA, 서버 main 자동 배포, Release APK 서명·다운로드 배포, 실제 서버 재부팅·롤백 시험은 미완료다. 체크된 기반 설정만으로 관련 Jira 이슈 전체를 Done으로 바꾸지 않는다.
+BE/AI 운영 배포, 앱 운영 주소 빌드·실기기 QA, 서버 main 자동 배포, Release APK 서명·다운로드 배포, 실제 서버 재부팅·성공 전환·롤백 시험은 미완료다. 관심 장르·아티스트 BE는 이번 배포 기반과 분리해 후속 구현한다. 체크된 기반 설정만으로 관련 Jira 이슈 전체를 Done으로 바꾸지 않는다.

@@ -1,8 +1,8 @@
-# 서버 배포·롤백 Runbook (게이트 구현, 라우팅·자동복구 준비 중)
+# 서버 배포·롤백 Runbook (게이트·원복 구현, 운영 활성화 전)
 
 Jira: S15P21B110-156 / 연계: 153·154·155. 2026-09-10 기준 Flyway V1~V10과 운영 DB 적재는 완료됐고, 후보 BE의 DB·S3 검증까지 수행했다.
 
-**현재 자동 배포/롤백이 모두 구성되었다는 뜻은 아니다.** 후보 readiness와 카탈로그 S3 실제 GET 게이트는 구현·실검증했지만 Nginx 전환·원복 및 Jenkins 연결은 아직이다. 앱 Release APK는 179에서 별도 관리한다. 기존 Android MR CI 작업을 서버 CD로 덮어쓰지 않는다.
+**현재 자동 배포/롤백이 활성화됐다는 뜻은 아니다.** 후보 readiness와 카탈로그 S3 실제 GET, Nginx 전환·복원, 직전 정상 상태를 대조하는 원복 명령, [Jenkins BE Pipeline](JENKINS_BACKEND_CD.md) 코드는 구현했지만 Jenkins credential/job과 실제 성공 전환·원복은 아직이다. 앱 Release APK는 179에서 별도 관리한다. 기존 Android MR CI 작업을 서버 CD로 덮어쓰지 않는다.
 
 2026-09-09 저장소 계약: BE·MySQL은 SSAFY 서버, S3는 개인 AWS 계정의 비공개 버킷을 사용한다. [S3 운영 계약](S3_VOICE_STORAGE.md)의 실제 버킷·권한·인증 준비가 배포 선행 조건이다. 아래 기존 health 도구는 S3 연결을 검사하지 않으며 DB readiness 계약의 후속 구현도 [BE 실행 계약](BACKEND_RUNTIME_CONTRACT.md)과 구분한다.
 
@@ -70,7 +70,7 @@ sudo python3 infra/deploy/check_catalog_media.py \
 - 로그: 확정된 Compose 파일/서비스를 대상으로 제한된 최근 로그만 조회하고 민감정보를 가린다. 사용자 데이터나 JWT/DB 환경파일을 복사하지 않는다.
 - 재시작: 원인과 영향 범위를 확인한 뒤 해당 앱 서비스만 대상으로 한다. DB/Redis나 서버 전체를 일괄 재시작하지 않는다. 재시작 후 health gate와 HTTPS 기능 검사를 다시 한다.
 - 전환 전 실패: 이전 서비스가 계속 트래픽을 받게 유지한다. 실패한 후보를 정상 버전으로 기록하지 않는다.
-- 전환 후 실패: 이전 슬롯의 health 및 스키마 호환성을 먼저 확인 → `sudo infra/nginx/switch_backend_slot.sh <이전-slot>` → HTTPS 기능 재검증. 이전 이미지가 없거나 health가 나쁘면 무조건 롤백을 강행하지 않는다.
+- 전환 후 실패: 이전 앱과 현재 스키마의 호환성을 먼저 확인한 뒤 `sudo infra/deploy/rollback_backend_release.sh --confirm-db-compatible`를 실행한다. 이 명령은 보존한 상태와 컨테이너 image ID를 대조하고 readiness·S3 gate 뒤에만 Nginx를 전환한다. 이전 상태·이미지가 없거나 health가 나쁘면 원복을 강행하지 않는다.
 - 이전 정상 이미지로 재생성이 필요하면 보존된 digest·환경설정으로 반대 슬롯에 준비하고 같은 health·S3 gate를 거친다. 라우팅 원복 도구는 구현했지만 실제 성공 전환·원복은 리뷰 후에 검증한다.
 - `docker compose down -v`, DB 볼륨 삭제, 임의 SQL undo, 이전 버전 APK 강제 설치는 복구 절차로 사용하지 않는다.
 - 이미지 롤백으로 AWS 키·S3 데이터·DB 데이터가 되돌아가지는 않는다. 이전 이미지도 현재 유효한 전용 자격 증명으로 검증하며, 폐기/노출된 키를 복구하지 않는다. S3 전체 삭제나 catalog/ 덮어쓰기는 복구 절차가 아니다. 키 회전은 S3 운영 계약을 따른다.
@@ -101,4 +101,4 @@ sudo python3 infra/deploy/check_catalog_media.py \
 python3 -m unittest discover -s infra/deploy -p 'test_*.py' -v
 ```
 
-SSAFY 서버 후보 포트 18081에서도 readiness 3회 연속 성공과 song_id 1의 44,304,432바이트 S3 WAV·SHA-256 일치를 확인했다. Nginx 후보 syntax와 BE가 꺼진 fail-closed 전환도 확인했다. 성공 전환·실제 원복, 사용자 녹음 쓰기 smoke 및 팀원의 복구 재현은 별도 미검증 항목이므로 156 전체를 Done으로 표시하지 않는다.
+SSAFY 서버 후보 포트 18081에서도 readiness 3회 연속 성공과 song_id 1의 44,304,432바이트 S3 WAV·SHA-256 일치를 확인했다. 최종 MR 스택 커밋 `ef9a1acbcfe83f301f3abaef12619ade06ed1aa1`을 다시 빌드해 같은 결과를 확인한 뒤 후보 Compose만 제거했고, MySQL·Runner 정상과 공개 API 기존 503을 재확인했다. Nginx 후보 syntax와 BE가 꺼진 fail-closed 전환도 확인했다. 성공 전환·실제 원복, 사용자 녹음 쓰기 smoke 및 팀원의 복구 재현은 별도 미검증 항목이므로 156 전체를 Done으로 표시하지 않는다.
