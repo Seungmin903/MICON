@@ -300,6 +300,64 @@ class VoiceAnalysisApiIntegrationTests {
     }
 
     @Test
+    void deletesOriginalAfterCompletedAnalysisWhenStorageSettingIsOff() throws Exception {
+        User user = user("analysis-delete-original@micon.com");
+        VoiceRecording recording = uploadedRecording(user, false, "voice/delete-after-analysis.wav");
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        analysis.start("delete-original-job", java.time.LocalDateTime.now());
+        analyses.flush();
+
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .header("Authorization", "Bearer test-ai-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "voiceAnalysisId":%d,
+                                  "jobId":"delete-original-job",
+                                  "status":"COMPLETED",
+                                  "analysisVersion":"v1",
+                                  "qualityStatus":"VALID",
+                                  "measuredAt":"2026-09-09T03:00:00",
+                                  "range":{"fullLowMidi":48.0,"fullHighMidi":72.0},
+                                  "timbre":{"timbreLabel":"warm"}
+                                }
+                                """.formatted(analysis.getId())))
+                .andExpect(status().isOk());
+
+        verify(voiceStorage).delete("voice/delete-after-analysis.wav");
+        entityManager.flush();
+        entityManager.clear();
+        VoiceRecording deleted = recordings.findById(recording.getId()).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(deleted.getUploadStatus().name()).isEqualTo("DELETED");
+        org.assertj.core.api.Assertions.assertThat(deleted.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void keepsOriginalAfterTerminalAnalysisWhenStorageSettingIsOn() throws Exception {
+        User user = user("analysis-keep-original@micon.com");
+        VoiceRecording recording = uploadedRecording(user, true, "voice/keep-after-analysis.wav");
+        VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        analysis.start("keep-original-job", java.time.LocalDateTime.now());
+        analyses.flush();
+
+        mockMvc.perform(post("/callbacks/voice-analyses")
+                        .header("Authorization", "Bearer test-ai-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "voiceAnalysisId":%d,
+                                  "jobId":"keep-original-job",
+                                  "status":"INSUFFICIENT_DATA",
+                                  "failureCode":"INSUFFICIENT_DATA",
+                                  "measuredAt":"2026-09-09T03:10:00"
+                                }
+                                """.formatted(analysis.getId())))
+                .andExpect(status().isOk());
+
+        verify(voiceStorage, never()).delete("voice/keep-after-analysis.wav");
+    }
+
+    @Test
     void hidesAnotherUsersAnalysisReport() throws Exception {
         User owner = user("report-owner@micon.com");
         User another = user("report-another@micon.com");
@@ -332,8 +390,12 @@ class VoiceAnalysisApiIntegrationTests {
     }
 
     private VoiceRecording uploadedRecording(User user) {
+        return uploadedRecording(user, false, "voice/" + user.getId());
+    }
+
+    private VoiceRecording uploadedRecording(User user, boolean keepOriginal, String path) {
         VoiceRecording recording = recordings.saveAndFlush(
-                new VoiceRecording(user, (short) 1, "voice/" + user.getId(), "audio/wav", false));
+                new VoiceRecording(user, (short) 1, path, "audio/wav", keepOriginal));
         jdbcTemplate.update("UPDATE voice_recording SET upload_status = 'UPLOADED' WHERE recording_id = ?",
                 recording.getId());
         entityManager.clear();

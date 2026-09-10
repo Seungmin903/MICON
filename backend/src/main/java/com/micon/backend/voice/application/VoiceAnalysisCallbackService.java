@@ -8,9 +8,12 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.voice.api.VoiceAnalysisCallbackRequest;
 import com.micon.backend.voice.api.VoiceAnalysisCallbackResponse;
 import com.micon.backend.voice.domain.*;
+import com.micon.backend.voice.storage.VoiceStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
+
+import java.time.LocalDateTime;
 
 @Service
 public class VoiceAnalysisCallbackService {
@@ -18,13 +21,16 @@ public class VoiceAnalysisCallbackService {
     private final VocalRangeAnalysisRepository ranges;
     private final VocalTimbreAnalysisRepository timbres;
     private final ObjectMapper objectMapper;
-    private final ApplicationEventPublisher events;
+    private final VoiceStorage storage;
 
     public VoiceAnalysisCallbackService(VoiceAnalysisRepository analyses, VocalRangeAnalysisRepository ranges,
                                         VocalTimbreAnalysisRepository timbres, ObjectMapper objectMapper,
-                                        ApplicationEventPublisher events) {
-        this.analyses = analyses; this.ranges = ranges; this.timbres = timbres; this.objectMapper = objectMapper;
-        this.events = events;
+                                        VoiceStorage storage) {
+        this.analyses = analyses;
+        this.ranges = ranges;
+        this.timbres = timbres;
+        this.objectMapper = objectMapper;
+        this.storage = storage;
     }
 
     @Transactional
@@ -42,7 +48,24 @@ public class VoiceAnalysisCallbackService {
             case INSUFFICIENT_DATA -> analysis.insufficientData(value(request.failureCode(), "INSUFFICIENT_DATA"),
                     request.failureReason(), request.qualityStatus(), request.measuredAt());
         }
+        if (request.status() == VoiceAnalysisCallbackRequest.CallbackStatus.COMPLETED
+                || request.status() == VoiceAnalysisCallbackRequest.CallbackStatus.INSUFFICIENT_DATA) {
+            deleteOriginalWhenNotKept(analysis.getRecording(), request.measuredAt());
+        }
         return response(analysis, false);
+    }
+
+    private void deleteOriginalWhenNotKept(VoiceRecording recording, LocalDateTime completedAt) {
+        if (recording.isKeepOriginal() || recording.getDeletedAt() != null) {
+            return;
+        }
+        recording.markDeletePending(completedAt);
+        try {
+            storage.delete(recording.getStoragePath());
+            recording.markDeleted(completedAt);
+        } catch (RuntimeException exception) {
+            throw new BusinessException(ErrorCode.RECORDING_DELETE_FAILED);
+        }
     }
 
     private void complete(VoiceAnalysis analysis, VoiceAnalysisCallbackRequest request) {

@@ -7,11 +7,17 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select analysis from VoiceAnalysis analysis join fetch analysis.recording recording "
+            + "join fetch analysis.user where analysis.user.id = :userId order by analysis.id")
+    List<VoiceAnalysis> findByUserIdForUpdate(@Param("userId") Long userId);
 
     boolean existsByRecordingIdAndStatusIn(Long recordingId, Collection<VoiceAnalysisStatus> statuses);
 
@@ -37,6 +43,5 @@ public interface VoiceAnalysisRepository extends JpaRepository<VoiceAnalysis, Lo
 
     Optional<VoiceAnalysis> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
 
-    Optional<VoiceAnalysis> findFirstByUserIdAndStatusOrderByCompletedAtDescIdDesc(
-            Long userId, VoiceAnalysisStatus status);
+    long countByUserIdAndRecordingIdLessThanEqual(Long userId, Long recordingId);
 }
