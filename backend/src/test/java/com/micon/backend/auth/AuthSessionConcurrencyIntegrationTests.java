@@ -40,14 +40,14 @@ class AuthSessionConcurrencyIntegrationTests {
     @Test
     void allowsOnlyOneConcurrentRefreshWithTheSameToken() throws Exception {
         String email = "concurrent-session-" + System.nanoTime() + "@micon.com";
-        mockMvc.perform(post("/users")
+        mockMvc.perform(post("/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"Password123!"}
                                 """.formatted(email)))
                 .andExpect(status().isCreated());
 
-        MvcResult login = mockMvc.perform(post("/auth/sessions")
+        MvcResult login = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"Password123!"}
@@ -72,7 +72,7 @@ class AuthSessionConcurrencyIntegrationTests {
     private int refreshStatus(String refreshToken, CountDownLatch ready, CountDownLatch start) throws Exception {
         ready.countDown();
         start.await();
-        return mockMvc.perform(post("/auth/tokens/refresh")
+        return mockMvc.perform(post("/auth/refresh")
                         .header("Authorization", "Bearer " + refreshToken))
                 .andReturn()
                 .getResponse()

@@ -63,7 +63,7 @@ class UserWithdrawalApiIntegrationTests {
         performLogin("withdraw@micon.com", "Password123!")
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVE"));
-        mockMvc.perform(post("/auth/tokens/refresh")
+        mockMvc.perform(post("/auth/refresh")
                         .header("Authorization", "Bearer " + second.refreshToken()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
@@ -107,7 +107,7 @@ class UserWithdrawalApiIntegrationTests {
     }
 
     private org.springframework.test.web.servlet.ResultActions performLogin(String email, String password) throws Exception {
-        return mockMvc.perform(post("/auth/sessions")
+        return mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"));
     }

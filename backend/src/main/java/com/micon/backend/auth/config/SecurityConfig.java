@@ -47,13 +47,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/users", "/auth/sessions", "/auth/tokens/refresh",
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(request -> {
-                            if ("/auth/tokens/refresh".equals(request.getRequestURI())
+                            if ("/auth/refresh".equals(request.getRequestURI())
                                     || "/callbacks/voice-analyses".equals(request.getRequestURI())
                                     || "/internal/embedding-catalog/active".equals(request.getRequestURI())
                                     || request.getRequestURI().startsWith("/internal/catalog-media/vocal-stems/")) {

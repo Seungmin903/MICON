@@ -8,9 +8,9 @@ import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,12 +33,18 @@ public class AuthController {
         this.passwordResetService = passwordResetService;
     }
 
-    @PostMapping("/sessions")
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<AuthResponse>> signUp(@Valid @RequestBody AuthRequest.SignUp request) {
+        AuthResponse response = emailAuthService.signUp(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest.Login request) {
         return ResponseEntity.ok(ApiResponse.success(emailAuthService.login(request)));
     }
 
-    @PostMapping("/tokens/refresh")
+    @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<TokenRefreshResponse>> refresh(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         String refreshToken = bearerToken(authorization);
@@ -46,7 +52,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(TokenRefreshResponse.from(tokens)));
     }
 
-    @DeleteMapping("/sessions/current")
+    @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal Jwt jwt) {
         authSessionService.logout(Long.parseLong(jwt.getSubject()), jwt.getClaimAsString("sid"));
         return ResponseEntity.ok(ApiResponse.success(null));
