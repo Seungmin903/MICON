@@ -33,6 +33,40 @@ Jira: `S15P21B110-212`
 
 MR 소스 브랜치의 코드를 이 서버에서 실행하지 않는다. MR은 Jenkins·리뷰로 먼저 확인하고, GitLab Runner 검증은 MR이 `develop`에 병합된 뒤 실행한다.
 
+Mattermost MR 알림은 별도의 `micon-notify` Runner가 처리한다. 이 예외 Runner는 저장소를 checkout하지 않고 Python 표준 라이브러리로 Webhook 요청만 보내며, 기존 `micon-protected` Runner의 보호 설정과 허용 이미지 목록은 변경하지 않는다.
+
+## Mattermost 알림 전용 Runner
+
+`notify_mm_mr` 작업은 모든 MR 파이프라인에서 실행되어야 하므로 보호 브랜치 전용 Runner와 분리한다.
+
+- Runner 태그: `micon-notify`
+- GitLab 설정: 프로젝트 전용, Locked 활성화, Protected 비활성화, Run untagged jobs 비활성화
+- 실행 작업: `.gitlab-ci.yml`의 `notify_mm_mr`만 해당 태그로 실행
+- 작업 이미지: `python:3.13-alpine`만 허용
+- 저장소 checkout: 비활성화(`GIT_STRATEGY: none`)
+- 서비스·캐시·호스트 볼륨: 허용하지 않음
+- 작업 자원: 0.25 CPU, 256 MiB, 동시 실행 1개
+
+서버에서는 Controller와 설정을 기존 Runner와 분리한다.
+
+| 항목 | 값 |
+|---|---|
+| 설정 | `/etc/gitlab-runner-notify/config.toml` (`root:root`, `0600`) |
+| Controller | `micon-gitlab-runner-notify` |
+| Compose 서비스 | `notify-runner` |
+| 설정 예시 | `infra/gitlab-runner/notify-config.toml.example` |
+
+활성화 순서는 다음과 같다.
+
+1. GitLab **Settings > CI/CD > Runners > New project runner**에서 태그를 `micon-notify`로 지정한다.
+2. **Run untagged jobs**와 **Protected**는 끄고 프로젝트에만 할당한다.
+3. 생성 직후 표시되는 Runner authentication token을 서버의 `/etc/gitlab-runner-notify/config.toml`에 직접 저장한다. 토큰은 문서·Git·채팅에 남기지 않는다.
+4. `infra/gitlab-runner/notify-config.toml.example`을 기준으로 파일 소유권과 권한을 `root:root 0600`으로 설정한다.
+5. `/opt/micon/gitlab-runner/compose.yml`을 반영하고 `sudo docker compose up -d notify-runner`로 알림 Controller만 기동한다.
+6. `sudo docker exec micon-gitlab-runner-notify gitlab-runner verify`와 GitLab의 `online` 상태를 확인한 뒤 MR 파이프라인을 재시도한다.
+
+`MM_WEBHOOK_URL`은 비보호 MR 파이프라인에서도 사용할 수 있어야 하므로 CI/CD 변수의 **Protected**를 끄고 **Masked**는 유지한다. 이 URL은 Mattermost 채널에 메시지를 보낼 수 있는 비밀값이다. 노출되면 즉시 Webhook을 폐기하고 새 URL로 교체한다.
+
 ## 서버 배치
 
 | 항목 | 값 |
@@ -82,7 +116,7 @@ MySQL 검증은 Java 작업 컨테이너(1 CPU·1 GiB)와 MySQL 서비스(1 CPU�
 새 Runner 권한이나 임의 서비스 이미지를 허용할 필요는 없다.
 서비스에는 호스트 포트/운영 볼륨/운영 비밀을 제공하지 않는다. 이미지 digest 변경 시 CI와 위 allowlist를 함께 검토한다.
 설정 적용 전 pause 및 실행 중 job 0건 확인 → root 전용 백업 → 설정 반영 → Runner 검증 → pause 해제 순서를 지킨다.
-Protected 제한을 풀어 MR 브랜치를 실행하지 않는다. 병합 전 격리 컨테이너의 동일 명령 검증과 병합 후 실제 파이프라인 결과는 구분해서 기록한다.
+`micon-protected` Runner의 Protected 제한을 풀어 MR 브랜치를 실행하지 않는다. 병합 전 격리 컨테이너의 동일 명령 검증과 병합 후 실제 파이프라인 결과는 구분해서 기록한다. 비보호 MR에는 위에서 정의한 최소 권한의 `micon-notify` Runner만 사용한다.
 
 ## 일상 점검
 
@@ -91,6 +125,9 @@ sudo docker ps --filter name=micon-gitlab-runner
 sudo docker logs --tail 50 micon-gitlab-runner
 sudo docker exec micon-gitlab-runner gitlab-runner verify
 sudo stat -c '%U:%G %a %n' /etc/gitlab-runner/config.toml
+sudo docker logs --tail 50 micon-gitlab-runner-notify
+sudo docker exec micon-gitlab-runner-notify gitlab-runner verify
+sudo stat -c '%U:%G %a %n' /etc/gitlab-runner-notify/config.toml
 ```
 
 GitLab의 **Settings > CI/CD > Runners**에서도 다음을 확인한다.
@@ -99,6 +136,8 @@ GitLab의 **Settings > CI/CD > Runners**에서도 다음을 확인한다.
 - 태그 `micon-protected`
 - Locked, Protected 활성화
 - Run untagged jobs 비활성화
+
+알림 전용 Runner는 태그 `micon-notify`, Locked 활성화, Protected 비활성화, Run untagged jobs 비활성화인지 별도로 확인한다.
 
 토큰이나 `config.toml` 원문은 로그·이슈·MR에 첨부하지 않는다.
 
@@ -127,4 +166,4 @@ sudo docker compose stop runner
 
 ## 공존 위험
 
-Runner 전용 호스트가 가장 안전하다. 현재는 서비스와 같은 SSAFY 서버에서 Controller가 Docker 소켓을 사용하므로, Runner 자체나 신뢰한 이미지가 침해되면 호스트 영향 가능성이 남는다. 그래서 실행 대상을 보호된 `develop`으로 제한하고 프로젝트 Maintainer가 리뷰·병합한 코드만 실행한다. 별도 서버가 확보되면 동일 설정을 이전하고 기존 Runner 토큰을 폐기한다.
+Runner 전용 호스트가 가장 안전하다. 현재는 서비스와 같은 SSAFY 서버에서 Controller가 Docker 소켓을 사용하므로, Runner 자체나 신뢰한 이미지가 침해되면 호스트 영향 가능성이 남는다. 검증 작업은 보호된 `develop`으로 제한하고 프로젝트 Maintainer가 리뷰·병합한 코드만 실행한다. 알림 Runner는 비보호 MR에서 실행되므로 이미지·서비스·마운트·자원을 더 엄격히 제한하고 저장소를 checkout하지 않는다. 별도 서버가 확보되면 알림 Runner부터 이전하고 기존 토큰을 폐기한다.
