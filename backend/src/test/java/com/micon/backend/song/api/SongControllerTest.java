@@ -1,0 +1,76 @@
+package com.micon.backend.song.api;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.micon.backend.common.exception.GlobalExceptionHandler;
+import com.micon.backend.song.service.SongNotFoundException;
+import com.micon.backend.song.service.SongService;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+@ExtendWith(MockitoExtension.class)
+class SongControllerTest {
+
+	@Mock
+	private SongService songService;
+
+	private MockMvc mockMvc;
+
+	@BeforeEach
+	void setUp() {
+		mockMvc = MockMvcBuilders.standaloneSetup(new SongController(songService))
+				.setControllerAdvice(new GlobalExceptionHandler())
+				.build();
+	}
+
+	@Test
+	void returnsSongSearchResponseEnvelope() throws Exception {
+		SongResponse.Summary song = new SongResponse.Summary(
+			1L,
+			"좋은 날",
+			List.of("아이유"),
+			"https://example.com/good-day.jpg",
+			233_000L
+		);
+		when(songService.search("좋은", 0, 20)).thenReturn(PageResponse.of(List.of(song), 0, 20, 1));
+
+		mockMvc.perform(get("/songs").param("query", "좋은"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.code").value("SUCCESS"))
+				.andExpect(jsonPath("$.data.content[0].songId").value(1))
+				.andExpect(jsonPath("$.data.content[0].artists[0]").value("아이유"))
+				.andExpect(jsonPath("$.data.totalElements").value(1));
+	}
+
+	@Test
+	void returnsNotFoundEnvelopeWhenSongDoesNotExist() throws Exception {
+		when(songService.getDetail(999L, null)).thenThrow(new SongNotFoundException(999L));
+
+		mockMvc.perform(get("/songs/999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("SONG_NOT_FOUND"))
+				.andExpect(jsonPath("$.data").doesNotExist());
+	}
+
+	@Test
+	void usesJwtSubjectAsUserIdForFavoriteLookup() throws Exception {
+		SongResponse.Detail song = new SongResponse.Detail(
+			1L, "좋은 날", List.of("아이유"), null, null, null, null, null, null,
+			List.of(), null, null, true, true
+		);
+		when(songService.getDetail(1L, 7L)).thenReturn(song);
+
+		mockMvc.perform(get("/songs/1").principal(() -> "7"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.favorite").value(true));
+	}
+}

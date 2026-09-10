@@ -1,0 +1,16 @@
+# 빌드 컨텍스트에서 뺀다 — 로컬 전용이거나 이미지 안에서 다시 만든다.
+.venv
+models
+workspace
+pretrained_models
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+tests
+docs
+scripts
+*.ps1
+Dockerfile
+.dockerignore
+.gitignore

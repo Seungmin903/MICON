@@ -1,0 +1,55 @@
+name: micon
+
+services:
+  mysql:
+    image: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: micon
+      MYSQL_USER: micon_migrator
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_migration_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_APP_USER: micon_app
+      MYSQL_APP_PASSWORD_FILE: /run/secrets/mysql_app_password
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - backend
+    secrets:
+      - mysql_root_password
+      - mysql_migration_password
+      - mysql_app_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD="$$(cat /run/secrets/mysql_migration_password)" mysql --protocol=tcp --host=127.0.0.1 --user=micon_migrator --database=micon --silent --skip-column-names --execute='SELECT 1' | grep -qx 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+
+volumes:
+  mysql-data:
+    name: micon_mysql_data
+
+networks:
+  backend:
+    name: micon_backend
+    internal: true
+
+secrets:
+  mysql_root_password:
+    file: /etc/micon/secrets/mysql_root_password
+  mysql_migration_password:
+    file: /etc/micon/secrets/mysql_migration_password
+  mysql_app_password:
+    file: /etc/micon/secrets/mysql_app_password

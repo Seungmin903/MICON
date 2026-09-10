@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MICON</string>
+    <!-- Naver SDK 초기화 시 표시되는 앱 이름 (소셜 로그인 사용 시) -->
+    <string name="naver_client_name">MICON</string>
+</resources>

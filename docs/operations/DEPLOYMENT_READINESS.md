@@ -1,0 +1,126 @@
+# 서버 연동과 APK 실기기 QA 준비
+
+## 2026-09-10 운영 구조 갱신
+
+**SSAFY 서버의 BE·MySQL + 개인 AWS 계정의 비공개 S3**를 사용한다. [S3 운영 계약](S3_VOICE_STORAGE.md)을 버킷·리전·권한·팀원 업로드의 기준으로 삼는다.
+
+| 영역 | 현재 확인 / 남은 작업 |
+|---|---|
+| 서버·DB | SSAFY SSH·Nginx·Docker 및 MySQL 8.4.11 healthy, DB 호스트 포트 미게시. Flyway V1~V10과 384곡 `VOCAL_STEM` 참조 적재·재실행 검증 완료 |
+| BE S3 코드 | develop `f9a5cd4`에 녹음 업로드·재생/분석용 URL·삭제와 보컬 stem 내부 조회 코드 존재 |
+| 개인 S3 | 실제 버킷·리전·BE 전용 IAM·서버 키 저장 완료. CLI 합성 객체와 후보 BE의 실제 카탈로그 WAV GET·SHA-256 검증 완료 |
+| 팀원 데이터 | 정영주 384곡 메타데이터·`song_media`와 보컬 stem S3 연결 완료. 후보 BE 내부 API에서 song_id 1 실제 GET 검증 완료 |
+| 운영 검증 | 후보 BE MySQL readiness·비-root 실행·단독 재시작 확인. 미통합 음성 분석·추천 제출은 기본 비활성화. 사용자 녹음 upload/GET/delete, AI 계약 정합화, Nginx 전환, 비용/보관/인수 정책 검증 필요 |
+| 배포 gate | readiness 3회 연속 성공과 카탈로그 S3 실제 GET·SHA-256 검사를 로컬 24개 테스트 및 서버 후보에서 통과. Jenkins 연결·Nginx 전환은 미완료 |
+| Nginx | `/api/v1/` prefix 제거, 관리·internal 외부 차단, blue/green 전환·실패 시 복원 도구 구현. 서버 격리 syntax와 후보 down fail-closed 확인; 실제 reload·성공 전환은 리뷰 후 필요 |
+| BE CD | main 전용 별도 Jenkinsfile, origin/main SHA 대조, SHA archive·검증·비활성 slot·전체 gate·전환 전 정리와 직전 정상 상태 기반 원복 명령 구현. Jenkins SSH credential/known_hosts/job/webhook 및 전체 실행·실제 전환/원복은 미완료 |
+
+실제 S3 설정·검증은 S15P21B110-211 및 [S3 운영 계약](S3_VOICE_STORAGE.md) 0절에 기록했다. S15P21B110-228에서 Flyway V8~V10과 보컬 stem 384건을 운영 DB에 반영했으며 BE 배포는 아직 실행하지 않았다. 아래 2026-09-07 스냅샷은 과거 기록이며 현재 전체 개발 상태로 읽지 않는다.
+
+> 2026-09-08 후속: 아래 초기 스냅샷의 "API 컨트롤러 없음"은 과거 상태다. 최신 코드 사실과 앱/BE 경로·health·환경변수 차이는 [BE 운영 실행 계약 초안](BACKEND_RUNTIME_CONTRACT.md)을 우선 참고한다. MySQL 런타임은 [MySQL 운영 구성](MYSQL_RUNTIME.md), CI/키 준비도는 각각 [Android CI](JENKINS_ANDROID_CI.md), [Release 준비](ANDROID_RELEASE.md)의 후속 기록을 확인한다. 최신 기록 역시 실제 운영 배포 성공을 의미하지 않는다.
+
+갱신일: 2026-09-07. 서버 기반 설정은 적용했지만 애플리케이션 배포·실기기 검증 완료 보고서는 아니다.
+[Jira/Git 규칙 V3.0](../../JIRA_GIT_RULES.md) 기준으로 작업 브랜치 → 리뷰 MR → develop에 반영한다. 완료한 기반 설정과 남은 제품 배포를 구분한다.
+
+## 초기 확인 상태 (2026-09-07 기록)
+
+| 영역 | 확인한 근거 | 상태 |
+|---|---|---|
+| Android CI | Jenkins 기본 작업 `S15P23B110 #4`, 소스 `4140be0` | 테스트 21개 통과, Debug APK 생성·LFS·서명 검증 완료 |
+| 백엔드 초기 구성 | `origin/develop`의 `ce69bd3`, 구현 커밋 `9ced912` | Java 21, Spring Boot 4.1.1, MySQL 드라이버, JPA, Flyway, Security, Actuator |
+| 백엔드 API | 위 커밋의 `backend/src/main` 파일 목록 | 애플리케이션 진입점과 설정만 존재. 앱이 요구하는 API 컨트롤러 없음 |
+| DB 설정 | `backend/src/main/resources/application.properties` | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 환경변수 사용. 운영 DB 접속·스키마 준비 여부 미확인 |
+| 앱 백엔드 주소 | `frontend/android/app/build.gradle.kts` | 기본 `http://10.0.2.2:8080/api/v1/` |
+| 앱 AI 주소 | 동일 파일 | 기본 `http://10.0.2.2:8787/` |
+| 배포 인프라 | [서버 적용 기록](SERVER_BOOTSTRAP.md) | EC2 SSH·Docker/Compose·UFW·Nginx HTTPS·인증서 갱신 모의시험 완료. 애플리케이션 Dockerfile·운영 Compose·서버 배포 파이프라인은 없음 |
+| 공개 진입점 | `https://j15b110.p.ssafy.io/healthz` | 200은 Nginx만 정상이라는 뜻. `/api/v1/health`는 의도된 503 |
+| 최신 명세 | develop `61d2c84`의 `docs/openapi.yaml`, `docs/requirements.md` | API/요구사항 문서 추가. 명세 추가와 API 구현 완료는 다름 |
+
+이번 공유 브랜치는 develop `61d2c84`에서 분기해 기존 Android CI 커밋과 서버 설정 기록을 포함했다. Jenkins #4는 이전 커밋의 결과이며 이 새 브랜치의 통합 빌드 결과는 아니다.
+이전 인프라 초안의 Spring Boot 3.5.x는 권고안이었다. 실제 코드의 4.1.1과 구분하며 임의로 다운그레이드하지 않는다.
+
+## 먼저 확정할 입력
+
+- 서버 호스트/도메인과 사양은 [서버 적용 기록](SERVER_BOOTSTRAP.md)에서 확인했다. 비밀번호·토큰·키 원문을 문서나 채팅에 붙이지 않는다.
+- 개인 S3 버킷·BE IAM·서버 키 파일은 [S3 운영 계약](S3_VOICE_STORAGE.md)에서 확정했다. BE 실행 UID/GID·마운트, 업로더별 권한/전달, 키 회전·비용 알림 금액/수신자·데이터 보관·종료 책임은 후속 확정한다.
+- 백엔드의 외부 API 기준 경로와 내부 리슨 포트.
+- AI 서버 위치, CPU/GPU 요구사항, 실행 브랜치, 모델·음원 저장 위치.
+- DB 담당자가 정할 정확한 MySQL 버전, 초기 스키마와 Flyway 마이그레이션, 최소권한 앱 계정, 백업 담당.
+- HTTPS는 `j15b110.p.ssafy.io`에 적용했다. APK 다운로드 위치·접근 대상, 인증서 만료 감시·알림은 아직 결정·구현해야 한다.
+
+이 값이 확정되기 전에는 임의 도메인 주입, 운영 DB 생성, 방화벽 공개, 서버 재시작을 진행하지 않는다.
+
+## 백엔드·AI 담당자와 맞출 계약
+
+1. **API 경로와 응답:** 앱의 `BackendApi.health()`는 `/api/v1/health`와 `ApiResponse` 형식을 기대한다. Actuator 의존성이 있다는 사실만으로 이 앱 API가 준비됐다고 볼 수 없다. 운영 상태 확인 경로와 앱 API를 구분해 결정한다.
+2. **인증:** 토큰 갱신은 `/api/v1/auth/refresh`를 기대한다. 인증·인가 규칙과 공개 가능한 상태 확인 응답을 BE 담당자가 구현·검증한다.
+3. **DB 초기화:** 현재 `ddl-auto=validate`다. 서버 실행이 테이블을 자동 생성해 준다고 전제하지 않는다. DB 마이그레이션 담당과 초기 적용 순서를 정한다.
+4. **AI 접근:** 현 앱은 AI 엔진을 직접 호출하며 반주 스트리밍·비교 경로를 조합한다. AI 전체를 내부망에 숨기려면 BE 중계 또는 인증된 프록시와 앱 변경이 함께 필요하다. 무인증 엔진을 그대로 공개하지 않는다.
+5. **업로드·지연:** 앱 엔진 클라이언트는 연결 10초, 읽기·쓰기 120초와 작업 폴링을 사용한다. 파일 크기 제한·처리 시간·실패 응답을 정하고 프록시 제한과 함께 실측한다.
+6. **호환성:** 서버를 따로 패치해도 이미 설치된 APK가 계속 작동하도록 기존 API 계약을 유지한다. 호환되지 않는 변경의 앱 업데이트 유도 방식을 정한다.
+7. **최신 명세와 코드 차이:** OpenAPI의 기본 BE 주소는 `http://localhost:8080`, AI 주소는 `http://localhost:8000`이다. 앱은 BE `/api/v1/`, AI `8787`을 사용한다. 담당자와 외부 경로·포트·응답을 확정하기 전 임의로 한쪽을 변경하지 않는다.
+
+## 실행 순서와 완료 조건
+
+### 1. 서버 준비
+
+- [x] 접속 권한과 서버 사양을 확인하고 기존 서비스·포트 사용 현황을 기록한다.
+- [x] Docker/Compose 설치 후 무포트·무볼륨 smoke test 2회 성공을 기록한다.
+- [x] Nginx HTTP→HTTPS, 유효 인증서, edge 상태 확인과 자동 갱신 모의시험을 검증한다.
+- [ ] 배포할 BE/AI 커밋과 실행 환경을 확정한다.
+- [x] 개인 S3 비공개 버킷·prefix 최소권한·서버 BE 인증 파일을 준비하고 CLI 직접 연결을 검증한다.
+- [x] 실제 후보 BE 컨테이너의 staged secret 읽기와 개인 프로필 카탈로그 GET을 확인했다. AWS 키는 이미지/Android CI/APK에 넣지 않았다.
+- [ ] 후보 BE에서 테스트 녹음 업로드·presigned URL 실제 GET·삭제를 확인한다. S3 실패 시 전환하지 않으며 DB readiness만으로 통과시키지 않는다.
+- [x] 정영주 384곡 S3·DB ID 검증 결과를 `song_media`에 등록하고 BE AI 전용 URL의 실제 GET·바이트·SHA-256을 검증했다. 진행 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다.
+- [x] Flyway V1~V10, 최소권한 적재 계정, 적재 전·후 백업과 무결성 검증을 완료했다. 자격 증명은 저장소 밖에서 관리한다.
+- [x] BE Dockerfile·Compose·호스트 secret 준비와 후보 loopback 실행을 작업 브랜치에서 준비했다. HTTPS 라우팅은 아직이다.
+- [x] MR 스택 최종 커밋 `ef9a1acbcfe83f301f3abaef12619ade06ed1aa1` 후보에서 `/actuator/health/readiness` HTTP 200 `UP` 3회와 카탈로그 S3 gate를 기록했다. 후보는 검증 뒤 제거했으며 공개 API는 기존 503을 유지한다.
+
+### 2. 앱 연결용 빌드
+
+- [ ] 확정된 `API_BASE_URL`과 `ENGINE_BASE_URL`을 Jenkins 빌드 환경변수로 주입한다. 둘 다 `/`로 끝나야 한다.
+- [ ] 백엔드 기준 경로를 실제 서버 라우팅과 대조한다. 현재 `/api/v1/`은 앱의 기대값이지 합의 완료 증거가 아니다.
+- [ ] 외부 서버는 HTTPS로 연결한다. 현재 앱의 HTTP 허용은 `10.0.2.2`, `127.0.0.1`, `localhost`에만 한정된다.
+- [ ] 테스트·LFS·APK 내부 DB·서명 검증을 다시 수행하고 새 빌드 번호·커밋·주소·해시를 기록한다.
+
+설정 우선순위는 `local.properties` → 환경변수 → 기본값이다. Jenkins에 `local.properties`를 만들지 않는 기존 방식을 유지한다.
+현재 #4 APK는 에뮬레이터용 기본 주소로 빌드됐다. 실제 서버 연결을 완료한 배포본으로 취급하지 않는다.
+
+### 3. 실기기 QA
+
+| 검증 항목 | 완료 증거 |
+|---|---|
+| 설치·최초 실행 | 기종, Android 버전, APK 빌드/해시, 성공·실패 결과 |
+| 곡 목록·추천 화면 | 목록 로딩 결과·소요 시간. 샘플 데이터와 실제 추천 API 결과를 구분 |
+| 서버 연결 | Wi-Fi·모바일 네트워크별 성공/실패 건수, HTTP 상태·소요 시간 |
+| 마이크 권한 | 사용자가 직접 허용/거부한 각 흐름의 결과. 녹음·업로드는 동의 후 진행 |
+| 분석·연습 | 테스트 음원과 조건, 처리 시간, 재생·채점 성공/실패 건수 |
+| 개인 S3 녹음 | 업로드·재생·삭제와 타인 접근 거부, URL 만료 처리. 실제 음성/키/서명 URL 원문은 기록하지 않음 |
+| 네트워크 중단·서버 오류 | 오류 표시·재시도 결과. 운영 서버를 중단시키지 않는 방식으로 시험 |
+| 세션 만료 | 갱신 또는 재로그인 처리 결과. 인증 API 구현 후 검증 |
+
+기존 앱 삭제·데이터 초기화는 사용자 확인 없이 하지 않는다. 다른 서명 때문에 업데이트 설치가 안 되더라도 먼저 데이터 보존 방법을 정한다.
+아직 서버 API가 구현되지 않은 기능은 통과로 표시하지 않고 미구현/차단으로 기록한다.
+
+### 4. 직접 APK 배포
+
+- [ ] Release 서명키 보관·복구 책임자를 정한다. 실제 키와 비밀번호는 문서·Git에 저장하지 않는다.
+- [ ] 동일한 앱 ID·서명을 유지하고 후속 배포마다 `versionCode`를 증가시킨다.
+- [ ] 이전 버전 위에 업데이트 설치하여 사용자 데이터 유지와 API 호환성을 확인한다.
+- [ ] 다운로드 링크, 버전, SHA-256, 변경 내역, 설치 안내를 제공한다.
+- [ ] 서버는 이전 검증 버전으로 복귀할 절차를 준비한다. DB 변경의 되돌림 가능성은 별도로 검증한다.
+- [ ] 앱 복구는 낮은 버전 APK 강제 설치를 전제하지 않는다. 이전 정상 코드를 더 높은 `versionCode`로 재배포하는 절차를 준비한다.
+
+## CI/CD 후속 연결
+
+서버 배포와 APK 생성·배포는 별도 단계로 구성한다. `ci/Jenkinsfile.backend`에 `main` 전용 서버 Pipeline을 구현했지만 Jenkins credential/job/webhook을 실제 생성하거나 활성화한 상태는 아니다.
+현재 검증 브랜치를 임의로 main/develop으로 전환하지 않고 MR 리뷰·합의 후 자동 트리거를 연결한다.
+기존 Jenkins 저장소 URL 내장 토큰은 Credentials 이전 및 교체가 필요하다. 권한 범위를 확인한 뒤 사용자가 비밀값을 직접 입력하는 방식으로 처리한다.
+
+2026-09-07 사용자 결정으로 **Jenkins → GitLab 빌드 결과 전송을 제외**했다. 이를 위한 전역 Connection·`api` 토큰은 배포 선행 조건이나 후속 필수 과제로 두지 않는다. **GitLab → Jenkins 자동 빌드 트리거, Jenkins 내부 결과/산출물 보관, 실패 시 배포 중단·health/readiness 검증은 유지**한다. SSAFY Outbound WebHook 및 GitLab–Jira 연동도 유지한다.
+
+리뷰어는 MR의 소스 SHA와 일치하는 Jenkins 빌드 URL·상태·테스트 보고서를 확인한다. GitLab의 머지 가능 표시만으로 테스트 성공을 판단하지 않는다. 세부 기준은 [Android CI 범위와 리뷰 절차](JENKINS_ANDROID_CI.md)를 따른다.
+
+## 아직 하지 않은 작업
+
+BE/AI 운영 배포, 앱 운영 주소 빌드·실기기 QA, 서버 main 자동 배포, Release APK 서명·다운로드 배포, 실제 서버 재부팅·성공 전환·롤백 시험은 미완료다. 관심 장르·아티스트 BE는 이번 배포 기반과 분리해 후속 구현한다. 체크된 기반 설정만으로 관련 Jira 이슈 전체를 Done으로 바꾸지 않는다.

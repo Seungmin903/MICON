@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+/.kotlin
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Keystore files
+*.jks
+*.keystore
+keystore.properties
+
+# 개발용 샘플 DB(33MB) app/src/main/assets/micon_catalog.sqlite 는 Git LFS 로 관리한다 (루트 .gitattributes).

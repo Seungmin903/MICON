@@ -1,0 +1,77 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+local.properties
+*.jks
+*.keystore
+keystore.properties
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+*.log
+logs/
+
+# Node / Web
+node_modules/
+dist/
+.next/
+
+# Gradle / Android / Java
+.gradle/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+target/
+
+# Python / AI
+__pycache__/
+.pytest_cache/
+/catalog-releases/
+/catalog-cache/
+.venv/
+venv/
+*.egg-info/
+
+# AI artifacts (대용량 데이터·모델은 Git 에 직접 올리지 않는다)
+/data/
+checkpoints/
+**/weights/*.pt
+**/weights/*.pth
+**/weights/*.onnx
+**/weights/*.engine
+!**/weights/.gitkeep
+
+# 음원·파생 오디오 — 저작권 + 용량, 절대 푸시 금지 (vocal-scope 병합 시 추가)
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.opus
+
+# 대용량 아카이브·모델 번들 (별도 전달)
+*.zip
+*.tar.gz
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# 파이썬 가상환경 변형
+.venv-*/
+*.pyc

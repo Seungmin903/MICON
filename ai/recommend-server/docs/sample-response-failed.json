@@ -1,0 +1,18 @@
+{
+  "id": "00000000-0000-4000-8000-000000000003",
+  "status": "failed",
+  "progress": 100,
+  "message": "맞춤 추천에 실패했습니다.",
+  "mode": "timbre",
+  "genres": [
+    "R&B",
+    "발라드"
+  ],
+  "preferred_artists": [
+    "이하이",
+    "한로로"
+  ],
+  "result": null,
+  "error": "보컬 오디오가 너무 짧습니다.",
+  "sample_note": "실패 샘플: status=failed, result=null, error 에 사용자 안내 문장"
+}
