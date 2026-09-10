@@ -22,15 +22,17 @@ public class VoiceAnalysisCallbackService {
     private final VocalTimbreAnalysisRepository timbres;
     private final ObjectMapper objectMapper;
     private final VoiceStorage storage;
+    private final ApplicationEventPublisher events;
 
     public VoiceAnalysisCallbackService(VoiceAnalysisRepository analyses, VocalRangeAnalysisRepository ranges,
                                         VocalTimbreAnalysisRepository timbres, ObjectMapper objectMapper,
-                                        VoiceStorage storage) {
+                                        VoiceStorage storage, ApplicationEventPublisher events) {
         this.analyses = analyses;
         this.ranges = ranges;
         this.timbres = timbres;
         this.objectMapper = objectMapper;
         this.storage = storage;
+        this.events = events;
     }
 
     @Transactional
