@@ -23,12 +23,12 @@ class BackendClient(
     private val tokens: AuthTokenStore = TokenManager,
     private val onSessionExpired: () -> Unit = { SessionEvents.notifyExpired() },
 ) {
-    private fun isRefresh(request: Request) = request.url.encodedPath.endsWith("/auth/tokens/refresh")
+    private fun isRefresh(request: Request) = request.url.encodedPath.endsWith("/auth/refresh")
 
     private fun isPublic(request: Request): Boolean {
         val path = request.url.encodedPath
         return path.endsWith("/health") ||
-            (request.method == "POST" && (path.endsWith("/auth/sessions") || path.endsWith("/users")))
+            (request.method == "POST" && (path.endsWith("/auth/login") || path.endsWith("/auth/signup")))
     }
 
     private val authInterceptor = Interceptor { chain ->

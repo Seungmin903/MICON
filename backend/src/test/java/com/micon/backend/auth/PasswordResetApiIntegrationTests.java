@@ -153,7 +153,7 @@ class PasswordResetApiIntegrationTests {
     }
 
     private org.springframework.test.web.servlet.ResultActions login(String email, String password) throws Exception {
-        return mockMvc.perform(post("/auth/sessions")
+        return mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"));
     }

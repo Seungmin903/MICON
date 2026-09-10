@@ -38,7 +38,7 @@ class BackendAuthContractTest {
         NetworkAuthRepository(client.api, tokens).login(" user@example.com ", "test-password")
         val request = server.takeRequest()
         assertEquals("POST", request.method)
-        assertEquals("/api/v1/auth/sessions", request.path)
+        assertEquals("/api/v1/auth/login", request.path)
         assertNull(request.getHeader("Authorization"))
         val body = request.body.readUtf8()
         assertTrue(body.contains("\"email\":\"user@example.com\""))
@@ -54,7 +54,7 @@ class BackendAuthContractTest {
         assertTrue(error is AuthRequestException)
         assertEquals(409, (error as AuthRequestException).status)
         assertFalse(tokens.snapshot().isLoggedIn)
-        assertEquals("/api/v1/users", server.takeRequest().path)
+        assertEquals("/api/v1/auth/signup", server.takeRequest().path)
         assertEquals(1, server.requestCount)
         assertEquals(0, expirations)
     }
@@ -104,7 +104,7 @@ class BackendAuthContractTest {
         val refresh = server.takeRequest()
         val retried = server.takeRequest()
         assertEquals("Bearer old-access", initial.getHeader("Authorization"))
-        assertEquals("/api/v1/auth/tokens/refresh", refresh.path)
+        assertEquals("/api/v1/auth/refresh", refresh.path)
         assertEquals("POST", refresh.method)
         assertEquals("Bearer old-refresh", refresh.getHeader("Authorization"))
         assertEquals(0L, refresh.bodySize)
@@ -146,7 +146,7 @@ class BackendAuthContractTest {
     @Test fun `logout during refresh cannot resurrect tokens`() = runBlocking {
         tokens.saveSession(42, "old-access", "old-refresh")
         server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse = if (request.path!!.endsWith("/auth/tokens/refresh")) {
+            override fun dispatch(request: RecordedRequest): MockResponse = if (request.path!!.endsWith("/auth/refresh")) {
                 tokens.clear()
                 json(200, """{"accessToken":"late-access","refreshToken":"late-refresh"}""")
             } else MockResponse().setResponseCode(401)
@@ -156,13 +156,13 @@ class BackendAuthContractTest {
         assertEquals(2, server.requestCount)
     }
 
-    @Test fun `logout uses authenticated DELETE and clears locally despite server failure`() = runBlocking {
+    @Test fun `logout uses authenticated POST and clears locally despite server failure`() = runBlocking {
         tokens.saveSession(42, "access", "refresh")
         server.enqueue(MockResponse().setResponseCode(500))
         NetworkAuthRepository(client.api, tokens).logout()
         val request = server.takeRequest()
-        assertEquals("DELETE", request.method)
-        assertEquals("/api/v1/auth/sessions/current", request.path)
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/auth/logout", request.path)
         assertEquals("Bearer access", request.getHeader("Authorization"))
         assertFalse(tokens.snapshot().isLoggedIn)
     }
