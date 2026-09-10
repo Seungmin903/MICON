@@ -37,7 +37,7 @@ class EmailAuthApiIntegrationTests {
 
     @Test
     void signsUpAndReturnsLoggedInSession() throws Exception {
-        mockMvc.perform(post("/users")
+        mockMvc.perform(post("/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -65,7 +65,7 @@ class EmailAuthApiIntegrationTests {
         User user = userRepository.save(new User(
                 "member@micon.com", passwordEncoder.encode("Password123!")));
 
-        mockMvc.perform(post("/auth/sessions")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -87,7 +87,7 @@ class EmailAuthApiIntegrationTests {
         userRepository.save(new User(
                 "duplicate@micon.com", passwordEncoder.encode("Password123!")));
 
-        mockMvc.perform(post("/users")
+        mockMvc.perform(post("/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -105,7 +105,7 @@ class EmailAuthApiIntegrationTests {
         userRepository.save(new User(
                 "login@micon.com", passwordEncoder.encode("Password123!")));
 
-        mockMvc.perform(post("/auth/sessions")
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -120,7 +120,7 @@ class EmailAuthApiIntegrationTests {
 
     @Test
     void rejectsInvalidSignUpRequest() throws Exception {
-        mockMvc.perform(post("/users")
+        mockMvc.perform(post("/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

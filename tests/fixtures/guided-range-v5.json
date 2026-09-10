@@ -1,0 +1,10 @@
+[
+  {"name":"steady", "segments":[[2.5,0]], "T":2.5,"H":2.5,"B":0,"O":0,"penalty":0,"passed":true},
+  {"name":"normal08_buffer03", "segments":[[0.8,0],[0.3,70]], "T":0.8,"H":0.8,"B":0.3,"O":0,"penalty":12,"passed":false},
+  {"name":"buffer_endpoint", "segments":[[1,0],[0.5,70]], "T":1,"H":1,"B":0.5,"O":0,"penalty":20,"passed":true},
+  {"name":"return_keeps_penalty", "segments":[[0.8,0],[0.3,70],[0.3,0]], "T":1.1,"H":0.8,"B":0.3,"O":0,"penalty":12,"passed":true},
+  {"name":"outside_short", "segments":[[1,0],[0.04,150],[0.2,0]], "T":1.2,"H":1,"B":0,"O":0.04,"penalty":3.2,"passed":true},
+  {"name":"outside_endpoint", "segments":[[1,0],[0.1,150]], "T":1,"H":1,"B":0,"O":0.1,"penalty":8,"passed":true},
+  {"name":"boundary45", "segments":[[0.8,0],[0.1,45]], "T":0.9,"H":0.9,"B":0,"O":0,"penalty":0,"passed":false},
+  {"name":"boundary100", "segments":[[0.8,0],[0.1,100]], "T":0.8,"H":0.8,"B":0.1,"O":0,"penalty":4,"passed":false}
+]

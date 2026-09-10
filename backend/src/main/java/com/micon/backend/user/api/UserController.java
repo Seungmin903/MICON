@@ -1,17 +1,12 @@
 package com.micon.backend.user.api;
 
-import com.micon.backend.auth.api.AuthRequest;
-import com.micon.backend.auth.api.AuthResponse;
-import com.micon.backend.auth.application.EmailAuthService;
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.application.UserQueryService;
 import com.micon.backend.user.application.UserWithdrawalService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,21 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/users")
 public class UserController {
 
-    private final EmailAuthService emailAuthService;
     private final UserQueryService userQueryService;
     private final UserWithdrawalService userWithdrawalService;
 
-    public UserController(EmailAuthService emailAuthService, UserQueryService userQueryService,
+    public UserController(UserQueryService userQueryService,
                           UserWithdrawalService userWithdrawalService) {
-        this.emailAuthService = emailAuthService;
         this.userQueryService = userQueryService;
         this.userWithdrawalService = userWithdrawalService;
-    }
-
-    @PostMapping
-    public ResponseEntity<ApiResponse<AuthResponse>> signUp(@Valid @RequestBody AuthRequest.SignUp request) {
-        AuthResponse response = emailAuthService.signUp(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
     @GetMapping("/me")

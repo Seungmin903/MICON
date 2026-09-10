@@ -8,7 +8,6 @@ import com.micon.app.data.backend.dto.TokenPair
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -18,19 +17,19 @@ interface BackendApi {
     @GET("health")
     suspend fun health(): Response<ApiResponse<Any>>
 
-    @POST("auth/sessions")
+    @POST("auth/login")
     suspend fun login(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
-    @POST("users")
+    @POST("auth/signup")
     suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
     @GET("users/me")
     suspend fun currentUser(): Response<ApiResponse<CurrentUser>>
 
-    @DELETE("auth/sessions/current")
+    @POST("auth/logout")
     suspend fun logout(): Response<ApiResponse<Any>>
 
     /** Refresh has no JSON body; its bearer credential is the refresh token. */
-    @POST("auth/tokens/refresh")
+    @POST("auth/refresh")
     fun refreshTokenSync(@Header("Authorization") authorization: String): Call<ApiResponse<TokenPair>>
 }

@@ -180,7 +180,7 @@ paths:
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
-  "/auth/sessions":
+  "/auth/login":
     post:
       tags: ["인증"]
       summary: "이메일 로그인 API"
@@ -196,16 +196,42 @@ paths:
         []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현"
+      x-backend-status: "구현"
       x-frontend-status: "미확인"
       x-permission: "전체"
       x-auth-token: "불필요"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 255 }
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: "UTF-8 기준 최대 72바이트"
+                deviceId: { type: string, maxLength: 100 }
+                deviceName: { type: string, maxLength: 100 }
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
-  "/auth/sessions/current":
-    delete:
+        "200":
+          description: "성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "400":
+          description: "요청 형식 또는 입력값 오류"
+        "401":
+          description: "인증 정보 또는 토큰이 유효하지 않음"
+        "403":
+          description: "비활성 계정"
+  "/auth/logout":
+    post:
       tags: ["인증"]
       summary: "로그아웃 API"
       description: "현재 세션을 종료하고 해당 세션의 접근을 차단한다."
@@ -220,15 +246,23 @@ paths:
         - bearerAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현"
+      x-backend-status: "구현"
       x-frontend-status: "미확인"
       x-permission: "본인"
       x-auth-token: "Access Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
-  "/auth/tokens/refresh":
+        "200":
+          description: "성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthLogoutResponse"
+        "400":
+          description: "요청 형식 또는 입력값 오류"
+        "401":
+          description: "인증 정보 또는 토큰이 유효하지 않음"
+  "/auth/refresh":
     post:
       tags: ["인증"]
       summary: "인증 토큰 갱신 API"
@@ -244,14 +278,22 @@ paths:
         - refreshTokenAuth: []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현"
+      x-backend-status: "구현"
       x-frontend-status: "미확인"
       x-permission: "유효 세션 사용자"
       x-auth-token: "Refresh Token"
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "200":
+          description: "성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthRefreshResponse"
+        "400":
+          description: "요청 형식 또는 입력값 오류"
+        "401":
+          description: "인증 정보 또는 토큰이 유효하지 않음"
   "/callbacks/data-deletions":
     post:
       tags: ["데이터 삭제"]
@@ -1513,7 +1555,7 @@ paths:
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
-  "/users":
+  "/auth/signup":
     post:
       tags: ["회원"]
       summary: "이메일 회원가입 API"
@@ -1529,14 +1571,40 @@ paths:
         []
       x-direction: "프 → 백"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현"
+      x-backend-status: "구현"
       x-frontend-status: "미확인"
       x-permission: "전체"
       x-auth-token: "불필요"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 255 }
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+                  description: "UTF-8 기준 최대 72바이트"
+                deviceId: { type: string, maxLength: 100 }
+                deviceName: { type: string, maxLength: 100 }
       responses:
-        default:
-          description: "응답 상태 코드와 스키마는 구현 시 확정"
+        "201":
+          description: "성공"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "400":
+          description: "요청 형식 또는 입력값 오류"
+        "401":
+          description: "인증 정보 또는 토큰이 유효하지 않음"
+        "409":
+          description: "이메일 중복"
   "/users/me":
     delete:
       tags: ["회원"]
@@ -2242,6 +2310,43 @@ components:
       schema:
         type: "string"
   schemas:
+    AuthTokenPair:
+      type: object
+      required: [accessToken, refreshToken, accessTokenExpiresAt]
+      properties:
+        accessToken: { type: string, description: "HS256 JWT, 기본 유효기간 30분" }
+        refreshToken: { type: string, description: "난수 토큰, 기본 유효기간 30일" }
+        accessTokenExpiresAt: { type: string, format: date-time }
+    AuthSessionResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: string, example: SUCCESS }
+        message: { type: string }
+        data:
+          allOf:
+            - $ref: "#/components/schemas/AuthTokenPair"
+            - type: object
+              required: [userId, email]
+              properties:
+                userId: { type: integer, format: int64 }
+                email: { type: string, format: email }
+    AuthRefreshResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: string, example: SUCCESS }
+        message: { type: string }
+        data:
+          $ref: "#/components/schemas/AuthTokenPair"
+    AuthLogoutResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: string, example: SUCCESS }
+        message: { type: string }
+        data: { type: "null" }
+
     RecordingDetail:
       type: "object"
       required: ["recordingId", "attemptNo", "mediaType", "keepOriginal", "uploadStatus", "createdAt"]
@@ -2621,9 +2726,9 @@ components:
       scheme: "bearer"
       bearerFormat: "JWT"
     refreshTokenAuth:
-      type: "apiKey"
-      in: "header"
-      name: "X-Refresh-Token"
+      type: "http"
+      scheme: "bearer"
+      description: "Authorization: Bearer <refreshToken>. JWT가 아닌 난수 토큰이며 갱신 성공 시 교체된다."
     passwordResetAuth:
       type: "apiKey"
       in: "header"

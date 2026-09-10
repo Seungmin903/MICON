@@ -9,7 +9,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 ### 2026-09-08 사용자 결정 (정책 확정, 구현·운영 검증 전)
 
 - 기존 BE 코드·OpenAPI 경로를 기준으로 맞춘다. 외부 기준 주소는 `https://j15b110.p.ssafy.io/api/v1/`로 유지하고 Nginx에서 `/api/v1/` 접두어만 제거해 전달한다. BE에 동일 context-path를 추가하지 않는다.
-- 토큰 갱신은 BE의 `POST /auth/tokens/refresh`를 유지한다. 앱의 상대 경로는 `auth/tokens/refresh`로 맞추는 방향이다. 이번에 FE를 수정하거나 담당자 인수·일정을 확정한 것은 아니다.
+- 2026-09-10 인증 경로 갱신: 로그인·회원가입·로그아웃·갱신을 각각 `POST /auth/login`, `POST /auth/signup`, `POST /auth/logout`, `POST /auth/refresh`로 통일했다. Android 호출부와 인증 예외 처리도 함께 반영했다. 배포 검증은 별도다.
 - DB 연결·기본 쿼리 성공은 배포 성공의 필수 조건이다. DB가 비정상이면 후보 버전으로 트래픽을 전환하지 않는다. liveness는 DB 장애로 앱 재시작을 반복시키는 용도로 사용하지 않는다.
 - 아래 상세 정책까지 인프라 결정으로 채택한다. 실제 동작과 FE 반영 등 구현 인계 항목은 별도로 추적한다.
 
@@ -72,18 +72,18 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 
 채택한 외부 기준 주소는 `https://j15b110.p.ssafy.io/api/v1/`이다. 도메인은 기존 서버 기록에 있으나 마지막 확인된 Nginx 구성은 `/healthz` 외 요청에 의도적으로 503을 반환한다. 이 주소는 동작 확인된 API 주소가 아니다.
 
-결정: BE 내부 경로는 현 코드를 유지하고 Nginx에서 `/api/v1/` prefix만 제거해 전달한다. HTTP 메서드·쿼리·본문은 유지하며 `auth/refresh`를 `auth/tokens/refresh`로 별도 치환하는 규칙은 추가하지 않는다. BE context-path까지 동시에 추가하지 않는다.
+결정: BE 내부 경로는 현 코드를 유지하고 Nginx에서 `/api/v1/` prefix만 제거해 전달한다. HTTP 메서드·쿼리·본문은 유지하며 인증 경로를 별도로 치환하지 않는다. BE context-path까지 동시에 추가하지 않는다.
 
 | 외부 경로 계약 / 미해결 항목 | 현재 BE 내부 경로 | 상태 |
 |---|---|---|
 | /api/v1/songs | /songs | 곡 조회 코드 존재, 운영 호출 미검증 |
 | /api/v1/users/me | /users/me | 회원 조회 코드 존재, 운영 호출 미검증 |
-| /api/v1/auth/tokens/refresh | /auth/tokens/refresh | BE/OpenAPI 경로 일치; 앱의 auth/refresh와는 불일치 |
+| /api/v1/auth/refresh | /auth/refresh | POST, BE/OpenAPI/Android 경로 일치; 운영 미검증 |
 | /api/v1/recordings 및 /api/v1/recordings/{id}/content | /recordings 및 /recordings/{id}/content | 업로드·조회·삭제·재생 URL 코드 존재. content는 URL을 담은 JSON이며 S3 공개 주소/리다이렉트 계약이 아님; 운영 미검증 |
 | AI 내부 보컬 stem 조회 | /internal/catalog-media/vocal-stems/{songId} | AI 서비스 토큰 전용. DB의 검증된 object key에만 단기 URL 발급; 일반 JWT 접근 불가 |
 | /api/v1/health | 해당 앱용 컨트롤러 없음 | 앱은 ApiResponse 봉투 기대. Actuator를 그대로 연결해 해결되었다고 보지 않음 |
 
-프런트는 이번에 변경하지 않는다. 실제 FE 담당자는 BE 명세 기준으로 갱신 경로/DTO 및 인증 예외 경로 목록을 함께 맞추고 health 사용 여부를 확인해야 한다. 현재 결정에는 BE 하위 호환 alias 추가가 포함되지 않는다. AI 주소/포트는 BE와 별도 미결 계약이다.
+인증 경로 변경은 Android API 선언과 인증 예외/갱신 처리에도 반영했다. health 사용 여부는 별도로 확인해야 한다. 기존 인증 경로의 하위 호환 alias는 제공하지 않으므로 BE와 앱을 함께 전환해야 한다. 상세 요청·응답은 [인증 API 문서](../AUTH_API.md)를 참고한다. AI 주소/포트는 BE와 별도 미결 계약이다.
 
 ## 3. health/readiness (153 구현·후보 검증 완료)
 

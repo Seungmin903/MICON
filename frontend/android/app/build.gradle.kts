@@ -24,6 +24,7 @@ fun localSetting(name: String, default: String = ""): String =
 
 val engineBaseUrl = localSetting("ENGINE_BASE_URL", "http://10.0.2.2:8787/")
 val apiBaseUrl = localSetting("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
+val rangePreviewBaseUrl = localSetting("RANGE_PREVIEW_BASE_URL", "http://127.0.0.1:8789/")
 val recommendBaseUrl = localSetting("RECOMMEND_BASE_URL", "")   // 비어 있으면 앱 안 로컬 계산만 사용
 val googleWebClientId = localSetting("GOOGLE_WEB_CLIENT_ID")
 val kakaoNativeAppKey = localSetting("KAKAO_NATIVE_APP_KEY")
@@ -73,11 +74,14 @@ android {
     namespace = "com.micon.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
+    // Android and the PC model evaluate the same checked-in pitch fixtures.
+    sourceSets.getByName("test").resources.srcDir(rootProject.file("../../tests/fixtures"))
+
     defaultConfig {
         applicationId = "com.micon.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = releaseVersionCode.toIntOrNull() ?: 1
+        versionCode = releaseVersionCode.toIntOrNull() ?: 3
         versionName = releaseVersionName.ifBlank { "0.1.0" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -107,9 +111,18 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "HTTP_LOGGING", "true")
+            buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", localSetting("GUIDED_RANGE_STANDALONE", "false").toBoolean().toString())
+            buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"$rangePreviewBaseUrl\"")
+            // Diagnostic capture is opt-in; never arm it in a normal test build.
+            val diagnosticToken = localSetting("GUIDED_RANGE_DIAGNOSTIC_TOKEN")
+            require(diagnosticToken.matches(Regex("[A-Za-z0-9_-]{0,80}")))
+            buildConfigField("String", "GUIDED_RANGE_DIAGNOSTIC_TOKEN", "\"$diagnosticToken\"")
         }
         release {
             buildConfigField("boolean", "HTTP_LOGGING", "false")
+            buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", "false")
+            buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"\"")
+            buildConfigField("String", "GUIDED_RANGE_DIAGNOSTIC_TOKEN", "\"\"")
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }

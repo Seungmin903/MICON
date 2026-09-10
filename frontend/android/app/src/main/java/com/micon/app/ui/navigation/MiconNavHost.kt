@@ -52,6 +52,10 @@ import com.micon.app.ui.theme.Purple
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
 @Composable
 fun MiconRoot() {
+    if (com.micon.app.BuildConfig.GUIDED_RANGE_STANDALONE) {
+        com.micon.app.ui.report.RangeTestFlow()
+        return
+    }
     val nav = rememberNavController()
     val session: NavigationSessionViewModel = viewModel()
     val sessionVerified = session.verified && TokenManager.isLoggedIn()

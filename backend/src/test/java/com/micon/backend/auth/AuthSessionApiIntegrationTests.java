@@ -19,7 +19,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,7 +38,7 @@ class AuthSessionApiIntegrationTests {
     void rotatesRefreshTokenAndRejectsReuse() throws Exception {
         SessionTokens initial = login();
 
-        MvcResult refreshed = mockMvc.perform(post("/auth/tokens/refresh")
+        MvcResult refreshed = mockMvc.perform(post("/auth/refresh")
                         .header("Authorization", "Bearer " + initial.refreshToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
@@ -53,7 +52,7 @@ class AuthSessionApiIntegrationTests {
         assertThat(refreshTokenRepository.findByTokenHash(
                 refreshTokenHasher.hash(rotatedRefreshToken))).isPresent();
 
-        mockMvc.perform(post("/auth/tokens/refresh")
+        mockMvc.perform(post("/auth/refresh")
                         .header("Authorization", "Bearer " + initial.refreshToken()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
@@ -63,7 +62,7 @@ class AuthSessionApiIntegrationTests {
     void logoutRevokesCurrentSessionAndBlocksAccessToken() throws Exception {
         SessionTokens tokens = login();
 
-        mockMvc.perform(delete("/auth/sessions/current")
+        mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer " + tokens.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"));
@@ -72,11 +71,11 @@ class AuthSessionApiIntegrationTests {
                 refreshTokenHasher.hash(tokens.refreshToken())).orElseThrow();
         assertThat(session.getRevokedAt()).isNotNull();
 
-        mockMvc.perform(delete("/auth/sessions/current")
+        mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer " + tokens.accessToken()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-        mockMvc.perform(post("/auth/tokens/refresh")
+        mockMvc.perform(post("/auth/refresh")
                         .header("Authorization", "Bearer " + tokens.refreshToken()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
@@ -84,14 +83,14 @@ class AuthSessionApiIntegrationTests {
 
     @Test
     void rejectsMissingRefreshToken() throws Exception {
-        mockMvc.perform(post("/auth/tokens/refresh"))
+        mockMvc.perform(post("/auth/refresh"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
     }
 
     private SessionTokens login() throws Exception {
         userRepository.save(new User("session@micon.com", passwordEncoder.encode("Password123!")));
-        MvcResult result = mockMvc.perform(post("/auth/sessions")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"session@micon.com","password":"Password123!"}
