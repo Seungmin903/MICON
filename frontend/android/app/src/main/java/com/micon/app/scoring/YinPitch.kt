@@ -24,11 +24,16 @@ object YinPitch {
     const val RMS_FLOOR = 1e-4
 
     data class Result(val f0: Double, val clarity: Double)
+    data class Candidates(val initial: Result, val corrected: Result)
 
     /** 프레임 하나의 피치. 배음(2·3배음) 오검출 보정 + 포물선 보간 포함. */
-    fun yinPitch(buffer: FloatArray, rate: Double): Result {
-        val maxTau = min((rate / FMIN).toInt(), buffer.size - 2)
-        val minTau = max(2, (rate / FMAX).toInt())
+    fun yinPitch(buffer: FloatArray, rate: Double, fmin: Double = FMIN, fmax: Double = FMAX): Result =
+        candidates(buffer, rate, fmin, fmax).corrected
+
+    fun candidates(buffer: FloatArray, rate: Double, fmin: Double = FMIN, fmax: Double = FMAX): Candidates {
+        require(fmin > 0 && fmax > fmin && fmax < rate / 2)
+        val maxTau = min((rate / fmin).toInt(), buffer.size - 2)
+        val minTau = max(2, (rate / fmax).toInt())
         val span = buffer.size - maxTau
         val difference = DoubleArray(maxTau + 1)
         for (tau in 1..maxTau) {
@@ -62,6 +67,7 @@ object YinPitch {
         }
         // 배음 오검출 보정: 2·3배음이 강한 목소리(특히 저음)는 반주기·1/3주기 딥이 먼저 임계값을 뚫어
         // 옥타브/5도 위로 잡힌다. k·tau 근처에 "확실히 더 깊은"(−0.04) 국소 최솟값이 있으면 그것이 진짜 주기.
+        val initialTau = tau
         for (k in intArrayOf(2, 3)) {
             val center = tau * k
             if (center > maxTau) continue
@@ -71,6 +77,7 @@ object YinPitch {
             }
             if (cmndf[local] < cmndf[tau] - 0.04) tau = local
         }
+        fun result(tau: Int): Result {
         var refined = tau.toDouble()
         if (tau > 1 && tau < maxTau) {
             val s0 = cmndf[tau - 1]
@@ -83,6 +90,8 @@ object YinPitch {
             }
         }
         return Result(f0 = rate / refined, clarity = (1 - cmndf[tau]).coerceIn(0.0, 1.0))
+        }
+        return Candidates(result(initialTau), result(tau))
     }
 
     /** 부분 구간 RMS. from/to 기본값은 전체 창. */
