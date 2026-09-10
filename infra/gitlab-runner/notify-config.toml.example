@@ -1,0 +1,23 @@
+concurrent = 1
+check_interval = 0
+shutdown_timeout = 0
+
+[[runners]]
+  name = "micon-ssafy-notify"
+  url = "https://lab.ssafy.com/"
+  token = "REPLACE_WITH_RUNNER_AUTHENTICATION_TOKEN"
+  executor = "docker"
+  limit = 1
+  request_concurrency = 1
+
+  [runners.docker]
+    image = "python:3.13-alpine"
+    privileged = false
+    disable_cache = true
+    volumes = []
+    allowed_images = ["python:3.13-alpine"]
+    allowed_services = []
+    services_limit = 0
+    cpus = "0.25"
+    memory = "256m"
+    memory_swap = "256m"
