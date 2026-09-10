@@ -28,3 +28,7 @@ RELEASE_KEY_PASSWORD=
 RELEASE_VERSION_CODE=
 PREVIOUS_RELEASE_VERSION_CODE=
 RELEASE_VERSION_NAME=
+
+# PC model preview: explicit debug-only entry; production login remains the default.
+GUIDED_RANGE_STANDALONE=false
+RANGE_PREVIEW_BASE_URL=http://127.0.0.1:8789/
