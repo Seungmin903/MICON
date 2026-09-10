@@ -92,7 +92,7 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 | BE /actuator/health/readiness | prod 설정·무인증 허용·DB 포함 구현, 후보 HTTP 200 확인 | 내부 무인증 GET. readinessState와 db 포함. HTTP 200 + application/json + status=UP만 성공 |
 | BE /actuator/health/liveness | prod 설정·무인증 허용·DB 제외 구현, 후보 HTTP 200 확인 | 내부 무인증 GET, livenessState만 검사. 외부 의존성 장애로 재시작 반복 방지 |
 
-무인증 probe 허용은 관리 API 전체 공개가 아니다. 컨테이너 포트는 loopback에만 publish했고 154에서 외부 `/actuator` 노출을 차단한다. 방화벽 공개 포트는 추가하지 않았다.
+무인증 probe 허용은 관리 API 전체 공개가 아니다. 컨테이너 포트는 loopback에만 publish했고 154 브랜치의 Nginx 설정은 외부 `/actuator`, `/internal` 및 `/api/v1` 아래 같은 경로를 명시적으로 404 처리한다. 방화벽 공개 포트는 추가하지 않았다.
 
 적용한 properties 계약:
 
