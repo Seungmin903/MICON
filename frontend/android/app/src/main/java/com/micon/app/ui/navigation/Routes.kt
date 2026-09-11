@@ -53,10 +53,10 @@ object Routes {
     val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SETLIST)
 }
 
-/** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 추천(음표 원) · 리포트(그래프) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */
+/** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 리포트(그래프) · 추천(음표 원) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */
 enum class BottomTab(val route: String, val label: String, val icon: ImageVector) {
-    RECOMMEND(Routes.RECOMMEND, "추천", Icons.Outlined.Explore),
     REPORT(Routes.REPORT, "리포트", Icons.Outlined.Assessment),
+    RECOMMEND(Routes.RECOMMEND, "추천", Icons.Outlined.Explore),
     PRACTICE(Routes.PRACTICE, "연습", Icons.Outlined.Mic),
     EVALUATION(Routes.EVALUATION, "평가", Icons.Outlined.RateReview),
     FAVORITES(Routes.FAVORITES, "찜", Icons.Outlined.BookmarkBorder);
