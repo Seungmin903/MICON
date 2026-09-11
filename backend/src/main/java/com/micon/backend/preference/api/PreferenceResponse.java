@@ -9,9 +9,10 @@ public record PreferenceResponse(
 	List<Artist> artists,
 	boolean onboardingCompleted
 ) {
-	public record Genre(Long genreId, String name) {
+	public record Genre(Long genreId, String name, String code) {
 	}
 
-	public record Artist(Long artistId, String name, String imageUrl) {
+	public record Artist(Long artistId, String name, String imageUrl,
+		String imageSourceUrl, String imageAttribution, String imageLicense, String imageLicenseUrl) {
 	}
 }

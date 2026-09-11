@@ -43,6 +43,10 @@ GENRE_TAGS = {
     "발라드": {"Ballad"}, "댄스": {"Dance"}, "R&B": {"R&B"}, "팝": {"Pop"}, "록": {"Rock", "Alternative"}, "힙합": {"Hip-Hop"},
     "레게": {"Reggae"}, "인디": {"Singer-Songwriter", "Folk", "Alternative"}, "재즈": {"Jazz"}, "포크": {"Folk"}, "트로트": {"Trot"},
     "OST": {"Soundtrack"}, "J-POP": {"J-Pop"},
+    # BE genre labels and the curated Android survey share these aliases.
+    "댄스/팝": {"Dance"}, "R&B/소울": {"R&B"}, "알앤비/소울": {"R&B"},
+    "록/메탈": {"Rock", "Alternative", "Metal"}, "락/메탈": {"Rock", "Alternative", "Metal"},
+    "랩/힙합": {"Hip-Hop"}, "포크/어쿠스틱": {"Folk", "Singer-Songwriter"}, "성인가요": {"Trot"},
 }
 SHELF_META = {
     "voice": ("내 목소리와 닮은 곡", "음색 유사도 순. 음역은 게이트만(키 ±3 안에서 부담 없음). 키는 부르는 방법으로 표시"),
