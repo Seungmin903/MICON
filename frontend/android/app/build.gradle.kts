@@ -138,11 +138,6 @@ android {
         resValues = true
     }
 
-    androidResources {
-        // 개발용 샘플 DB(assets/micon_catalog.sqlite)를 APK 안에서 압축하지 않음 -> 첫 실행 복사 빠름
-        noCompress += "sqlite"
-    }
-
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11

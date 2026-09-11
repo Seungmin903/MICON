@@ -201,7 +201,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
     private fun search(q: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            runCatching { songs.search(q, analyzedOnly = true, limit = 10) }
+            runCatching { songs.search(q, size = 10).items }
                 .onSuccess { found ->
                     val items = found.mapIndexed { i, song -> RecommendedSong(i + 1, song, fit = null, reasons = listOf("검색 결과")) }
                     _state.value = _state.value.copy(searchItems = items, loading = false)
@@ -245,7 +245,7 @@ fun eraOf(releaseDate: String?): String? {
  * 제목은 현재 섹션 제목. 칩은 **필터 바**(성별·시대·장르·인기) — 추천받은 곡을 걸러 보인다. 상태 4종(로딩·성공·결과 없음·실패).
  */
 @Composable
-fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
+fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -263,7 +263,7 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
         )
         onSongClick(item.song.id)
     }
-    fun openId(id: String) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
+    fun openId(id: Long) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
 
     // 시안: 검색바 없음, 제목 옆 🔍 만. 누르면 제목 자리가 검색창으로 바뀌고, 다시 누르면 검색을 접고 지운다.
     var searchOpen by remember { mutableStateOf(false) }
@@ -440,7 +440,7 @@ private const val GOLDEN_ANGLE = 2.39996f
  * 곡이 슬롯 수보다 적으면 있는 만큼만 그리되 그 수에 맞춰 다시 풀어 화면을 채운다.
  */
 @Composable
-private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (Long) -> Unit, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val w = maxWidth
         val aspect = maxHeight / maxWidth
@@ -461,7 +461,7 @@ private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (String) -> Uni
 // song-match-detail (곡 분석 및 추천)
 // ---------------------------------------------------------------------------
 
-class SongMatchViewModel(private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String) : ViewModel() {
+class SongMatchViewModel(private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: Long) : ViewModel() {
     sealed interface State {
         data object Loading : State
         data class Error(val message: String) : State
@@ -493,7 +493,7 @@ fun karaokeOctaveName(midi: Int): String {
 }
 
 @Composable
-fun SongMatchDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit) {
+fun SongMatchDetailScreen(songId: Long, onBack: () -> Unit, onPractice: () -> Unit) {
     val container = rememberAppContainer()
     val vm: SongMatchViewModel = viewModel(key = "match-$songId", factory = viewModelFactory { initializer { SongMatchViewModel(container.songs, container.recommend, songId) } })
     val state by vm.state.collectAsStateWithLifecycle()

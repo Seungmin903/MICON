@@ -110,12 +110,12 @@ import kotlin.math.roundToInt
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·정밀 리포트.
  */
 @Composable
-fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (String) -> Unit) {
+fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (String) -> Unit) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
         key = "practice-$songId",
-        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.engine) } },
+        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     fun hasMic() = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

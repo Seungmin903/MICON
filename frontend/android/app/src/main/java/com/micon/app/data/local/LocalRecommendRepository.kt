@@ -22,16 +22,16 @@ import kotlin.random.Random
 /**
  * 앱 안에서 계산하는 추천·적합도 — **오프라인·개발 경로**. 음역만 계산하고 음색은 null(평가 불가).
  *
- * 곡 쪽은 [SongRepository](sqlite) 의 analysis·karaokeNotes, 사용자 쪽은 [UserStore.profile] 의 안정 음역.
+ * 곡 쪽은 [SongRepository](백엔드) 의 analysis·karaokeNotes, 사용자 쪽은 [UserStore.profile] 의 안정 음역.
  * 서버 추천(RemoteRecommendRepository)이 붙어도 추천 목록 밖의 곡(검색·연습·찜에서 진입) 적합도에는 계속 쓸 수 있다.
  * 결과는 프로필이 바뀔 때까지 곡별로 캐시한다(목록·상세가 같은 값을 보게 — REC-005).
  */
 class LocalRecommendRepository(private val songs: SongRepository) : RecommendRepository {
     private val mutex = Mutex()
     private var cachedFor: UserStore.VoiceProfile? = null
-    private val cache = HashMap<String, SongFit?>()
+    private val cache = HashMap<Long, SongFit?>()
 
-    override suspend fun fit(songId: String): SongFit? {
+    override suspend fun fit(songId: Long): SongFit? {
         val profile = UserStore.profile.value ?: return null      // 프로필 없음 → 평가 불가
         mutex.withLock {
             if (cachedFor != profile) { cache.clear(); cachedFor = profile }
@@ -42,7 +42,7 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
         return computed
     }
 
-    private suspend fun compute(songId: String, profile: UserStore.VoiceProfile): SongFit? {
+    private suspend fun compute(songId: Long, profile: UserStore.VoiceProfile): SongFit? {
         val detail = songs.detail(songId) ?: return null
         val a = detail.analysis ?: return null                       // ERR-004: 곡 음역 정보 없음 → 평가 불가
         val coreLow = a.coreLowMidi ?: a.lowestMidi ?: return null
@@ -68,7 +68,7 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
 
     override suspend fun recommend(mode: RecommendMode, limit: Int): RecommendResult {
         val profile = UserStore.profile.value
-        val pool = songs.search("", analyzedOnly = true, limit = 300)
+        val pool = songs.search("", size = POOL_SIZE).items
         if (mode == RecommendMode.RANGE && profile != null) {
             val ranked = pool.mapNotNull { s -> fit(s.id)?.let { s to it } }
                 .sortedWith(compareByDescending<Pair<SongSummary, SongFit>> { it.second.overallFit }.thenBy { it.first.id })
@@ -101,9 +101,9 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
     override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
         val profile = UserStore.profile.value
             ?: return RecommendShelves(personalized = false, shelves = listOf(RecommendShelf(ShelfKeys.VOICE, "기본 추천", null, recommend(RecommendMode.GENRE, limit).items)))
-        val pool = songs.search("", analyzedOnly = true, limit = 300)
+        val pool = songs.search("", size = POOL_SIZE).items
         val fits = pool.mapNotNull { s -> fit(s.id)?.let { s to it } }
-        val used = HashSet<String>()
+        val used = HashSet<Long>()
         // 섹션끼리 곡을 나눠 갖는다. 개발용 카탈로그는 분석된 곡이 50곡뿐이라, 첫 섹션이 limit 만큼 다 가져가면 뒷 섹션이 빈다.
         val quota = minOf(limit, (fits.size / SHELF_COUNT).coerceAtLeast(MIN_PER_SHELF))
         fun shelf(key: String, title: String, metric: String?, ranked: List<Pair<SongSummary, SongFit>>): RecommendShelf {
@@ -136,6 +136,8 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
     companion object {
         private const val SHELF_COUNT = 4
         private const val MIN_PER_SHELF = 8
+        /** 오프라인 근사에 쓰는 곡 수. 곡마다 상세를 한 번씩 읽으므로 서버 페이지 최대(100)로 묶는다. */
+        private const val POOL_SIZE = 100
 
         /** 음역 사유 문장 규칙 (REC-002). 음색 라벨은 서버 응답이 붙인다. */
         fun reasons(fit: RangeFit, key: Int, strain: StrainSections): List<String> = buildList {

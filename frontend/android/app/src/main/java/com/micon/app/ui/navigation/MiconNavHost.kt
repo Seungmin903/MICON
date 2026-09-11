@@ -150,9 +150,9 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
             if (!sessionVerified) return@composable
             RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
-        composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
+        composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
             if (!sessionVerified) return@composable
-            val songId = entry.arguments?.getString("songId") ?: return@composable
+            val songId = entry.arguments?.getLong("songId") ?: return@composable
             // 턴테이블 → 아래로 스크롤하면 검은 시트가 올라오며 곡 분석. 캐러셀로 곡이 바뀌면 그 곡으로 연습에 들어간다.
             SongTurntableScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(it)) })
         }
@@ -174,20 +174,20 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
         }
         composable(
             Routes.SONG,
-            arguments = listOf(navArgument("songId") { type = NavType.StringType }),
+            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SONG}" }),
         ) { entry ->
             if (!sessionVerified) return@composable
-            val songId = entry.arguments?.getString("songId") ?: return@composable
+            val songId = entry.arguments?.getLong("songId") ?: return@composable
             SongDetailScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(songId)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
         composable(
             Routes.PRACTICE_RUN,
-            arguments = listOf(navArgument("songId") { type = NavType.StringType }),
+            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.PRACTICE_RUN}" }),
         ) { entry ->
             if (!sessionVerified) return@composable
-            val songId = entry.arguments?.getString("songId") ?: return@composable
+            val songId = entry.arguments?.getLong("songId") ?: return@composable
             PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { jobId -> nav.navigate(Routes.result(jobId)) })
         }
 

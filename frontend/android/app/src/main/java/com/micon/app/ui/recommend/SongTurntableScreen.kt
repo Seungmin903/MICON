@@ -84,16 +84,16 @@ private val SheetColor = Color(0xFF10161F)  // LP 링과 같은 검정
  * 곡 목록을 네비게이션 인자로 넘기면 URL 이 길어져서, 앱 안 메모리로만 전달한다(백엔드 붙어도 그대로 쓸 수 있다).
  */
 object SongCarousel {
-    var ids: List<String> = emptyList()
+    var ids: List<Long> = emptyList()
     var title: String = ""
 
-    fun set(songIds: List<String>, shelfTitle: String) {
+    fun set(songIds: List<Long>, shelfTitle: String) {
         ids = songIds
         title = shelfTitle
     }
 
     /** 딥링크 등으로 목록 없이 들어오면 그 곡 하나만 */
-    fun idsFor(songId: String): List<String> = ids.takeIf { songId in it } ?: listOf(songId)
+    fun idsFor(songId: Long): List<Long> = ids.takeIf { songId in it } ?: listOf(songId)
 }
 
 /** 위쪽이 커다란 원호로 둥근 시트. 원호 반지름 = 폭 × [SHEET_ARC_R] 이라 화면 가운데가 가장 높다. */
@@ -114,7 +114,7 @@ private val SheetShape = GenericShape { size, _ ->
  * 분석 내용은 기존 [MatchBody] 를 어두운 팔레트로 그대로 쓴다 — 흰 화면 상세와 내용이 갈라지지 않게.
  */
 @Composable
-fun SongTurntableScreen(songId: String, onBack: () -> Unit, onPractice: (String) -> Unit) {
+fun SongTurntableScreen(songId: Long, onBack: () -> Unit, onPractice: (Long) -> Unit) {
     val ids = remember(songId) { SongCarousel.idsFor(songId) }
     val shelfTitle = remember(songId) { SongCarousel.title }
     val pagerState = rememberPagerState(initialPage = ids.indexOf(songId).coerceAtLeast(0)) { ids.size }
@@ -232,12 +232,12 @@ fun SongTurntableScreen(songId: String, onBack: () -> Unit, onPractice: (String)
 
 /** 페이지 index → 앨범 이미지. 이미지는 추천에서 이미 받아 둔 것을 쓴다(추가 조회 없음). */
 private object SongCarouselArt {
-    var urls: Map<String, String?> = emptyMap()
-    fun of(page: Int, ids: List<String>): String? = urls[ids.getOrNull(page)]
+    var urls: Map<Long, String?> = emptyMap()
+    fun of(page: Int, ids: List<Long>): String? = urls[ids.getOrNull(page)]
 }
 
 /** 추천 화면이 캐러셀에 쓸 곡 목록·제목·앨범 이미지를 넘긴다. */
-fun setSongCarousel(ids: List<String>, title: String, images: Map<String, String?>) {
+fun setSongCarousel(ids: List<Long>, title: String, images: Map<Long, String?>) {
     SongCarousel.set(ids, title)
     SongCarouselArt.urls = images
 }

@@ -64,15 +64,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** 곡 카탈로그를 한 번 읽어 id → SongSummary 조회에 쓴다. */
+/** 곡 카탈로그 첫 페이지(100곡)를 읽어 id → SongSummary 조회에 쓴다. 찜·세트리스트가 백엔드 API 로 옮겨지면 곡 정보도 그 응답에서 받는다. */
 class FavoritesViewModel(private val repo: SongRepository, private val recommend: RecommendRepository) : ViewModel() {
-    data class State(val loading: Boolean = true, val songs: Map<String, SongSummary> = emptyMap(), val keys: Map<String, Int?> = emptyMap())
+    data class State(val loading: Boolean = true, val songs: Map<Long, SongSummary> = emptyMap(), val keys: Map<Long, Int?> = emptyMap())
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val songs = runCatching { repo.search("", analyzedOnly = true, limit = 300) }.getOrDefault(emptyList())
+            val songs = runCatching { repo.search("", size = 100).items }.getOrDefault(emptyList())
             UserStore.seedLikesIfEmpty(songs.map { it.id })
             _state.value = State(false, songs.associateBy { it.id })
             val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
@@ -85,7 +85,7 @@ private enum class Tab(val label: String) { ALL("전체"), PRACTICING("연습 �
 
 /** Figma "노래 찜 목록" / "노래 찜 목록 - 세트리스트" */
 @Composable
-fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (String) -> Unit, onSettings: () -> Unit) {
+fun FavoritesScreen(onSongClick: (Long) -> Unit, onSetlistClick: (String) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
     val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -150,7 +150,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (String) -> U
 
 /** Figma "노래 찜 목록 - 세트리스트 세부" */
 @Composable
-fun SetlistScreen(setlistId: String, onBack: () -> Unit, onSongClick: (String) -> Unit) {
+fun SetlistScreen(setlistId: String, onBack: () -> Unit, onSongClick: (Long) -> Unit) {
     val container = rememberAppContainer()
     val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()

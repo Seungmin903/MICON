@@ -102,7 +102,7 @@ class PracticeHistoryViewModel(private val engine: EngineClient, private val rep
                 val jobs = engine.api.jobs(kind = "performance", limit = 50).jobs
                 val fmt = SimpleDateFormat("yyyy.MM.dd", Locale.KOREA)
                 val items = jobs.map { job ->
-                    val song = job.referenceJobId?.let { runCatching { repo.detail(it) }.getOrNull() }?.summary
+                    val song = job.referenceJobId?.toLongOrNull()?.let { runCatching { repo.detail(it) }.getOrNull() }?.summary   // 엔진 job 은 백엔드 song_id 를 모른다 → 곡 정보 없이 표시. 백엔드 /practices 로 옮기면 해결
                     Item(
                         job = job,
                         title = song?.title ?: job.referenceFilename ?: job.referenceJobId ?: job.id,

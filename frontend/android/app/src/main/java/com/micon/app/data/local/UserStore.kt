@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * 사용자 쪽 데이터의 **임시 인메모리 저장소**. 앱 백엔드(users, favorites, setlists, practice_sessions,
- * user_voice_profiles, song_fit) API 가 생기면 Repository 로 바꾸고 이 객체는 삭제한다.
+ * 사용자 쪽 데이터의 **임시 인메모리 저장소**. 곡 id 는 백엔드 song_id(Long).
+ * 백엔드 `/users/me/favorites`, `/setlists`, `/practices`, 음성 분석 API 로 옮기면 Repository 로 바꾸고 이 객체는 삭제한다.
  * 화면은 여기의 StateFlow 만 구독하므로 교체 시 UI 수정은 없다.
  */
 object UserStore {
@@ -32,12 +32,12 @@ object UserStore {
         val measuredAt: Long = System.currentTimeMillis(),
     )
 
-    data class Setlist(val id: String, val name: String, val songIds: List<String>)
+    data class Setlist(val id: String, val name: String, val songIds: List<Long>)
 
     private val _profile = MutableStateFlow<VoiceProfile?>(null)
     val profile = _profile.asStateFlow()
 
-    private val _liked = MutableStateFlow<Set<String>>(emptySet())
+    private val _liked = MutableStateFlow<Set<Long>>(emptySet())
     val liked = _liked.asStateFlow()
 
     private val _setlists = MutableStateFlow(
@@ -70,10 +70,10 @@ object UserStore {
 
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
 
-    fun toggleLike(songId: String) = _liked.update { if (songId in it) it - songId else it + songId }
+    fun toggleLike(songId: Long) = _liked.update { if (songId in it) it - songId else it + songId }
 
     /** 최초 진입 시 목록 화면이 호출해 예시 찜을 채운다(백엔드 연동 후 삭제). */
-    fun seedLikesIfEmpty(songIds: List<String>) {
+    fun seedLikesIfEmpty(songIds: List<Long>) {
         if (_liked.value.isEmpty() && songIds.isNotEmpty()) {
             _liked.value = songIds.take(5).toSet()
             _setlists.update { lists -> lists.map { if (it.songIds.isEmpty()) it.copy(songIds = songIds.take(5)) else it } }
