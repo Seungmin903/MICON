@@ -43,7 +43,7 @@ class PreferenceSurveyCaptureTest {
             PreferenceArtist(index + 1L, item.getString("name"), file.toURI().toString(),
                 item.getString("sourceUrl"), item.getString("attribution"), item.getString("license"))
         }
-        val genres = listOf("발라드", "댄스", "R&B/소울", "록/메탈", "힙합", "포크/어쿠스틱", "OST", "팝", "J-POP", "트로트")
+        val genres = listOf("발라드", "댄스", "R&B/소울", "록/메탈", "힙합", "포크/어쿠스틱", "OST", "영어곡", "일본곡", "트로트")
             .mapIndexed { index, name -> PreferenceGenre(index + 1L, name) }
         compose.setContent {
             MaterialTheme {
