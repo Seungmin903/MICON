@@ -48,6 +48,8 @@ class RecommendationPersistenceIntegrationTests {
         RecommendationShelf timbre = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "timbre", "내 음색과 닮은 곡", 2, "timbreScore"));
 
+        insertCatalogSong(101L);
+        insertCatalogSong(102L);
         songs.save(new RecommendationSong(recommendation, timbre, 102L, 2, 1));
         songs.save(new RecommendationSong(recommendation, range, 101L, 1, 1));
         songs.flush();
@@ -68,10 +70,13 @@ class RecommendationPersistenceIntegrationTests {
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
 
         for (int rank = 1; rank <= 50; rank++) {
-            insertSong(recommendation.getId(), shelf.getId(), 1000L + rank, rank, rank);
+            long songId = 1000L + rank;
+            insertCatalogSong(songId);
+            insertSong(recommendation.getId(), shelf.getId(), songId, rank, rank);
         }
         RecommendationShelf secondShelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "range", "음역 추천", 2, "rangeFit"));
+        insertCatalogSong(1051L);
         insertSong(recommendation.getId(), secondShelf.getId(), 1051L, 51, 1);
 
         assertThat(countSongs(recommendation.getId())).isEqualTo(51);
@@ -83,6 +88,8 @@ class RecommendationPersistenceIntegrationTests {
         Recommendation recommendation = fixture.recommendation();
         RecommendationShelf shelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
+        insertCatalogSong(2001L);
+        insertCatalogSong(2002L);
         insertSong(recommendation.getId(), shelf.getId(), 2001L, 1, 1);
 
         assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), 2001L, 2, 2))
@@ -131,6 +138,12 @@ class RecommendationPersistenceIntegrationTests {
                     recommendation_id, song_id, recommendation_shelf_id, overall_rank, shelf_position
                 ) VALUES (?, ?, ?, ?, ?)
                 """, recommendationId, songId, shelfId, overallRank, shelfPosition);
+    }
+
+    private void insertCatalogSong(long songId) {
+        jdbcTemplate.update(
+                "INSERT INTO song (song_id, title, status, practice_ready) VALUES (?, ?, 'ACTIVE', TRUE)",
+                songId, "test-song-" + songId);
     }
 
     private int countSongs(long recommendationId) {
