@@ -36,7 +36,7 @@ class EmailAuthApiIntegrationTests {
     private PasswordEncoder passwordEncoder;
 
     @Test
-    void signsUpAndReturnsLoggedInSession() throws Exception {
+    void signsUpWithoutCreatingLoggedInSession() throws Exception {
         mockMvc.perform(post("/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -49,15 +49,13 @@ class EmailAuthApiIntegrationTests {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.email").value("newuser@micon.com"))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+                .andExpect(jsonPath("$.data").doesNotExist());
 
         User user = userRepository.findByEmail("newuser@micon.com").orElseThrow();
         assertThat(user.getPassword()).isNotEqualTo("Password123!");
         assertThat(passwordEncoder.matches("Password123!", user.getPassword())).isTrue();
-        assertThat(user.getLastLoginAt()).isNotNull();
-        assertThat(refreshTokenRepository.count()).isEqualTo(1);
+        assertThat(user.getLastLoginAt()).isNull();
+        assertThat(refreshTokenRepository.count()).isZero();
     }
 
     @Test
