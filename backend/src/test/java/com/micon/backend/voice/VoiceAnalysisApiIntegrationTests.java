@@ -247,7 +247,7 @@ class VoiceAnalysisApiIntegrationTests {
         User user = user("analysis-callback@micon.com");
         VoiceRecording recording = uploadedRecording(user);
         VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
-        analysis.start("callback-job-1", java.time.LocalDateTime.now());
+        analysis.start("callback-job-1", java.time.LocalDateTime.of(2026, 9, 9, 0, 0));
         analyses.flush();
         String callback = """
                 {
@@ -304,7 +304,7 @@ class VoiceAnalysisApiIntegrationTests {
         User user = user("analysis-delete-original@micon.com");
         VoiceRecording recording = uploadedRecording(user, false, "voice/delete-after-analysis.wav");
         VoiceAnalysis analysis = analyses.saveAndFlush(new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
-        analysis.start("delete-original-job", java.time.LocalDateTime.now());
+        analysis.start("delete-original-job", java.time.LocalDateTime.of(2026, 9, 9, 2, 0));
         analyses.flush();
 
         mockMvc.perform(post("/callbacks/voice-analyses")
