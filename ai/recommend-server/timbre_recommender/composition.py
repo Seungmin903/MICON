@@ -38,8 +38,12 @@ DEFAULT_MIN_RANGE_SCORE = 0.35
 
 # 언어 게이트. 카탈로그 metadata.languages 는 ISO 639-2. mul/zxx(다국어·가사 없음)는 항상 통과.
 CATALOG_LANGUAGE = {"kor": "ko", "eng": "en", "jpn": "jp"}
-# 온보딩 선호 장르(앱 SAMPLE_GENRES) → 허용 언어. 표에 없는 장르는 ko. 장르가 없으면 전체 허용.
-GENRE_LANGUAGE = {"팝": "en", "pop": "en", "j-pop": "jp", "jpop": "jp", "j팝": "jp"}
+# Foreign preferences cover every style in that song language. Other choices are Korean styles.
+# Keep prior labels/import keys readable for existing clients and stored preferences.
+GENRE_LANGUAGE = {
+    "영어곡": "en", "팝": "en", "pop": "en", "global-pop": "en",
+    "일본곡": "jp", "j-pop": "jp", "jpop": "jp", "j팝": "jp", "etc-jpop": "jp",
+}
 
 _TJ_NUMBER = re.compile(r"(\d+)\s*$")
 _AXES = ("ecapa", "singer_byol")

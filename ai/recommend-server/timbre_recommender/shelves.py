@@ -19,6 +19,7 @@ import numpy as np
 from .composition import (
     AXIS_LABEL,
     AXIS_NAME,
+    GENRE_LANGUAGE,
     allowed_languages,
     compose_two_axis,
     song_id_of,
@@ -38,11 +39,12 @@ CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상�
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
 DISCOVERY_MAX_PER_GENRE = 3            # E
 RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop"}
-# 온보딩 설문 장르 → 카탈로그 태그. 새로운 발견의 "취향 밖" 판정에 쓴다. K-Pop 은 범용 태그라 항상 "취향 안"으로 본다.
+# 한국곡 설문 장르 → 스타일 태그. 외국어 선택은 아래 언어 판정으로 처리한다.
+# K-Pop 은 범용 태그라 항상 "취향 안"으로 본다.
 GENRE_TAGS = {
-    "발라드": {"Ballad"}, "댄스": {"Dance"}, "R&B": {"R&B"}, "팝": {"Pop"}, "록": {"Rock", "Alternative"}, "힙합": {"Hip-Hop"},
+    "발라드": {"Ballad"}, "댄스": {"Dance"}, "R&B": {"R&B"}, "록": {"Rock", "Alternative"}, "힙합": {"Hip-Hop"},
     "레게": {"Reggae"}, "인디": {"Singer-Songwriter", "Folk", "Alternative"}, "재즈": {"Jazz"}, "포크": {"Folk"}, "트로트": {"Trot"},
-    "OST": {"Soundtrack"}, "J-POP": {"J-Pop"},
+    "OST": {"Soundtrack"},
     # BE genre labels and the curated Android survey share these aliases.
     "댄스/팝": {"Dance"}, "R&B/소울": {"R&B"}, "알앤비/소울": {"R&B"},
     "록/메탈": {"Rock", "Alternative", "Metal"}, "락/메탈": {"Rock", "Alternative", "Metal"},
@@ -64,7 +66,8 @@ def is_rap(metadata: Mapping[str, Any] | None) -> bool:
 def selected_tags(genres: Iterable[str]) -> set[str]:
     tags = {"K-Pop"}
     for g in genres:
-        tags |= GENRE_TAGS.get(g.strip(), set())
+        if g.strip().lower() not in GENRE_LANGUAGE:
+            tags |= GENRE_TAGS.get(g.strip(), set())
     return tags
 
 
@@ -213,8 +216,11 @@ def build_shelves(
 
     # E. 새로운 발견: 취향 밖 장르, 부를 수 있음(랩은 음역 조건 없이 허용), 음색 중앙값 이상 → 가수·장르 중복 없이 섞기
     tags = selected_tags(genres)
+    selected_languages = {GENRE_LANGUAGE[g.strip().lower()] for g in genres if g.strip().lower() in GENRE_LANGUAGE}
     median = float(np.median([r["timbre_score"] for r in rows])) if rows else 0.0
-    pool_e = [r for r in rows if (r["metadata"].get("genres") or []) and not (set(r["metadata"]["genres"]) & tags)
+    pool_e = [r for r in rows if (r["metadata"].get("genres") or [])
+              and track_language(r["metadata"]) not in selected_languages
+              and not (set(r["metadata"]["genres"]) & tags)
               and r["timbre_score"] >= median and (r["is_rap"] or not range_enabled or singable(r))]
     random.Random(seed).shuffle(pool_e)
     seen_artist: set[str] = set()

@@ -23,7 +23,7 @@ class JdbcRecommendationPreferenceReaderTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS genre (genre_id BIGINT PRIMARY KEY, name VARCHAR(100) NOT NULL)");
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS genre (genre_id BIGINT PRIMARY KEY, name VARCHAR(100) NOT NULL, preference_label VARCHAR(100))");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS singer (singer_id BIGINT PRIMARY KEY, name VARCHAR(100) NOT NULL)");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS user_genre_preference (user_id BIGINT, genre_id BIGINT)");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS user_singer_preference (user_id BIGINT, singer_id BIGINT)");
@@ -35,7 +35,7 @@ class JdbcRecommendationPreferenceReaderTest {
 
     @Test
     void returnsSavedNamesInStableOrder() {
-        jdbcTemplate.update("INSERT INTO genre VALUES (1, '록'), (2, '발라드')");
+        jdbcTemplate.update("INSERT INTO genre(genre_id, name) VALUES (1, '록'), (2, '발라드')");
         jdbcTemplate.update("INSERT INTO singer VALUES (1, '태연'), (2, '아이유')");
         jdbcTemplate.update("INSERT INTO user_genre_preference VALUES (7, 1), (7, 2)");
         jdbcTemplate.update("INSERT INTO user_singer_preference VALUES (7, 1), (7, 2)");
@@ -44,6 +44,16 @@ class JdbcRecommendationPreferenceReaderTest {
 
         assertThat(preferences.genres()).containsExactly("록", "발라드");
         assertThat(preferences.artists()).containsExactly("아이유", "태연");
+    }
+
+    @Test
+    void sendsLanguageGroupLabelsWithoutChangingSavedIds() {
+        jdbcTemplate.update("INSERT INTO genre VALUES (8, '팝', '영어곡'), (9, 'J-POP', '일본곡')");
+        jdbcTemplate.update("INSERT INTO user_genre_preference VALUES (7, 8), (7, 9)");
+
+        assertThat(reader.findByUserId(7L).genres()).containsExactly("일본곡", "영어곡");
+        assertThat(jdbcTemplate.queryForList("SELECT genre_id FROM user_genre_preference WHERE user_id=7 ORDER BY genre_id", Long.class))
+                .containsExactly(8L, 9L);
     }
 
     @Test
