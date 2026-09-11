@@ -42,7 +42,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**",
-                                "/v1/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                                "/v1/swagger-ui.html", "/v1/swagger-ui/**",
+                                "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/policies").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
