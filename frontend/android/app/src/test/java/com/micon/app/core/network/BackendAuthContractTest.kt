@@ -59,6 +59,19 @@ class BackendAuthContractTest {
         assertEquals(0, expirations)
     }
 
+    @Test fun `signup accepts created response without tokens and keeps session logged out`() = runBlocking {
+        server.enqueue(json(201, "null"))
+
+        NetworkAuthRepository(client.api, tokens).signup(" user@example.com ", "test-password")
+
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/auth/signup", request.path)
+        assertNull(request.getHeader("Authorization"))
+        assertTrue(request.body.readUtf8().contains("\"email\":\"user@example.com\""))
+        assertFalse(tokens.snapshot().isLoggedIn)
+    }
+
     @Test fun `invalid credentials never trigger token refresh`() = runBlocking {
         tokens.saveSession(7, "previous-access", "previous-refresh")
         server.enqueue(MockResponse().setResponseCode(401))

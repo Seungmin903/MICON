@@ -137,7 +137,7 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
                 onNeedSurvey = { nav.replaceAll(Routes.SURVEY) })
         }
         composable(Routes.LOGIN) { LoginScreen(onLoggedIn = { checkSession() }, onSignup = { nav.navigate(Routes.SIGNUP) }) }
-        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
+        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { goLogin() }) }
         composable(Routes.SURVEY) {
             PreferenceSurveyScreen(onDone = { goMain() }, onSessionExpired = { goLogin() }, onBack = { goLogin() })
         }

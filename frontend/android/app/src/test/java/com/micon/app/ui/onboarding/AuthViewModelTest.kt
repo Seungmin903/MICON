@@ -118,11 +118,25 @@ class AuthViewModelTest {
         assertEquals(2, auth.loginCalls)
     }
 
+    @Test fun `signup completion does not authenticate before explicit login`() = runTest {
+        val auth = FakeAuth()
+        val model = AuthViewModel(auth)
+
+        model.submit("user@example.com", "password", true)
+        advanceUntilIdle()
+
+        assertTrue(model.state.value.signupCompleted)
+        assertFalse(model.state.value.authenticated)
+        assertEquals(1, auth.signupCalls)
+        assertEquals(0, auth.loginCalls)
+    }
+
     private fun signedIn() = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
 
     private class FakeAuth : AuthRepository {
         var restoreCalls = 0
         var loginCalls = 0
+        var signupCalls = 0
         var restoreFailure: Exception? = null
         var loginFailure: Exception? = null
         var loginWait: CompletableDeferred<Unit>? = null
@@ -131,7 +145,7 @@ class AuthViewModelTest {
             loginWait?.await()
             loginFailure?.let { throw it }
         }
-        override suspend fun signup(email: String, password: String) = login(email, password)
+        override suspend fun signup(email: String, password: String) { signupCalls++ }
         override suspend fun restoreIdentity() { restoreCalls++; restoreFailure?.let { throw it } }
         override suspend fun logout() = Unit
     }
