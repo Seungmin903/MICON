@@ -30,6 +30,8 @@ object Routes {
     // 하위 화면
     const val SONG_MATCH = "match/{songId}"          // song-match-detail
     const val QUICK_ANALYSIS = "report/quick"        // 음성 분석 리포트 - 음성 간편 분석
+    const val SING_ANALYSIS_PICK = "report/sing"     // 불러서 분석하기 - 곡 선택 (Figma 없음)
+    const val SING_ANALYSIS_RUN = "report/sing/{songId}" // 불러서 분석하기 - 범위 선택/부르기/저장 완료
     const val SONG = "song/{songId}"                 // 노래 연습 - 노래 상세정보 (하단 탭 보임)
     const val PRACTICE_RUN = "practice/{songId}"     // 노래 연습 - 연습전/연습중
     const val RESULT = "result/{jobId}"              // 노래 연습 분석 상세 (전체 화면)
@@ -40,9 +42,10 @@ object Routes {
     /** 개발용 딥링크 접두 (AndroidManifest 의 micon://app) */
     const val DEEP_LINK = "micon://app"
 
-    fun songMatch(songId: String) = "match/$songId"
-    fun song(songId: String) = "song/$songId"
-    fun practice(songId: String) = "practice/$songId"
+    fun songMatch(songId: Long) = "match/$songId"
+    fun song(songId: Long) = "song/$songId"
+    fun practice(songId: Long) = "practice/$songId"
+    fun singAnalysis(songId: Long) = "report/sing/$songId"
     fun result(jobId: String) = "result/$jobId"
     fun setlist(setlistId: String) = "setlist/$setlistId"
 

@@ -36,9 +36,9 @@ class RemoteRecommendRepository(
     /** 서버에 올릴 사용자 보컬 녹음. 없으면 서버 추천 불가 → 로컬 */
     private val recording: () -> File?,
 ) : RecommendRepository {
-    private val lastFits = HashMap<String, SongFit>()
+    private val lastFits = HashMap<Long, SongFit>()
 
-    override suspend fun fit(songId: String): SongFit? = lastFits[songId] ?: local.fit(songId)
+    override suspend fun fit(songId: Long): SongFit? = lastFits[songId] ?: local.fit(songId)
 
     override suspend fun recommend(mode: RecommendMode, limit: Int): RecommendResult {
         val serverMode = when (mode) { RecommendMode.RANGE -> "range"; RecommendMode.TIMBRE -> "timbre"; else -> return local.recommend(mode, limit) }
@@ -90,9 +90,12 @@ class RemoteRecommendRepository(
         )
     }
 
-    /** 서버 항목 → 앱 항목. 앱이 열 수 없는 곡(song_id 없음)은 null. 부담 구간은 로컬 음표가 있을 때만 붙인다. */
+    /**
+     * 서버 항목 → 앱 항목. 앱이 열 수 없는 곡(song_id 없음)은 null. 부담 구간은 로컬 음표가 있을 때만 붙인다.
+     * `song_id` 는 백엔드 song_id 숫자 문자열이어야 한다(TJ 번호 폐기). 숫자가 아니면 열 수 없는 곡으로 본다.
+     */
     private suspend fun toItem(dto: RecommendationDto): RecommendedSong? {
-        val songId = dto.songId ?: return null
+        val songId = dto.songId?.toLongOrNull() ?: return null
         val profile = UserStore.profile.value
         val detail = runCatching { songs.detail(songId) }.getOrNull()
         val summary = detail?.summary ?: RecommendMapper.summaryOf(songId, dto)
@@ -113,7 +116,7 @@ class RemoteRecommendRepository(
 
 /** 서버 DTO → 앱 모델. 순수 함수라 단위 테스트가 쉽다. */
 object RecommendMapper {
-    fun toFit(songId: String, dto: RecommendationDto, strain: StrainSections?): SongFit {
+    fun toFit(songId: Long, dto: RecommendationDto, strain: StrainSections?): SongFit {
         val range = dto.rangeFit?.let { RangeFit(it.score, it.coverage, it.centerScore, it.spanFit, it.softFit, it.songCoreLowMidi, it.songCoreHighMidi) }
         val rangeReasons = if (range != null && dto.recommendedKey != null && strain != null) LocalRecommendRepository.reasons(range, dto.recommendedKey, strain) else emptyList()
         // 음색은 voice 섹션에서만 (axis·label 있음). 다른 섹션은 평가 불가(null)
@@ -144,10 +147,9 @@ object RecommendMapper {
         )
     }
 
-    /** 로컬 카탈로그에 없는 곡의 최소 요약 (서버 metadata 로) */
-    fun summaryOf(songId: String, dto: RecommendationDto) = SongSummary(
-        id = songId, tjNumber = dto.metadata?.tjId, title = dto.title, artist = dto.artist, album = dto.metadata?.albumName,
-        durationMs = null, imageUrl = dto.metadata?.imageUrl, genre = dto.metadata?.genres?.firstOrNull(),
-        language = dto.metadata?.language, releaseDate = dto.metadata?.releaseDate, analyzed = false,
+    /** 카탈로그에서 못 읽은 곡의 최소 요약 (서버 metadata 로) */
+    fun summaryOf(songId: Long, dto: RecommendationDto) = SongSummary(
+        id = songId, title = dto.title, artist = dto.artist, imageUrl = dto.metadata?.imageUrl, durationMs = null,
+        album = dto.metadata?.albumName, genre = dto.metadata?.genres?.firstOrNull(), releaseDate = dto.metadata?.releaseDate,
     )
 }

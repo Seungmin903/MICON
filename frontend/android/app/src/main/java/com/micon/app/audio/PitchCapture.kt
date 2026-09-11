@@ -20,7 +20,9 @@ import java.nio.ByteOrder
  * 프레임 t 는 **캡처 시계 기준 초**(창 중심). MR 시계와의 동기는 호출자(ViewModel)가 맡는다.
  */
 class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: Double = YinPitch.FMAX,
-                   private val collectCandidates: Boolean = false) {
+                   private val collectCandidates: Boolean = false,
+                   /** false 면 YIN 을 돌리지 않고 레벨(rms)만 담은 프레임을 낸다 — 녹음만 필요한 화면(불러서 분석하기)용 */
+                   private val analyzePitch: Boolean = true) {
     data class PitchFrame(val t: Double, val f0: Double, val clarity: Double, val rms: Double, val rmsLow: Double,
         val duration: Double = 0.02, val clippedRatio: Double = 0.0,
         val initialF0: Double? = null, val initialClarity: Double? = null)
@@ -166,7 +168,7 @@ class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: D
                     val half = YinPitch.WINDOW / 2
                     val rmsLow = minOf(YinPitch.frameRms(scratch, 0, half), YinPitch.frameRms(scratch, half, YinPitch.WINDOW))
                     val t = offset + (decimated - half) / rate
-                    if (rms < YinPitch.RMS_FLOOR || rmsLow < YinPitch.RMS_FLOOR * 0.5) {
+                    if (!analyzePitch || rms < YinPitch.RMS_FLOOR || rmsLow < YinPitch.RMS_FLOOR * 0.5) {
                         onFrame(PitchFrame(t, 0.0, 0.0, rms, rmsLow, duration, clipRatio))
                     } else {
                         val candidates = YinPitch.candidates(scratch, rate, fmin, fmax)

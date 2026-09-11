@@ -89,7 +89,7 @@ data class RecommendationDto(
     /** 소속 섹션 key. 호환용 recommendations[] 에도 들어 있다 */
     val shelf: String? = null,
     @Json(name = "track_id") val trackId: String,
-    @Json(name = "song_id") val songId: String?,          // 앱 songs.song_id. null 이면 앱이 열 수 없는 곡
+    @Json(name = "song_id") val songId: String?,          // 백엔드 song_id (숫자 문자열). null 이거나 숫자가 아니면 앱이 열 수 없는 곡
     val title: String,
     val artist: String,
     val metadata: TrackMetadataDto? = null,

@@ -4,6 +4,10 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.AuthResponse
 import com.micon.app.data.backend.dto.CurrentUser
 import com.micon.app.data.backend.dto.EmailAuthRequest
+import com.micon.app.data.backend.dto.PageDto
+import com.micon.app.data.backend.dto.PracticeAssetsDto
+import com.micon.app.data.backend.dto.SongDetailDto
+import com.micon.app.data.backend.dto.SongSummaryDto
 import com.micon.app.data.backend.dto.TokenPair
 import retrofit2.Call
 import retrofit2.Response
@@ -11,6 +15,8 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 /** Paths are relative to the /api/v1/ backend base URL. */
 interface BackendApi {
@@ -32,4 +38,17 @@ interface BackendApi {
     /** Refresh has no JSON body; its bearer credential is the refresh token. */
     @POST("auth/refresh")
     fun refreshTokenSync(@Header("Authorization") authorization: String): Call<ApiResponse<TokenPair>>
+
+    // ---- 곡 카탈로그 (SongController · PracticeAssetController) ----
+
+    /** 제목·가수 검색. size 최대 100. */
+    @GET("songs")
+    suspend fun songs(@Query("query") query: String, @Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<SongSummaryDto>>>
+
+    @GET("songs/{songId}")
+    suspend fun song(@Path("songId") songId: Long): Response<ApiResponse<SongDetailDto>>
+
+    /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
+    @GET("songs/{songId}/practice-assets")
+    suspend fun practiceAssets(@Path("songId") songId: Long, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
 }

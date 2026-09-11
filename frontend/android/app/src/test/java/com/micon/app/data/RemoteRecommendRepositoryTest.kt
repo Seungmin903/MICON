@@ -17,7 +17,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** 서버 샘플 응답(ai/recommend-server/docs/sample-response.json 복사본, shelves-v1)으로 DTO 파싱과 SongFit 매핑을 고정한다. */
+/**
+ * 서버 샘플 응답(ai/recommend-server/docs/sample-response.json 복사본, shelves-v1)으로 DTO 파싱과 SongFit 매핑을 고정한다.
+ * 픽스처의 `song_id` 는 백엔드 song_id 숫자 문자열로 바꿔 두었다(TJ 번호 폐기). 추천 서버도 같은 값을 내려줘야 앱이 곡을 열 수 있다.
+ */
 class RemoteRecommendRepositoryTest {
     private val job: RecommendJobDto by lazy {
         val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/recommend-sample.json"))
@@ -26,11 +29,9 @@ class RemoteRecommendRepositoryTest {
 
     /** 곡 카탈로그가 비어 있는 상황: 요약은 서버 metadata 로 만들어진다. */
     private object EmptySongs : SongRepository {
-        override suspend fun search(query: String, analyzedOnly: Boolean, limit: Int, offset: Int, language: String?, chartTag: String?, sort: SongRepository.Sort) = emptyList<SongSummary>()
-        override suspend fun chartTagCounts(language: String?) = emptyMap<String, Int>()
-        override suspend fun detail(songId: String): SongDetail? = null
-        override suspend fun karaokeNotes(songId: String) = null
-        override suspend fun counts() = SongRepository.Counts(0, 0)
+        override suspend fun search(query: String, page: Int, size: Int) = SongPage(emptyList(), page, size, 0, 0)
+        override suspend fun detail(songId: Long): SongDetail? = null
+        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets = throw PracticeAssetsNotReadyException("empty")
     }
 
     private class FixtureGateway(private val job: RecommendJobDto) : RecommendGateway {
@@ -57,7 +58,7 @@ class RemoteRecommendRepositoryTest {
         assertEquals(result.shelves[0].items.map { it.songId }, result.recommendations.map { it.songId })
         val recs = result.recommendations
         assertEquals((1..recs.size).toList(), recs.map { it.position })
-        assertTrue(recs.all { it.songId!!.startsWith("tj-") && it.shelf == "voice" })
+        assertTrue(recs.all { it.songId!!.toLongOrNull() != null && it.shelf == "voice" })
         assertTrue(recs.map { it.finalScore } == recs.map { it.finalScore }.sortedDescending())   // 서버가 정한 순서
         assertTrue(result.shelves[1].items.all { it.axis == null && it.label == null })          // 음색은 voice 섹션에서만
         assertEquals(listOf("ko"), result.algorithm!!.languageGate!!.allowed)
@@ -66,7 +67,7 @@ class RemoteRecommendRepositoryTest {
     @Test
     fun `dto maps to SongFit without client-side recalculation`() {
         val dto = job.result!!.recommendations.first()
-        val fit = RecommendMapper.toFit(dto.songId!!, dto, strain = null)
+        val fit = RecommendMapper.toFit(dto.songId!!.toLong(), dto, strain = null)
         assertEquals(dto.finalScore, fit.overallFit)
         assertEquals(dto.recommendedKey, fit.recommendedKey)
         assertEquals(dto.axis, fit.timbre!!.axis.name)
@@ -77,7 +78,7 @@ class RemoteRecommendRepositoryTest {
         assertNull(fit.strainSections)                       // 서버는 부담 구간을 내려주지 않음
         // 음색 없는 섹션: timbre = 평가 불가(null), 사유는 그래도 최소 1개(REC-002)
         val plain = job.result!!.shelves[1].items.first()
-        val plainFit = RecommendMapper.toFit(plain.songId!!, plain, strain = null)
+        val plainFit = RecommendMapper.toFit(plain.songId!!.toLong(), plain, strain = null)
         assertNull(plainFit.timbre)
         assertTrue(plainFit.reasons.isNotEmpty())
     }
@@ -92,7 +93,7 @@ class RemoteRecommendRepositoryTest {
         assertEquals(listOf("발라드", "팝"), gateway.lastGenres)
         assertTrue(r.personalized)
         assertEquals(listOf("ko"), r.languageGateAllowed)
-        assertEquals(job.result!!.recommendations.map { it.songId }, r.items.map { it.song.id })
+        assertEquals(job.result!!.recommendations.map { it.songId!!.toLong() }, r.items.map { it.song.id })
         assertEquals((1..r.items.size).toList(), r.items.map { it.rank })
         assertEquals("이름 모를 소녀", r.items[0].song.title)          // 카탈로그에 없어도 metadata 로 요약
         assertEquals(r.items[0].fit, repo.fit(r.items[0].song.id))   // 목록·상세 동일(REC-005)
@@ -110,7 +111,7 @@ class RemoteRecommendRepositoryTest {
         assertEquals(server.map { it.key }, r.shelves.map { it.key })
         assertEquals(server.map { it.title }, r.shelves.map { it.title })
         assertTrue(r.shelves.none { it.key == ShelfKeys.CHALLENGE })
-        r.shelves.zip(server).forEach { (mine, theirs) -> assertEquals(theirs.items.map { it.songId }, mine.items.map { it.song.id }) }
+        r.shelves.zip(server).forEach { (mine, theirs) -> assertEquals(theirs.items.map { it.songId!!.toLong() }, mine.items.map { it.song.id }) }
         val any = r.shelves[2].items.first()
         assertEquals(any.fit, repo.fit(any.song.id))                  // 어느 섹션의 곡이든 상세가 같은 값
     }

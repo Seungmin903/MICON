@@ -36,9 +36,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.data.RecommendRepository
+import com.micon.app.data.SongAnalysis
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongRepository
-import com.micon.app.data.engine.EngineClient
+import okhttp3.OkHttpClient
 import com.micon.app.data.engine.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.KaraokeNames
@@ -66,9 +67,9 @@ import kotlinx.coroutines.launch
 class SongDetailViewModel(
     appContext: Context,
     private val repo: SongRepository,
-    private val engine: EngineClient,
+    mediaHttp: OkHttpClient,
     private val recommend: RecommendRepository,
-    private val songId: String,
+    private val songId: Long,
 ) : ViewModel() {
     data class State(
         val loading: Boolean = true,
@@ -79,26 +80,16 @@ class SongDetailViewModel(
         val playing: Boolean = false,
         val positionSec: Double = 0.0,
         val durationSec: Double = 0.0,
-        val source: String = "original",      // "original" = 원곡, "instrumental" = 반주(원곡 파일이 서버에 없을 때 폴백)
+        /** 미리 듣기 소리의 출처. 백엔드는 반주만 제공한다("instrumental"). 반주 URL 이 없으면 null(재생 불가). */
+        val source: String? = null,
     )
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
-    private val player = InstrumentalPlayer(appContext, engine.okHttp)
-    private var triedInstrumental = false
+    private val player = InstrumentalPlayer(appContext, mediaHttp)
 
     init {
-        player.onError = { msg ->
-            // 원곡이 서버에 없으면(404) 반주로 한 번 폴백한다
-            val detail = _state.value.detail
-            if (_state.value.source == "original" && !triedInstrumental && detail?.hasInstrumental == true) {
-                triedInstrumental = true
-                player.load(engine.instrumentalUrl(songId, 0))
-                _state.update { it.copy(source = "instrumental", error = null) }
-            } else {
-                _state.update { it.copy(error = "재생 오류: $msg") }
-            }
-        }
+        player.onError = { msg -> _state.update { it.copy(error = "재생 오류: $msg") } }
         player.onEnded = { _state.update { it.copy(playing = false) } }
         load()
         viewModelScope.launch {
@@ -115,14 +106,23 @@ class SongDetailViewModel(
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             try {
-                val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
-                val notes = runCatching { repo.karaokeNotes(songId) }.getOrNull() ?: emptyList()
+                val base = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
+                // 연습 데이터(음표·박자·반주 URL)는 practice-assets 에서. 준비 안 된 곡(409)은 없는 것으로 다룬다.
+                val assets = runCatching { repo.practiceAssets(songId) }.getOrNull()
+                val notes = assets?.targetNotes.orEmpty()
+                val analysis = (base.analysis ?: assets?.let { SongAnalysis(it.keyName, it.tempoBpm, it.timeSignature, null, null) })
+                    ?.let { a -> a.copy(timeSignature = a.timeSignature ?: assets?.timeSignature, noteCount = notes.size.takeIf { n -> n > 0 } ?: a.noteCount) }
+                val detail = base.copy(analysis = analysis)
                 val fit = runCatching { recommend.fit(songId) }.getOrNull()
+                val url = assets?.instrumental?.playbackUrl
                 _state.update {
-                    it.copy(loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0, recommendedKey = fit?.recommendedKey)
+                    it.copy(
+                        loading = false, detail = detail, melody = downsample(notes), durationSec = (detail.summary.durationMs ?: 0) / 1000.0,
+                        recommendedKey = fit?.recommendedKey, source = if (url != null) "instrumental" else null,
+                    )
                 }
-                // 미리 듣기는 원곡. 원곡이 없으면 onError 에서 반주로 폴백.
-                player.load(engine.originalUrl(songId))
+                // 미리 듣기는 백엔드가 준 반주 URL. 없으면 플레이어를 비워 둔다.
+                if (url != null) player.load(url)
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = e.message ?: e.toString()) }
             }
@@ -173,12 +173,12 @@ private fun LegendItem(color: Color, label: String, wide: Boolean = false) {
 
 /** Figma "노래 연습- 노래 상세정보": 헤더, 플레이어 카드, 노래 적합 카드, 높낮이 흐름. 하단 탭이 보이는 화면. */
 @Composable
-fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit, onSettings: () -> Unit = {}) {
+fun SongDetailScreen(songId: Long, onBack: () -> Unit, onPractice: () -> Unit, onSettings: () -> Unit = {}) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(
         key = "song-$songId",
-        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.engine, container.recommend, songId) } },
+        factory = viewModelFactory { initializer { SongDetailViewModel(context.applicationContext, container.songs, container.mediaHttp, container.recommend, songId) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
@@ -199,7 +199,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit,
                     PlayerCard(
                         title = d.summary.title, artist = d.summary.artist, imageUrl = d.summary.imageUrl,
                         positionSec = state.positionSec, durationSec = state.durationSec, playing = state.playing, onToggle = vm::toggle,
-                        onSeek = vm::seekTo, caption = if (state.source == "instrumental") "원곡 파일이 없어 반주로 재생합니다" else null,
+                        onSeek = vm::seekTo, caption = if (state.source == null) "미리 듣기 반주가 아직 준비되지 않았어요" else "미리 듣기는 반주로 재생됩니다",
                     )
                     // 1) 결론 먼저: 이 노래가 내 음역에 맞는지, 키를 얼마나 바꾸면 되는지 (노래방식 음이름)
                     val songHigh = a?.highestMidi ?: state.melody.maxOfOrNull { it.second.toInt() } ?: 72
