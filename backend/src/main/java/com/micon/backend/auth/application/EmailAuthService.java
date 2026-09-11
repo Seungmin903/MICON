@@ -38,7 +38,7 @@ public class EmailAuthService {
     }
 
     @Transactional
-    public AuthResponse signUp(AuthRequest.SignUp request) {
+    public void signUp(AuthRequest.SignUp request) {
         validatePasswordBytes(request.password());
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
@@ -46,14 +46,11 @@ public class EmailAuthService {
         }
 
         User user = new User(email, passwordEncoder.encode(request.password()));
-        user.markLoggedIn(LocalDateTime.ofInstant(clock.instant(), clock.getZone()));
         try {
-            user = userRepository.saveAndFlush(user);
+            userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        TokenPair tokens = authSessionService.create(user, request.deviceId(), request.deviceName());
-        return AuthResponse.of(user.getId(), user.getEmail(), tokens);
     }
 
     @Transactional
