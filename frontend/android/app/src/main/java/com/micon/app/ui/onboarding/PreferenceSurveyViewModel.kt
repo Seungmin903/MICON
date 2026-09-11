@@ -29,7 +29,8 @@ import kotlinx.coroutines.sync.withLock
 data class PreferenceSurveyState(
     val loading: Boolean = true,
     val loadError: String? = null,
-    val step: Int = 0,
+    // Preserve persisted step meanings (0 = genre, 1 = artist); start with artists.
+    val step: Int = 1,
     val genres: List<PreferenceGenre> = emptyList(),
     val artists: List<PreferenceArtist> = emptyList(),
     val selectedGenres: Map<Long, PreferenceGenre> = emptyMap(),
@@ -48,8 +49,8 @@ data class PreferenceSurveyState(
     val saved: Boolean = false,
     val sessionExpired: Boolean = false,
 ) {
-    val canContinue get() = !loading && loadError == null && !isSaving && !sessionExpired && !saved && selectedGenres.isNotEmpty()
-    val canFinish get() = canContinue && selectedArtists.isNotEmpty()
+    val canContinue get() = !loading && loadError == null && !isSaving && !sessionExpired && !saved && selectedArtists.isNotEmpty()
+    val canFinish get() = canContinue && selectedGenres.isNotEmpty()
 }
 
 /** Selection is independent of search pages. Draft writes and final writes share one queue. */
@@ -96,7 +97,7 @@ class PreferenceSurveyViewModel(
                 val draft = drafts.read(userId, isEditing)
                 val local = draft?.takeIf { it.dirty }
                 val selectedGenres = (local?.genres ?: genres.filter { it.genreId in preferences.genreIds })
-                    .filter { item -> genres.any { it.genreId == item.genreId } }
+                    .mapNotNull { item -> genres.find { it.genreId == item.genreId } }
                     .take(MAX_GENRES).associateBy { it.genreId }
                 val selectedArtists = (local?.artists ?: preferences.artists.filter { it.artistId in preferences.artistIds })
                     .take(MAX_ARTISTS).associateBy { it.artistId }
@@ -105,7 +106,7 @@ class PreferenceSurveyViewModel(
                     it.copy(
                         loading = false, genres = genres, selectedGenres = selectedGenres,
                         selectedArtists = selectedArtists, draftPending = dirty,
-                        step = if (selectedGenres.isEmpty()) 0 else (draft?.step ?: 0).coerceIn(0, 1),
+                        step = (draft?.step ?: 1).coerceIn(0, 1),
                         saveError = null, draftError = null,
                     )
                 }
@@ -147,16 +148,22 @@ class PreferenceSurveyViewModel(
 
     fun next() {
         if (state.value.canContinue && checkSession()) {
-            mutableState.update { it.copy(step = 1, message = null) }
+            mutableState.update { it.copy(step = 0, message = null) }
             persistDraft()
         }
     }
 
-    /** Returns true when back was consumed by the artist → genre step. */
+    fun selectStep(step: Int) {
+        if (step !in 0..1 || !canMutate()) return
+        mutableState.update { it.copy(step = step, message = null) }
+        persistDraft()
+    }
+
+    /** Returns true when back was consumed by the genre → artist step. */
     fun back(): Boolean {
         if (state.value.isSaving) return true
-        if (state.value.step == 0) return false
-        mutableState.update { it.copy(step = 0, message = null) }
+        if (state.value.step == 1) return false
+        mutableState.update { it.copy(step = 1, message = null) }
         persistDraft()
         return true
     }

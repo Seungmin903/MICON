@@ -26,6 +26,10 @@ def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",
 
 
 class HelpersTest(unittest.TestCase):
+    def test_backend_preference_labels_exclude_selected_styles_from_discovery(self) -> None:
+        self.assertEqual(selected_tags(["알앤비/소울", "락/메탈", "포크/어쿠스틱", "성인가요"]),
+                         {"K-Pop", "R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
+
     def test_rap_and_tags(self) -> None:
         self.assertTrue(is_rap({"genres": ["Hip-Hop", "K-Pop"]}))
         self.assertFalse(is_rap({"genres": ["K-Pop"]}))

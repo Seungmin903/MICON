@@ -1,0 +1,569 @@
+{
+  "retrievedAt": "2026-09-11T14:14:15.953Z",
+  "portraits": [
+    {
+      "name": "장범준",
+      "aliases": [
+        "장범준"
+      ],
+      "title": "Jang Beom-june",
+      "wikidataId": "Q16091441",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Jang_Beom-june_of_Busker_Busker_at_the_Expo_2012_Yeosu.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Jang_Beom-june_of_Busker_Busker_at_the_Expo_2012_Yeosu.jpg",
+      "imageAttribution": "livingocean",
+      "imageLicense": "CC BY 2.0 kr",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0/kr/deed.en",
+      "width": 400,
+      "height": 589
+    },
+    {
+      "name": "최유리",
+      "aliases": [
+        "최유리"
+      ],
+      "title": "Choe Yu-ri",
+      "wikidataId": "Q27686419",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/%EC%B5%9C%EC%9C%A0%EB%A6%AC_2022.jpg/500px-%EC%B5%9C%EC%9C%A0%EB%A6%AC_2022.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:%EC%B5%9C%EC%9C%A0%EB%A6%AC_2022.jpg",
+      "imageAttribution": "iTOP21sports",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 462
+    },
+    {
+      "name": "로이킴",
+      "aliases": [
+        "로이킴",
+        "Roy Kim"
+      ],
+      "title": "Roy Kim",
+      "wikidataId": "Q11773473",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg/500px-180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg",
+      "imageAttribution": "dispatchsns",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 600
+    },
+    {
+      "name": "아이유",
+      "aliases": [
+        "아이유",
+        "IU"
+      ],
+      "title": "IU (entertainer)",
+      "wikidataId": "Q20145",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/IU_at_Blue_Dragon_Series_Awards_on_18072025_%2810%29.png/500px-IU_at_Blue_Dragon_Series_Awards_on_18072025_%2810%29.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:IU_at_Blue_Dragon_Series_Awards_on_18072025_(10).png",
+      "imageAttribution": "티비텐 TV10",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 629
+    },
+    {
+      "name": "박효신",
+      "aliases": [
+        "박효신"
+      ],
+      "title": "Park Hyo-shin",
+      "wikidataId": "Q484928",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Park_Hyo_Shin_%28cropped%29.jpg/500px-Park_Hyo_Shin_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Park_Hyo_Shin_(cropped).jpg",
+      "imageAttribution": "Hiitsmegosu",
+      "imageLicense": "CC BY-SA 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "width": 400,
+      "height": 490
+    },
+    {
+      "name": "에일리",
+      "aliases": [
+        "에일리",
+        "Ailee"
+      ],
+      "title": "Ailee",
+      "wikidataId": "Q487391",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Ailee_in_January_2026.png/500px-Ailee_in_January_2026.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Ailee_in_January_2026.png",
+      "imageAttribution": "TV10",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 564
+    },
+    {
+      "name": "한로로",
+      "aliases": [
+        "한로로",
+        "HANRORO"
+      ],
+      "title": "Hanroro",
+      "wikidataId": "Q134958723",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Hanroro_%28%ED%95%9C%EB%A1%9C%EB%A1%9C%29_World_Vision_Korea_2025_%28cropped%29.jpg/500px-Hanroro_%28%ED%95%9C%EB%A1%9C%EB%A1%9C%29_World_Vision_Korea_2025_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Hanroro_(%ED%95%9C%EB%A1%9C%EB%A1%9C)_World_Vision_Korea_2025_(cropped).jpg",
+      "imageAttribution": "월드비전 World Vision Korea",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 532
+    },
+    {
+      "name": "백예린",
+      "aliases": [
+        "백예린",
+        "Yerin Baek"
+      ],
+      "title": "Yerin Baek",
+      "wikidataId": "Q9021940",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Baek_Ye-rin_at_Slow_Life_Slow_Live_on_October_5%2C_2019.png/500px-Baek_Ye-rin_at_Slow_Life_Slow_Live_on_October_5%2C_2019.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Baek_Ye-rin_at_Slow_Life_Slow_Live_on_October_5,_2019.png",
+      "imageAttribution": "DIM K",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 529
+    },
+    {
+      "name": "권진아",
+      "aliases": [
+        "권진아"
+      ],
+      "title": "Kwon Jin-ah",
+      "wikidataId": "Q16731133",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5e/Kwon_Jin-ah_in_July_2026.png/500px-Kwon_Jin-ah_in_July_2026.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Kwon_Jin-ah_in_July_2026.png",
+      "imageAttribution": "K-POPIT 케이팝잇",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 561
+    },
+    {
+      "name": "이소라",
+      "aliases": [
+        "이소라"
+      ],
+      "title": "Lee So-ra (singer)",
+      "wikidataId": "Q625435",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/180617_Lee_So-ra_at_Pilsner_Festival.png/500px-180617_Lee_So-ra_at_Pilsner_Festival.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180617_Lee_So-ra_at_Pilsner_Festival.png",
+      "imageAttribution": "SJUN",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 478
+    },
+    {
+      "name": "10CM",
+      "aliases": [
+        "10CM",
+        "십센치"
+      ],
+      "title": "10cm (band)",
+      "wikidataId": "Q493329",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Kwon_Jung-yeol%2C_10cm.jpg/500px-Kwon_Jung-yeol%2C_10cm.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Kwon_Jung-yeol,_10cm.jpg",
+      "imageAttribution": "Trainholic",
+      "imageLicense": "CC BY-SA 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "name": "빅뱅",
+      "aliases": [
+        "빅뱅",
+        "BIGBANG"
+      ],
+      "title": "BigBang (South Korean band)",
+      "wikidataId": "Q282104",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/BIGBANG_2011_%28current_members_since_2023%29.jpg/500px-BIGBANG_2011_%28current_members_since_2023%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:BIGBANG_2011_(current_members_since_2023).jpg",
+      "imageAttribution": "Korea.net / Korean Culture and Information Service",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "width": 400,
+      "height": 503
+    },
+    {
+      "name": "싸이",
+      "aliases": [
+        "싸이",
+        "PSY"
+      ],
+      "title": "Psy",
+      "wikidataId": "Q20150",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/PSY_EMTV_logo_27_%288198008711%29.jpg/500px-PSY_EMTV_logo_27_%288198008711%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:PSY_EMTV_logo_27_(8198008711).jpg",
+      "imageAttribution": "Korea.net / Korean Culture and Information Service (Jeon Han)",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "width": 400,
+      "height": 521
+    },
+    {
+      "name": "김광석",
+      "aliases": [
+        "김광석"
+      ],
+      "title": "Kim Kwang-seok",
+      "wikidataId": "Q625517",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Kim_Kwang-seok_performing_live_in_1992.jpg/500px-Kim_Kwang-seok_performing_live_in_1992.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Kim_Kwang-seok_performing_live_in_1992.jpg",
+      "imageAttribution": "Seoul Broadcasting System (SBS) via SBS Radio 에라오",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 534
+    },
+    {
+      "name": "나훈아",
+      "aliases": [
+        "나훈아"
+      ],
+      "title": "Na Hoon-a",
+      "wikidataId": "Q484216",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/%EB%82%98%ED%9B%88%EC%95%84_%EC%BD%98%EC%84%9C%ED%8A%B8_%ED%9B%84%EA%B8%B0.jpg/500px-%EB%82%98%ED%9B%88%EC%95%84_%EC%BD%98%EC%84%9C%ED%8A%B8_%ED%9B%84%EA%B8%B0.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:%EB%82%98%ED%9B%88%EC%95%84_%EC%BD%98%EC%84%9C%ED%8A%B8_%ED%9B%84%EA%B8%B0.jpg",
+      "imageAttribution": "취미 게임 notre1",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 277
+    },
+    {
+      "name": "이승철",
+      "aliases": [
+        "이승철"
+      ],
+      "title": "Lee Seung-chul",
+      "wikidataId": "Q54351",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Lee_Seung-cheol_from_acrofan.jpg/500px-Lee_Seung-cheol_from_acrofan.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Lee_Seung-cheol_from_acrofan.jpg",
+      "imageAttribution": "acrofan.com",
+      "imageLicense": "CC BY-SA 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "width": 400,
+      "height": 533
+    },
+    {
+      "name": "G-DRAGON",
+      "aliases": [
+        "G-DRAGON",
+        "지드래곤"
+      ],
+      "title": "G-Dragon",
+      "wikidataId": "Q495577",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/G-Dragon_in_October_2025.jpg/500px-G-Dragon_in_October_2025.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:G-Dragon_in_October_2025.jpg",
+      "imageAttribution": "티비텐 TV10",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 558
+    },
+    {
+      "name": "조용필",
+      "aliases": [
+        "조용필"
+      ],
+      "title": "Cho Yong-pil",
+      "wikidataId": "Q488429",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/36/Cho_Yong-pil_from_acrofan.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Cho_Yong-pil_from_acrofan.jpg",
+      "imageAttribution": "acrofan.com",
+      "imageLicense": "CC BY-SA 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "width": 400,
+      "height": 431
+    },
+    {
+      "name": "성시경",
+      "aliases": [
+        "성시경"
+      ],
+      "title": "Sung Si-kyung",
+      "wikidataId": "Q391397",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Sung_Si-kyung_on_May_30%2C_2014_%28cropped%29.jpg/500px-Sung_Si-kyung_on_May_30%2C_2014_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Sung_Si-kyung_on_May_30,_2014_(cropped).jpg",
+      "imageAttribution": "월아조운",
+      "imageLicense": "CC BY 2.0 kr",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0/kr/deed.en",
+      "width": 400,
+      "height": 517
+    },
+    {
+      "name": "볼빨간사춘기",
+      "aliases": [
+        "볼빨간사춘기",
+        "BOL4"
+      ],
+      "title": "BOL4",
+      "wikidataId": "Q26960605",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Ahn_Ji-young_in_November_2025.png/500px-Ahn_Ji-young_in_November_2025.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Ahn_Ji-young_in_November_2025.png",
+      "imageAttribution": "TV10",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 566
+    },
+    {
+      "name": "다비치",
+      "aliases": [
+        "다비치"
+      ],
+      "title": "Davichi",
+      "wikidataId": "Q483209",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/180331_Davichi_at_Incheon_International_Airport.jpg/500px-180331_Davichi_at_Incheon_International_Airport.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180331_Davichi_at_Incheon_International_Airport.jpg",
+      "imageAttribution": "HOLIC",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 549
+    },
+    {
+      "name": "Mrs. GREEN APPLE",
+      "aliases": [
+        "Mrs. GREEN APPLE"
+      ],
+      "title": "Mrs. Green Apple",
+      "wikidataId": "Q22129461",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Mrs._Green_Apple_%E3%83%9F%E3%82%BB%E3%82%B9%E3%82%B0%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%A2%E3%83%83%E3%83%97%E3%83%AB_in_Seoul%2C_Korea_2025_05.jpg/500px-Mrs._Green_Apple_%E3%83%9F%E3%82%BB%E3%82%B9%E3%82%B0%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%A2%E3%83%83%E3%83%97%E3%83%AB_in_Seoul%2C_Korea_2025_05.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Mrs._Green_Apple_%E3%83%9F%E3%82%BB%E3%82%B9%E3%82%B0%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%A2%E3%83%83%E3%83%97%E3%83%AB_in_Seoul,_Korea_2025_05.jpg",
+      "imageAttribution": "K-POPIT 케이팝잇",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 220
+    },
+    {
+      "name": "블랙핑크",
+      "aliases": [
+        "블랙핑크",
+        "BLACKPINK"
+      ],
+      "title": "Blackpink",
+      "wikidataId": "Q25056945",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/20240809_Blackpink_Pink_Carpet_09.png/500px-20240809_Blackpink_Pink_Carpet_09.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:20240809_Blackpink_Pink_Carpet_09.png",
+      "imageAttribution": "K-POPIT 케이팝잇",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 206
+    },
+    {
+      "name": "악뮤",
+      "aliases": [
+        "악뮤",
+        "AKMU"
+      ],
+      "title": "AKMU",
+      "wikidataId": "Q10728972",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/AKMU_Marie_Claire_Korea_2021.jpg/500px-AKMU_Marie_Claire_Korea_2021.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:AKMU_Marie_Claire_Korea_2021.jpg",
+      "imageAttribution": "Marie Claire Korea",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 388
+    },
+    {
+      "name": "윤하",
+      "aliases": [
+        "윤하",
+        "Younha"
+      ],
+      "title": "Younha",
+      "wikidataId": "Q235613",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Younha_at_Incheon_Airport_on_050123_%282%29.png/500px-Younha_at_Incheon_Airport_on_050123_%282%29.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Younha_at_Incheon_Airport_on_050123_(2).png",
+      "imageAttribution": "티비텐 TV10",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 750
+    },
+    {
+      "name": "데이식스",
+      "aliases": [
+        "데이식스",
+        "DAY6"
+      ],
+      "title": "Day6",
+      "wikidataId": "Q20898046",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/180628_Day6.jpg/500px-180628_Day6.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180628_Day6.jpg",
+      "imageAttribution": "Nine Stars",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 255
+    },
+    {
+      "name": "Adele",
+      "aliases": [
+        "Adele",
+        "아델"
+      ],
+      "title": "Adele",
+      "wikidataId": "Q23215",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Adele_2016.jpg/500px-Adele_2016.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Adele_2016.jpg",
+      "imageAttribution": "Marc E.",
+      "imageLicense": "CC BY 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "width": 400,
+      "height": 531
+    },
+    {
+      "name": "Justin Bieber",
+      "aliases": [
+        "Justin Bieber"
+      ],
+      "title": "Justin Bieber",
+      "wikidataId": "Q34086",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_%28cropped_2%29.jpg/500px-P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_%28cropped_2%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_(cropped_2).jpg",
+      "imageAttribution": "Daniel Torok",
+      "imageLicense": "Public domain",
+      "imageLicenseUrl": null,
+      "width": 400,
+      "height": 647
+    },
+    {
+      "name": "Maroon 5",
+      "aliases": [
+        "Maroon 5"
+      ],
+      "title": "Maroon 5",
+      "wikidataId": "Q182223",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Maroon_5_Current_Lineup_Collage.jpg/500px-Maroon_5_Current_Lineup_Collage.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Maroon_5_Current_Lineup_Collage.jpg",
+      "imageAttribution": "Justin Higuchi, Lunchbox LP, Eva Rinaldi, flickr./com/photos/amanda_munoz",
+      "imageLicense": "CC0",
+      "imageLicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "name": "Vaundy",
+      "aliases": [
+        "Vaundy"
+      ],
+      "title": "Vaundy",
+      "wikidataId": "Q97031297",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Vaundy_2025.jpg/500px-Vaundy_2025.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Vaundy_2025.jpg",
+      "imageAttribution": "Mister Mega",
+      "imageLicense": "CC BY-SA 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "width": 400,
+      "height": 520
+    },
+    {
+      "name": "이무진",
+      "aliases": [
+        "이무진"
+      ],
+      "title": "Lee Mu-jin",
+      "wikidataId": "Q107109529",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/20210427%E2%80%94Lee_Mu-jin_%EC%9D%B4%EB%AC%B4%EC%A7%84%2C_interview%2C_Marie_Claire_Korea_screenshot_%2805m55s%29.jpg/500px-20210427%E2%80%94Lee_Mu-jin_%EC%9D%B4%EB%AC%B4%EC%A7%84%2C_interview%2C_Marie_Claire_Korea_screenshot_%2805m55s%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:20210427%E2%80%94Lee_Mu-jin_%EC%9D%B4%EB%AC%B4%EC%A7%84,_interview,_Marie_Claire_Korea_screenshot_(05m55s).jpg",
+      "imageAttribution": "Marie Claire Korea",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 400
+    },
+    {
+      "name": "에픽하이",
+      "aliases": [
+        "에픽하이",
+        "Epik High"
+      ],
+      "title": "Epik High",
+      "wikidataId": "Q18788",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/190322_%EC%97%90%ED%94%BD%ED%95%98%EC%9D%B4_%EC%BD%94%EC%97%91%EC%8A%A4_%EC%8A%A4%ED%83%80%ED%95%84%EB%93%9C_%ED%8C%AC%EC%8B%B8%EC%9D%B8%ED%9A%8C_1.jpg/500px-190322_%EC%97%90%ED%94%BD%ED%95%98%EC%9D%B4_%EC%BD%94%EC%97%91%EC%8A%A4_%EC%8A%A4%ED%83%80%ED%95%84%EB%93%9C_%ED%8C%AC%EC%8B%B8%EC%9D%B8%ED%9A%8C_1.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:190322_%EC%97%90%ED%94%BD%ED%95%98%EC%9D%B4_%EC%BD%94%EC%97%91%EC%8A%A4_%EC%8A%A4%ED%83%80%ED%95%84%EB%93%9C_%ED%8C%AC%EC%8B%B8%EC%9D%B8%ED%9A%8C_1.jpg",
+      "imageAttribution": "Explicit",
+      "imageLicense": "CC BY-SA 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "width": 400,
+      "height": 200
+    },
+    {
+      "name": "태연",
+      "aliases": [
+        "태연",
+        "TAEYEON"
+      ],
+      "title": "Taeyeon",
+      "wikidataId": "Q233371",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/250307_Taeyeon_%40_-The_Tense-_in_Seoul_Day_1_%2854371295597%29_%28cropped%29.jpg/500px-250307_Taeyeon_%40_-The_Tense-_in_Seoul_Day_1_%2854371295597%29_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:250307_Taeyeon_@_-The_Tense-_in_Seoul_Day_1_(54371295597)_(cropped).jpg",
+      "imageAttribution": "Spes Sublimitas from Korea, Republic Of",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "width": 400,
+      "height": 571
+    },
+    {
+      "name": "WOODZ",
+      "aliases": [
+        "WOODZ",
+        "조승연"
+      ],
+      "title": "Woodz",
+      "wikidataId": "Q27953522",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/083126_Woodz_at_the_2026_Brand_of_the_Year_Awards_05.jpg/500px-083126_Woodz_at_the_2026_Brand_of_the_Year_Awards_05.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:083126_Woodz_at_the_2026_Brand_of_the_Year_Awards_05.jpg",
+      "imageAttribution": "K-POPIT 케이팝잇",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 400,
+      "height": 533
+    },
+    {
+      "name": "폴킴",
+      "aliases": [
+        "폴킴",
+        "Paul Kim"
+      ],
+      "title": "Paul Kim (musician, born 1988)",
+      "wikidataId": "Q43089370",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Paul_Kim_%28Marie_Claire_Korea_220614%29_%28cropped%29.jpg/500px-Paul_Kim_%28Marie_Claire_Korea_220614%29_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Paul_Kim_(Marie_Claire_Korea_220614)_(cropped).jpg",
+      "imageAttribution": "Marie Claire Korea",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 400,
+      "height": 533
+    }
+  ],
+  "skipped": [
+    {
+      "title": "M.C the Max"
+    },
+    {
+      "title": "Buzz (South Korean band)"
+    },
+    {
+      "title": "Jang Yoon-jeong"
+    },
+    {
+      "title": "Kenshi Yonezu"
+    },
+    {
+      "title": "Official Hige Dandism"
+    },
+    {
+      "title": "Back Number"
+    }
+  ]
+}
