@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,12 +65,14 @@ import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.DashedBox
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconHeader
+import com.micon.app.ui.common.MiconLogo
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.theme.GreenBar
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
+import com.micon.app.ui.theme.InkSoft
 import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Orange
@@ -83,14 +86,19 @@ import com.micon.app.ui.theme.PurpleMid
  * - 분석 결과 있을 때: 카드 6개
  */
 @Composable
-fun VoiceReportScreen(onQuickAnalysis: () -> Unit, onFileAnalysis: () -> Unit = {}, onSettings: () -> Unit) {
+fun VoiceReportScreen(
+    onQuickAnalysis: () -> Unit,
+    onFileAnalysis: () -> Unit = {},
+    onSettings: () -> Unit,
+    onLogin: (() -> Unit)? = null,
+) {
     val profile by UserStore.profile.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
         Column(Modifier.fillMaxSize()) {
-            MiconHeader(onSettings = onSettings)
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+            if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
                 PrimaryButton("목소리 분석하러 가기", onClick = { overlay = true }, Modifier.fillMaxWidth(), height = 66.dp)
                 Spacer(Modifier.height(16.dp))
                 val p = profile
@@ -109,6 +117,20 @@ fun VoiceReportScreen(onQuickAnalysis: () -> Unit, onFileAnalysis: () -> Unit = 
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun GuestReportHeader(onLogin: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(72.dp).padding(start = 20.dp, end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MiconLogo(barHeight = 20.dp, fontSize = 20.sp)
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = onLogin) {
+            Text("로그인/회원가입", color = InkSoft, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
