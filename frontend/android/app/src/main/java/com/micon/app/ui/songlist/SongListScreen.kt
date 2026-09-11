@@ -39,6 +39,7 @@ import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.local.UserStore
+import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.common.RetryBlock
@@ -77,11 +78,11 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
         searchJob = viewModelScope.launch { delay(250); refresh() }
     }
 
-    fun refresh() {
     /**
      * 백엔드 `GET /songs` 는 제목·가수 검색과 페이지만 지원한다(언어·차트 분류·정렬 필터 없음).
      * 첫 페이지 100곡을 보인다. 무한 스크롤은 곡 수가 100을 넘을 때 붙인다.
      */
+    fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             val s = _state.value
@@ -99,39 +100,42 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
     private companion object { const val PAGE_SIZE = 100 }
 }
 
-/** Figma "노래 연습 - 곡 선택": 헤더, 검색, 언어·분류 필터, LP 아트 행(분류 배지 · 찜) */
+/**
+ * Figma "노래 연습 - 곡 선택": 헤더, 검색, 언어·분류 필터, LP 아트 행(분류 배지 · 찜)
+ *
+ * @param backTitle 있으면 탭 헤더(로고) 대신 뒤로가기 헤더를 그린다 — 다른 흐름(불러서 분석하기)이 곡 선택기로 재사용할 때.
+ * @param subtitle 검색창 위 한 줄 안내(backTitle 과 함께 쓴다)
+ */
 @Composable
-fun SongListScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit = {}) {
+fun SongListScreen(
+    onSongClick: (Long) -> Unit,
+    onSettings: () -> Unit = {},
+    backTitle: String? = null,
+    onBack: () -> Unit = {},
+    subtitle: String? = null,
+) {
     val container = rememberAppContainer()
     val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val liked by UserStore.liked.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onSettings = onSettings)
-        MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
-        Spacer(Modifier.height(10.dp))
-        // 1줄: 언어 (한국곡 / 팝송 / J-POP)
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            vm.languages.forEach { (label, code) -> FilterChip(label, selected = state.language == code) { vm.setLanguage(code) } }
-        }
-        Spacer(Modifier.height(6.dp))
-        // 2줄: TJ 차트 분류 — 현재 언어 안에서 3곡 이상인 것만, 많은 순
-        val tags = state.tagCounts.entries.filter { it.value >= 3 }.sortedByDescending { it.value }
-        if (tags.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip("전체", selected = state.chartTag == null, muted = true) { vm.setChartTag(null) }
-                tags.forEach { (tag, n) -> FilterChip("$tag $n", selected = state.chartTag == tag, muted = true) { vm.setChartTag(tag) } }
+        if (backTitle != null) {
+            BackHeader(backTitle, onBack)
+            Spacer(Modifier.height(12.dp))
+            if (subtitle != null) {
+                Text(subtitle, fontSize = 13.sp, color = Grey, modifier = Modifier.padding(horizontal = 20.dp))
+                Spacer(Modifier.height(10.dp))
             }
         } else {
             MiconHeader(onSettings = onSettings)
         }
+        MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
+        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (state.loading) "불러오는 중…" else "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${state.songs.size}곡 표시" else ""),
                 fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),
-        MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
-        Spacer(Modifier.height(10.dp))
             )
         }
         Spacer(Modifier.height(4.dp))

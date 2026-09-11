@@ -86,6 +86,7 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 | `ui/onboarding` | 시작(스플래시), 랜딩(로그인), 회원가입, 가수/장르 선호 조사 | UI 완료, 백엔드 인증 TODO |
 | `ui/recommend` | 추천곡(버블·캐러셀 전환), song-match-detail(적합도·음역 매칭·키/난이도·집중 구간) | UI 완료, 추천 API·적합도 공식 TODO |
 | `ui/report` | 음성 분석 리포트(결과 없음/오버레이/결과 카드 6개), 음성 간편 분석(마이크 확인 → G3 게이지 3초 유지, 실제 마이크 사용) | UI 완료, 엔진 정밀 분석 연동 TODO |
+| `ui/singanalysis`, `data/singanalysis` | 불러서 분석하기(`report/sing`, `report/sing/{songId}`): 곡 선택 → 범위 카드(전곡·2절부터·하이라이트만) → 카운트인 → 가사만 보며 부르기(WAV 녹음, 일시정지·여기까지 마치기) → 저장 완료. 녹음은 `filesDir/sing-analysis/<id>.wav`+`.json`(`SingRecordingMeta`, take 구간 포함). 분석 요청은 `SongAnalysisSubmitter` 인터페이스(기본 로컬 저장만) | 프론트·녹음 완료, 분석 연동은 담당자가 `SongAnalysisSubmitter` 구현으로 교체 |
 | `ui/songlist`, `ui/songdetail`, `ui/practice` | 연습 탭: 곡 선택(LP 행·key 배지·찜) → 상세(플레이어·키 변화 그래프) → 연습(가사 싱크·마이크 시트·라이브 채점) | 완료, 실기기 마이크 검증 필요 |
 | `ui/evaluation` | 노래 연습 분석: 날짜 배지 + 아코디언(분석 중/미확인 빨간 점), 펼치면 상세 카드 | 완료 (엔진 performance job 기준) |
 | `ui/result` | 노래 연습 분석 상세: 음역대 지도 · 음역별 안정성 · 구간 평가(음이탈 음절 빨강) | 완료 (`comparison` 에서 계산) |

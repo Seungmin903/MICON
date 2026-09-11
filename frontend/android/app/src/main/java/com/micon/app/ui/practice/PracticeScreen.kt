@@ -387,55 +387,7 @@ private fun JudgementChip(note: LiveNote?, atMs: Long) {
     Text(parts.joinToString(" · "), fontSize = 12.sp, color = if (fresh) color else color.copy(alpha = 0.55f), fontWeight = FontWeight.SemiBold)
 }
 
-// ---------------------------------------------------------------------------
-// 재생 중 가사: 현재 줄(크게, 글자 채움) + 다음 줄(작게). 지난 줄은 보이지 않는다.
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun KaraokePanel(sheet: LyricSheet, nowSec: Double, modifier: Modifier) {
-    val lines = sheet.lines
-    if (lines.isEmpty()) {
-        Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Text("이 곡은 가사 데이터가 없어요. 음표 레인을 보며 불러 보세요.", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.padding(32.dp))
-        }
-        return
-    }
-    val currentIndex = sheet.currentIndex(nowSec)
-    val current = currentIndex?.let { lines.getOrNull(it) }
-    val next = lines.getOrNull((currentIndex ?: -1) + 1)
-    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        if (current != null) {
-            Text(
-                buildAnnotatedString {
-                    for (ch in current.chars) {
-                        val sung = nowSec >= ch.at
-                        val note = ch.note
-                        val color = when {
-                            note != null && note.status.judged -> Color(note.status.toPitchStatus()!!.argb)
-                            sung -> Purple
-                            else -> Ink
-                        }
-                        withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
-                    }
-                },
-                fontSize = 28.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 12.dp),
-            )
-        } else {
-            Text("♪", fontSize = 28.sp, color = Grey)
-        }
-        Spacer(Modifier.height(12.dp))
-        if (next != null) {
-            Text(next.text, fontSize = 20.sp, lineHeight = 28.sp, color = Grey, textAlign = TextAlign.Center, maxLines = 2)
-        } else if (current != null) {
-            Text("마지막 줄이에요", fontSize = 14.sp, color = Grey)
-        }
-        if (sheet.timing == LyricTiming.APPROX) {
-            Spacer(Modifier.height(8.dp))
-            Text("가사 위치는 원곡 음표로 추정한 값이에요", fontSize = 11.sp, color = Grey)
-        }
-    }
-}
+// 재생 중 가사(KaraokePanel)는 불러서 분석하기와 공유 → PracticeLyrics.kt
 
 // ---------------------------------------------------------------------------
 // 멈춤 상태 가사 목록 (LRC 줄 텍스트 · 줄 탭 = 구간 반복)

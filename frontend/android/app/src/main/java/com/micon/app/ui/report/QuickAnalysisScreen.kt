@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,9 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +64,7 @@ import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PillChip
 import com.micon.app.ui.common.PrimaryButton
+import com.micon.app.ui.common.StepBar
 import com.micon.app.ui.theme.GreenChipBg
 import com.micon.app.ui.theme.GreenChipText
 import com.micon.app.ui.theme.Grey
@@ -340,18 +338,6 @@ fun QuickAnalysisScreen(onBack: () -> Unit, onDone: () -> Unit) {
             QuickAnalysisViewModel.Step.DONE -> DoneBody(state)
         }
         state.error?.let { Text(it, color = Red, fontSize = 13.sp, modifier = Modifier.padding(24.dp)) }
-    }
-}
-
-@Composable
-private fun StepBar(step: Int, total: Int) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(Modifier.fillMaxWidth().height(6.dp)) {
-            drawLine(Lavender, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), size.height, StrokeCap.Round)
-            drawLine(Purple, Offset(0f, size.height / 2), Offset(size.width * step / total, size.height / 2), size.height, StrokeCap.Round)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text("$step / $total", fontSize = 14.sp, color = Grey)
     }
 }
 

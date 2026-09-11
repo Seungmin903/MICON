@@ -12,6 +12,10 @@ import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.recommend.RecommendClient
 import com.micon.app.data.recommend.RemoteRecommendRepository
+import com.micon.app.data.singanalysis.LocalOnlySongAnalysisSubmitter
+import com.micon.app.data.singanalysis.SingAnalysisRecordingStore
+import com.micon.app.data.singanalysis.SongAnalysisSubmitter
+import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -58,11 +62,20 @@ class AppContainer(context: Context) {
     /**
      * 추천·적합도. local.properties 의 RECOMMEND_BASE_URL 이 비어 있으면 앱 안 계산(음역만),
      * 있으면 추천 서버(8788) 응답을 쓰고 녹음이 없거나 서버가 모르는 모드만 로컬로 내려간다. 화면은 인터페이스만 본다.
+     * 운영은 백엔드 `/recommendations` 로 옮길 예정(앱은 백엔드만 본다).
      */
+    /** 불러서 분석하기 녹음(WAV + 메타 JSON) 로컬 저장소. `filesDir/sing-analysis/`. */
+    val singRecordings: SingAnalysisRecordingStore = SingAnalysisRecordingStore(context)
+
+    /**
+     * 불러서 분석하기 녹음을 분석 파이프라인에 넘기는 인터페이스. 지금은 로컬 저장까지만(연동 준비 중).
+     * 분석 담당자가 백엔드 `/recordings` → `/voice-analyses` 구현으로 교체한다. 화면은 인터페이스만 본다.
+     */
+    val songAnalysis: SongAnalysisSubmitter = LocalOnlySongAnalysisSubmitter()
+
     val recommend: RecommendRepository = run {
         val local = LocalRecommendRepository(songs)
         if (BuildConfig.RECOMMEND_BASE_URL.isBlank()) local
-     * 운영은 백엔드 `/recommendations` 로 옮길 예정(앱은 백엔드만 본다).
         else RemoteRecommendRepository(RecommendClient(BuildConfig.RECOMMEND_BASE_URL, logging = BuildConfig.HTTP_LOGGING), songs, local) {
             // 간편 분석이 남긴 녹음. 개발용: adb 로 cache/quick-analysis.wav 를 넣어도 된다.
             UserStore.lastRecording ?: File(context.cacheDir, "quick-analysis.wav").takeIf { it.exists() }

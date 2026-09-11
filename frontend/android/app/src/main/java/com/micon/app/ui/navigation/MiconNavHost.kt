@@ -41,6 +41,8 @@ import com.micon.app.ui.recommend.RecommendScreen
 import com.micon.app.ui.recommend.SongTurntableScreen
 import com.micon.app.ui.report.QuickAnalysisScreen
 import com.micon.app.ui.report.VoiceReportScreen
+import com.micon.app.ui.singanalysis.SingAnalysisScreen
+import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
@@ -160,11 +162,33 @@ private fun MiconNavHost(nav: NavHostController, modifier: Modifier, sessionVeri
         // ---- 탭: 리포트 ----
         composable(Routes.REPORT) {
             if (!sessionVerified) return@composable
-            VoiceReportScreen(onQuickAnalysis = { nav.navigate(Routes.QUICK_ANALYSIS) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            VoiceReportScreen(
+                onQuickAnalysis = { nav.navigate(Routes.QUICK_ANALYSIS) },
+                onFileAnalysis = { nav.navigate(Routes.SING_ANALYSIS_PICK) },
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+            )
         }
         composable(Routes.QUICK_ANALYSIS) {
             if (!sessionVerified) return@composable
             QuickAnalysisScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack() })
+        }
+        // 불러서 분석하기: 곡 선택 → 범위 선택(전곡·2절·하이라이트) → 카운트인 → 가사만 보며 부르기(WAV 녹음) → 저장 완료
+        composable(Routes.SING_ANALYSIS_PICK) {
+            if (!sessionVerified) return@composable
+            SingAnalysisSongPickerScreen(onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.singAnalysis(it)) })
+        }
+        composable(
+            Routes.SING_ANALYSIS_RUN,
+            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SING_ANALYSIS_RUN}" }),
+        ) { entry ->
+            if (!sessionVerified) return@composable
+            val songId = entry.arguments?.getLong("songId") ?: return@composable
+            SingAnalysisScreen(
+                songId = songId,
+                onBack = { nav.popBackStack() },
+                onBackToReport = { nav.popBackStack(Routes.REPORT, inclusive = false) },
+            )
         }
 
         // ---- 탭: 연습 ----
