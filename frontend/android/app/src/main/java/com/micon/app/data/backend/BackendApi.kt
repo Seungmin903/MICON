@@ -27,7 +27,7 @@ interface BackendApi {
     suspend fun login(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
     @POST("auth/signup")
-    suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
+    suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<Any>>
 
     @GET("users/me")
     suspend fun currentUser(): Response<ApiResponse<CurrentUser>>
