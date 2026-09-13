@@ -28,7 +28,7 @@ public class PracticeRepository {
 	public Optional<SongRow> findPracticeReadySong(Long songId) {
 		String sql = """
 				SELECT song_id, duration_ms, practice_ready
-				FROM SONG
+				FROM song
 				WHERE song_id = :songId
 				""";
 		return jdbcTemplate.query(sql, Map.of("songId", songId), (resultSet, rowNumber) -> new SongRow(
@@ -41,7 +41,7 @@ public class PracticeRepository {
 	public boolean isUploadedRecordingOwnedBy(Long recordingId, Long userId) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM VOICE_RECORDING
+				FROM voice_recording
 				WHERE recording_id = :recordingId
 				  AND user_id = :userId
 				  AND upload_status = 'UPLOADED'
@@ -52,7 +52,7 @@ public class PracticeRepository {
 	}
 
 	public boolean sectionBelongsToSong(Long sectionId, Long songId) {
-		String sql = "SELECT COUNT(*) FROM SONG_SECTION WHERE section_id = :sectionId AND song_id = :songId";
+		String sql = "SELECT COUNT(*) FROM song_section WHERE section_id = :sectionId AND song_id = :songId";
 		Long count = jdbcTemplate.queryForObject(sql,
 			Map.of("sectionId", sectionId, "songId", songId), Long.class);
 		return count != null && count > 0;
@@ -61,7 +61,7 @@ public class PracticeRepository {
 	public boolean hasReadyInstrumental(Long songId, int selectedKey) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM SONG_MEDIA
+				FROM song_media
 				WHERE song_id = :songId
 				  AND semitones = :selectedKey
 				  AND generation_status = 'READY'
@@ -86,14 +86,14 @@ public class PracticeRepository {
 		PracticeScope scope
 	) {
 		String sql = """
-				INSERT INTO PRACTICE_SESSION (
+				INSERT INTO practice_session (
 				    practice_id, user_id, song_id, section_id, recording_id,
 				    selected_key, playback_speed, custom_start_ms, custom_end_ms,
 				    status, started_at, created_at, practice_scope
 				) VALUES (
 				    :practiceId, :userId, :songId, :sectionId, :recordingId,
 				    :selectedKey, :playbackSpeed, :customStartMs, :customEndMs,
-				    'IN_PROGRESS', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), :practiceScope
+				    'READY', NULL, CURRENT_TIMESTAMP(6), :practiceScope
 				)
 				""";
 		jdbcTemplate.update(sql, new MapSqlParameterSource()
@@ -115,8 +115,8 @@ public class PracticeRepository {
 				       ps.recording_id, ps.voice_analysis_id, ps.selected_key, ps.playback_speed,
 				       ps.custom_start_ms, ps.custom_end_ms, ps.practice_scope, ps.status,
 				       ps.started_at, ps.ended_at, ps.duration_ms, ps.created_at
-				FROM PRACTICE_SESSION ps
-				JOIN SONG s ON s.song_id = ps.song_id
+				FROM practice_session ps
+				JOIN song s ON s.song_id = ps.song_id
 				WHERE ps.practice_id = :practiceId AND ps.user_id = :userId
 				""";
 		return jdbcTemplate.query(sql, Map.of("practiceId", practiceId, "userId", userId),
@@ -125,7 +125,7 @@ public class PracticeRepository {
 				resultSet.getLong("song_id"),
 				resultSet.getString("song_title"),
 				resultSet.getObject("section_id", Long.class),
-				resultSet.getLong("recording_id"),
+				resultSet.getObject("recording_id", Long.class),
 				resultSet.getObject("voice_analysis_id", Long.class),
 				resultSet.getInt("selected_key"),
 				resultSet.getBigDecimal("playback_speed"),
@@ -140,34 +140,66 @@ public class PracticeRepository {
 			)).stream().findFirst();
 	}
 
-	public int complete(Long practiceId, Long userId, int durationMs, Long voiceAnalysisId) {
+	public int complete(
+		Long practiceId,
+		Long userId,
+		int durationMs,
+		Long voiceAnalysisId,
+		Long recordingId
+	) {
 		String sql = """
-				UPDATE PRACTICE_SESSION
+				UPDATE practice_session
 				SET status = 'COMPLETED', ended_at = CURRENT_TIMESTAMP(6),
-				    duration_ms = :durationMs, voice_analysis_id = :voiceAnalysisId
+				    duration_ms = :durationMs, voice_analysis_id = :voiceAnalysisId,
+				    recording_id = COALESCE(:recordingId, recording_id)
 				WHERE practice_id = :practiceId AND user_id = :userId
-				  AND status IN ('IN_PROGRESS', 'PAUSED')
+				  AND status IN ('RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
 		return jdbcTemplate.update(sql, new MapSqlParameterSource()
 			.addValue("practiceId", practiceId)
 			.addValue("userId", userId)
 			.addValue("durationMs", durationMs)
-			.addValue("voiceAnalysisId", voiceAnalysisId));
+			.addValue("voiceAnalysisId", voiceAnalysisId)
+			.addValue("recordingId", recordingId));
 	}
 
 	public int cancel(Long practiceId, Long userId) {
 		String sql = """
-				UPDATE PRACTICE_SESSION
+				UPDATE practice_session
 				SET status = 'ABORTED', ended_at = CURRENT_TIMESTAMP(6)
 				WHERE practice_id = :practiceId AND user_id = :userId
-				  AND status IN ('READY', 'IN_PROGRESS', 'PAUSED')
+				  AND status IN ('READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
 		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
 	}
 
+	public int updateStatus(Long practiceId, Long userId, String status) {
+		String sql = """
+				UPDATE practice_session
+				SET status = :status,
+				    started_at = CASE
+				        WHEN status = 'READY' AND :status IN ('RECORDING', 'IN_PROGRESS')
+				        THEN CURRENT_TIMESTAMP(6)
+				        ELSE started_at
+				    END
+				WHERE practice_id = :practiceId
+				  AND user_id = :userId
+				  AND (
+				      (status = 'READY' AND :status IN ('RECORDING', 'IN_PROGRESS'))
+				      OR (status IN ('RECORDING', 'IN_PROGRESS') AND :status = 'PAUSED')
+				      OR (status = 'PAUSED' AND :status IN ('RECORDING', 'IN_PROGRESS'))
+				  )
+				""";
+		return jdbcTemplate.update(sql, Map.of(
+			"practiceId", practiceId,
+			"userId", userId,
+			"status", status
+		));
+	}
+
 	public boolean identifierExists(Long practiceId) {
 		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM PRACTICE_SESSION WHERE practice_id = :practiceId",
+			"SELECT COUNT(*) FROM practice_session WHERE practice_id = :practiceId",
 			Map.of("practiceId", practiceId), Long.class);
 		return count != null && count > 0;
 	}
@@ -176,11 +208,11 @@ public class PracticeRepository {
 	}
 
 	public int clearVoiceAnalysisReferences(Collection<Long> analysisIds) {
-		if (analysisIds.isEmpty() || !tableExists("PRACTICE_SESSION")) {
+		if (analysisIds.isEmpty() || !tableExists("practice_session")) {
 			return 0;
 		}
 		return jdbcTemplate.update("""
-				UPDATE PRACTICE_SESSION
+				UPDATE practice_session
 				SET voice_analysis_id = NULL
 				WHERE voice_analysis_id IN (:analysisIds)
 				""", Map.of("analysisIds", analysisIds));

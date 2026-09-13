@@ -69,6 +69,21 @@ class PracticeResultServiceTest {
 	}
 
 	@Test
+	void acceptsCompletedResultWithoutSustainScore() {
+		when(practiceRepository.findOwned(50L, 7L)).thenReturn(Optional.of(practice("COMPLETED")));
+		when(resultRepository.findLatest(50L)).thenReturn(Optional.of(
+			new ResultRow(60L, 50L, "COMPLETED", decimal("70"), decimal("65"),
+				null, decimal("72"), "{\"summaryText\":null,\"sections\":[]}",
+				LocalDateTime.now(), LocalDateTime.now())
+		));
+		var request = new PracticeResultRequest.Save(
+			ResultStatus.COMPLETED, decimal("70"), decimal("65"), null, decimal("72"), null, List.of()
+		);
+
+		assertThat(service.save(7L, 50L, request).sustainScore()).isNull();
+	}
+
+	@Test
 	void rejectsResultBeforePracticeCompletion() {
 		when(practiceRepository.findOwned(50L, 7L)).thenReturn(Optional.of(practice("IN_PROGRESS")));
 		var request = new PracticeResultRequest.Save(

@@ -1,6 +1,7 @@
 package com.micon.backend.practice.api;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import tools.jackson.databind.JsonNode;
 
@@ -15,10 +16,14 @@ public final class PracticeAssetResponse {
 		int selectedKey,
 		Media instrumental,
 		String lyricsPlain,
-		JsonNode lyricsSynced,
+		String lyricsSynced,
 		JsonNode targetNotes,
 		String dataVersion,
-		List<Section> sections
+		List<Section> sections,
+		String keyName,
+		BigDecimal tempoBpm,
+		String timeSignature,
+		JsonNode beatGrid
 	) {
 	}
 
@@ -27,7 +32,9 @@ public final class PracticeAssetResponse {
 		String filePath,
 		String mimeType,
 		Long fileBytes,
-		String sha256
+		String sha256,
+		String playbackUrl,
+		Instant playbackUrlExpiresAt
 	) {
 	}
 
