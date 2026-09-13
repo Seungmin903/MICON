@@ -118,15 +118,15 @@ class AuthViewModelTest {
         assertEquals(2, auth.loginCalls)
     }
 
-    @Test fun `signup completion does not authenticate before explicit login`() = runTest {
+    @Test fun `signup completion authenticates and continues to preference survey`() = runTest {
         val auth = FakeAuth()
         val model = AuthViewModel(auth)
 
         model.submit("user@example.com", "password", true)
         advanceUntilIdle()
 
-        assertTrue(model.state.value.signupCompleted)
-        assertFalse(model.state.value.authenticated)
+        assertTrue(model.state.value.authenticated)
+        assertFalse(model.state.value.signupCompleted)
         assertEquals(1, auth.signupCalls)
         assertEquals(0, auth.loginCalls)
     }

@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -129,7 +127,7 @@ fun LoginScreen(onLoggedIn: () -> Unit, onSignup: () -> Unit, onFindPassword: ()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("비밀번호 찾기", fontSize = 14.sp, color = InkSoft,
                 modifier = Modifier.clickable(enabled = !state.submitting) {
-                    notice = "비밀번호 찾기는 준비 중이에요."; onFindPassword()
+                    notice = null; onFindPassword()
                 })
             Text("회원가입", fontSize = 14.sp, color = InkSoft,
                 modifier = Modifier.clickable(enabled = !state.submitting, onClick = onSignup))
@@ -167,19 +165,9 @@ fun SignupScreen(onBack: () -> Unit, onDone: () -> Unit) {
     val pwOk = password.length in 8..64 && password.toByteArray(Charsets.UTF_8).size <= 72
     val confirmOk = confirm.isEmpty() || confirm == password
     val done by rememberUpdatedState(onDone)
-    BackHandler(enabled = state.submitting || state.signupCompleted) { }
-    if (state.signupCompleted) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("회원가입 완료") },
-            text = { Text("가입한 이메일과 비밀번호로 로그인해주세요.") },
-            confirmButton = {
-                TextButton(
-                    onClick = { password = ""; confirm = ""; done() },
-                    modifier = Modifier.testTag("signup_go_login"),
-                ) { Text("로그인하기", color = Purple) }
-            },
-        )
+    BackHandler(enabled = state.submitting) { }
+    LaunchedEffect(state.authenticated) {
+        if (state.authenticated) { password = ""; confirm = ""; done() }
     }
     Column(Modifier.fillMaxSize().background(Color.White).imePadding()
         .verticalScroll(rememberScrollState()).padding(horizontal = 32.dp),

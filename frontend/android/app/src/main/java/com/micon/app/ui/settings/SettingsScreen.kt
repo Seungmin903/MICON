@@ -1,6 +1,7 @@
 package com.micon.app.ui.settings
 
 import androidx.activity.compose.BackHandler
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -25,9 +26,11 @@ import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +48,10 @@ import androidx.compose.ui.unit.sp
 import com.micon.app.BuildConfig
 import com.micon.app.appContainer
 import com.micon.app.data.backend.NetworkAuthRepository
+import com.micon.app.data.backend.dto.WithdrawRequest
+import com.micon.app.core.auth.TokenManager
 import com.micon.app.ui.common.BackHeader
+import com.micon.app.ui.common.MiconTextField
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
@@ -58,11 +64,58 @@ import kotlinx.coroutines.Dispatchers
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
     var keepOriginal by remember { mutableStateOf(true) } // TODO: 기본값 상충(명세 ON vs SET-002 OFF) 결정 후 저장소 연동
-    val backend = LocalContext.current.appContainer.backend
+    val context = LocalContext.current
+    val backend = context.appContainer.backend
     val auth = remember(backend) { NetworkAuthRepository(backend.api) }
     val scope = rememberCoroutineScope()
     var loggingOut by remember { mutableStateOf(false) }
+    var showWithdraw by remember { mutableStateOf(false) }
+    var withdrawing by remember { mutableStateOf(false) }
+    var withdrawPassword by remember { mutableStateOf("") }
+    var withdrawError by remember { mutableStateOf<String?>(null) }
     BackHandler(enabled = loggingOut) { }
+
+    if (showWithdraw) {
+        AlertDialog(
+            onDismissRequest = { if (!withdrawing) showWithdraw = false },
+            title = { Text("회원 탈퇴") },
+            text = {
+                Column {
+                    Text("탈퇴하면 기존 계정과 개인 기록에 접근할 수 없습니다. 현재 비밀번호를 입력해주세요.")
+                    Spacer(Modifier.height(16.dp))
+                    MiconTextField("현재 비밀번호", withdrawPassword, { withdrawPassword = it }, "비밀번호", isPassword = true)
+                    withdrawError?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !withdrawing && withdrawPassword.isNotBlank(),
+                    onClick = {
+                        withdrawing = true
+                        withdrawError = null
+                        scope.launch {
+                            try {
+                                val response = backend.api.withdraw(WithdrawRequest(withdrawPassword))
+                                if (!response.isSuccessful) {
+                                    withdrawError = if (response.code() == 401) "비밀번호가 올바르지 않습니다." else "탈퇴를 처리하지 못했습니다."
+                                } else {
+                                    TokenManager.clear()
+                                    showWithdraw = false
+                                    Toast.makeText(context, "탈퇴와 개인 데이터 삭제가 완료되었습니다.", Toast.LENGTH_LONG).show()
+                                    onLogout()
+                                }
+                            } catch (_: Exception) {
+                                withdrawError = "연결을 확인한 뒤 다시 시도해주세요."
+                            } finally {
+                                withdrawing = false
+                            }
+                        }
+                    },
+                ) { Text(if (withdrawing) "처리 중…" else "탈퇴하기", color = Pink) }
+            },
+            dismissButton = { TextButton(enabled = !withdrawing, onClick = { showWithdraw = false }) { Text("취소") } },
+        )
+    }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         BackHeader("설정", { if (!loggingOut) onBack() })
@@ -96,7 +149,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
                     scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() }
                 }
             }
-            SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { /* TODO: 확인 다이얼로그 → BackendApi 탈퇴 */ }
+            SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { if (!loggingOut) showWithdraw = true }
             Spacer(Modifier.height(32.dp))
             SectionTitle("개발자")
             DevRow("엔진 주소", BuildConfig.ENGINE_BASE_URL)

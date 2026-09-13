@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/policies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/songs", "/songs/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()

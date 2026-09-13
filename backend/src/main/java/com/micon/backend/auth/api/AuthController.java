@@ -34,9 +34,8 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody AuthRequest.SignUp request) {
-        emailAuthService.signUp(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null));
+    public ResponseEntity<ApiResponse<AuthResponse>> signUp(@Valid @RequestBody AuthRequest.SignUp request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(emailAuthService.signUp(request)));
     }
 
     @PostMapping("/login")

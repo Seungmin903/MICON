@@ -173,7 +173,13 @@ private fun LegendItem(color: Color, label: String, wide: Boolean = false) {
 
 /** Figma "노래 연습- 노래 상세정보": 헤더, 플레이어 카드, 노래 적합 카드, 높낮이 흐름. 하단 탭이 보이는 화면. */
 @Composable
-fun SongDetailScreen(songId: Long, onBack: () -> Unit, onPractice: () -> Unit, onSettings: () -> Unit = {}) {
+fun SongDetailScreen(
+    songId: Long,
+    onBack: () -> Unit,
+    onPractice: () -> Unit,
+    onSettings: () -> Unit = {},
+    onLogin: (() -> Unit)? = null,
+) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(
@@ -184,7 +190,7 @@ fun SongDetailScreen(songId: Long, onBack: () -> Unit, onPractice: () -> Unit, o
     val profile by UserStore.profile.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onSettings = onSettings)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         val d = state.detail
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }

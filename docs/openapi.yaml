@@ -1559,7 +1559,7 @@ paths:
     post:
       tags: ["회원"]
       summary: "이메일 회원가입 API"
-      description: "이메일·비밀번호로 계정만 생성한다. 로그인 세션과 토큰은 만들지 않으며, 가입 완료 후 로그인 API를 호출해야 한다."
+      description: "이메일·비밀번호로 계정을 생성하고 로그인 토큰을 발급한다. 신규 회원은 발급된 토큰으로 선호 가수·장르 조사를 완료한다."
       operationId: "micon057"
       servers:
         - url: "{backendUrl}"
@@ -1573,7 +1573,7 @@ paths:
       x-api-type: "API"
       x-work-status: "구현"
       x-backend-status: "구현"
-      x-frontend-status: "미확인"
+      x-frontend-status: "구현"
       x-permission: "전체"
       x-auth-token: "불필요"
       requestBody:
@@ -2335,7 +2335,14 @@ components:
       properties:
         code: { type: string, example: SUCCESS }
         message: { type: string }
-        data: { type: "null" }
+        data:
+          allOf:
+            - $ref: "#/components/schemas/AuthTokenPair"
+            - type: object
+              required: [userId, email]
+              properties:
+                userId: { type: integer, format: int64 }
+                email: { type: string, format: email }
     AuthRefreshResponse:
       type: object
       required: [code, message, data]

@@ -85,7 +85,12 @@ private enum class Tab(val label: String) { ALL("전체"), PRACTICING("연습 �
 
 /** Figma "노래 찜 목록" / "노래 찜 목록 - 세트리스트" */
 @Composable
-fun FavoritesScreen(onSongClick: (Long) -> Unit, onSetlistClick: (String) -> Unit, onSettings: () -> Unit) {
+fun FavoritesScreen(
+    onSongClick: (Long) -> Unit,
+    onSetlistClick: (String) -> Unit,
+    onSettings: () -> Unit,
+    onLogin: (() -> Unit)? = null,
+) {
     val container = rememberAppContainer()
     val vm: FavoritesViewModel = viewModel(factory = viewModelFactory { initializer { FavoritesViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -95,7 +100,7 @@ fun FavoritesScreen(onSongClick: (Long) -> Unit, onSetlistClick: (String) -> Uni
     var query by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onSettings = onSettings)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         MiconSearchBar(query, { query = it }, Modifier.padding(horizontal = 20.dp))
         Spacer(Modifier.height(14.dp))
         Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

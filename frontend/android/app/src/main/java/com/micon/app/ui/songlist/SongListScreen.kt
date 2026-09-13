@@ -110,6 +110,7 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
 fun SongListScreen(
     onSongClick: (Long) -> Unit,
     onSettings: () -> Unit = {},
+    onLogin: (() -> Unit)? = null,
     backTitle: String? = null,
     onBack: () -> Unit = {},
     subtitle: String? = null,
@@ -128,7 +129,7 @@ fun SongListScreen(
                 Spacer(Modifier.height(10.dp))
             }
         } else {
-            MiconHeader(onSettings = onSettings)
+            MiconHeader(onSettings = onSettings, onLogin = onLogin)
         }
         MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
         Spacer(Modifier.height(10.dp))

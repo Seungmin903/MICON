@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
@@ -126,17 +127,27 @@ fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: Te
     }
 }
 
-/** Figma 공통 헤더: 로고 + 알림·설정 아이콘. 탭 최상위 화면에서 쓴다. */
+/** Figma 공통 헤더. 비회원에게는 계정 아이콘 대신 로그인 버튼만 노출한다. */
 @Composable
-fun MiconHeader(onNotifications: () -> Unit = {}, onSettings: () -> Unit = {}) {
+fun MiconHeader(
+    onNotifications: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    onLogin: (() -> Unit)? = null,
+) {
     Row(
         Modifier.fillMaxWidth().height(64.dp).padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MiconLogo()
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
-        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+        if (onLogin != null) {
+            TextButton(onClick = onLogin) {
+                Text("로그인", color = Purple, fontWeight = FontWeight.SemiBold)
+            }
+        } else {
+            IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
+            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+        }
     }
 }
 

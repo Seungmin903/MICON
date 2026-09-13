@@ -76,7 +76,11 @@ import java.util.Locale
  * 항목 상태: 분석 중(스피너) / 완료·미확인(빨간 점) / 완료·확인. 펼치면 "노래 연습 분석 상세" 카드 3개.
  * 삭제: 펼친 항목의 "이 기록 삭제" 또는 행 길게 누르기 → 확인 다이얼로그 → DELETE /jobs/{id} (엔진 workspace 의 녹음·결과 제거).
  */
-class PracticeHistoryViewModel(private val engine: EngineClient, private val repo: SongRepository) : ViewModel() {
+class PracticeHistoryViewModel(
+    private val engine: EngineClient,
+    private val repo: SongRepository,
+    private val allowedJobIds: (() -> Set<String>)? = null,
+) : ViewModel() {
     data class Item(val job: Job, val title: String, val artist: String, val imageUrl: String?, val date: String, val seen: Boolean)
     data class State(
         val loading: Boolean = true,
@@ -100,6 +104,7 @@ class PracticeHistoryViewModel(private val engine: EngineClient, private val rep
             _state.update { it.copy(loading = true, error = null) }
             try {
                 val jobs = engine.api.jobs(kind = "performance", limit = 50).jobs
+                    .let { all -> allowedJobIds?.invoke()?.let { allowed -> all.filter { it.id in allowed } } ?: all }
                 val fmt = SimpleDateFormat("yyyy.MM.dd", Locale.KOREA)
                 val items = jobs.map { job ->
                     val song = job.referenceJobId?.toLongOrNull()?.let { runCatching { repo.detail(it) }.getOrNull() }?.summary   // 엔진 job 은 백엔드 song_id 를 모른다 → 곡 정보 없이 표시. 백엔드 /practices 로 옮기면 해결
@@ -157,9 +162,16 @@ class PracticeHistoryViewModel(private val engine: EngineClient, private val rep
 }
 
 @Composable
-fun PracticeHistoryScreen(onOpenResult: (String) -> Unit, onSettings: () -> Unit) {
+fun PracticeHistoryScreen(
+    onOpenResult: (String) -> Unit,
+    onSettings: () -> Unit,
+    onLogin: (() -> Unit)? = null,
+    guestJobIds: (() -> Set<String>)? = null,
+) {
     val container = rememberAppContainer()
-    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer { PracticeHistoryViewModel(container.engine, container.songs) } })
+    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory {
+        initializer { PracticeHistoryViewModel(container.engine, container.songs, guestJobIds) }
+    })
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var confirmDelete by remember { mutableStateOf<PracticeHistoryViewModel.Item?>(null) }
@@ -176,7 +188,7 @@ fun PracticeHistoryScreen(onOpenResult: (String) -> Unit, onSettings: () -> Unit
     }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onSettings = onSettings)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             state.error != null -> RetryBlock(state.error!!, vm::load)
