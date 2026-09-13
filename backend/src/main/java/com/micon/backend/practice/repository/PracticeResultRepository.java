@@ -21,7 +21,7 @@ public class PracticeResultRepository {
 		String sql = """
 				SELECT practice_result_id, practice_id, status, overall_score, pitch_score,
 				       sustain_score, rhythm_score, summary_text, analyzed_at, created_at
-				FROM PRACTICE_RESULT
+				FROM practice_result
 				WHERE practice_id = :practiceId
 				ORDER BY created_at DESC, practice_result_id DESC
 				LIMIT 1
@@ -56,7 +56,7 @@ public class PracticeResultRepository {
 			return;
 		}
 		String sql = """
-				INSERT INTO PRACTICE_RESULT (
+				INSERT INTO practice_result (
 				    practice_result_id, practice_id, status, overall_score, pitch_score,
 				    sustain_score, rhythm_score, summary_text, analyzed_at, created_at
 				) VALUES (
@@ -71,7 +71,7 @@ public class PracticeResultRepository {
 
 	public int retry(Long resultId) {
 		String sql = """
-				UPDATE PRACTICE_RESULT
+				UPDATE practice_result
 				SET status = 'ANALYZING', overall_score = NULL, pitch_score = NULL,
 				    sustain_score = NULL, rhythm_score = NULL, analyzed_at = NULL
 				WHERE practice_result_id = :resultId AND status = 'FAILED'
@@ -81,7 +81,7 @@ public class PracticeResultRepository {
 
 	public boolean identifierExists(Long resultId) {
 		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM PRACTICE_RESULT WHERE practice_result_id = :resultId",
+			"SELECT COUNT(*) FROM practice_result WHERE practice_result_id = :resultId",
 			Map.of("resultId", resultId), Long.class);
 		return count != null && count > 0;
 	}
@@ -96,7 +96,7 @@ public class PracticeResultRepository {
 		String summaryText
 	) {
 		String sql = """
-				UPDATE PRACTICE_RESULT
+				UPDATE practice_result
 				SET status = :status, overall_score = :overallScore, pitch_score = :pitchScore,
 				    sustain_score = :sustainScore, rhythm_score = :rhythmScore,
 				    summary_text = :summaryText, analyzed_at = CURRENT_TIMESTAMP(6)

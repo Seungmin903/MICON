@@ -28,7 +28,8 @@ public class PracticeService {
 		if (!song.practiceReady()) {
 			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);
 		}
-		if (!repository.isUploadedRecordingOwnedBy(request.recordingId(), userId)) {
+		if (request.recordingId() != null
+			&& !repository.isUploadedRecordingOwnedBy(request.recordingId(), userId)) {
 			throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
 		}
 
@@ -70,7 +71,13 @@ public class PracticeService {
 	@Transactional
 	public PracticeResponse.Detail complete(Long userId, Long practiceId, PracticeRequest.Complete request) {
 		requireOwned(userId, practiceId);
-		if (repository.complete(practiceId, userId, request.durationMs(), request.voiceAnalysisId()) == 0) {
+		if (request.recordingId() != null
+			&& !repository.isUploadedRecordingOwnedBy(request.recordingId(), userId)) {
+			throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
+		}
+		if (repository.complete(
+			practiceId, userId, request.durationMs(), request.voiceAnalysisId(), request.recordingId()
+		) == 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
 		}
 		return get(userId, practiceId);
@@ -80,6 +87,19 @@ public class PracticeService {
 	public PracticeResponse.Detail cancel(Long userId, Long practiceId) {
 		requireOwned(userId, practiceId);
 		if (repository.cancel(practiceId, userId) == 0) {
+			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
+		}
+		return get(userId, practiceId);
+	}
+
+	@Transactional
+	public PracticeResponse.Detail updateStatus(
+		Long userId,
+		Long practiceId,
+		PracticeRequest.StatusUpdate request
+	) {
+		requireOwned(userId, practiceId);
+		if (repository.updateStatus(practiceId, userId, request.status().name()) == 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
 		}
 		return get(userId, practiceId);

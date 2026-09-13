@@ -71,9 +71,9 @@ class PracticeServiceTest {
 	@Test
 	void rejectsCompletingTerminalSession() {
 		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("ABORTED")));
-		when(repository.complete(50L, 7L, 12_000, null)).thenReturn(0);
+		when(repository.complete(50L, 7L, 12_000, null, null)).thenReturn(0);
 
-		assertThatThrownBy(() -> service.complete(7L, 50L, new PracticeRequest.Complete(12_000, null)))
+		assertThatThrownBy(() -> service.complete(7L, 50L, new PracticeRequest.Complete(12_000, null, null)))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_PRACTICE_STATE));
 	}
@@ -85,6 +85,17 @@ class PracticeServiceTest {
 		assertThatThrownBy(() -> service.get(7L, 50L))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PRACTICE_NOT_FOUND));
+	}
+
+	@Test
+	void updatesActivePracticeStatus() {
+		var recording = detail("RECORDING");
+		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("READY")), Optional.of(recording));
+		when(repository.updateStatus(50L, 7L, "RECORDING")).thenReturn(1);
+
+		assertThat(service.updateStatus(
+			7L, 50L, new PracticeRequest.StatusUpdate(PracticeRequest.ActiveStatus.RECORDING)
+		)).isSameAs(recording);
 	}
 
 	private PracticeResponse.Detail detail(String status) {

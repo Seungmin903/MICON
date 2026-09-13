@@ -6,11 +6,18 @@ import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
+import com.micon.backend.catalogmedia.CatalogMediaProperties;
 import com.micon.backend.practice.repository.PracticeAssetRepository;
 import com.micon.backend.practice.repository.PracticeAssetRepository.MediaRow;
 import com.micon.backend.practice.repository.PracticeAssetRepository.NoteRow;
 import com.micon.backend.practice.repository.PracticeAssetRepository.SongAssetRow;
+import com.micon.backend.voice.storage.VoiceStorage;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,18 +32,29 @@ class PracticeAssetServiceTest {
 
 	@Mock
 	private PracticeAssetRepository repository;
+	@Mock
+	private VoiceStorage storage;
 
 	private PracticeAssetService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new PracticeAssetService(repository, new ObjectMapper());
+		service = new PracticeAssetService(
+			repository,
+			new ObjectMapper(),
+			storage,
+			new CatalogMediaProperties("catalog/test/", Duration.ofMinutes(10)),
+			Clock.fixed(Instant.parse("2026-09-10T12:00:00Z"), ZoneOffset.UTC)
+		);
+		org.mockito.Mockito.lenient().when(storage.createDownloadUrl(org.mockito.ArgumentMatchers.anyString(),
+			org.mockito.ArgumentMatchers.any())).thenReturn(URI.create("https://storage.test/instrumental"));
 	}
 
 	@Test
 	void returnsOnlyReadyAssetsForSelectedKey() {
 		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "[{\"timeMs\":0,\"text\":\"가사\"}]", 20L, "analysis-v1")
+			new SongAssetRow(10L, "연습곡", true, "가사", "\"[00:00.00] 가사\"", 20L, "analysis-v1",
+				"G minor", new BigDecimal("134.0"), "4/4", "{\"beatTimes\":[0.45],\"offsetBeats\":1.0}")
 		));
 		when(repository.findInstrumental(10L, -2)).thenReturn(Optional.of(
 			new MediaRow(30L, "/songs/10/-2.mp3", "audio/mpeg", 1234L, "hash")
@@ -55,7 +73,14 @@ class PracticeAssetServiceTest {
 
 		assertThat(response.selectedKey()).isEqualTo(-2);
 		assertThat(response.instrumental().mediaId()).isEqualTo(30L);
+		assertThat(response.instrumental().playbackUrl()).isEqualTo("https://storage.test/instrumental");
+		assertThat(response.instrumental().playbackUrlExpiresAt()).isEqualTo(Instant.parse("2026-09-10T12:10:00Z"));
+		assertThat(response.lyricsSynced()).isEqualTo("[00:00.00] 가사");
 		assertThat(response.targetNotes().get(0).get("midi").asInt()).isEqualTo(60);
+		assertThat(response.keyName()).isEqualTo("G minor");
+		assertThat(response.tempoBpm()).isEqualByComparingTo("134.0");
+		assertThat(response.timeSignature()).isEqualTo("4/4");
+		assertThat(response.beatGrid().get("beatTimes").get(0).asDouble()).isEqualTo(0.45);
 		assertThat(response.dataVersion()).isEqualTo("notes-v2");
 		assertThat(response.sections()).singleElement()
 			.extracting(com.micon.backend.practice.api.PracticeAssetResponse.Section::sectionName)
@@ -65,7 +90,7 @@ class PracticeAssetServiceTest {
 	@Test
 	void rejectsUnsupportedTransposedKey() {
 		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1")
+			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
 		));
 		when(repository.findInstrumental(10L, 3)).thenReturn(Optional.empty());
 
@@ -77,7 +102,7 @@ class PracticeAssetServiceTest {
 	@Test
 	void rejectsSongWithoutCompletedPracticeData() {
 		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", false, null, null, null, null)
+			new SongAssetRow(10L, "연습곡", false, null, null, null, null, null, null, null, null)
 		));
 
 		assertThatThrownBy(() -> service.get(10L, 0))
@@ -88,7 +113,7 @@ class PracticeAssetServiceTest {
 	@Test
 	void guideContainsOnlyStoredDifficultySections() {
 		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1")
+			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
 		));
 		when(repository.findInstrumental(10L, 0)).thenReturn(Optional.of(
 			new MediaRow(30L, "/songs/10/original.mp3", "audio/mpeg", null, null)

@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -79,6 +80,15 @@ public class PracticeController {
 		@PathVariable @Min(1) Long practiceId
 	) {
 		return ApiResponse.success(service.cancel(userId(principal), practiceId));
+	}
+
+	@PatchMapping("/{practiceId}/status")
+	public ApiResponse<PracticeResponse.Detail> updateStatus(
+		Principal principal,
+		@PathVariable @Min(1) Long practiceId,
+		@Valid @RequestBody PracticeRequest.StatusUpdate request
+	) {
+		return ApiResponse.success(service.updateStatus(userId(principal), practiceId, request));
 	}
 
 	@PutMapping("/{practiceId}/performance")

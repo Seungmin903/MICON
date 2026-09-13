@@ -15,7 +15,7 @@ public final class PracticeRequest {
 
 	public record Create(
 		@NotNull @Min(1) Long songId,
-		@NotNull @Min(1) Long recordingId,
+		@Min(1) Long recordingId,
 		Long sectionId,
 		@Min(-12) @Max(12) Integer selectedKey,
 		@DecimalMin("0.50") @DecimalMax("2.00") BigDecimal playbackSpeed,
@@ -27,8 +27,18 @@ public final class PracticeRequest {
 
 	public record Complete(
 		@NotNull @PositiveOrZero Integer durationMs,
-		@Min(1) Long voiceAnalysisId
+		@Min(1) Long voiceAnalysisId,
+		@Min(1) Long recordingId
 	) {
+	}
+
+	public record StatusUpdate(@NotNull ActiveStatus status) {
+	}
+
+	public enum ActiveStatus {
+		RECORDING,
+		IN_PROGRESS,
+		PAUSED
 	}
 
 	public enum PracticeScope {
