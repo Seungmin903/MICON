@@ -245,7 +245,7 @@ fun eraOf(releaseDate: String?): String? {
  * 제목은 현재 섹션 제목. 칩은 **필터 바**(성별·시대·장르·인기) — 추천받은 곡을 걸러 보인다. 상태 4종(로딩·성공·결과 없음·실패).
  */
 @Composable
-fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit) {
+fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin: (() -> Unit)? = null) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -270,7 +270,7 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit) {
     var openFilter by remember { mutableStateOf<String?>(null) }     // "era" | "genre" — 열려 있는 드롭다운
 
     Column(Modifier.fillMaxSize().background(RecommendBackground)) {
-        MiconHeader(onSettings = onSettings)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (searchOpen) {
                 MiconSearchBar(state.query, vm::setQuery, Modifier.weight(1f))

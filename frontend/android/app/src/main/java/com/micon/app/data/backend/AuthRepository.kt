@@ -29,7 +29,7 @@ class NetworkAuthRepository(
     }
 
     override suspend fun signup(email: String, password: String) {
-        api.signup(EmailAuthRequest(email.trim(), password)).signupCompleted()
+        establishSession(api.signup(EmailAuthRequest(email.trim(), password)).authData(signup = true))
     }
 
     private suspend fun establishSession(auth: AuthResponse) {
@@ -75,13 +75,6 @@ class NetworkAuthRepository(
             throw authFailure(signup)
         }
         return body()?.data ?: throw AuthRequestException(code(), "로그인 응답을 확인할 수 없어요. 다시 시도해주세요.")
-    }
-
-    private fun Response<ApiResponse<Any>>.signupCompleted() {
-        if (!isSuccessful) throw authFailure(signup = true)
-        if (body() == null) {
-            throw AuthRequestException(code(), "회원가입 응답을 확인할 수 없어요. 다시 시도해주세요.")
-        }
     }
 
     private fun Response<*>.authFailure(signup: Boolean): AuthRequestException {

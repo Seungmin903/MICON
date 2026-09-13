@@ -48,6 +48,10 @@ object UserStore {
     )
     val setlists = _setlists.asStateFlow()
 
+    /** 현재 비회원 앱 세션에서 생성한 연습 평가만 노출하기 위한 엔진 job id. */
+    private val _guestPracticeJobs = MutableStateFlow<Set<String>>(emptySet())
+    val guestPracticeJobs = _guestPracticeJobs.asStateFlow()
+
     /** 화면에 부르는 이름 ("유림님 음색에 딱인 곡"). 백엔드 users API 가 생기면 로그인 응답에서 채운다. null 이면 "내 …" 로 쓴다. */
     var nickname: String? = null
 
@@ -60,17 +64,23 @@ object UserStore {
 
     /** Clear account-scoped temporary state before another account can use the app. */
     fun clearUserData() {
+        runCatching { lastRecording?.takeIf { it.exists() }?.delete() }
         _profile.value = null
         _liked.value = emptySet()
         _setlists.value = emptyList()
         preferredArtists = emptySet()
         preferredGenres = emptySet()
         lastRecording = null
+        _guestPracticeJobs.value = emptySet()
     }
 
     fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
 
     fun toggleLike(songId: Long) = _liked.update { if (songId in it) it - songId else it + songId }
+
+    fun rememberGuestPracticeJob(jobId: String) {
+        if (jobId.isNotBlank()) _guestPracticeJobs.update { it + jobId }
+    }
 
     /** 최초 진입 시 목록 화면이 호출해 예시 찜을 채운다(백엔드 연동 후 삭제). */
     fun seedLikesIfEmpty(songIds: List<Long>) {

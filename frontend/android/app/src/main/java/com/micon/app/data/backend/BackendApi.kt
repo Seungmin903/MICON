@@ -9,12 +9,19 @@ import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
 import com.micon.app.data.backend.dto.TokenPair
+import com.micon.app.data.backend.dto.PasswordResetIssueRequest
+import com.micon.app.data.backend.dto.PasswordResetIssued
+import com.micon.app.data.backend.dto.PasswordResetVerifyRequest
+import com.micon.app.data.backend.dto.PasswordResetVerified
+import com.micon.app.data.backend.dto.PasswordResetChangeRequest
+import com.micon.app.data.backend.dto.WithdrawRequest
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.HTTP
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -27,13 +34,28 @@ interface BackendApi {
     suspend fun login(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
     @POST("auth/signup")
-    suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<Any>>
+    suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
     @GET("users/me")
     suspend fun currentUser(): Response<ApiResponse<CurrentUser>>
 
     @POST("auth/logout")
     suspend fun logout(): Response<ApiResponse<Any>>
+
+    @POST("auth/password-reset-requests")
+    suspend fun requestPasswordReset(@Body body: PasswordResetIssueRequest): Response<ApiResponse<PasswordResetIssued>>
+
+    @POST("auth/password-reset-verifications")
+    suspend fun verifyPasswordReset(@Body body: PasswordResetVerifyRequest): Response<ApiResponse<PasswordResetVerified>>
+
+    @POST("auth/password-resets")
+    suspend fun resetPassword(
+        @Header("X-Password-Reset-Token") resetToken: String,
+        @Body body: PasswordResetChangeRequest,
+    ): Response<ApiResponse<Any>>
+
+    @HTTP(method = "DELETE", path = "users/me", hasBody = true)
+    suspend fun withdraw(@Body body: WithdrawRequest): Response<ApiResponse<Any>>
 
     /** Refresh has no JSON body; its bearer credential is the refresh token. */
     @POST("auth/refresh")

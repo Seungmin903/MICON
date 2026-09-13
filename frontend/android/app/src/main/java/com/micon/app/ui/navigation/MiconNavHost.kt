@@ -1,5 +1,12 @@
 package com.micon.app.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -14,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -33,6 +42,7 @@ import com.micon.app.ui.evaluation.PracticeHistoryScreen
 import com.micon.app.ui.favorites.FavoritesScreen
 import com.micon.app.ui.favorites.SetlistScreen
 import com.micon.app.ui.onboarding.LoginScreen
+import com.micon.app.ui.onboarding.PasswordResetScreen
 import com.micon.app.ui.onboarding.PreferenceSurveyScreen
 import com.micon.app.ui.onboarding.SignupScreen
 import com.micon.app.ui.onboarding.SplashScreen
@@ -50,6 +60,9 @@ import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Purple
+import com.micon.app.ui.theme.Ink
+import com.micon.app.ui.common.MiconHeader
+import com.micon.app.ui.common.PrimaryButton
 
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
 @Composable
@@ -76,7 +89,7 @@ fun MiconRoot() {
         }
     }
     LaunchedEffect(currentRoute, accessGranted) {
-        val publicRoutes = setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY)
+        val publicRoutes = setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
         if (currentRoute != null && currentRoute !in publicRoutes && !accessGranted) {
             // Also guards restored back stacks and incoming protected deep links.
             nav.replaceAll(Routes.REPORT)
@@ -154,6 +167,12 @@ private fun MiconNavHost(
         onVerified(false)
         nav.replaceAll(Routes.LOGIN)
     }
+    fun goGuest() {
+        TokenManager.clear()
+        onVerified(false)
+        onGuest(true)
+        nav.replaceAll(Routes.REPORT)
+    }
     fun checkSession() { onGuest(false); onVerified(false); nav.replaceAll(Routes.SPLASH) }
 
     NavHost(navController = nav, startDestination = initialRoute, modifier = modifier) {
@@ -163,13 +182,22 @@ private fun MiconNavHost(
             SplashScreen(onLoggedIn = { goMain() }, onNeedLogin = { goLogin() },
                 onNeedSurvey = { nav.replaceAll(Routes.SURVEY) })
         }
-        composable(Routes.LOGIN) { LoginScreen(onLoggedIn = { checkSession() }, onSignup = { nav.navigate(Routes.SIGNUP) }) }
-        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { goLogin() }) }
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoggedIn = { checkSession() },
+                onSignup = { nav.navigate(Routes.SIGNUP) },
+                onFindPassword = { nav.navigate(Routes.PASSWORD_RESET) },
+            )
+        }
+        composable(Routes.PASSWORD_RESET) {
+            PasswordResetScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack(Routes.LOGIN, inclusive = false) })
+        }
+        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {
             PreferenceSurveyScreen(onDone = { goMain() }, onSessionExpired = { goLogin() }, onBack = { goLogin() })
         }
         composable(Routes.EDIT_PREFERENCES) {
-            if (!accessGranted) return@composable
+            if (isGuest || !accessGranted) return@composable
             PreferenceSurveyScreen(onDone = { nav.popBackStack() }, onSessionExpired = { goLogin() },
                 onBack = { nav.popBackStack() }, isEditing = true)
         }
@@ -177,10 +205,11 @@ private fun MiconNavHost(
         // ---- 탭: 추천 ----
         composable(Routes.RECOMMEND) {
             if (!accessGranted) return@composable
-            RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
+            else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
-            if (!accessGranted) return@composable
+            if (isGuest || !accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
             // 턴테이블 → 아래로 스크롤하면 검은 시트가 올라오며 곡 분석. 캐러셀로 곡이 바뀌면 그 곡으로 연습에 들어간다.
             SongTurntableScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(it)) })
@@ -222,7 +251,11 @@ private fun MiconNavHost(
         // ---- 탭: 연습 ----
         composable(Routes.PRACTICE) {
             if (!accessGranted) return@composable
-            SongListScreen(onSongClick = { nav.navigate(Routes.song(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            SongListScreen(
+                onSongClick = { nav.navigate(Routes.song(it)) },
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+                onLogin = if (isGuest) ({ openLogin() }) else null,
+            )
         }
         composable(
             Routes.SONG,
@@ -231,7 +264,13 @@ private fun MiconNavHost(
         ) { entry ->
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
-            SongDetailScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(songId)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            SongDetailScreen(
+                songId = songId,
+                onBack = { nav.popBackStack() },
+                onPractice = { nav.navigate(Routes.practice(songId)) },
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+                onLogin = if (isGuest) ({ openLogin() }) else null,
+            )
         }
         composable(
             Routes.PRACTICE_RUN,
@@ -240,13 +279,21 @@ private fun MiconNavHost(
         ) { entry ->
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
-            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { jobId -> nav.navigate(Routes.result(jobId)) })
+            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { jobId ->
+                if (isGuest) com.micon.app.data.local.UserStore.rememberGuestPracticeJob(jobId)
+                nav.navigate(Routes.result(jobId))
+            })
         }
 
         // ---- 탭: 평가 ----
         composable(Routes.EVALUATION) {
             if (!accessGranted) return@composable
-            PracticeHistoryScreen(onOpenResult = { jobId -> nav.navigate(Routes.result(jobId)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            PracticeHistoryScreen(
+                onOpenResult = { jobId -> nav.navigate(Routes.result(jobId)) },
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+                onLogin = if (isGuest) ({ openLogin() }) else null,
+                guestJobIds = if (isGuest) ({ com.micon.app.data.local.UserStore.guestPracticeJobs.value }) else null,
+            )
         }
         composable(
             Routes.RESULT,
@@ -265,18 +312,19 @@ private fun MiconNavHost(
         // ---- 탭: 찜 ----
         composable(Routes.FAVORITES) {
             if (!accessGranted) return@composable
-            FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            if (isGuest) GuestMemberTab("찜", openLogin = { openLogin() })
+            else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
         composable(Routes.SETLIST, arguments = listOf(navArgument("setlistId") { type = NavType.StringType })) { entry ->
-            if (!accessGranted) return@composable
+            if (isGuest || !accessGranted) return@composable
             val setlistId = entry.arguments?.getString("setlistId") ?: return@composable
             SetlistScreen(setlistId = setlistId, onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.song(it)) })
         }
 
         // ---- 설정 ----
         composable(Routes.SETTINGS) {
-            if (!accessGranted) return@composable
-            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() },
+            if (isGuest || !accessGranted) return@composable
+            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goGuest() },
                 onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) })
         }
 
@@ -288,6 +336,24 @@ private fun MiconNavHost(
             com.micon.app.data.local.UserStore.preferredArtists = setOf("한로로", "백아", "볼빨간사춘기", "이승철", "조항조", "싸이")
             com.micon.app.data.local.UserStore.nickname = "유림"
             androidx.compose.runtime.LaunchedEffect(Unit) { nav.navigate(Routes.REPORT) { popUpTo(Routes.DEV_SEED_PROFILE) { inclusive = true } } }
+        }
+    }
+}
+
+@Composable
+private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        MiconHeader(onLogin = openLogin)
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("아직 표시할 $title 콘텐츠가 없어요", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Spacer(Modifier.height(12.dp))
+            Text("로그인하면 나만의 $title 콘텐츠를 이용할 수 있어요", fontSize = 14.sp, color = Grey)
+            Spacer(Modifier.height(24.dp))
+            PrimaryButton("로그인하기", openLogin, Modifier.fillMaxWidth())
         }
     }
 }

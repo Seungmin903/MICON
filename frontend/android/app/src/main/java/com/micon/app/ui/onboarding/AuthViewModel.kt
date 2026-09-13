@@ -32,7 +32,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
             try {
                 if (signup) {
                     repository.signup(email, password)
-                    mutableState.value = AuthFormState(signupCompleted = true)
+                    mutableState.value = AuthFormState(authenticated = true)
                 } else {
                     repository.login(email, password)
                     mutableState.value = AuthFormState(authenticated = true)

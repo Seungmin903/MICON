@@ -21,15 +21,18 @@ public class UserWithdrawalService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
+    private final UserDataCleanupService dataCleanupService;
 
     public UserWithdrawalService(UserRepository userRepository,
                                  RefreshTokenRepository refreshTokenRepository,
                                  PasswordEncoder passwordEncoder,
-                                 Clock clock) {
+                                 Clock clock,
+                                 UserDataCleanupService dataCleanupService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
+        this.dataCleanupService = dataCleanupService;
     }
 
     @Transactional
@@ -45,6 +48,7 @@ public class UserWithdrawalService {
         }
 
         LocalDateTime withdrawnAt = LocalDateTime.ofInstant(clock.instant(), clock.getZone());
+        dataCleanupService.deleteForWithdrawal(user.getId());
         user.withdraw(withdrawnAt);
         refreshTokenRepository.revokeAllByUserId(user.getId(), withdrawnAt);
     }
