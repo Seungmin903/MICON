@@ -17,21 +17,25 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 ```
 
 `setup.ps1` 은 `models/recommender/` 에 가중치를, `workspace/recommender/config.json` 에 이 checkout 의 절대경로 설정을 만든다. 둘 다 Git 제외.
-`nvidia-smi` 가 있으면 CUDA 빌드 PyTorch 로 바꿔 설치한다. 추론(30초 녹음)은 CPU 로도 수 초라 EC2 CPU 인스턴스로 충분하다. 곡 적재(Demucs 분리)는 GPU PC 에서 오프라인으로 한다.
+`nvidia-smi` 가 있으면 CUDA 빌드 PyTorch 로 바꿔 설치한다. 추론은 CPU 로도 돌아간다. 곡 적재(Demucs 분리)는 GPU PC 에서 오프라인으로 한다.
 
 ## 배포 (Docker, EC2 CPU)
 
 ```bash
 cd ai/recommend-server
 docker build -t micon-recommend .                                   # CPU torch + 의존성 + 가중치 116 MB 다운로드. 이미지 약 3 GB
-docker run -d --name micon-recommend --restart unless-stopped -p 8788:8788 micon-recommend
+docker run -d --name micon-recommend --restart unless-stopped -p 8788:8788 \
+  -e AI_SERVICE_TOKEN=... -e MICON_BE_CALLBACK_URL=http://backend:8080/callbacks/voice-analysis-components \
+  -v micon-analysis:/app/workspace/analysis micon-recommend
 curl http://127.0.0.1:8788/health
 ```
+
+`workspace/analysis` 볼륨은 BE 음성 분석 작업의 원음(최대 24시간)과 `job.json` 이다. 볼륨을 안 붙이면 컨테이너 재시작 때 진행 중 작업이 사라진다.
 
 - 이미지에 들어가는 것: 코드, 카탈로그 인덱스(`recommender-assets/catalog-index`, Git LFS 이므로 빌드 머신에 `git lfs pull` 필요), 모델 가중치(빌드 시 Hugging Face 에서 받아 SHA-256 검증).
 - 들어가지 않는 것: 원본 음원·분리 보컬·사용자 녹음. 녹음은 요청 body 로만 들어오고 `workspace/recommender/jobs/` 에 잠시 머문다 — 컨테이너를 지우면 같이 사라진다.
 - DB·S3 를 읽지 않는다. BE 는 위 API 만 호출한다. 카탈로그를 바꾸면 인덱스를 커밋하고 이미지를 다시 빌드한다.
-- 권장 사양: vCPU 2 · 메모리 4 GB 이상(t3.large 급), 디스크 여유 5 GB. 30초 녹음 1건 추론은 CPU 2코어에서 수십 초.
+- 권장 사양: vCPU 2 · 메모리 4 GB 이상(t3.large 급), 디스크 여유 5 GB.
 
 ## API
 
@@ -41,6 +45,28 @@ curl http://127.0.0.1:8788/health
 | `GET /recommendations/status` | — | 카탈로그 곡 수·모델·누락 설정 |
 | `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(섹션당, ≤50), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복, 온보딩 선호 장르), `preferredArtists`(반복, 온보딩 선호 가수) | job `{id, status, progress, message, genres, preferred_artists}` |
 | `GET /recommendations/{jobId}` | — | job. `status=complete` 면 `result.recommendations[]` |
+| `POST /voice-analysis-jobs` (202) | BE 전용. multipart `file`(또는 `timbreFile`) + `meta` JSON(`requestId` 필수) | `{jobId, status: QUEUED, audioExpiresAt, duplicate}`. 같은 `requestId`: 같은 음원 → 기존 jobId, 다른 음원 409, 원음 만료 410 |
+| `POST /voice-analysis-jobs/{jobId}/cancel` | — | `{jobId, status}`. 원음 삭제 |
+| `GET /voice-analysis-jobs/{jobId}` | — | 진단용 job.json (임베딩 값 제외) |
+
+**BE 음성 분석 작업** (`analysis_jobs.py`): 이 서버가 맡는 컴포넌트는 `ECAPA` 와 `SINGER_BYOL` 이다. 음역(`RANGE`)은 분석 AI 담당.
+접수 후 백그라운드에서 임베딩을 만들고 컴포넌트마다 `MICON_BE_CALLBACK_URL` 로 콜백 1건을 보낸다.
+
+```json
+{ "requestId": "…", "jobId": "…", "component": "ECAPA", "attemptNo": 1,
+  "status": "COMPLETED", "modelKey": "ECAPA", "modelVersion": "…", "dimension": 192,
+  "embedding": [0.012],
+  "segmentInfo": { "segmentDurationSeconds": 4.0, "segmentCount": 12, "startTimes": [0.0], "embeddings": [[0.011]] },
+  "qualityMetrics": { "voicedDurationSeconds": 18.4, "clippingRatio": 0.001 },
+  "failureCode": null, "failureReason": null, "processedAt": "2026-09-15T10:31:00" }
+```
+
+`embedding` 은 1×D 평균, `segmentInfo.embeddings` 는 구간별 벡터다. 구간별 벡터가 없으면 추천 점수의 70%가 빠진다.
+상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(쓸 만한 4초 구간 5개 미만). 5xx·연결 오류는 3회 재시도, 4xx는 중단.
+원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
+
+환경변수: `AI_SERVICE_TOKEN`(비우면 검사 안 함; 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_CALLBACK_URL`(비우면 콜백 생략) ·
+`RECOMMEND_CONCURRENCY=2` · `RECOMMEND_CALLBACK_COMPONENTS=ECAPA,SINGER_BYOL` · `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
