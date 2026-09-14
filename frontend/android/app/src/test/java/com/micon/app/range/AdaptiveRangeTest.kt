@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.scoring.ScoringMath
 import org.junit.Assert.*
 import org.junit.Test
@@ -144,6 +144,6 @@ class AdaptiveRangeTest {
 
     private fun export(name: String, submission: RangeSubmission) {
         val file=File("build/range-v6-contract/$name.json");file.parentFile!!.mkdirs()
-        file.writeText(EngineClient.moshi.adapter(RangeSubmission::class.java).toJson(submission))
+        file.writeText(Json.moshi.adapter(RangeSubmission::class.java).toJson(submission))
     }
 }

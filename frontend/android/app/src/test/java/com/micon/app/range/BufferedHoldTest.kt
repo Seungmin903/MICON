@@ -9,7 +9,7 @@ class BufferedHoldTest {
                        val B: Double, val O: Double, val penalty: Double, val passed: Boolean)
     @Test fun sameRawFrameFixturesAsIndependentServer() {
         val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, Fixture::class.java)
-        val cases = com.micon.app.data.engine.EngineClient.moshi.adapter<List<Fixture>>(type).fromJson(
+        val cases = com.micon.app.core.network.Json.moshi.adapter<List<Fixture>>(type).fromJson(
             javaClass.getResourceAsStream("/guided-range-v5.json")!!.bufferedReader().readText())!!
         for(c in cases) {
             val d=Driver();d.seed();c.segments.forEach { d.voice(it[0],60+it[1]/100) };d.tracker.seal("manual")

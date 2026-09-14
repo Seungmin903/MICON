@@ -1,6 +1,6 @@
 package com.micon.app.data
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.data.engine.dto.Job
 import com.micon.app.data.engine.dto.KaraokeNote
 import com.micon.app.data.local.LocalRecommendRepository
@@ -47,7 +47,7 @@ class LocalRecommendRepositoryTest {
 
     private val notes: List<KaraokeNote> by lazy {
         val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/tj-14260.job.json"))
-        checkNotNull(EngineClient.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText())?.result?.karaokeNotes)
+        checkNotNull(Json.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText())?.result?.karaokeNotes)
     }
     private val songs by lazy { FakeSongs(notes) }
     private val repo by lazy { LocalRecommendRepository(songs) }

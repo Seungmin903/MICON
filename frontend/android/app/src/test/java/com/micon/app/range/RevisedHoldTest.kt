@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.scoring.ScoringMath
 import org.junit.Assert.*
 import org.junit.Test
@@ -119,6 +119,6 @@ class RevisedHoldTest {
         val submission=s.submission()
         assertEquals("guided-range-v7",submission.protocolVersion)
         val file=File("build/range-v7-contract/ended.json");file.parentFile.mkdirs()
-        file.writeText(EngineClient.moshi.adapter(RangeSubmission::class.java).toJson(submission))
+        file.writeText(Json.moshi.adapter(RangeSubmission::class.java).toJson(submission))
     }
 }

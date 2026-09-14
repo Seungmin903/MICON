@@ -2,7 +2,7 @@ package com.micon.app.range
 
 import android.content.Context
 import com.micon.app.BuildConfig
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,9 +24,9 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     private val pendingFile = File(directory, "pending.json")
     private val reportFile = File(directory, "report.json")
     private val lastSessionFile = File(directory, "last-session-report.json")
-    private val pendingAdapter = EngineClient.moshi.adapter(PendingRange::class.java)
-    private val reportAdapter = EngineClient.moshi.adapter(RangeReport::class.java)
-    private val submissionAdapter = EngineClient.moshi.adapter(RangeSubmission::class.java)
+    private val pendingAdapter = Json.moshi.adapter(PendingRange::class.java)
+    private val reportAdapter = Json.moshi.adapter(RangeReport::class.java)
+    private val submissionAdapter = Json.moshi.adapter(RangeSubmission::class.java)
     private var finalized = false
     fun audio(id: String) = File(directory, "$id.wav")
     private fun readAtomic(file: File) = android.util.AtomicFile(file).openRead().bufferedReader().use { it.readText() }

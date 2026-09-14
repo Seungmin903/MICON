@@ -51,10 +51,10 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-4. 엔진(VocalScope FastAPI, 호스트 PC 8787)을 켠다. 에뮬레이터는 `http://10.0.2.2:8787/` 로 붙는다.
-   실기기는 `adb reverse tcp:8787 tcp:8787` 후 `local.properties` 의 `ENGINE_BASE_URL=http://127.0.0.1:8787/`.
+4. 백엔드를 준비한다. 곡·반주·연습 기록·음성 분석이 전부 백엔드(`API_BASE_URL`)에서 온다 — 로컬 BE(`infra/compose/mysql.local.compose.yml` + bootRun,
+   실기기는 `adb reverse tcp:8080 tcp:8080`) 또는 운영 `https://j15b110.p.ssafy.io/api/v1/`. 로컬 VocalScope 엔진(8787)은 2026-09-13 부터 앱이 쓰지 않는다.
 
-개발용 딥링크: `adb shell am start -a android.intent.action.VIEW -d "micon://app/result/<jobId>"`
+개발용 딥링크: `adb shell am start -a android.intent.action.VIEW -d "micon://app/result/<practiceId>"`
 (`song/<songId>`, `practice/<songId>` 도 가능). `micon://app/dev/seed-profile` 은 음성 프로필 예시를 채우고 리포트 탭을 연다
 (간편 분석을 실제로 끝내지 않고 "분석 결과 있을 때" 화면을 볼 때 사용).
 
@@ -74,8 +74,8 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 | `MainActivity` | 단일 Activity, `MiconRoot()` 호출 | 완료 |
 | `core/auth` | `TokenManager` (EncryptedSharedPreferences) | 완료 |
 | `core/network` | `BackendClient` (인증 인터셉터, 401 토큰 갱신), `SessionEvents` | 완료, 백엔드 계약 대기 |
-| `data/engine` | `EngineApi`, `EngineClient`, `dto/` — VocalScope 엔진 REST | 완료 (프로토타입) |
-| `data/backend` | `BackendApi` + `dto/` — 인증·곡 카탈로그·연습 데이터 REST | 인증·곡 완료, 찜·세트리스트·연습 기록 예정 |
+| `data/engine/dto` | 음표·비트 그리드·엔진 job DTO(백엔드 practice-assets 가 같은 형식을 준다). 엔진 REST 클라이언트는 2026-09-13 제거 | 완료 |
+| `data/backend` | `BackendApi` + `dto/` — 인증·곡 카탈로그·연습 데이터·연습 기록·음성 분석 REST | 인증·곡·연습 기록·음성 분석 완료, 찜·세트리스트 예정 |
 | `data/` | `SongRepository` 인터페이스 + `backend/RemoteSongRepository`(백엔드 `/songs`, `/songs/{id}`, `/practice-assets`) | 완료. 곡 id = 백엔드 `song_id`(Long) |
 | `scoring/` | 순수 Kotlin. YIN 피치, 라이브 채점, 채점 상수·색 | 완료 (프로토타입, 테스트 있음) |
 | `audio/` | `PitchCapture` (AudioRecord 16 kHz + WAV 저장), `InstrumentalPlayer` (ExoPlayer) | 완료 (프로토타입) |
@@ -88,8 +88,8 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 | `ui/report` | 음성 분석 리포트(결과 없음/오버레이/결과 카드 6개), 음성 간편 분석(마이크 확인 → G3 게이지 3초 유지, 실제 마이크 사용) | UI 완료, 엔진 정밀 분석 연동 TODO |
 | `ui/singanalysis`, `data/singanalysis` | 불러서 분석하기(`report/sing`, `report/sing/{songId}`): 곡 선택 → 범위 카드(전곡·2절부터·하이라이트만) → 카운트인 → 가사만 보며 부르기(WAV 녹음, 일시정지·여기까지 마치기) → 저장 완료. 녹음은 `filesDir/sing-analysis/<id>.wav`+`.json`(`SingRecordingMeta`, take 구간 포함). 분석 요청은 `SongAnalysisSubmitter` 인터페이스(기본 로컬 저장만) | 프론트·녹음 완료, 분석 연동은 담당자가 `SongAnalysisSubmitter` 구현으로 교체 |
 | `ui/songlist`, `ui/songdetail`, `ui/practice` | 연습 탭: 곡 선택(LP 행·key 배지·찜) → 상세(플레이어·키 변화 그래프) → 연습(가사 싱크·마이크 시트·라이브 채점) | 완료, 실기기 마이크 검증 필요 |
-| `ui/evaluation` | 노래 연습 분석: 날짜 배지 + 아코디언(분석 중/미확인 빨간 점), 펼치면 상세 카드 | 완료 (엔진 performance job 기준) |
-| `ui/result` | 노래 연습 분석 상세: 음역대 지도 · 음역별 안정성 · 구간 평가(음이탈 음절 빨강) | 완료 (`comparison` 에서 계산) |
+| `ui/evaluation` | 노래 연습 분석: 날짜 배지 + 아코디언(점수/상태, 미확인 빨간 점), 펼치면 상세 카드 | 완료 (백엔드 `GET /practices` 기준, 삭제 API 는 BE 요청) |
+| `ui/result` | 노래 연습 분석 상세: 한줄 평가 · 점수 요약 · 구간 평가 · 연습 정보 | 완료 (백엔드 `/practices/{id}` + `/report`) |
 | `ui/favorites` | 찜 목록(전체/연습 중/내 세트리스트), 세트리스트 세부 | UI 완료, 백엔드 favorites/setlists TODO |
 | `ui/settings` | 설정(녹음·개인정보 섹션, 토글, 회원 탈퇴 핑크) + 개발자 정보 | UI 완료 |
 | `data/local/UserStore` | 찜·세트리스트·음성 프로필·선호 조사의 **임시 인메모리 저장소** | 백엔드 연동 시 삭제 |
@@ -127,7 +127,6 @@ Figma 가 아직 정하지 않은 값(적합도 공식, 추천 키, 난이도, �
 
 | 키 | 주입 위치 |
 |---|---|
-| `ENGINE_BASE_URL` | `BuildConfig.ENGINE_BASE_URL` (기본 `http://10.0.2.2:8787/`) |
 | `API_BASE_URL` | `BuildConfig.API_BASE_URL` (기본 `http://10.0.2.2:8080/api/v1/`) |
 | `GOOGLE_WEB_CLIENT_ID`, `KAKAO_NATIVE_APP_KEY`, `NAVER_CLIENT_ID/SECRET` | `@string/...`, Kakao Manifest scheme |
 | `RELEASE_*` 4개 | 모두 있을 때만 release signingConfig |

@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -20,5 +20,5 @@ class RangePreviewClient(baseUrl: String) {
     val api: Api = Retrofit.Builder().baseUrl(baseUrl)
         .client(OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.MINUTES).writeTimeout(60, TimeUnit.SECONDS).build())
-        .addConverterFactory(MoshiConverterFactory.create(EngineClient.moshi)).build().create(Api::class.java)
+        .addConverterFactory(MoshiConverterFactory.create(Json.moshi)).build().create(Api::class.java)
 }

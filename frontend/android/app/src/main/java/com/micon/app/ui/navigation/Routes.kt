@@ -35,7 +35,7 @@ object Routes {
     const val SING_ANALYSIS_RUN = "report/sing/{songId}" // 불러서 분석하기 - 범위 선택/부르기/저장 완료
     const val SONG = "song/{songId}"                 // 노래 연습 - 노래 상세정보 (하단 탭 보임)
     const val PRACTICE_RUN = "practice/{songId}"     // 노래 연습 - 연습전/연습중
-    const val RESULT = "result/{jobId}"              // 노래 연습 분석 상세 (전체 화면)
+    const val RESULT = "result/{practiceId}"         // 노래 연습 분석 상세 (전체 화면, 백엔드 practiceId)
     const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 세트리스트 세부 (하단 탭 보임)
     const val SETTINGS = "settings"
     const val DEV_SEED_PROFILE = "dev/seed-profile"  // 개발용
@@ -47,7 +47,7 @@ object Routes {
     fun song(songId: Long) = "song/$songId"
     fun practice(songId: Long) = "practice/$songId"
     fun singAnalysis(songId: Long) = "report/sing/$songId"
-    fun result(jobId: String) = "result/$jobId"
+    fun result(practiceId: Long) = "result/$practiceId"
     fun setlist(setlistId: String) = "setlist/$setlistId"
 
     /** 하단 탭을 보이는 경로 (Figma 에서 하단 바가 있는 화면) */

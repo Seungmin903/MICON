@@ -4,7 +4,6 @@ import com.micon.app.core.auth.AuthTokenStore
 import com.micon.app.core.auth.SessionSnapshot
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.BackendApi
-import com.micon.app.data.engine.EngineClient
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -102,7 +101,7 @@ class BackendClient(
         }.build()
 
     val retrofit: Retrofit = Retrofit.Builder().baseUrl(baseUrl).client(okHttp)
-        .addConverterFactory(MoshiConverterFactory.create(EngineClient.moshi)).build()
+        .addConverterFactory(MoshiConverterFactory.create(Json.moshi)).build()
 
     val api: BackendApi = retrofit.create(BackendApi::class.java)
 }

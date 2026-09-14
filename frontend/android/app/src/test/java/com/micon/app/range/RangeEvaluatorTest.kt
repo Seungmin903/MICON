@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.scoring.YinPitch
 import com.squareup.moshi.Types
@@ -15,7 +15,7 @@ class RangeEvaluatorTest {
 
     @Test fun `same protocol fixtures as server`() {
         val json = javaClass.getResourceAsStream("/guided-range.json")!!.bufferedReader().readText()
-        val cases = EngineClient.moshi.adapter<List<Fixture>>(Types.newParameterizedType(List::class.java, Fixture::class.java)).fromJson(json)!!
+        val cases = Json.moshi.adapter<List<Fixture>>(Types.newParameterizedType(List::class.java, Fixture::class.java)).fromJson(json)!!
         for (case in cases) {
             val frames = (0 until 100).mapNotNull { i ->
                 val t = i * .02
