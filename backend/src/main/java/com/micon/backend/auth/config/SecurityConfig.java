@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses",
                                 "/callbacks/voice-analysis-components").permitAll()
+                        .requestMatchers("/voice-analysis-sessions", "/voice-analysis-sessions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh",

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,32 +35,33 @@ public class DirectVoiceAnalysisController {
             description = "녹음 파일과 곡 시간축 메타데이터를 함께 받아 AI에 직접 전달하고 202와 분석 ID를 반환합니다.")
     public ResponseEntity<ApiResponse<VoiceAnalysisJobResponse>> submit(
             @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value="X-Guest-Session-Token",required=false) String guestToken,
             @PathVariable long sessionId,
             @RequestPart("file") MultipartFile file,
             @Valid @RequestPart("meta") VoiceAnalysisUploadRequest request) {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(ApiResponse.success(service.submit(userId(jwt), sessionId, file, request)));
+                .body(ApiResponse.success(service.submit(userId(jwt), guestToken, sessionId, file, request)));
     }
 
     @GetMapping
     @Operation(summary = "음성 분석 상태 조회",
             description = "세션의 최근 분석 상태와 실패 사유, 재업로드 필요 여부를 조회합니다.")
     public ApiResponse<VoiceAnalysisJobResponse> status(
-            @AuthenticationPrincipal Jwt jwt, @PathVariable long sessionId) {
-        return ApiResponse.success(service.status(userId(jwt), sessionId));
+            @AuthenticationPrincipal Jwt jwt, @RequestHeader(value="X-Guest-Session-Token",required=false) String guestToken, @PathVariable long sessionId) {
+        return ApiResponse.success(service.status(userId(jwt), guestToken, sessionId));
     }
 
     @PostMapping("/{analysisId}/cancel")
     @Operation(summary = "음성 분석 취소",
             description = "진행 중인 분석을 취소하고 AI 작업 취소를 요청합니다.")
     public ApiResponse<VoiceAnalysisJobResponse> cancel(
-            @AuthenticationPrincipal Jwt jwt, @PathVariable long sessionId,
+            @AuthenticationPrincipal Jwt jwt, @RequestHeader(value="X-Guest-Session-Token",required=false) String guestToken, @PathVariable long sessionId,
             @PathVariable long analysisId) {
-        return ApiResponse.success(service.cancel(userId(jwt), sessionId, analysisId));
+        return ApiResponse.success(service.cancel(userId(jwt), guestToken, sessionId, analysisId));
     }
 
-    private long userId(Jwt jwt) {
-        if (jwt == null) throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+    private Long userId(Jwt jwt) {
+        if (jwt == null) return null;
         try { return Long.parseLong(jwt.getSubject()); }
         catch (NumberFormatException exception) { throw new BusinessException(ErrorCode.UNAUTHENTICATED); }
     }

@@ -11,6 +11,8 @@ public class VoiceAnalysisComponentJob {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "session_id", nullable = false) private VoiceAnalysisSession session;
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "analysis_job_id") private VoiceAnalysisJob analysisJob;
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recording_id") private VoiceRecording recording;
     @Column(name = "component_type", nullable = false, length = 30) private String componentType;
     @Column(name = "attempt_no", nullable = false) private int attemptNo;
@@ -43,7 +45,14 @@ public class VoiceAnalysisComponentJob {
         this.updatedAt = this.createdAt;
     }
 
+    public VoiceAnalysisComponentJob(VoiceAnalysisJob parent, String componentType) {
+        this(parent.getSession(), parent.getRecording(), componentType, parent.getAttemptNo(),
+                parent.getRequestId() + ":" + componentType);
+        this.analysisJob = parent;
+    }
+
     public Long getId() { return id; }
+    public VoiceAnalysisJob getAnalysisJob() { return analysisJob; }
     public VoiceAnalysisSession getSession() { return session; }
     public VoiceRecording getRecording() { return recording; }
     public String getComponentType() { return componentType; }
@@ -65,7 +74,8 @@ public class VoiceAnalysisComponentJob {
         }
         bindAiJobId(aiJobId);
         if (isTerminal() || "RUNNING".equals(status)) return;
-        if (!"PENDING".equals(status)) throw new IllegalStateException("only pending job can be queued");
+        if (!"PENDING".equals(status) && !"DISPATCH_UNKNOWN".equals(status))
+            throw new IllegalStateException("only pending job can be queued");
         this.status = "QUEUED";
         this.startedAt = at;
         this.updatedAt = at;
@@ -81,11 +91,19 @@ public class VoiceAnalysisComponentJob {
     }
 
     public void running(LocalDateTime at) {
-        if (!"PENDING".equals(status) && !"QUEUED".equals(status)) {
+        if (!"PENDING".equals(status) && !"DISPATCH_UNKNOWN".equals(status) && !"QUEUED".equals(status)) {
             throw new IllegalStateException("job cannot start");
         }
         this.status = "RUNNING";
         if (startedAt == null) this.startedAt = at;
+        this.updatedAt = at;
+    }
+
+    public void dispatchUnknown(String reason, LocalDateTime at) {
+        if (!"PENDING".equals(status)) return;
+        this.failureCode = "AI_DISPATCH_UNKNOWN";
+        this.failureReason = reason;
+        this.status = "DISPATCH_UNKNOWN";
         this.updatedAt = at;
     }
 

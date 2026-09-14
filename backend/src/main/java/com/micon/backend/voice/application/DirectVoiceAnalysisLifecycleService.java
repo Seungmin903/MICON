@@ -5,6 +5,7 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.domain.UserStatus;
 import com.micon.backend.voice.api.VoiceAnalysisJobResponse;
 import com.micon.backend.voice.api.VoiceAnalysisUploadRequest;
+import com.micon.backend.voice.api.VoiceSessionRequest;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJob;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJobRepository;
 import com.micon.backend.voice.domain.VoiceAnalysisMethod;
@@ -84,6 +85,45 @@ public class DirectVoiceAnalysisLifecycleService {
         } catch (DataIntegrityViolationException exception) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "중복된 분석 요청입니다.");
         }
+    }
+
+    @Transactional
+    public PreparedJob createRangePending(long userId, long sessionId, MultipartFile file,
+                                          VoiceSessionRequest.RangeAnalysisUpload request) {
+        VoiceAnalysisComponentJob existing = jobs.findByRequestId(request.requestId()).orElse(null);
+        if (existing != null) {
+            if (!existing.getSession().getId().equals(sessionId)
+                    || !existing.getSession().getUser().getId().equals(userId)
+                    || !"RANGE".equals(existing.getComponentType())) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "이미 다른 분석에 사용된 requestId입니다.");
+            }
+            return new PreparedJob(existing.getId(), existing.getStatus(), VoiceAnalysisJobResponse.from(existing));
+        }
+        VoiceAnalysisSession session = sessions.findByIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        if (session.getUser().getStatus() != UserStatus.ACTIVE) throw new BusinessException(ErrorCode.ACCOUNT_NOT_ACTIVE);
+        if (session.isExpired()) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE, "만료된 음성 분석 세션입니다.");
+        VoiceRecording recording = recordings.saveAndFlush(VoiceRecording.metadataOnly(session.getUser(),
+                (short) request.attemptNo(), file.getContentType(), file.getSize(),
+                request.durationSeconds().multiply(java.math.BigDecimal.valueOf(1000)).intValue(), 16_000));
+        VoiceAnalysisComponentJob saved = jobs.saveAndFlush(new VoiceAnalysisComponentJob(session, recording,
+                "RANGE", request.attemptNo(), request.requestId()));
+        session.beginRangeAnalysis();
+        return new PreparedJob(saved.getId(), saved.getStatus(), VoiceAnalysisJobResponse.from(saved));
+    }
+
+    @Transactional
+    public VoiceAnalysisJobResponse queuedRange(long userId, long analysisId, String aiJobId) {
+        VoiceAnalysisComponentJob job = ownedForUpdate(userId, analysisId);
+        job.queued(aiJobId, LocalDateTime.now());
+        job.getSession().queueRangeAnalysis();
+        return VoiceAnalysisJobResponse.from(job);
+    }
+
+    @Transactional
+    public void rangeDispatchUnknown(long userId, long analysisId, String reason) {
+        VoiceAnalysisComponentJob job = ownedForUpdate(userId, analysisId);
+        job.dispatchUnknown(limit(reason), LocalDateTime.now());
     }
 
     @Transactional

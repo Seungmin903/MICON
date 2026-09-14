@@ -22,7 +22,17 @@ public class VoiceRangeMeasurement {
     @Column(name = "measured_at", nullable = false) private LocalDateTime measuredAt;
     @Column(name = "submitted_at", nullable = false) private LocalDateTime submittedAt;
     protected VoiceRangeMeasurement() {}
+    public VoiceRangeMeasurement(VoiceAnalysisSession session, String measurementUid, String ruleVersion,
+                                 BigDecimal lowMidi, BigDecimal highMidi, String noteResults,
+                                 String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
+        this.session = session; this.measurementUid = measurementUid; this.ruleVersion = ruleVersion;
+        this.source = "SERVER_AI"; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
+        this.noteResults = noteResults; this.measurementStatus = measurementStatus;
+        this.qualityStatus = qualityStatus; this.measuredAt = measuredAt; this.submittedAt = LocalDateTime.now();
+    }
     public BigDecimal getFullLowMidi() { return fullLowMidi; }
     public BigDecimal getFullHighMidi() { return fullHighMidi; }
     public String getNoteResults() { return noteResults; }
+    public String getMeasurementStatus() { return measurementStatus; }
+    public String getQualityStatus() { return qualityStatus; }
 }

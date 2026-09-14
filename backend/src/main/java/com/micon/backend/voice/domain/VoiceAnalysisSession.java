@@ -40,7 +40,39 @@ public class VoiceAnalysisSession {
     public String getTimbreStatus() { return timbreStatus; }
     public String getArtistSearchStatus() { return artistSearchStatus; }
     public long getResultVersion() { return resultVersion; }
+    public String getSaveStatus() { return saveStatus; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
+
+    public void acceptRange(String measurementStatus) {
+        this.rangeStatus = measurementStatus;
+        this.status = "AVAILABLE".equals(measurementStatus) ? "RANGE_IN_PROGRESS" : measurementStatus;
+        this.resultVersion++;
+        if (this.startedAt == null) this.startedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void beginRangeAnalysis() {
+        if (isExpired() || "CANCELED".equals(status) || "SAVED".equals(status)) {
+            throw new IllegalStateException("session cannot start range analysis");
+        }
+        status = "UPLOADING";
+        rangeStatus = "UPLOADING";
+        if (startedAt == null) startedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void queueRangeAnalysis() {
+        status = "ANALYZING";
+        rangeStatus = "ANALYZING";
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void failRangeAnalysis(LocalDateTime at) {
+        rangeStatus = "FAILED";
+        status = "FAILED";
+        completedAt = at;
+        updatedAt = at;
+    }
 
     public void beginTimbreAnalysis() {
         if (isExpired() || "CANCELED".equals(status) || "SAVED".equals(status)) {
