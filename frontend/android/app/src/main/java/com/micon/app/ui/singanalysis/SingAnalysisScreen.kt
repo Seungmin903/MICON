@@ -122,7 +122,7 @@ fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> U
     val vm: SingAnalysisViewModel = viewModel(
         key = "sing-analysis-$songId",
         factory = viewModelFactory {
-            initializer { SingAnalysisViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.singRecordings, container.songAnalysis) }
+            initializer { SingAnalysisViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.singRecordings, container.songAnalysis, container.voiceAnalyses) }
         },
     )
     val state by vm.state.collectAsStateWithLifecycle()
@@ -451,15 +451,16 @@ private fun DoneBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisViewM
                 Spacer(Modifier.height(18.dp))
                 when (state.submit.phase) {
                     SubmitPhase.SENDING -> Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), color = Purple, strokeWidth = 2.dp) }
-                    SubmitPhase.UNAVAILABLE -> PrimaryButton("분석 연동 준비 중", {}, Modifier.fillMaxWidth(), enabled = false)
-                    SubmitPhase.DONE -> PrimaryButton("분석 요청됨", {}, Modifier.fillMaxWidth(), enabled = false)
-                    SubmitPhase.NONE, SubmitPhase.ERROR -> PrimaryButton(if (state.submit.phase == SubmitPhase.ERROR) "분석 다시 요청" else "분석 요청", vm::submit, Modifier.fillMaxWidth())
+                    SubmitPhase.DONE -> PrimaryButton("분석 요청됨 · 결과 기다리는 중", {}, Modifier.fillMaxWidth(), enabled = false)
+                    SubmitPhase.COMPLETED -> PrimaryButton("리포트에서 결과 보기", onBackToReport, Modifier.fillMaxWidth())
+                    SubmitPhase.NONE -> PrimaryButton("분석 요청", vm::submit, Modifier.fillMaxWidth())
+                    SubmitPhase.UNAVAILABLE, SubmitPhase.ERROR, SubmitPhase.FAILED -> PrimaryButton("분석 다시 요청", vm::submit, Modifier.fillMaxWidth())
                 }
                 if (state.submit.message.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         state.submit.message, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-                        color = when (state.submit.phase) { SubmitPhase.ERROR -> Red; SubmitPhase.DONE -> Teal; else -> Grey },
+                        color = when (state.submit.phase) { SubmitPhase.ERROR, SubmitPhase.FAILED -> Red; SubmitPhase.DONE, SubmitPhase.COMPLETED -> Teal; else -> Grey },
                     )
                 }
                 state.error?.let {
@@ -490,7 +491,7 @@ private fun RecordingInfoCard(saved: SavedRecording, playing: Boolean, onToggleT
             InfoRow("샘플레이트", "${meta.sampleRate / 1000} kHz · 모노 16bit")
             InfoRow("녹음 시각", SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA).format(Date(meta.recordedAt)))
             InfoRow("부른 구간", "${formatSec(meta.sungStartSec)} ~ ${formatSec(meta.sungEndSec)}" + if (meta.takes.size > 1) " · ${meta.takes.size}번에 나눠 부름" else "")
-            InfoRow("저장 위치", "이 기기(앱 내부)")
+            InfoRow("저장 위치", meta.serverRecordingId?.let { "이 기기 + 서버 (녹음 #$it)" } ?: "이 기기(앱 내부)")
             if (meta.planSource == PlanSource.HALF_DURATION.name) InfoRow("시작 기준", "절 정보 없음 → 곡 절반")
         }
         Spacer(Modifier.height(12.dp))

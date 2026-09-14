@@ -33,8 +33,21 @@ class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAU
     fun save(meta: SingRecordingMeta): SavedRecording {
         val wav = wavFile(meta.id)
         require(wav.isFile && wav.length() > WAV_HEADER_BYTES) { "녹음 파일이 없습니다: ${wav.name}" }
-        val json = metaFile(meta.id)
-        val atomic = AtomicFile(json)
+        writeMeta(meta)
+        prune()
+        return SavedRecording(meta, wav, metaFile(meta.id))
+    }
+
+    /** 이미 저장된 녹음의 메타만 다시 쓴다(서버 id 기록 등). WAV 는 그대로, 정리도 하지 않는다. IO 스레드에서 호출할 것. */
+    fun update(meta: SingRecordingMeta): SavedRecording {
+        val wav = wavFile(meta.id)
+        require(wav.isFile) { "녹음 파일이 없습니다: ${wav.name}" }
+        writeMeta(meta)
+        return SavedRecording(meta, wav, metaFile(meta.id))
+    }
+
+    private fun writeMeta(meta: SingRecordingMeta) {
+        val atomic = AtomicFile(metaFile(meta.id))
         val out = atomic.startWrite()
         try {
             out.write(SingRecordingMetaCodec.toJson(meta).toByteArray(Charsets.UTF_8))
@@ -43,8 +56,6 @@ class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAU
             atomic.failWrite(out)
             throw e
         }
-        prune()
-        return SavedRecording(meta, wav, json)
     }
 
     /** 저장된 녹음 전체, 최신순. 깨진 JSON 은 건너뛴다. */

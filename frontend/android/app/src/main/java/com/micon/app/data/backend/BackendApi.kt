@@ -15,6 +15,12 @@ import com.micon.app.data.backend.dto.PasswordResetVerifyRequest
 import com.micon.app.data.backend.dto.PasswordResetVerified
 import com.micon.app.data.backend.dto.PasswordResetChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
+import com.micon.app.data.backend.dto.RecordingUploadDto
+import com.micon.app.data.backend.dto.VoiceAnalysisCreateRequest
+import com.micon.app.data.backend.dto.VoiceAnalysisDto
+import com.micon.app.data.backend.dto.VoiceAnalysisReportDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -22,6 +28,8 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.HTTP
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -73,4 +81,29 @@ interface BackendApi {
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: Long, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+
+    // ---- 음성 녹음·분석 (RecordingController · VoiceAnalysisController) ----
+
+    /** 녹음 업로드. `file` 은 audio/wav·x-wav·mpeg·mp4, 기본 25MB 까지. `keepOriginal` 은 서버 기본(원본 보관 정책)을 따르려면 생략. 201 → recordingId. */
+    @Multipart
+    @POST("recordings")
+    suspend fun uploadRecording(
+        @Part file: MultipartBody.Part,
+        @Part("attemptNo") attemptNo: RequestBody,
+        @Part("keepOriginal") keepOriginal: RequestBody? = null,
+    ): Response<ApiResponse<RecordingUploadDto>>
+
+    /** 분석 생성. AI 연동이 꺼져 있으면 503 VOICE_ANALYSIS_DISPATCH_FAILED, 같은 녹음 분석 중이면 409 VOICE_ANALYSIS_IN_PROGRESS. */
+    @POST("voice-analyses")
+    suspend fun createVoiceAnalysis(@Body body: VoiceAnalysisCreateRequest): Response<ApiResponse<VoiceAnalysisDto>>
+
+    @GET("voice-analyses/{analysisId}")
+    suspend fun voiceAnalysis(@Path("analysisId") analysisId: Long): Response<ApiResponse<VoiceAnalysisDto>>
+
+    /** 가장 최근 분석. 없으면 200 에 data null. */
+    @GET("voice-analyses/latest")
+    suspend fun latestVoiceAnalysis(): Response<ApiResponse<VoiceAnalysisDto>>
+
+    @GET("voice-analyses/{analysisId}/report")
+    suspend fun voiceAnalysisReport(@Path("analysisId") analysisId: Long): Response<ApiResponse<VoiceAnalysisReportDto>>
 }
