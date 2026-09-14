@@ -1,3 +1,30 @@
 package com.micon.backend.voice.domain;
-import jakarta.persistence.LockModeType; import java.util.Optional; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param;
-public interface VoiceAnalysisJobRepository extends JpaRepository<VoiceAnalysisJob,Long>{Optional<VoiceAnalysisJob> findByRequestId(String id); Optional<VoiceAnalysisJob> findFirstBySessionIdOrderByAttemptNoDesc(Long id); @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select j from VoiceAnalysisJob j join fetch j.session s join fetch s.user where j.requestId=:id") Optional<VoiceAnalysisJob> findByRequestIdForUpdate(@Param("id")String id); @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select j from VoiceAnalysisJob j join fetch j.session s join fetch s.user where j.id=:id and s.user.id=:uid") Optional<VoiceAnalysisJob> findOwnedForUpdate(@Param("id")Long id,@Param("uid")Long uid);}
+
+import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+
+public interface VoiceAnalysisJobRepository extends JpaRepository<VoiceAnalysisJob, Long> {
+    Optional<VoiceAnalysisJob> findByRequestId(String requestId);
+    Optional<VoiceAnalysisJob> findFirstBySessionIdOrderByAttemptNoDesc(Long sessionId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select job from VoiceAnalysisJob job join fetch job.session session "
+            + "join fetch session.user where job.requestId = :requestId")
+    Optional<VoiceAnalysisJob> findByRequestIdForUpdate(@Param("requestId") String requestId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select job from VoiceAnalysisJob job join fetch job.session session "
+            + "join fetch session.user where job.id = :jobId and session.user.id = :userId")
+    Optional<VoiceAnalysisJob> findOwnedForUpdate(@Param("jobId") Long jobId,
+                                                   @Param("userId") Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select job from VoiceAnalysisJob job join fetch job.session "
+            + "where job.status in ('PENDING','DISPATCH_UNKNOWN','QUEUED','RUNNING') "
+            + "and job.createdAt <= :cutoff order by job.createdAt")
+    List<VoiceAnalysisJob> findTimedOutForUpdate(@Param("cutoff") LocalDateTime cutoff);
+}

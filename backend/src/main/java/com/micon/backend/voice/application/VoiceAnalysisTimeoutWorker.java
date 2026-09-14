@@ -11,18 +11,22 @@ import org.springframework.stereotype.Component;
 @Component
 public class VoiceAnalysisTimeoutWorker {
     private static final Logger log = LoggerFactory.getLogger(VoiceAnalysisTimeoutWorker.class);
-    private final DirectVoiceAnalysisLifecycleService lifecycle;
+    private final DirectVoiceAnalysisLifecycleService rangeLifecycle;
+    private final TimbreAnalysisLifecycleService timbreLifecycle;
     private final Duration maxWait;
 
-    public VoiceAnalysisTimeoutWorker(DirectVoiceAnalysisLifecycleService lifecycle,
+    public VoiceAnalysisTimeoutWorker(DirectVoiceAnalysisLifecycleService rangeLifecycle,
+                                      TimbreAnalysisLifecycleService timbreLifecycle,
                                       @Value("${ai.voice-analysis-max-wait:10m}") Duration maxWait) {
-        this.lifecycle = lifecycle;
+        this.rangeLifecycle = rangeLifecycle;
+        this.timbreLifecycle = timbreLifecycle;
         this.maxWait = maxWait;
     }
 
     @Scheduled(fixedDelayString = "${ai.voice-analysis-timeout-check-interval:1m}")
     public void failTimedOutJobs() {
-        int count = lifecycle.failTimedOut(LocalDateTime.now().minus(maxWait));
+        LocalDateTime cutoff = LocalDateTime.now().minus(maxWait);
+        int count = rangeLifecycle.failTimedOut(cutoff) + timbreLifecycle.failTimedOut(cutoff);
         if (count > 0) log.warn("Marked {} voice analysis jobs as timed out", count);
     }
 }

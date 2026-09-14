@@ -10,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 public record VoiceAnalysisComponentCallbackRequest(
         @NotBlank String requestId,
         @NotBlank String jobId,
+        String component,
         @NotNull Status status,
         String modelKey,
         String modelVersion,

@@ -138,15 +138,104 @@ public class VoiceSessionService {
         return job;
     }
 
-    public synchronized VoiceAnalysisJobResponse prepareGuestTimbre(long sessionId,String token,String requestId,int attemptNo){
-        GuestSession s=guest(sessionId,token); GuestTimbreJob old=guestTimbreJobs.get(requestId);
-        if(old!=null){if(old.session!=s)throw new BusinessException(ErrorCode.INVALID_REQUEST);return old.response();}
-        GuestTimbreJob job=new GuestTimbreJob(guestIds.getAndDecrement(),s,requestId,attemptNo);guestTimbreJobs.put(requestId,job);s.status="UPLOADING";return job.response();
+    public synchronized VoiceAnalysisJobResponse prepareGuestTimbre(long sessionId, String token,
+            String requestId, int attemptNo, String audioSha256) {
+        GuestSession session = guest(sessionId, token);
+        GuestTimbreJob existing = guestTimbreJobs.get(requestId);
+        if (existing != null) {
+            if (existing.session != session || !existing.audioSha256.equals(audioSha256)) {
+                throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED);
+            }
+            return existing.response();
+        }
+        GuestTimbreJob job = new GuestTimbreJob(guestIds.getAndDecrement(), session, requestId,
+                attemptNo, audioSha256);
+        guestTimbreJobs.put(requestId, job);
+        session.status = "UPLOADING";
+        return job.response();
     }
-    public synchronized VoiceAnalysisJobResponse queueGuestTimbre(String requestId,String ai){GuestTimbreJob j=guestTimbreJobs.get(requestId);if(j==null)throw new BusinessException(ErrorCode.INVALID_GUEST_SESSION);j.aiJobId=ai;j.status="QUEUED";j.startedAt=LocalDateTime.now();j.session.status="ANALYZING";return j.response();}
+
+    public synchronized VoiceAnalysisJobResponse queueGuestTimbre(
+            String requestId, com.micon.backend.voice.client.VoiceAnalysisJobGateway.Result result) {
+        GuestTimbreJob job = guestTimbreJob(requestId);
+        if (job.aiJobId != null && !job.aiJobId.equals(result.jobId())) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
+        job.aiJobId = result.jobId();
+        job.status = "QUEUED";
+        job.audioExpiresAt = result.audioExpiresAt();
+        job.duplicate = result.duplicate();
+        if (job.startedAt == null) job.startedAt = LocalDateTime.now();
+        job.failureCode = null;
+        job.failureReason = null;
+        job.components.replaceAll((key, value) -> "PENDING".equals(value) ? "QUEUED" : value);
+        job.session.status = "ANALYZING";
+        return job.response();
+    }
+
+    public synchronized void timbreDispatchUnknown(String requestId, String reason) {
+        GuestTimbreJob job = guestTimbreJob(requestId);
+        if (!job.canDispatch()) return;
+        job.status = "DISPATCH_UNKNOWN";
+        job.failureCode = "AI_DISPATCH_UNKNOWN";
+        job.failureReason = reason;
+        job.session.status = "UPLOADING";
+    }
+
+    public synchronized void failGuestTimbre(String requestId, String code, String reason) {
+        GuestTimbreJob job = guestTimbreJob(requestId);
+        if (job.terminal()) return;
+        job.status = "FAILED";
+        job.failureCode = code;
+        job.failureReason = reason;
+        job.completedAt = LocalDateTime.now();
+        job.components.replaceAll((key, value) -> isTerminalStatus(value) ? value : "FAILED");
+        job.session.status = "FAILED";
+    }
+
+    private GuestTimbreJob guestTimbreJob(String requestId) {
+        GuestTimbreJob job = guestTimbreJobs.get(requestId);
+        if (job == null) throw new BusinessException(ErrorCode.INVALID_GUEST_SESSION);
+        ensureNotExpired(job.session.expiresAt);
+        return job;
+    }
     public synchronized VoiceAnalysisJobResponse guestTimbreStatus(long sid,String token){GuestSession s=guest(sid,token);return guestTimbreJobs.values().stream().filter(j->j.session==s).max(java.util.Comparator.comparingLong(j->j.id)).orElseThrow(()->new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND)).response();}
     public synchronized VoiceAnalysisJobResponse cancelGuestTimbre(long sid,String token,long id){GuestSession s=guest(sid,token);GuestTimbreJob j=guestTimbreJobs.values().stream().filter(x->x.id==id&&x.session==s).findFirst().orElseThrow(()->new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));j.status="CANCELED";j.completedAt=LocalDateTime.now();s.status="CANCELED";return j.response();}
-    public synchronized VoiceAnalysisComponentCallbackResponse acceptGuestTimbreCallback(VoiceAnalysisComponentCallbackRequest r){GuestTimbreJob j=guestTimbreJobs.get(r.requestId());if(j==null)return null;if(j.attemptNo!=r.attemptNo()||j.aiJobId==null||!j.aiJobId.equals(r.jobId())||r.modelKey()==null||!j.components.containsKey(r.modelKey()))throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);if("COMPLETED".equals(j.components.get(r.modelKey())))return new VoiceAnalysisComponentCallbackResponse(j.id,j.status,true);j.components.put(r.modelKey(),r.status().name());if(r.status()==VoiceAnalysisComponentCallbackRequest.Status.RUNNING)j.status="RUNNING";else if(r.status()==VoiceAnalysisComponentCallbackRequest.Status.FAILED||r.status()==VoiceAnalysisComponentCallbackRequest.Status.INSUFFICIENT_DATA){j.status="FAILED";j.session.status="FAILED";}else if(j.components.values().stream().allMatch("COMPLETED"::equals)){j.status="COMPLETED";j.completedAt=r.processedAt();j.session.status="READY_TO_SAVE";j.session.version++;}return new VoiceAnalysisComponentCallbackResponse(j.id,j.status,false);}
+    public synchronized VoiceAnalysisComponentCallbackResponse acceptGuestTimbreCallback(
+            VoiceAnalysisComponentCallbackRequest request) {
+        GuestTimbreJob job = guestTimbreJobs.get(request.requestId());
+        if (job == null) return null;
+        ensureNotExpired(job.session.expiresAt);
+        String component = request.component() == null || request.component().isBlank()
+                ? request.modelKey() : request.component();
+        if (request.attemptNo() == null || job.attemptNo != request.attemptNo()
+                || (job.aiJobId != null && !job.aiJobId.equals(request.jobId()))
+                || component == null || !job.components.containsKey(component)) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
+        }
+        if (job.aiJobId == null) job.aiJobId = request.jobId();
+        if (isTerminalStatus(job.components.get(component))) {
+            return new VoiceAnalysisComponentCallbackResponse(job.id, job.status, true);
+        }
+        job.components.put(component, request.status().name());
+        if (request.status() == VoiceAnalysisComponentCallbackRequest.Status.RUNNING) {
+            job.status = "RUNNING";
+        } else if (job.components.values().stream().allMatch(VoiceSessionService::isTerminalStatus)) {
+            boolean completed = job.components.values().stream().allMatch("COMPLETED"::equals);
+            job.status = completed ? "COMPLETED" : "FAILED";
+            job.completedAt = request.processedAt();
+            job.session.status = completed ? "READY_TO_SAVE" : "FAILED";
+            if (completed) job.session.version++;
+        } else {
+            job.status = "RUNNING";
+        }
+        return new VoiceAnalysisComponentCallbackResponse(job.id, job.status, false);
+    }
+
+    private static boolean isTerminalStatus(String status) {
+        return "COMPLETED".equals(status) || "FAILED".equals(status)
+                || "INSUFFICIENT_DATA".equals(status) || "CANCELED".equals(status);
+    }
 
     private VoiceSessionResponse.Session member(VoiceAnalysisSession s, VoiceRangeMeasurement r) {
         return new VoiceSessionResponse.Session(s.getId(), null, s.getStatus(), s.getRangeStatus(), s.getTimbreStatus(),
@@ -200,8 +289,52 @@ public class VoiceSessionService {
         }
         VoiceAnalysisJobResponse response() {
             return new VoiceAnalysisJobResponse(id, session.id, null, requestId, aiJobId, "RANGE", status,
-                    failureCode, failureReason, "FAILED".equals(status), startedAt, completedAt);
+                    failureCode, failureReason, "FAILED".equals(status), startedAt, completedAt,
+                    null, false, java.util.List.of());
         }
     }
-    private static final class GuestTimbreJob {final long id;final GuestSession session;final String requestId;final int attemptNo;String aiJobId,status="PENDING";LocalDateTime startedAt,completedAt;final Map<String,String> components=new HashMap<>(Map.of("ECAPA","PENDING","SINGER_BYOL","PENDING"));GuestTimbreJob(long i,GuestSession s,String r,int a){id=i;session=s;requestId=r;attemptNo=a;}VoiceAnalysisJobResponse response(){return new VoiceAnalysisJobResponse(id,session.id,null,requestId,aiJobId,"TIMBRE",status,null,null,"FAILED".equals(status),startedAt,completedAt);}}
+    private static final class GuestTimbreJob {
+        final long id;
+        final GuestSession session;
+        final String requestId;
+        final int attemptNo;
+        final String audioSha256;
+        String aiJobId;
+        String status = "PENDING";
+        String failureCode;
+        String failureReason;
+        LocalDateTime startedAt;
+        LocalDateTime completedAt;
+        LocalDateTime audioExpiresAt;
+        boolean duplicate;
+        final Map<String, String> components = new HashMap<>(
+                Map.of("ECAPA", "PENDING", "SINGER_BYOL", "PENDING"));
+
+        GuestTimbreJob(long id, GuestSession session, String requestId, int attemptNo, String audioSha256) {
+            this.id = id;
+            this.session = session;
+            this.requestId = requestId;
+            this.attemptNo = attemptNo;
+            this.audioSha256 = audioSha256;
+        }
+
+        boolean canDispatch() {
+            return "PENDING".equals(status) || "DISPATCH_UNKNOWN".equals(status);
+        }
+
+        boolean terminal() {
+            return "COMPLETED".equals(status) || "FAILED".equals(status) || "CANCELED".equals(status);
+        }
+
+        VoiceAnalysisJobResponse response() {
+            java.util.List<VoiceAnalysisJobResponse.Component> details = components.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(entry -> new VoiceAnalysisJobResponse.Component(
+                            null, entry.getKey(), entry.getValue(), null, null, null))
+                    .toList();
+            return new VoiceAnalysisJobResponse(id, session.id, null, requestId, aiJobId, "TIMBRE", status,
+                    failureCode, failureReason, "FAILED".equals(status), startedAt, completedAt,
+                    audioExpiresAt, duplicate, details);
+        }
+    }
 }

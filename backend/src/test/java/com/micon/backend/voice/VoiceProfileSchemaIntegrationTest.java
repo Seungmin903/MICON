@@ -19,6 +19,8 @@ class VoiceProfileSchemaIntegrationTest {
             assertThat(tableExists(connection, "VOICE_ANALYSIS_SESSION")).isTrue();
             assertThat(tableExists(connection, "USER_VOICE_PROFILE")).isTrue();
             assertThat(tableExists(connection, "VOICE_MODEL_RESULT")).isTrue();
+            assertThat(tableExists(connection, "VOICE_ANALYSIS_JOB")).isTrue();
+            assertThat(columnExists(connection, "VOICE_ANALYSIS_COMPONENT_JOB", "ANALYSIS_JOB_ID")).isTrue();
             assertThat(tableExists(connection, "VOICE_ANALYSIS")).isFalse();
             assertThat(tableExists(connection, "VOCAL_RANGE_ANALYSIS")).isFalse();
             assertThat(tableExists(connection, "VOCAL_TIMBRE_ANALYSIS")).isFalse();

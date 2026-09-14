@@ -32,7 +32,7 @@ public class DirectVoiceAnalysisController {
 
     @PostMapping(consumes = "multipart/form-data")
     @Operation(summary = "녹음 파일 분석 요청",
-            description = "녹음 파일과 곡 시간축 메타데이터를 함께 받아 AI에 직접 전달하고 202와 분석 ID를 반환합니다.")
+            description = "WAV를 S3나 BE 저장소에 보관하지 않고 AI에 중계합니다. AI가 원음과 requestId를 영속화하고 QUEUED를 반환한 뒤에만 202를 반환합니다.")
     public ResponseEntity<ApiResponse<VoiceAnalysisJobResponse>> submit(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value="X-Guest-Session-Token",required=false) String guestToken,
