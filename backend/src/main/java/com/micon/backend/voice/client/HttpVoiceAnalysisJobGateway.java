@@ -1,14 +1,16 @@
 package com.micon.backend.voice.client;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
 
 @Component
 public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
@@ -32,21 +34,18 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
     @Override
     public Result submit(Command command) {
         MultipartBodyBuilder body = new MultipartBodyBuilder();
-        body.part("file", command.file().getResource())
-                .filename(command.file().getOriginalFilename() == null
-                        ? "recording" : command.file().getOriginalFilename())
-                .contentType(MediaType.parseMediaType(command.file().getContentType()));
-        var request = command.metadata();
-        body.part("meta", new Metadata(command.analysisId(), request.requestId(), "TIMBRE",
-                        java.util.List.of("ECAPA", "SINGER_BYOL"), request.method(),
-                        request.songId(), request.guideVersion(), request.recordedAt(), request.durationMs(),
-                        request.sampleRate(), request.startPositionType(), request.selectedStartMs(),
-                        request.actualStartMs(), request.instrumentalVersion(), request.lyricsVersion(),
-                        request.segments()))
+        addFile(body, command.file());
+        body.part("meta", new Metadata(command.analysisId(), command.sessionId(), command.recordingId(),
+                        command.requestId(), command.attemptNo(), command.components(), command.contractVersion()))
                 .contentType(MediaType.APPLICATION_JSON);
-        return restClient.post().uri("/voice-analysis-jobs")
+        var response = restClient.post().uri("/voice-analysis-jobs")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(body.build()).retrieve().body(Result.class);
+                .body(body.build()).retrieve().toEntity(Result.class);
+        if (response.getStatusCode() != HttpStatus.ACCEPTED || response.getBody() == null) {
+            throw new VoiceAnalysisJobGateway.Rejected(
+                    "AI must return 202 after persisting WAV and requestId");
+        }
+        return response.getBody();
     }
 
     @Override
@@ -66,10 +65,16 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                 .body(body.build()).retrieve().body(Result.class);
     }
 
-    private void addFile(MultipartBodyBuilder body, org.springframework.web.multipart.MultipartFile file) {
+    private void addFile(MultipartBodyBuilder body, MultipartFile file) {
+        MediaType contentType;
+        try {
+            contentType = MediaType.parseMediaType(file.getContentType());
+        } catch (RuntimeException exception) {
+            contentType = MediaType.APPLICATION_OCTET_STREAM;
+        }
         body.part("file", file.getResource())
                 .filename(file.getOriginalFilename() == null ? "recording.wav" : file.getOriginalFilename())
-                .contentType(MediaType.parseMediaType(file.getContentType()));
+                .contentType(contentType);
     }
 
     @Override
@@ -78,13 +83,9 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                 .retrieve().toBodilessEntity();
     }
 
-    private record Metadata(long analysisId, String requestId, String analysisType, java.util.List<String> components,
-                            com.micon.backend.voice.domain.VoiceAnalysisMethod method,
-                            Long songId, String guideVersion, java.time.LocalDateTime recordedAt,
-                            int durationMs, int sampleRate, String startPositionType,
-                            int selectedStartMs, int actualStartMs, String instrumentalVersion,
-                            String lyricsVersion,
-                            java.util.List<com.micon.backend.voice.api.VoiceAnalysisUploadRequest.Segment> segments) { }
+    private record Metadata(long analysisId, long sessionId, Long recordingId, String requestId,
+                            int attemptNo, java.util.List<String> components,
+                            String contractVersion) { }
 
     private record RangeMetadata(long analysisId, long sessionId, String requestId, int attemptNo,
                                  String analysisType, java.util.List<String> components,

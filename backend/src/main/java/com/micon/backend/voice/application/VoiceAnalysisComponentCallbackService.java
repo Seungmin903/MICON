@@ -14,6 +14,7 @@ import com.micon.backend.voice.domain.VoiceRangeMeasurement;
 import com.micon.backend.voice.domain.VoiceRangeMeasurementRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -34,8 +35,12 @@ public class VoiceAnalysisComponentCallbackService {
     public VoiceAnalysisComponentCallbackService(VoiceAnalysisComponentJobRepository jobs,
             VoiceModelResultRepository results, ObjectMapper json, VoiceRangeMeasurementRepository ranges,
             VoiceSessionService sessions, VoiceAnalysisJobRepository parentJobs) {
-        this.jobs=jobs; this.results=results; this.json=json; this.ranges=ranges; this.sessions=sessions;
-        this.parentJobs=parentJobs;
+        this.jobs = jobs;
+        this.results = results;
+        this.json = json;
+        this.ranges = ranges;
+        this.sessions = sessions;
+        this.parentJobs = parentJobs;
     }
 
     @Transactional
@@ -44,21 +49,14 @@ public class VoiceAnalysisComponentCallbackService {
         if (guest != null) return guest;
         guest = sessions.acceptGuestTimbreCallback(request);
         if (guest != null) return guest;
-        if (parentJobs != null) {
-            VoiceAnalysisJob parent = parentJobs.findByRequestIdForUpdate(request.requestId()).orElse(null);
-            if (parent != null) return acceptTimbre(parent, request);
-        }
+
+        VoiceAnalysisJob parent = parentJobs.findByRequestIdForUpdate(request.requestId()).orElse(null);
+        if (parent != null) return acceptTimbre(parent, request);
+
         VoiceAnalysisComponentJob job = jobs.findByRequestIdForUpdate(request.requestId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK));
-        try {
-            job.bindAiJobId(request.jobId());
-        } catch (IllegalStateException exception) {
-            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
-        }
-        if (request.attemptNo() != job.getAttemptNo()) {
-            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
-                    "현재 작업의 시도 번호와 일치하지 않습니다.");
-        }
+        bind(job, request.jobId());
+        ensureAttempt(job.getAttemptNo(), request.attemptNo());
         if (job.isTerminal()) return response(job, true);
         switch (request.status()) {
             case RUNNING -> job.running(request.processedAt());
@@ -77,27 +75,62 @@ public class VoiceAnalysisComponentCallbackService {
         return response(job, false);
     }
 
-    private VoiceAnalysisComponentCallbackResponse acceptTimbre(VoiceAnalysisJob parent,
-                                                                  VoiceAnalysisComponentCallbackRequest request) {
-        if (parent.getAiJobId()==null || !parent.getAiJobId().equals(request.jobId())
-                || parent.getAttemptNo()!=request.attemptNo()
-                || request.modelKey()==null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
-        VoiceAnalysisComponentJob child=jobs.findByAnalysisJobIdAndComponentType(parent.getId(),request.modelKey())
-                .orElseThrow(()->new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK));
-        if(child.isTerminal()) return response(child,true);
-        switch(request.status()) {
-            case RUNNING -> { child.running(request.processedAt()); parent.running(request.processedAt()); }
-            case COMPLETED -> complete(child,request);
-            case FAILED -> child.fail(value(request.failureCode(),"AI_ANALYSIS_FAILED"),request.failureReason(),request.processedAt());
-            case INSUFFICIENT_DATA -> child.insufficient(value(request.failureCode(),"INSUFFICIENT_DATA"),request.failureReason(),request.processedAt());
+    private VoiceAnalysisComponentCallbackResponse acceptTimbre(
+            VoiceAnalysisJob parent, VoiceAnalysisComponentCallbackRequest request) {
+        try {
+            parent.bindAiJobId(request.jobId());
+        } catch (IllegalStateException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
         }
-        java.util.List<VoiceAnalysisComponentJob> all=jobs.findByAnalysisJobId(parent.getId());
-        if(all.stream().allMatch(x->"COMPLETED".equals(x.getStatus()))) {parent.complete(request.processedAt());parent.getSession().completeTimbreAnalysis(request.processedAt());}
-        else if(all.stream().anyMatch(x->"FAILED".equals(x.getStatus())||"INSUFFICIENT_DATA".equals(x.getStatus()))) {parent.fail("COMPONENT_FAILED","추가 분석이 필요합니다.",request.processedAt());parent.getSession().failTimbreAnalysis(false,request.processedAt());}
-        return response(child,false);
+        ensureAttempt(parent.getAttemptNo(), request.attemptNo());
+        String componentType = componentType(request);
+        List<VoiceAnalysisComponentJob> children = jobs.findByAnalysisJobIdForUpdate(parent.getId());
+        VoiceAnalysisComponentJob child = children.stream()
+                .filter(job -> job.getComponentType().equals(componentType))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK));
+        if (child.isTerminal()) return response(parent, true);
+
+        switch (request.status()) {
+            case RUNNING -> {
+                child.running(request.processedAt());
+                parent.running(request.processedAt());
+            }
+            case COMPLETED -> complete(child, request);
+            case FAILED -> child.fail(value(request.failureCode(), "AI_ANALYSIS_FAILED"),
+                    request.failureReason(), request.processedAt());
+            case INSUFFICIENT_DATA -> child.insufficient(value(request.failureCode(), "INSUFFICIENT_DATA"),
+                    request.failureReason(), request.processedAt());
+        }
+        aggregate(parent, children, request.processedAt());
+        return response(parent, false);
     }
 
-    private void failSession(VoiceAnalysisComponentJob job, boolean insufficient, java.time.LocalDateTime at) {
+    private String componentType(VoiceAnalysisComponentCallbackRequest request) {
+        String component = request.component();
+        if (component == null || component.isBlank()) component = request.modelKey();
+        if (component == null || component.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
+        }
+        return component;
+    }
+
+    private void bind(VoiceAnalysisComponentJob job, String aiJobId) {
+        try {
+            job.bindAiJobId(aiJobId);
+        } catch (IllegalStateException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
+        }
+    }
+
+    private void ensureAttempt(int expected, Integer actual) {
+        if (actual == null || actual != expected) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
+                    "현재 작업의 시도 번호와 일치하지 않습니다.");
+        }
+    }
+
+    private void failSession(VoiceAnalysisComponentJob job, boolean insufficient, LocalDateTime at) {
         if ("RANGE".equals(job.getComponentType())) job.getSession().failRangeAnalysis(at);
         else job.getSession().failTimbreAnalysis(insufficient, at);
     }
@@ -117,7 +150,7 @@ public class VoiceAnalysisComponentCallbackService {
                 || request.modelVersion() == null || request.modelVersion().isBlank()
                 || request.dimension() == null || request.dimension() != expectedDimension
                 || embedding == null || embedding.size() != expectedDimension
-                || embedding.stream().anyMatch(value -> value == null || !Double.isFinite(value))
+                || embedding.stream().anyMatch(item -> item == null || !Double.isFinite(item))
                 || request.segmentInfo() == null || request.segmentInfo().isNull()) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
                     "모델 키·버전·임베딩 차원·구간 정보가 완료 계약과 일치하지 않습니다.");
@@ -140,8 +173,10 @@ public class VoiceAnalysisComponentCallbackService {
                 || request.lowMidi() == null || request.highMidi() == null
                 || request.lowMidi().compareTo(request.highMidi()) > 0
                 || request.noteResults() == null || request.noteResults().isNull()
-                || !java.util.Set.of("AVAILABLE", "INSUFFICIENT_DATA", "FAILED").contains(request.measurementStatus())
-                || !java.util.Set.of("VALID", "NOISY", "CLIPPED", "INSUFFICIENT_VOICE").contains(request.qualityStatus())) {
+                || !java.util.Set.of("AVAILABLE", "INSUFFICIENT_DATA", "FAILED")
+                        .contains(request.measurementStatus())
+                || !java.util.Set.of("VALID", "NOISY", "CLIPPED", "INSUFFICIENT_VOICE")
+                        .contains(request.qualityStatus())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
                     "음역 분석 결과가 RANGE 완료 계약과 일치하지 않습니다.");
         }
@@ -155,9 +190,29 @@ public class VoiceAnalysisComponentCallbackService {
         job.getSession().acceptRange(request.measurementStatus());
     }
 
+    private void aggregate(VoiceAnalysisJob parent, List<VoiceAnalysisComponentJob> children, LocalDateTime at) {
+        if (children.stream().allMatch(job -> "COMPLETED".equals(job.getStatus()))) {
+            parent.complete(at);
+            parent.getSession().completeTimbreAnalysis(at);
+            return;
+        }
+        if (children.stream().allMatch(VoiceAnalysisComponentJob::isTerminal)) {
+            boolean insufficient = children.stream()
+                    .anyMatch(job -> "INSUFFICIENT_DATA".equals(job.getStatus()));
+            parent.fail(insufficient ? "INSUFFICIENT_DATA" : "COMPONENT_FAILED",
+                    "하나 이상의 음색 분석 컴포넌트가 완료되지 않았습니다.", at);
+            parent.getSession().failTimbreAnalysis(insufficient, at);
+            return;
+        }
+        parent.running(at);
+    }
+
     private String write(Object value) {
-        try { return json.writeValueAsString(value); }
-        catch (JacksonException exception) { throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK); }
+        try {
+            return json.writeValueAsString(value);
+        } catch (JacksonException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
+        }
     }
 
     private String writeNullable(JsonNode value) {
@@ -178,6 +233,10 @@ public class VoiceAnalysisComponentCallbackService {
     }
 
     private VoiceAnalysisComponentCallbackResponse response(VoiceAnalysisComponentJob job, boolean duplicate) {
+        return new VoiceAnalysisComponentCallbackResponse(job.getId(), job.getStatus(), duplicate);
+    }
+
+    private VoiceAnalysisComponentCallbackResponse response(VoiceAnalysisJob job, boolean duplicate) {
         return new VoiceAnalysisComponentCallbackResponse(job.getId(), job.getStatus(), duplicate);
     }
 }

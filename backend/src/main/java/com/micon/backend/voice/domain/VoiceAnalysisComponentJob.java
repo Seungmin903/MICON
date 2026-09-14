@@ -8,10 +8,10 @@ import java.time.LocalDateTime;
 public class VoiceAnalysisComponentJob {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "component_job_id") private Long id;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "session_id", nullable = false) private VoiceAnalysisSession session;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "analysis_job_id") private VoiceAnalysisJob analysisJob;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "session_id", nullable = false) private VoiceAnalysisSession session;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recording_id") private VoiceRecording recording;
     @Column(name = "component_type", nullable = false, length = 30) private String componentType;
@@ -76,6 +76,14 @@ public class VoiceAnalysisComponentJob {
         if (isTerminal() || "RUNNING".equals(status)) return;
         if (!"PENDING".equals(status) && !"DISPATCH_UNKNOWN".equals(status))
             throw new IllegalStateException("only pending job can be queued");
+        this.status = "QUEUED";
+        this.startedAt = at;
+        this.updatedAt = at;
+    }
+
+    public void queued(LocalDateTime at) {
+        if (isTerminal() || "RUNNING".equals(status)) return;
+        if (!"PENDING".equals(status)) throw new IllegalStateException("only pending job can be queued");
         this.status = "QUEUED";
         this.startedAt = at;
         this.updatedAt = at;
