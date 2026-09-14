@@ -44,6 +44,15 @@ class SongQueryRepositoryTest {
 	}
 
 	@Test
+	void returnsAllSongsOnTheRequestedPageWhenQueryIsBlank() {
+		List<SongResponse.Summary> songs = repository.findPage("", 20, 0);
+
+		assertThat(repository.count("")).isEqualTo(2);
+		assertThat(songs).extracting(SongResponse.Summary::title)
+			.containsExactly("밤편지", "좋은 날");
+	}
+
+	@Test
 	void readsDetailFromProvidedSongTables() {
 		SongQueryRepository.SongDetailRow detail = repository.findDetail(1L).orElseThrow();
 
@@ -79,7 +88,7 @@ class SongQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_SINGER (
-			  singer_id BIGINT, song_id BIGINT, `order` INT
+			  singer_id BIGINT, song_id BIGINT, display_order INT
 			)
 			""");
 		jdbcTemplate.execute("""

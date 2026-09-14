@@ -4,17 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.voice.api.VoiceAnalysisComponentCallbackRequest;
 import com.micon.backend.voice.application.VoiceAnalysisComponentCallbackService;
+import com.micon.backend.voice.application.VoiceSessionService;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJob;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJobRepository;
+import com.micon.backend.voice.domain.VoiceAnalysisJob;
+import com.micon.backend.voice.domain.VoiceAnalysisJobRepository;
 import com.micon.backend.voice.domain.VoiceAnalysisSession;
 import com.micon.backend.voice.domain.VoiceModelResult;
 import com.micon.backend.voice.domain.VoiceModelResultRepository;
+import com.micon.backend.voice.domain.VoiceRangeMeasurementRepository;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
@@ -25,18 +30,29 @@ import tools.jackson.databind.ObjectMapper;
 
 class VoiceAnalysisComponentCallbackServiceTest {
     private final VoiceAnalysisComponentJobRepository jobs = mock(VoiceAnalysisComponentJobRepository.class);
+    private final VoiceAnalysisJobRepository parentJobs = mock(VoiceAnalysisJobRepository.class);
     private final VoiceModelResultRepository results = mock(VoiceModelResultRepository.class);
+    private final VoiceSessionService voiceSessions = mock(VoiceSessionService.class);
     private final VoiceAnalysisComponentJob job = mock(VoiceAnalysisComponentJob.class);
     private final VoiceAnalysisSession session = mock(VoiceAnalysisSession.class);
-    private final VoiceAnalysisComponentCallbackService service =
-            new VoiceAnalysisComponentCallbackService(jobs, results, new ObjectMapper());
+    private final VoiceAnalysisJob parent = mock(VoiceAnalysisJob.class);
+    private final VoiceAnalysisComponentCallbackService service = new VoiceAnalysisComponentCallbackService(
+            jobs, results, new ObjectMapper(), mock(VoiceRangeMeasurementRepository.class),
+            voiceSessions, parentJobs);
 
     @BeforeEach
     void setUp() {
-        when(jobs.findByRequestIdForUpdate("request-1")).thenReturn(Optional.of(job));
+        when(parentJobs.findByRequestIdForUpdate("request-1")).thenReturn(Optional.of(parent));
+        when(parent.getId()).thenReturn(31L);
+        when(parent.getSession()).thenReturn(session);
+        when(parent.getAttemptNo()).thenReturn(1);
+        when(parent.getStatus()).thenReturn("COMPLETED");
+        when(jobs.findByAnalysisJobIdForUpdate(31L)).thenReturn(java.util.List.of(job));
         when(job.getId()).thenReturn(11L);
         when(job.getSession()).thenReturn(session);
+        when(job.getAnalysisJob()).thenReturn(parent);
         when(job.getComponentType()).thenReturn("SINGER_BYOL");
+        when(job.getAttemptNo()).thenReturn(1);
         when(job.isTerminal()).thenReturn(false);
         when(job.getStatus()).thenReturn("COMPLETED");
         when(session.getId()).thenReturn(7L);
@@ -53,7 +69,7 @@ class VoiceAnalysisComponentCallbackServiceTest {
         assertThat(captor.getValue().getVectorJson()).isNotBlank();
         verify(job).complete(any(), any(), any());
         verify(session).completeTimbreAnalysis(any());
-        assertThat(response.analysisId()).isEqualTo(11L);
+        assertThat(response.analysisId()).isEqualTo(31L);
     }
 
     @Test
@@ -63,11 +79,26 @@ class VoiceAnalysisComponentCallbackServiceTest {
                 .hasMessageContaining("임베딩");
     }
 
+    @Test
+    void keepsParentRunningUntilBothModelComponentsFinish() {
+        VoiceAnalysisComponentJob ecapa = mock(VoiceAnalysisComponentJob.class);
+        when(ecapa.getComponentType()).thenReturn("ECAPA");
+        when(ecapa.getStatus()).thenReturn("QUEUED");
+        when(ecapa.isTerminal()).thenReturn(false);
+        when(jobs.findByAnalysisJobIdForUpdate(31L)).thenReturn(java.util.List.of(ecapa, job));
+
+        service.accept(completed(Collections.nCopies(1000, 0.125), 1000));
+
+        verify(parent).running(any());
+        verify(session, never()).completeTimbreAnalysis(any());
+    }
+
     private VoiceAnalysisComponentCallbackRequest completed(java.util.List<Double> embedding, int dimension) {
         ObjectMapper mapper = new ObjectMapper();
-        return new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1",
+        return new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1", "SINGER_BYOL",
                 VoiceAnalysisComponentCallbackRequest.Status.COMPLETED, "SINGER_BYOL", "v2",
                 dimension, embedding, mapper.createObjectNode().put("validChunkCount", 5),
-                mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now());
+                mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now(),
+                1, null, null, null, null, null, null, null);
     }
 }

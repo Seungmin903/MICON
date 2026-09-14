@@ -15,20 +15,14 @@ class VoiceAnalysisUploadValidatorTest {
     private final VoiceAnalysisUploadValidator validator = new VoiceAnalysisUploadValidator(262_144_000);
 
     @Test
-    void acceptsHighQualitySongSampleWithFiveValidSegments() {
+    void acceptsWavAndLeavesSampleQualityValidationToAi() {
         validator.validate(file("sample.wav", "audio/wav"), request(44_100, validSegments()));
+        validator.validate(file("sample.wav", "audio/wav"),
+                request(16_000, validSegments().subList(0, 4)));
     }
 
     @Test
-    void rejectsSixteenKhzSongSample() {
-        assertThatThrownBy(() -> validator.validate(file("sample.wav", "audio/wav"),
-                request(16_000, validSegments())))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("44.1kHz");
-    }
-
-    @Test
-    void rejectsOpusUntilEveryClientUsesTheSameContainerContract() {
+    void rejectsFormatsOutsideTheWavContract() {
         assertThatThrownBy(() -> validator.validate(file("sample.opus", "audio/ogg"),
                 request(48_000, validSegments())))
                 .isInstanceOf(BusinessException.class)
@@ -36,15 +30,17 @@ class VoiceAnalysisUploadValidatorTest {
     }
 
     @Test
-    void rejectsSongSampleWithoutFiveFourSecondSegments() {
-        assertThatThrownBy(() -> validator.validate(file("sample.flac", "audio/flac"),
-                request(48_000, validSegments().subList(0, 4))))
+    void rejectsWavExtensionWithoutRiffWaveHeader() {
+        MockMultipartFile invalid = new MockMultipartFile("file", "sample.wav", "audio/wav",
+                new byte[] {1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(invalid, request(48_000, validSegments())))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("최소 5개");
+                .hasMessageContaining("RIFF/WAVE");
     }
 
     private MockMultipartFile file(String name, String contentType) {
-        return new MockMultipartFile("file", name, contentType, new byte[] {1, 2, 3});
+        byte[] wav = new byte[] {'R', 'I', 'F', 'F', 4, 0, 0, 0, 'W', 'A', 'V', 'E', 0, 0, 0, 0};
+        return new MockMultipartFile("file", name, contentType, wav);
     }
 
     private VoiceAnalysisUploadRequest request(int sampleRate,
