@@ -5,12 +5,6 @@ import com.micon.backend.practice.api.PracticeResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Collection;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import javax.sql.DataSource;
-import org.springframework.dao.DataAccessResourceFailureException;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -112,7 +106,7 @@ public class PracticeRepository {
 	public Optional<PracticeResponse.Detail> findOwned(Long practiceId, Long userId) {
 		String sql = """
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, ps.section_id,
-				       ps.recording_id, ps.voice_analysis_id, ps.selected_key, ps.playback_speed,
+				       ps.recording_id, ps.selected_key, ps.playback_speed,
 				       ps.custom_start_ms, ps.custom_end_ms, ps.practice_scope, ps.status,
 				       ps.started_at, ps.ended_at, ps.duration_ms, ps.created_at
 				FROM practice_session ps
@@ -126,7 +120,7 @@ public class PracticeRepository {
 				resultSet.getString("song_title"),
 				resultSet.getObject("section_id", Long.class),
 				resultSet.getObject("recording_id", Long.class),
-				resultSet.getObject("voice_analysis_id", Long.class),
+				null,
 				resultSet.getInt("selected_key"),
 				resultSet.getBigDecimal("playback_speed"),
 				resultSet.getObject("custom_start_ms", Integer.class),
@@ -150,7 +144,7 @@ public class PracticeRepository {
 		String sql = """
 				UPDATE practice_session
 				SET status = 'COMPLETED', ended_at = CURRENT_TIMESTAMP(6),
-				    duration_ms = :durationMs, voice_analysis_id = :voiceAnalysisId,
+				    duration_ms = :durationMs,
 				    recording_id = COALESCE(:recordingId, recording_id)
 				WHERE practice_id = :practiceId AND user_id = :userId
 				  AND status IN ('RECORDING', 'IN_PROGRESS', 'PAUSED')
@@ -159,7 +153,6 @@ public class PracticeRepository {
 			.addValue("practiceId", practiceId)
 			.addValue("userId", userId)
 			.addValue("durationMs", durationMs)
-			.addValue("voiceAnalysisId", voiceAnalysisId)
 			.addValue("recordingId", recordingId));
 	}
 
@@ -207,33 +200,4 @@ public class PracticeRepository {
 	public record SongRow(Long songId, Long durationMs, boolean practiceReady) {
 	}
 
-	public int clearVoiceAnalysisReferences(Collection<Long> analysisIds) {
-		if (analysisIds.isEmpty() || !tableExists("practice_session")) {
-			return 0;
-		}
-		return jdbcTemplate.update("""
-				UPDATE practice_session
-				SET voice_analysis_id = NULL
-				WHERE voice_analysis_id IN (:analysisIds)
-				""", Map.of("analysisIds", analysisIds));
-	}
-
-	private boolean tableExists(String tableName) {
-		DataSource dataSource = jdbcTemplate.getJdbcTemplate().getDataSource();
-		if (dataSource == null) {
-			throw new DataAccessResourceFailureException("DataSource is not available");
-		}
-		try (Connection connection = dataSource.getConnection();
-			 ResultSet tables = connection.getMetaData().getTables(
-				 connection.getCatalog(), null, null, new String[] {"TABLE"})) {
-			while (tables.next()) {
-				if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
-					return true;
-				}
-			}
-			return false;
-		} catch (SQLException exception) {
-			throw new DataAccessResourceFailureException("Failed to inspect database tables", exception);
-		}
-	}
 }

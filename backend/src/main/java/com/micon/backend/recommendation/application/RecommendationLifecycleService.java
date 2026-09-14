@@ -6,8 +6,8 @@ import com.micon.backend.recommendation.domain.Recommendation;
 import com.micon.backend.recommendation.domain.RecommendationMode;
 import com.micon.backend.recommendation.domain.RecommendationRepository;
 import com.micon.backend.recommendation.domain.RecommendationStatus;
-import com.micon.backend.voice.domain.VoiceAnalysis;
-import com.micon.backend.voice.domain.VoiceAnalysisRepository;
+import com.micon.backend.voice.domain.UserVoiceProfile;
+import com.micon.backend.voice.domain.UserVoiceProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,24 +15,24 @@ import java.time.LocalDateTime;
 
 @Service
 public class RecommendationLifecycleService {
-    private final VoiceAnalysisRepository analyses;
+    private final UserVoiceProfileRepository profiles;
     private final RecommendationRepository recommendations;
 
-    public RecommendationLifecycleService(VoiceAnalysisRepository analyses,
+    public RecommendationLifecycleService(UserVoiceProfileRepository profiles,
                                           RecommendationRepository recommendations) {
-        this.analyses = analyses;
+        this.profiles = profiles;
         this.recommendations = recommendations;
     }
 
     @Transactional
-    public Created create(long userId, long voiceAnalysisId, RecommendationMode mode) {
-        VoiceAnalysis analysis = analyses.findByIdAndUserIdForUpdate(voiceAnalysisId, userId)
+    public Created create(long userId, long profileId, RecommendationMode mode) {
+        UserVoiceProfile profile = profiles.findByIdAndUserId(profileId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
-        if (recommendations.existsByVoiceAnalysisIdAndStatus(voiceAnalysisId, RecommendationStatus.GENERATING)) {
+        if (recommendations.existsByVoiceProfileIdAndStatus(profileId, RecommendationStatus.GENERATING)) {
             throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_GENERATING);
         }
         Recommendation recommendation = recommendations.saveAndFlush(
-                new Recommendation(analysis.getUser(), analysis, mode));
+                new Recommendation(profile.getUser(), profile, mode));
         return new Created(recommendation.getId(), recommendation.getGeneratedAt());
     }
 

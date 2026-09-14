@@ -27,8 +27,8 @@ class RecommendationResultStoreIntegrationTest {
     @Autowired RecommendationShelfRepository shelves;
     @Autowired RecommendationSongRepository songs;
     @Autowired UserRepository users;
-    @Autowired VoiceRecordingRepository recordings;
-    @Autowired VoiceAnalysisRepository analyses;
+    @Autowired VoiceAnalysisSessionRepository sessions;
+    @Autowired UserVoiceProfileRepository profiles;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper json;
     @Autowired EntityManager entityManager;
@@ -105,11 +105,10 @@ class RecommendationResultStoreIntegrationTest {
 
     private Recommendation recommendation(String email, String jobId) {
         User user = users.saveAndFlush(new User(email, "encoded-password"));
-        VoiceRecording recording = recordings.saveAndFlush(
-                new VoiceRecording(user, (short) 1, "voice/input.wav", "audio/wav", false));
-        VoiceAnalysis analysis = analyses.saveAndFlush(
-                new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
-        Recommendation recommendation = new Recommendation(user, analysis, RecommendationMode.OVERALL);
+        VoiceAnalysisSession session = sessions.saveAndFlush(
+                new VoiceAnalysisSession(user, null, java.time.LocalDateTime.now().plusHours(1)));
+        UserVoiceProfile profile = profiles.saveAndFlush(new UserVoiceProfile(user, session, 1));
+        Recommendation recommendation = new Recommendation(user, profile, RecommendationMode.OVERALL);
         recommendation.assignJob(jobId);
         return recommendations.saveAndFlush(recommendation);
     }

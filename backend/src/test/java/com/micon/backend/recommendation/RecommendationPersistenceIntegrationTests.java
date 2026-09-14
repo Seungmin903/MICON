@@ -10,11 +10,10 @@ import com.micon.backend.recommendation.domain.RecommendationSongRepository;
 import com.micon.backend.recommendation.domain.RecommendationStatus;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
-import com.micon.backend.voice.domain.VoiceAnalysis;
-import com.micon.backend.voice.domain.VoiceAnalysisMethod;
-import com.micon.backend.voice.domain.VoiceAnalysisRepository;
-import com.micon.backend.voice.domain.VoiceRecording;
-import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.domain.UserVoiceProfile;
+import com.micon.backend.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.voice.domain.VoiceAnalysisSessionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RecommendationPersistenceIntegrationTests {
 
     @Autowired UserRepository users;
-    @Autowired VoiceRecordingRepository recordings;
-    @Autowired VoiceAnalysisRepository analyses;
+    @Autowired VoiceAnalysisSessionRepository sessions;
+    @Autowired UserVoiceProfileRepository profiles;
     @Autowired RecommendationRepository recommendations;
     @Autowired RecommendationShelfRepository shelves;
     @Autowired RecommendationSongRepository songs;
@@ -123,12 +122,11 @@ class RecommendationPersistenceIntegrationTests {
 
     private Fixture fixture(String email) {
         User user = users.saveAndFlush(new User(email, "encoded-password"));
-        VoiceRecording recording = recordings.saveAndFlush(
-                new VoiceRecording(user, (short) 1, "recommendations/input.wav", "audio/wav", false));
-        VoiceAnalysis analysis = analyses.saveAndFlush(
-                new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        VoiceAnalysisSession session = sessions.saveAndFlush(
+                new VoiceAnalysisSession(user, null, LocalDateTime.now().plusHours(1)));
+        UserVoiceProfile profile = profiles.saveAndFlush(new UserVoiceProfile(user, session, 1));
         Recommendation recommendation = recommendations.saveAndFlush(
-                new Recommendation(user, analysis, RecommendationMode.OVERALL));
+                new Recommendation(user, profile, RecommendationMode.OVERALL));
         return new Fixture(recommendation);
     }
 

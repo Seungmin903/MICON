@@ -49,7 +49,7 @@ class HttpRecommendationJobGatewayTest {
         assertThat(result).isEqualTo(new RecommendationJobGateway.Result("job-123", "queued"));
         assertThat(authorization.get()).isEqualTo("Bearer service-token");
         assertThat(contentType.get()).startsWith("application/json");
-        assertThat(body.get("voiceAnalysisId").asLong()).isEqualTo(10L);
+        assertThat(body.get("profileId").asLong()).isEqualTo(10L);
         assertThat(body.get("sourceSongId").asLong()).isEqualTo(30L);
         assertThat(body.get("topK").asInt()).isEqualTo(50);
         assertThat(body.get("mode").asText()).isEqualTo("range");

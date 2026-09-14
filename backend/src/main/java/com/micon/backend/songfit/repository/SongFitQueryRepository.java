@@ -30,10 +30,12 @@ public class SongFitQueryRepository {
 
 	public Optional<UserRangeRow> findUserRange(Long userId, Long analysisId) {
 		String sql = """
-			SELECT va.status, vra.stable_low_midi, vra.stable_high_midi
-			FROM VOICE_ANALYSIS va
-			LEFT JOIN VOCAL_RANGE_ANALYSIS vra ON vra.voice_analysis_id = va.voice_analysis_id
-			WHERE va.voice_analysis_id = :analysisId AND va.user_id = :userId
+			SELECT vas.status, vrm.full_low_midi AS stable_low_midi,
+			       vrm.full_high_midi AS stable_high_midi
+			FROM user_voice_profile uvp
+			JOIN voice_analysis_session vas ON vas.session_id = uvp.session_id
+			LEFT JOIN voice_range_measurement vrm ON vrm.session_id = vas.session_id
+			WHERE uvp.profile_id = :analysisId AND uvp.user_id = :userId
 			""";
 		return jdbcTemplate.query(
 			sql,
@@ -73,7 +75,7 @@ public class SongFitQueryRepository {
 			FROM RECOMMENDATION r
 			JOIN RECOMMENDATION_SONG rs ON rs.recommendation_id = r.recommendation_id
 			WHERE r.user_id = :userId
-			  AND r.voice_analysis_id = :analysisId
+			  AND r.profile_id = :analysisId
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId
 			ORDER BY r.generated_at DESC, r.recommendation_id DESC

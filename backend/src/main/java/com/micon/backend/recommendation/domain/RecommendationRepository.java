@@ -15,7 +15,7 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
 
     Optional<Recommendation> findFirstByUserIdOrderByGeneratedAtDescIdDesc(Long userId);
 
-    boolean existsByVoiceAnalysisIdAndStatus(Long voiceAnalysisId, RecommendationStatus status);
+    boolean existsByVoiceProfileIdAndStatus(Long profileId, RecommendationStatus status);
 
     List<Recommendation> findByStatusAndJobIdIsNotNullOrderByGeneratedAt(RecommendationStatus status);
 
