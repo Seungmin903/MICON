@@ -51,6 +51,12 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.micon.app.data.local.UserStore
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.data.voice.VoiceAnalysisStatus
+import com.micon.app.ui.rememberAppContainer
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.charts.BpmGaugeRow
 import com.micon.app.ui.charts.MetricBar
@@ -94,6 +100,15 @@ fun VoiceReportScreen(
 ) {
     val profile by UserStore.profile.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf(false) }
+    // 로그인 사용자만 서버 최근 분석(`/voice-analyses/latest`)을 확인해 COMPLETED 결과를 프로필 카드에 반영한다.
+    val container = rememberAppContainer()
+    val loggedIn = onLogin == null
+    val reportVm: VoiceReportViewModel = viewModel(
+        key = "voice-report-$loggedIn",
+        factory = viewModelFactory { initializer { VoiceReportViewModel(container.voiceAnalyses, loggedIn) } },
+    )
+    val server by reportVm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(loggedIn) { reportVm.refresh() }
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
         Column(Modifier.fillMaxSize()) {
@@ -101,6 +116,7 @@ fun VoiceReportScreen(
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
                 PrimaryButton("목소리 분석하러 가기", onClick = { overlay = true }, Modifier.fillMaxWidth(), height = 66.dp)
                 Spacer(Modifier.height(16.dp))
+                AnalysisStatusBanner(server)
                 val p = profile
                 if (p == null) EmptyReport() else ReportCards(p)
                 Spacer(Modifier.height(24.dp))
@@ -146,6 +162,24 @@ private fun BigCircleButton(icon: ImageVector, label: String, caption: String, o
             Text(caption, fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
         }
     }
+}
+
+/** 서버 최근 분석이 아직 끝나지 않았거나 실패했을 때 한 줄 안내. 완료면 카드가 결과를 보여 주므로 표시하지 않는다. */
+@Composable
+private fun AnalysisStatusBanner(server: VoiceReportViewModel.UiState) {
+    val latest = server.latest
+    val text = when {
+        server.error != null -> server.error
+        latest == null || latest.status == VoiceAnalysisStatus.COMPLETED -> null
+        latest.status == VoiceAnalysisStatus.FAILED || latest.status == VoiceAnalysisStatus.INSUFFICIENT_DATA || latest.status == VoiceAnalysisStatus.CANCELED ->
+            "최근 분석이 완료되지 않았어요: " + (latest.failureReason?.takeIf { it.isNotBlank() } ?: latest.status.name)
+        else -> "서버에서 목소리를 분석하고 있어요. 끝나면 이 화면에 결과가 채워져요."
+    } ?: return
+    Text(
+        text, fontSize = 13.sp, color = Grey, lineHeight = 19.sp,
+        modifier = Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+    )
+    Spacer(Modifier.height(16.dp))
 }
 
 @Composable

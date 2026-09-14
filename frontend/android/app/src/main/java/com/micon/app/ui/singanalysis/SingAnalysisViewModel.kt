@@ -20,6 +20,8 @@ import com.micon.app.data.singanalysis.SingScopeResolver
 import com.micon.app.data.singanalysis.SingTake
 import com.micon.app.data.singanalysis.SongAnalysisSubmitter
 import com.micon.app.data.singanalysis.SubmitResult
+import com.micon.app.data.voice.VoiceAnalysisRepository
+import com.micon.app.data.voice.VoiceAnalysisStatus
 import com.micon.app.scoring.LiveNote
 import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.LyricSheet
@@ -59,9 +61,15 @@ class SingAnalysisViewModel(
     mediaHttp: OkHttpClient,
     private val store: SingAnalysisRecordingStore,
     private val submitter: SongAnalysisSubmitter,
+    private val voice: VoiceAnalysisRepository,
 ) : ViewModel() {
     enum class Phase { LOADING, SETUP, COUNTDOWN, RUNNING, PAUSED, SAVING, DONE, ERROR }
-    enum class SubmitPhase { NONE, SENDING, DONE, UNAVAILABLE, ERROR }
+
+    /**
+     * 분석 요청 상태. SENDING(업로드·요청 중) → DONE(접수, 서버 상태 폴링 중) → COMPLETED | FAILED.
+     * UNAVAILABLE 은 비회원·AI 미준비처럼 지금은 못 하는 정상 상태, ERROR 는 요청 자체가 실패한 경우. 둘 다 다시 요청할 수 있다.
+     */
+    enum class SubmitPhase { NONE, SENDING, DONE, COMPLETED, FAILED, UNAVAILABLE, ERROR }
 
     data class Submit(val phase: SubmitPhase = SubmitPhase.NONE, val message: String = "")
 
@@ -116,6 +124,7 @@ class SingAnalysisViewModel(
     private var lastMicUpdate = 0L
     private var tickJob: Job? = null
     private var countdownJob: Job? = null
+    private var pollJob: Job? = null
     private var recordingId: String? = null
     private var wavFile: File? = null
     private var takePlayer: MediaPlayer? = null
@@ -212,6 +221,7 @@ class SingAnalysisViewModel(
         }
         recordingId = id
         wavFile = file
+        pollJob?.cancel()
         _state.update { it.copy(plan = plan, saved = null, endedEarly = false, submit = Submit(), error = null, nowSec = plan.startSec, elapsedRecSec = 0.0) }
         beginPlayback(plan.startSec, countFrom = meter)
     }
@@ -354,6 +364,7 @@ class SingAnalysisViewModel(
         takes.clear(); openTake = null
         recordingId = null; wavFile = null
         player.seekTo(0.0)
+        pollJob?.cancel()
         _state.update { it.copy(phase = Phase.SETUP, plan = null, nowSec = 0.0, elapsedRecSec = 0.0, saved = null, endedEarly = false, submit = Submit(), error = null, confirmEnd = false, plans = resolvePlans(it.durationSec)) }
     }
 
@@ -387,22 +398,59 @@ class SingAnalysisViewModel(
 
     // ------------------------------------------------------------------ 저장 후
 
-    /** 분석 요청 — [SongAnalysisSubmitter] 에 넘긴다. 기본 구현은 "연동 준비 중". */
+    /** 분석 요청 — [SongAnalysisSubmitter](백엔드 `/recordings` → `/voice-analyses`)에 넘기고, 접수되면 서버 상태를 폴링한다. */
     fun submit() {
         val saved = _state.value.saved ?: return
         if (_state.value.submit.phase == SubmitPhase.SENDING) return
+        pollJob?.cancel()
         _state.update { it.copy(submit = Submit(SubmitPhase.SENDING, "분석을 요청하고 있어요")) }
         viewModelScope.launch {
             val result = runCatching { submitter.submit(saved) { msg -> _state.update { it.copy(submit = it.submit.copy(message = msg)) } } }
                 .getOrElse { e -> SubmitResult.Failed("분석 요청 실패: ${e.message ?: e.toString()}") }
+            // 서버 id 가 메타에 적혔으면 화면의 saved 도 갱신한다(저장 위치 표시, 재요청 시 재업로드 생략)
+            val refreshed = withContext(Dispatchers.IO) { runCatching { store.list().firstOrNull { it.id == saved.id } }.getOrNull() } ?: saved
             _state.update {
                 it.copy(
+                    saved = refreshed,
                     submit = when (result) {
                         is SubmitResult.Accepted -> Submit(SubmitPhase.DONE, result.message)
                         is SubmitResult.Unavailable -> Submit(SubmitPhase.UNAVAILABLE, result.message)
                         is SubmitResult.Failed -> Submit(SubmitPhase.ERROR, result.message)
                     },
                 )
+            }
+            if (result is SubmitResult.Accepted) result.analysisId?.let(::startPolling)
+        }
+    }
+
+    /**
+     * 접수된 분석의 서버 상태를 [POLL_INTERVAL_MS] 마다 확인한다. AI 서버가 없으면 READY/ANALYZING 에 머무르므로
+     * [POLL_MAX_MS] 뒤에는 멈추고 "리포트 탭에서 확인" 문구만 남긴다(리포트 탭이 `latest` 로 다시 본다).
+     */
+    private fun startPolling(analysisId: Long) {
+        pollJob?.cancel()
+        pollJob = viewModelScope.launch {
+            val started = System.currentTimeMillis()
+            while (isActive && System.currentTimeMillis() - started < POLL_MAX_MS) {
+                delay(POLL_INTERVAL_MS)
+                val analysis = runCatching { voice.get(analysisId) }.getOrNull() ?: continue
+                when (analysis.status) {
+                    VoiceAnalysisStatus.COMPLETED -> {
+                        _state.update { it.copy(submit = Submit(SubmitPhase.COMPLETED, "분석이 끝났어요. 리포트에서 결과를 확인해 보세요.")) }
+                        return@launch
+                    }
+                    VoiceAnalysisStatus.FAILED, VoiceAnalysisStatus.INSUFFICIENT_DATA, VoiceAnalysisStatus.CANCELED -> {
+                        val reason = analysis.failureReason?.takeIf { it.isNotBlank() }
+                            ?: if (analysis.status == VoiceAnalysisStatus.INSUFFICIENT_DATA) "분석에 쓸 수 있는 목소리 구간이 부족했어요. 더 길게 불러 보세요." else "서버에서 분석이 중단됐어요."
+                        _state.update { it.copy(submit = Submit(SubmitPhase.FAILED, reason)) }
+                        return@launch
+                    }
+                    VoiceAnalysisStatus.ANALYZING -> _state.update { it.copy(submit = it.submit.copy(message = "서버가 분석하고 있어요…")) }
+                    else -> _state.update { it.copy(submit = it.submit.copy(message = "분석 순서를 기다리고 있어요")) }
+                }
+            }
+            if (isActive && _state.value.submit.phase == SubmitPhase.DONE) {
+                _state.update { it.copy(submit = it.submit.copy(message = "분석이 진행 중이에요. 결과는 리포트 탭에서 확인할 수 있어요.")) }
             }
         }
     }
@@ -431,6 +479,7 @@ class SingAnalysisViewModel(
     override fun onCleared() {
         countdownJob?.cancel()
         tickJob?.cancel()
+        pollJob?.cancel()
         // 저장된 녹음(JSON 있음)은 건드리지 않는다. 미저장 WAV 만 정리.
         if (capture.isRunning) {
             capture.stop()
@@ -445,5 +494,7 @@ class SingAnalysisViewModel(
     private companion object {
         /** 이보다 짧은 녹음은 저장하지 않는다(초) */
         const val MIN_SECONDS = 2
+        const val POLL_INTERVAL_MS = 3_000L
+        const val POLL_MAX_MS = 120_000L
     }
 }

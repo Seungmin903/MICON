@@ -47,6 +47,10 @@ data class SingRecordingMeta(
     val wavFileName: String,
     /** 백엔드 practice-assets 의 dataVersion (음표·가사 버전) */
     val dataVersion: String? = null,
+    /** 서버 업로드가 끝난 녹음 id(`POST /recordings`). 있으면 재요청 때 다시 올리지 않는다. */
+    val serverRecordingId: Long? = null,
+    /** 마지막으로 접수된 서버 분석 id(`POST /voice-analyses`). */
+    val serverAnalysisId: Long? = null,
 ) {
     val scopeEnum: SingScope get() = runCatching { SingScope.valueOf(scope) }.getOrDefault(SingScope.FULL)
 }

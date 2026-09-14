@@ -12,9 +12,11 @@ import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.recommend.RecommendClient
 import com.micon.app.data.recommend.RemoteRecommendRepository
-import com.micon.app.data.singanalysis.LocalOnlySongAnalysisSubmitter
+import com.micon.app.data.singanalysis.BackendSongAnalysisSubmitter
 import com.micon.app.data.singanalysis.SingAnalysisRecordingStore
 import com.micon.app.data.singanalysis.SongAnalysisSubmitter
+import com.micon.app.data.voice.RemoteVoiceAnalysisRepository
+import com.micon.app.data.voice.VoiceAnalysisRepository
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -67,11 +69,16 @@ class AppContainer(context: Context) {
     /** 불러서 분석하기 녹음(WAV + 메타 JSON) 로컬 저장소. `filesDir/sing-analysis/`. */
     val singRecordings: SingAnalysisRecordingStore = SingAnalysisRecordingStore(context)
 
+    /** 음성 녹음 업로드·분석 요청·리포트 조회. 백엔드 `/recordings`, `/voice-analyses`. 리포트 탭·불러서 분석하기가 쓴다. */
+    val voiceAnalyses: VoiceAnalysisRepository = RemoteVoiceAnalysisRepository.forClient(backend)
+
     /**
-     * 불러서 분석하기 녹음을 분석 파이프라인에 넘기는 인터페이스. 지금은 로컬 저장까지만(연동 준비 중).
-     * 분석 담당자가 백엔드 `/recordings` → `/voice-analyses` 구현으로 교체한다. 화면은 인터페이스만 본다.
+     * 불러서 분석하기 녹음 제출: 업로드 → 분석 생성(SONG). 서버 id 는 녹음 메타 JSON 에 남겨 재요청 때 다시 올리지 않는다.
+     * 비회원은 서버를 부르지 않고, AI 연동이 꺼진 서버(503)는 "미준비" 로 화면에 알린다. 화면은 인터페이스만 본다.
      */
-    val songAnalysis: SongAnalysisSubmitter = LocalOnlySongAnalysisSubmitter()
+    val songAnalysis: SongAnalysisSubmitter = BackendSongAnalysisSubmitter(
+        voiceAnalyses, isLoggedIn = { TokenManager.isLoggedIn() }, persist = { singRecordings.update(it) },
+    )
 
     val recommend: RecommendRepository = run {
         val local = LocalRecommendRepository(songs)
