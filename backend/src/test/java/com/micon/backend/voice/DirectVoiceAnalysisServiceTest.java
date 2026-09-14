@@ -8,7 +8,8 @@ import static org.mockito.Mockito.when;
 
 import com.micon.backend.voice.api.VoiceAnalysisJobResponse;
 import com.micon.backend.voice.api.VoiceAnalysisUploadRequest;
-import com.micon.backend.voice.application.DirectVoiceAnalysisLifecycleService;
+import com.micon.backend.voice.application.TimbreAnalysisLifecycleService;
+import com.micon.backend.voice.application.VoiceSessionService;
 import com.micon.backend.voice.application.DirectVoiceAnalysisService;
 import com.micon.backend.voice.application.VoiceAnalysisUploadValidator;
 import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
@@ -22,7 +23,7 @@ import org.springframework.mock.web.MockMultipartFile;
 class DirectVoiceAnalysisServiceTest {
     @Test
     void sendsTheOriginalFileAndTimelineMetadataDirectlyToAi() {
-        DirectVoiceAnalysisLifecycleService lifecycle = mock(DirectVoiceAnalysisLifecycleService.class);
+        TimbreAnalysisLifecycleService lifecycle = mock(TimbreAnalysisLifecycleService.class);
         VoiceAnalysisUploadValidator validator = mock(VoiceAnalysisUploadValidator.class);
         VoiceAnalysisJobGateway gateway = mock(VoiceAnalysisJobGateway.class);
         MockMultipartFile file = new MockMultipartFile("file", "sample.wav", "audio/wav", new byte[] {1});
@@ -32,13 +33,14 @@ class DirectVoiceAnalysisServiceTest {
                 "inst-v2", "lyrics-v3", List.of(segment));
         var queued = new VoiceAnalysisJobResponse(31L, 7L, 8L, "request-1", "ai-1",
                 "SINGER_BYOL", "QUEUED", null, null, false, LocalDateTime.now(), null);
-        var prepared = new DirectVoiceAnalysisLifecycleService.PreparedJob(31L, "PENDING", null);
-        when(lifecycle.createPending(3L, 7L, file, request)).thenReturn(prepared);
+        var prepared = new TimbreAnalysisLifecycleService.Prepared("PENDING", queued);
+        when(lifecycle.create(3L, 7L, file, request)).thenReturn(prepared);
         when(gateway.submit(any())).thenReturn(new VoiceAnalysisJobGateway.Result("ai-1", "QUEUED"));
         when(lifecycle.queued(3L, 31L, "ai-1")).thenReturn(queued);
-        DirectVoiceAnalysisService service = new DirectVoiceAnalysisService(lifecycle, validator, gateway, true);
+        DirectVoiceAnalysisService service = new DirectVoiceAnalysisService(lifecycle, validator, gateway,
+                mock(VoiceSessionService.class), true);
 
-        VoiceAnalysisJobResponse result = service.submit(3L, 7L, file, request);
+        VoiceAnalysisJobResponse result = service.submit(3L, null, 7L, file, request);
 
         ArgumentCaptor<VoiceAnalysisJobGateway.Command> command =
                 ArgumentCaptor.forClass(VoiceAnalysisJobGateway.Command.class);

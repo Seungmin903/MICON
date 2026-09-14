@@ -10,11 +10,14 @@ import static org.mockito.Mockito.when;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.voice.api.VoiceAnalysisComponentCallbackRequest;
 import com.micon.backend.voice.application.VoiceAnalysisComponentCallbackService;
+import com.micon.backend.voice.application.VoiceSessionService;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJob;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJobRepository;
 import com.micon.backend.voice.domain.VoiceAnalysisSession;
 import com.micon.backend.voice.domain.VoiceModelResult;
 import com.micon.backend.voice.domain.VoiceModelResultRepository;
+import com.micon.backend.voice.domain.VoiceRangeMeasurementRepository;
+import com.micon.backend.voice.domain.VoiceAnalysisJobRepository;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
@@ -28,8 +31,11 @@ class VoiceAnalysisComponentCallbackServiceTest {
     private final VoiceModelResultRepository results = mock(VoiceModelResultRepository.class);
     private final VoiceAnalysisComponentJob job = mock(VoiceAnalysisComponentJob.class);
     private final VoiceAnalysisSession session = mock(VoiceAnalysisSession.class);
+    private final VoiceSessionService voiceSessions = mock(VoiceSessionService.class);
     private final VoiceAnalysisComponentCallbackService service =
-            new VoiceAnalysisComponentCallbackService(jobs, results, new ObjectMapper());
+            new VoiceAnalysisComponentCallbackService(jobs, results, new ObjectMapper(),
+                    mock(VoiceRangeMeasurementRepository.class), voiceSessions,
+                    mock(VoiceAnalysisJobRepository.class));
 
     @BeforeEach
     void setUp() {
@@ -37,6 +43,7 @@ class VoiceAnalysisComponentCallbackServiceTest {
         when(job.getId()).thenReturn(11L);
         when(job.getSession()).thenReturn(session);
         when(job.getComponentType()).thenReturn("SINGER_BYOL");
+        when(job.getAttemptNo()).thenReturn(1);
         when(job.isTerminal()).thenReturn(false);
         when(job.getStatus()).thenReturn("COMPLETED");
         when(session.getId()).thenReturn(7L);
@@ -68,6 +75,7 @@ class VoiceAnalysisComponentCallbackServiceTest {
         return new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1",
                 VoiceAnalysisComponentCallbackRequest.Status.COMPLETED, "SINGER_BYOL", "v2",
                 dimension, embedding, mapper.createObjectNode().put("validChunkCount", 5),
-                mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now());
+                mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now(),
+                1, null, null, null, null, null, null, null);
     }
 }

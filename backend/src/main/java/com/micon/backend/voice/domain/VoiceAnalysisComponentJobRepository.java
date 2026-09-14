@@ -14,6 +14,8 @@ public interface VoiceAnalysisComponentJobRepository extends JpaRepository<Voice
     Optional<VoiceAnalysisComponentJob> findByAiJobId(String aiJobId);
     Optional<VoiceAnalysisComponentJob> findByRequestId(String requestId);
     Optional<VoiceAnalysisComponentJob> findFirstBySessionIdOrderByAttemptNoDesc(Long sessionId);
+    Optional<VoiceAnalysisComponentJob> findByAnalysisJobIdAndComponentType(Long analysisJobId, String componentType);
+    List<VoiceAnalysisComponentJob> findByAnalysisJobId(Long analysisJobId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select job from VoiceAnalysisComponentJob job join fetch job.session session "
