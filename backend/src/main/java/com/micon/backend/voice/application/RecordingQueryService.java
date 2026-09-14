@@ -55,7 +55,7 @@ public class RecordingQueryService {
     public RecordingResponse.Playback playback(long userId, long recordingId) {
         ensureActiveUser(userId);
         VoiceRecording recording = owned(userId, recordingId);
-        if (recording.getUploadStatus() != RecordingUploadStatus.UPLOADED) {
+        if (recording.getUploadStatus() != RecordingUploadStatus.UPLOADED || !recording.hasStoredObject()) {
             throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
         }
         String contentUrl = storage.createDownloadUrl(recording.getStoragePath(), playbackUrlTtl).toString();

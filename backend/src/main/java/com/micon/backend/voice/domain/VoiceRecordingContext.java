@@ -19,6 +19,21 @@ public class VoiceRecordingContext {
     @Column(name = "lyrics_version", nullable = false, length = 100) private String lyricsVersion;
     @Column(name = "upload_idempotency_key", nullable = false, length = 100) private String uploadIdempotencyKey;
     protected VoiceRecordingContext() {}
+    public VoiceRecordingContext(VoiceRecording recording, VoiceAnalysisSession session, Long songId,
+                                 String startPositionType, int selectedStartMs, int actualStartMs,
+                                 int activeRecordingMs, String instrumentalVersion,
+                                 String lyricsVersion, String uploadIdempotencyKey) {
+        this.recording = recording;
+        this.session = session;
+        this.songId = songId;
+        this.startPositionType = startPositionType;
+        this.selectedStartMs = selectedStartMs;
+        this.actualStartMs = actualStartMs;
+        this.activeRecordingMs = activeRecordingMs;
+        this.instrumentalVersion = instrumentalVersion;
+        this.lyricsVersion = lyricsVersion;
+        this.uploadIdempotencyKey = uploadIdempotencyKey;
+    }
     public Long getRecordingId() { return recordingId; }
     public VoiceAnalysisSession getSession() { return session; }
 }
