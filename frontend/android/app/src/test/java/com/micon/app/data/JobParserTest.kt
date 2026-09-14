@@ -1,6 +1,6 @@
 package com.micon.app.data
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.data.engine.dto.Job
 import com.micon.app.data.engine.dto.toLiveNotes
 import com.micon.app.scoring.LyricLines
@@ -13,7 +13,7 @@ import org.junit.Test
 
 /** 엔진 workspace 의 실제 job.json 픽스처로 DTO 파싱을 고정한다. */
 class JobParserTest {
-    private val adapter = EngineClient.moshi.adapter(Job::class.java)
+    private val adapter = Json.moshi.adapter(Job::class.java)
 
     private fun load(name: String): Job {
         val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/$name")) { "fixture $name" }

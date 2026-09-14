@@ -14,7 +14,6 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
-import com.micon.app.data.engine.EngineClient
 import retrofit2.Response
 import kotlin.math.roundToInt
 
@@ -25,7 +24,7 @@ class BackendRequestException(val status: Int, val code: String?, message: Strin
 class RemoteSongRepository(private val api: BackendApi) : SongRepository {
 
     override suspend fun search(query: String, page: Int, size: Int): SongPage {
-        val body = api.songs(query.trim(), page.coerceAtLeast(0), size.coerceIn(1, 100)).unwrap()
+        val body = api.songs(query.trim(), page.coerceAtLeast(0), size.coerceIn(1, 100)).unwrapData()
         return SongPage(
             items = body.content.map { it.toSummary() },
             page = body.page, size = body.size, totalElements = body.totalElements, totalPages = body.totalPages,
@@ -35,7 +34,7 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
     override suspend fun detail(songId: Long): SongDetail? {
         val response = api.song(songId)
         if (response.code() == 404) return null
-        return response.unwrap().toDetail()
+        return response.unwrapData().toDetail()
     }
 
     override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets {
@@ -47,7 +46,7 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
                 422 -> throw UnsupportedPracticeKeyException(error?.message ?: "지원하지 않는 연습 키입니다.")
             }
         }
-        return response.unwrap().toAssets()
+        return response.unwrapData().toAssets()
     }
 
     // ------------------------------------------------------------------ 매핑
@@ -103,25 +102,4 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
         beatGrid = beatGrid,
     )
 
-    // ------------------------------------------------------------------ 응답 봉투
-
-    private fun <T> Response<ApiResponse<T>>.unwrap(): T {
-        if (code() == 401 || code() == 403) throw AuthSessionExpiredException()
-        if (!isSuccessful) {
-            val error = errorEnvelope()
-            throw BackendRequestException(code(), error?.code, error?.message ?: "서버 요청에 실패했습니다 (HTTP ${code()}).")
-        }
-        return body()?.data ?: throw BackendRequestException(code(), body()?.code, "서버 응답에 데이터가 없습니다.")
-    }
-
-    private fun Response<*>.errorEnvelope(): ApiResponse<Any>? {
-        val raw = errorBody()?.string()?.takeIf { it.isNotBlank() } ?: return null
-        return runCatching { errorAdapter.fromJson(raw) }.getOrNull()
-    }
-
-    private companion object {
-        val errorAdapter = EngineClient.moshi.adapter<ApiResponse<Any>>(
-            com.squareup.moshi.Types.newParameterizedType(ApiResponse::class.java, Any::class.java),
-        )
-    }
 }

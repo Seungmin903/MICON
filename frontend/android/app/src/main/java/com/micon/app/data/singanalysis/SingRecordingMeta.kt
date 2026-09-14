@@ -1,6 +1,6 @@
 package com.micon.app.data.singanalysis
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.squareup.moshi.JsonClass
 
 /**
@@ -70,7 +70,7 @@ data class SingLyricLine(val text: String, val start: Double, val end: Double)
 
 /** 메타데이터 JSON 직렬화. Moshi(리플렉션) — 앱의 다른 저장소와 같은 인스턴스를 쓴다. */
 object SingRecordingMetaCodec {
-    private val adapter = EngineClient.moshi.adapter(SingRecordingMeta::class.java).indent("  ")
+    private val adapter = Json.moshi.adapter(SingRecordingMeta::class.java).indent("  ")
 
     fun toJson(meta: SingRecordingMeta): String = adapter.toJson(meta)
 

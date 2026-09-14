@@ -6,7 +6,7 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.VoiceAnalysisCreateRequest
 import com.micon.app.data.backend.dto.VoiceAnalysisDto
 import com.micon.app.data.backend.dto.VoiceAnalysisReportDto
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.squareup.moshi.Types
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
@@ -154,7 +154,7 @@ class RemoteVoiceAnalysisRepository(
         }
 
         /** `{code,message,data}` 봉투. ApiResponse 는 제네릭이라 raw Class 로는 Moshi 가 읽지 못해 파라미터 타입을 명시한다. */
-        private val envelopeAdapter = EngineClient.moshi.adapter<ApiResponse<Any>>(Types.newParameterizedType(ApiResponse::class.java, Any::class.java))
+        private val envelopeAdapter = Json.moshi.adapter<ApiResponse<Any>>(Types.newParameterizedType(ApiResponse::class.java, Any::class.java))
 
         private fun Response<*>.toException(): VoiceApiException {
             val envelope = runCatching {

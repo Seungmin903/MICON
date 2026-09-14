@@ -279,31 +279,28 @@ private fun MiconNavHost(
         ) { entry ->
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
-            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { jobId ->
-                if (isGuest) com.micon.app.data.local.UserStore.rememberGuestPracticeJob(jobId)
-                nav.navigate(Routes.result(jobId))
-            })
+            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) })
         }
 
         // ---- 탭: 평가 ----
         composable(Routes.EVALUATION) {
             if (!accessGranted) return@composable
-            PracticeHistoryScreen(
-                onOpenResult = { jobId -> nav.navigate(Routes.result(jobId)) },
+            // 연습 기록은 백엔드 /practices(로그인 필요). 비회원은 라이브 점수만 보고 저장되지 않는다.
+            if (isGuest) GuestMemberTab("평가", openLogin = { openLogin() })
+            else PracticeHistoryScreen(
+                onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
-                onLogin = if (isGuest) ({ openLogin() }) else null,
-                guestJobIds = if (isGuest) ({ com.micon.app.data.local.UserStore.guestPracticeJobs.value }) else null,
             )
         }
         composable(
             Routes.RESULT,
-            arguments = listOf(navArgument("jobId") { type = NavType.StringType }),
+            arguments = listOf(navArgument("practiceId") { type = NavType.LongType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.RESULT}" }),
         ) { entry ->
             if (!accessGranted) return@composable
-            val jobId = entry.arguments?.getString("jobId") ?: return@composable
+            val practiceId = entry.arguments?.getLong("practiceId") ?: return@composable
             ResultScreen(
-                jobId = jobId,
+                practiceId = practiceId,
                 onBack = { nav.popBackStack() },
                 onHome = { nav.navigate(Routes.PRACTICE) { popUpTo(Routes.PRACTICE) { inclusive = false }; launchSingleTop = true } },
             )

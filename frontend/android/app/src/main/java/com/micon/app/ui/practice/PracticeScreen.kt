@@ -39,7 +39,6 @@ import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -62,6 +61,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.micon.app.core.auth.TokenManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -80,7 +80,7 @@ import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.formatSec
 import com.micon.app.ui.practice.PracticeViewModel.Phase
-import com.micon.app.ui.practice.PracticeViewModel.ReportPhase
+import com.micon.app.ui.practice.PracticeViewModel.SavePhase
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.GreenChipBg
 import com.micon.app.ui.theme.GreenChipText
@@ -107,15 +107,15 @@ import kotlin.math.roundToInt
  *     구간 칩(1절·2절…·하이라이트) — 누르면 그 구간 1.5초 앞으로 이동(재생 중에도).
  * 가운데: 연습 중 실시간 점수판 + 방금 음표 판정 칩, 접을 수 있는 러너웨이(피아노롤), 가사 줄 목록(LRC 줄 텍스트, 글자는 음절 시각으로 채움).
  *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다. 간주에 들어가면 "간주 건너뛰기" 버튼이 뜬다.
- * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·정밀 리포트.
+ * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
-fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (String) -> Unit) {
+fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (Long) -> Unit) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
         key = "practice-$songId",
-        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp) } },
+        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, isLoggedIn = { TokenManager.isLoggedIn() }) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     fun hasMic() = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -461,7 +461,7 @@ private fun LyricsList(sheet: LyricSheet, nowSec: Double, running: Boolean, loop
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun BottomSheet(state: PracticeViewModel.UiState, vm: PracticeViewModel, onStart: () -> Unit, onBack: () -> Unit, onOpenResult: (String) -> Unit) {
+private fun BottomSheet(state: PracticeViewModel.UiState, vm: PracticeViewModel, onStart: () -> Unit, onBack: () -> Unit, onOpenResult: (Long) -> Unit) {
     val running = state.isRunning
     Box(Modifier.fillMaxSize()) {
         Surface(
@@ -514,7 +514,7 @@ private fun BottomSheet(state: PracticeViewModel.UiState, vm: PracticeViewModel,
 }
 
 @Composable
-private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewModel, onOpenResult: (String) -> Unit) {
+private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewModel, onOpenResult: (Long) -> Unit) {
     Spacer(Modifier.height(14.dp))
     Column(Modifier.padding(horizontal = 24.dp)) {
         state.totals?.let { t ->
@@ -528,22 +528,16 @@ private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewMode
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinePurpleButton(if (state.takePlaying) "정지" else "녹음 다시 듣기", { if (state.takePlaying) vm.stopTake() else vm.playTake() }, Modifier.weight(1f), height = 46.dp)
-            when (state.report.phase) {
-                ReportPhase.NONE -> PrimaryButton("정밀 리포트 만들기", vm::makePreciseReport, Modifier.weight(1.3f), height = 46.dp)
-                ReportPhase.DONE -> PrimaryButton("정밀 리포트 보기", { state.report.jobId?.let(onOpenResult) }, Modifier.weight(1.3f), height = 46.dp)
-                ReportPhase.ERROR -> OutlinePurpleButton("리포트 다시 시도", vm::makePreciseReport, Modifier.weight(1.3f), height = 46.dp)
-                else -> Box(Modifier.weight(1.3f).height(46.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), color = Purple, strokeWidth = 2.dp) }
+            when (state.save.phase) {
+                SavePhase.SAVED -> PrimaryButton("연습 리포트 보기", { state.save.practiceId?.let(onOpenResult) }, Modifier.weight(1.3f), height = 46.dp)
+                SavePhase.ERROR -> OutlinePurpleButton("기록 다시 저장", vm::retrySave, Modifier.weight(1.3f), height = 46.dp)
+                SavePhase.SAVING -> Box(Modifier.weight(1.3f).height(46.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), color = Purple, strokeWidth = 2.dp) }
+                SavePhase.GUEST, SavePhase.NONE -> {}
             }
         }
-        when (state.report.phase) {
-            ReportPhase.UPLOADING, ReportPhase.ANALYZING -> Column(Modifier.padding(top = 8.dp)) {
-                Text("${state.report.message}  ${state.report.progress}%", fontSize = 12.sp, color = Grey)
-                LinearProgressIndicator(progress = { state.report.progress / 100f }, modifier = Modifier.fillMaxWidth(), color = Purple, trackColor = Lavender)
-            }
-            ReportPhase.ERROR -> Text(state.report.message, color = Red, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-            else -> {}
+        if (state.save.message.isNotEmpty()) {
+            Text(state.save.message, color = if (state.save.phase == SavePhase.ERROR) Red else Grey, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
-        if (!state.headphones) Text("스피커로 들으며 불렀다면 반주 분리 때문에 정밀 분석이 조금 더 걸려요.", fontSize = 11.sp, color = Grey, modifier = Modifier.padding(top = 6.dp))
     }
 }
 

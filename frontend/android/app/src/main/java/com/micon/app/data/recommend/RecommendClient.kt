@@ -1,6 +1,6 @@
 package com.micon.app.data.recommend
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.data.recommend.dto.RecommendJobDto
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaType
@@ -33,7 +33,7 @@ class RecommendClient(val baseUrl: String, logging: Boolean = true) : RecommendG
     val api: RecommendApi = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(okHttp)
-        .addConverterFactory(MoshiConverterFactory.create(EngineClient.moshi))
+        .addConverterFactory(MoshiConverterFactory.create(Json.moshi))
         .build()
         .create(RecommendApi::class.java)
 

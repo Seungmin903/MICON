@@ -7,9 +7,10 @@ import com.micon.app.core.network.BackendClient
 import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.backend.RemoteSongRepository
-import com.micon.app.data.engine.EngineClient
 import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.RemotePracticeRepository
 import com.micon.app.data.recommend.RecommendClient
 import com.micon.app.data.recommend.RemoteRecommendRepository
 import com.micon.app.data.singanalysis.BackendSongAnalysisSubmitter
@@ -44,11 +45,8 @@ class AppContainer(context: Context) {
     /** 앱 백엔드(Spring/MySQL). 사용자·곡 카탈로그·연습 데이터·찜·연습 기록. 앱이 보는 서버는 이것 하나다. */
     val backend: BackendClient = BackendClient(BuildConfig.API_BASE_URL, logging = BuildConfig.HTTP_LOGGING)
 
-    /**
-     * VocalScope 엔진(FastAPI). 평가 탭(연습 기록·정밀 리포트)이 아직 엔진 작업(job)을 읽는다.
-     * 백엔드 `/practices` 기록 API 로 옮기면 삭제한다. 곡 카탈로그·반주에는 더 쓰지 않는다.
-     */
-    val engine: EngineClient = EngineClient(BuildConfig.ENGINE_BASE_URL, logging = BuildConfig.HTTP_LOGGING)
+    /** 연습 기록. 백엔드 `/practices`(세션 생성·완료·라이브 채점 저장·목록·리포트). 로컬 엔진 job 은 더 쓰지 않는다. */
+    val practices: PracticeRepository = RemotePracticeRepository(backend.api)
 
     /**
      * 반주 등 미디어 스트리밍용 HTTP 클라이언트. 백엔드가 발급한 만료 URL(S3)로 재생하므로

@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import java.io.Closeable
 import java.io.File
 import java.util.concurrent.ArrayBlockingQueue
@@ -17,7 +17,7 @@ class RangeDiagnosticTrace(file: File, capacity: Int = 4096) : Closeable {
     private val output = file.bufferedWriter(bufferSize = 65536)
     private val worker = Thread({
         try {
-            val adapter = EngineClient.moshi.adapter(Any::class.java).serializeNulls()
+            val adapter = Json.moshi.adapter(Any::class.java).serializeNulls()
             var flushed = System.nanoTime()
             while (!closing.get() || queue.isNotEmpty()) {
                 val entry = queue.poll(100, TimeUnit.MILLISECONDS)

@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.scoring.ScoringMath
 import org.junit.Assert.*
 import org.junit.Test
@@ -84,7 +84,7 @@ class RangeDiagnosticTest {
             val trace = RangeDiagnosticTrace(file, capacity = 8)
             repeat(2000) { trace.record("captured", mapOf("sequence" to it, "f0" to 440.0)) }
             trace.close()
-            val adapter = EngineClient.moshi.adapter(Map::class.java)
+            val adapter = Json.moshi.adapter(Map::class.java)
             val entries = file.readLines().map { adapter.fromJson(it)!! }
             assertEquals("trace_closed", entries.last()["type"])
             assertEquals(2000L, entries.size - 1L + trace.dropped.get())

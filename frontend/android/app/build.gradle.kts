@@ -22,7 +22,6 @@ fun localSetting(name: String, default: String = ""): String =
         ?: System.getenv(name)?.takeIf(String::isNotBlank)
         ?: default
 
-val engineBaseUrl = localSetting("ENGINE_BASE_URL", "http://10.0.2.2:8787/")
 val apiBaseUrl = localSetting("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
 val rangePreviewBaseUrl = localSetting("RANGE_PREVIEW_BASE_URL", "http://127.0.0.1:8789/")
 val recommendBaseUrl = localSetting("RECOMMEND_BASE_URL", "")   // 비어 있으면 앱 안 로컬 계산만 사용
@@ -56,12 +55,12 @@ val validateReleaseConfiguration by tasks.registering {
         check(releaseVersionName.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))) {
             "RELEASE_VERSION_NAME must be a filename-safe version."
         }
-        for (value in listOf(apiBaseUrl, engineBaseUrl)) {
+        for (value in listOf(apiBaseUrl)) {
             val uri = runCatching { URI(value) }.getOrNull()
             check(uri != null && uri.scheme == "https" && !uri.host.isNullOrBlank() &&
                 uri.userInfo == null && uri.query == null && uri.fragment == null &&
                 uri.path.endsWith("/") && uri.host !in listOf("localhost", "127.0.0.1", "10.0.2.2", "[::1]")) {
-                "Release API and engine URLs must be explicit HTTPS base URLs, not emulator defaults."
+                "Release API URL must be an explicit HTTPS base URL, not the emulator default."
             }
         }
     }
@@ -86,7 +85,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "ENGINE_BASE_URL", "\"$engineBaseUrl\"")
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "RECOMMEND_BASE_URL", "\"$recommendBaseUrl\"")
 

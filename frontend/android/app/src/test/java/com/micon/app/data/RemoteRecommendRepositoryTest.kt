@@ -1,6 +1,6 @@
 package com.micon.app.data
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.recommend.RecommendGateway
@@ -24,7 +24,7 @@ import java.io.File
 class RemoteRecommendRepositoryTest {
     private val job: RecommendJobDto by lazy {
         val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/recommend-sample.json"))
-        checkNotNull(EngineClient.moshi.adapter(RecommendJobDto::class.java).fromJson(stream.bufferedReader().readText()))
+        checkNotNull(Json.moshi.adapter(RecommendJobDto::class.java).fromJson(stream.bufferedReader().readText()))
     }
 
     /** 곡 카탈로그가 비어 있는 상황: 요약은 서버 metadata 로 만들어진다. */

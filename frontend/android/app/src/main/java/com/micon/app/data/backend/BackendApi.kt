@@ -16,6 +16,13 @@ import com.micon.app.data.backend.dto.PasswordResetVerified
 import com.micon.app.data.backend.dto.PasswordResetChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
 import com.micon.app.data.backend.dto.RecordingUploadDto
+import com.micon.app.data.backend.dto.PracticeCompleteRequest
+import com.micon.app.data.backend.dto.PracticeCreateRequest
+import com.micon.app.data.backend.dto.PracticeDetailDto
+import com.micon.app.data.backend.dto.PracticeReportDto
+import com.micon.app.data.backend.dto.PracticeResultSaveRequest
+import com.micon.app.data.backend.dto.PracticeStatusRequest
+import com.micon.app.data.backend.dto.PracticeSummaryDto
 import com.micon.app.data.backend.dto.VoiceAnalysisCreateRequest
 import com.micon.app.data.backend.dto.VoiceAnalysisDto
 import com.micon.app.data.backend.dto.VoiceAnalysisReportDto
@@ -29,6 +36,8 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.HTTP
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -81,6 +90,39 @@ interface BackendApi {
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: Long, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+
+    // ---- 연습 기록 (PracticeController) ----
+
+    /** 내 연습 목록, 최신순. size 1~100. */
+    @GET("practices")
+    suspend fun practices(@Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
+
+    /** 세션 생성(READY). 곡·반주(선택 키)가 준비돼야 한다: 409 PRACTICE_ASSET_NOT_READY, 422 UNSUPPORTED_PRACTICE_KEY. */
+    @POST("practices")
+    suspend fun createPractice(@Body body: PracticeCreateRequest): Response<ApiResponse<PracticeDetailDto>>
+
+    @GET("practices/{practiceId}")
+    suspend fun practice(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeDetailDto>>
+
+    /** READY→IN_PROGRESS 등 진행 상태 전환. 허용되지 않는 전환(같은 상태 포함)은 409 INVALID_PRACTICE_STATE. */
+    @PATCH("practices/{practiceId}/status")
+    suspend fun updatePracticeStatus(@Path("practiceId") practiceId: Long, @Body body: PracticeStatusRequest): Response<ApiResponse<PracticeDetailDto>>
+
+    /** 진행 상태(RECORDING·IN_PROGRESS·PAUSED)에서만 COMPLETED 로. */
+    @POST("practices/{practiceId}/complete")
+    suspend fun completePractice(@Path("practiceId") practiceId: Long, @Body body: PracticeCompleteRequest): Response<ApiResponse<PracticeDetailDto>>
+
+    /** READY~PAUSED → ABORTED. */
+    @POST("practices/{practiceId}/cancel")
+    suspend fun cancelPractice(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeDetailDto>>
+
+    /** COMPLETED 세션에 라이브 채점 점수 저장(재시도 시 새 결과 행). */
+    @PUT("practices/{practiceId}/performance")
+    suspend fun savePracticePerformance(@Path("practiceId") practiceId: Long, @Body body: PracticeResultSaveRequest): Response<ApiResponse<PracticeReportDto>>
+
+    /** 저장된 결과. 없으면 404 PRACTICE_RESULT_NOT_FOUND. */
+    @GET("practices/{practiceId}/report")
+    suspend fun practiceReport(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeReportDto>>
 
     // ---- 음성 녹음·분석 (RecordingController · VoiceAnalysisController) ----
 

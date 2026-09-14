@@ -1,7 +1,7 @@
 package com.micon.app.data.preferences
 
 import android.content.Context
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 
 data class PreferenceDraft(
     val genres: List<PreferenceGenre> = emptyList(),
@@ -19,7 +19,7 @@ interface PreferenceDraftStore {
 
 class SharedPreferenceDraftStore(context: Context) : PreferenceDraftStore {
     private val preferences = context.applicationContext.getSharedPreferences("music_preference_drafts", Context.MODE_PRIVATE)
-    private val adapter = EngineClient.moshi.adapter(PreferenceDraft::class.java)
+    private val adapter = Json.moshi.adapter(PreferenceDraft::class.java)
     private fun key(userId: Long, editing: Boolean) = "user_${userId}_${if (editing) "edit" else "onboarding"}"
 
     override fun read(userId: Long, isEditing: Boolean): PreferenceDraft? {

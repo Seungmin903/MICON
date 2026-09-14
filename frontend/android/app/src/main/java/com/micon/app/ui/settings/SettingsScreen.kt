@@ -152,7 +152,6 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
             SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { if (!loggingOut) showWithdraw = true }
             Spacer(Modifier.height(32.dp))
             SectionTitle("개발자")
-            DevRow("엔진 주소", BuildConfig.ENGINE_BASE_URL)
             DevRow("백엔드 주소", BuildConfig.API_BASE_URL)
             DevRow("앱 버전", BuildConfig.VERSION_NAME)
             Spacer(Modifier.height(40.dp))

@@ -1,6 +1,6 @@
 package com.micon.app.scoring
 
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import com.micon.app.data.engine.dto.Job
 import com.micon.app.data.engine.dto.KaraokeNote
 import org.junit.Assert.assertEquals
@@ -12,7 +12,7 @@ import org.junit.Test
 class RangeFitTest {
     private val songNotes: List<KaraokeNote> by lazy {
         val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/tj-14260.job.json"))
-        val job = checkNotNull(EngineClient.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText()))
+        val job = checkNotNull(Json.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText()))
         checkNotNull(job.result?.karaokeNotes)
     }
     private val song by lazy { checkNotNull(PitchProfile.fromNotes(songNotes)) }

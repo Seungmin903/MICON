@@ -4,13 +4,13 @@ import android.content.Context
 import android.os.Build
 import android.util.AtomicFile
 import com.micon.app.BuildConfig
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import java.io.File
 
 /** Explicit debug token permits precisely one session, without changing server audio retention. */
 class RangeDiagnostics private constructor(private val directory: File, val trace: RangeDiagnosticTrace) {
     fun snapshot(submission: RangeSubmission, sampleRate: Int) {
-        write(File(directory, "submission.json"), EngineClient.moshi.adapter(RangeSubmission::class.java).toJson(submission))
+        write(File(directory, "submission.json"), Json.moshi.adapter(RangeSubmission::class.java).toJson(submission))
         trace.record("checkpoint", mapOf("audioTime" to submission.durationSeconds, "sampleRate" to sampleRate,
             "attemptCount" to submission.attempts.size, "stopReason" to submission.stopReason))
     }
@@ -38,7 +38,7 @@ class RangeDiagnostics private constructor(private val directory: File, val trac
                 "createdAtMillis" to System.currentTimeMillis(), "appVersion" to BuildConfig.VERSION_NAME,
                 "localRetentionOnly" to true, "scope" to "one_session")
             // The marker also protects the normal WAV through uploads, retries, and process recreation.
-            write(File(dir, "manifest.json"), EngineClient.moshi.adapter(Any::class.java).toJson(manifest))
+            write(File(dir, "manifest.json"), Json.moshi.adapter(Any::class.java).toJson(manifest))
             val trace = RangeDiagnosticTrace(File(dir, "trace.ndjson"))
             if (!context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit().putBoolean("used_$token", true).commit()) {
                 trace.close()
