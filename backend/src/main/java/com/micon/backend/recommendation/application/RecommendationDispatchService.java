@@ -26,13 +26,13 @@ public class RecommendationDispatchService {
         this.enabled = enabled;
     }
 
-    public RecommendationDispatchResult dispatch(long userId, long voiceAnalysisId, RecommendationMode mode) {
+    public RecommendationDispatchResult dispatch(long userId, long profileId, RecommendationMode mode) {
         if (!enabled) {
             throw new BusinessException(ErrorCode.RECOMMENDATION_DISPATCH_FAILED);
         }
         RecommendationMode requestedMode = mode == null ? RecommendationMode.OVERALL : mode;
-        RecommendationInput input = inputs.assemble(userId, voiceAnalysisId);
-        RecommendationLifecycleService.Created created = lifecycle.create(userId, voiceAnalysisId, requestedMode);
+        RecommendationInput input = inputs.assemble(userId, profileId);
+        RecommendationLifecycleService.Created created = lifecycle.create(userId, profileId, requestedMode);
         try {
             RecommendationJobGateway.Result result = gateway.submit(
                     new RecommendationJobGateway.Command(input, requestedMode, TOP_K));
