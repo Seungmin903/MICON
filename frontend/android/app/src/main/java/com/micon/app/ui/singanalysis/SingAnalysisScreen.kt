@@ -116,32 +116,41 @@ import java.util.Locale
  * - DONE: 저장 완료 + 녹음 정보 + 다시 듣기 · 분석 요청 · 다시 부르기 · 리포트로 돌아가기.
  */
 @Composable
-fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> Unit) {
+fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> Unit,
+    recordings: com.micon.app.data.singanalysis.SingAnalysisRecordingStore? = null,
+    onboardingDraftId: String? = null, onRecordingReady: ((SavedRecording) -> Unit)? = null,
+) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SingAnalysisViewModel = viewModel(
         key = "sing-analysis-$songId",
         factory = viewModelFactory {
-            initializer { SingAnalysisViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.singRecordings, container.songAnalysis, container.voiceAnalyses) }
+            initializer { SingAnalysisViewModel(context.applicationContext, songId, container.songs,
+                container.mediaHttp, recordings ?: container.singRecordings, container.songAnalysis,
+                container.voiceAnalyses, onboardingDraftId) }
         },
     )
     val state by vm.state.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(state.saved?.id) {
+        state.saved?.let { onRecordingReady?.invoke(it) }
+    }
 
     // 마이크 권한: 카드를 누른 뒤 요청하고, 허용되면 그 카드로 바로 시작한다.
     var pendingPlan by remember { mutableStateOf<ScopePlan?>(null) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) pendingPlan?.let(vm::choose) else vm.permissionDenied()
-        pendingPlan = null
-    }
+    val requestMicrophone = com.micon.app.ui.common.rememberMicrophoneAccess(
+        onAllowed = { pendingPlan?.let(vm::choose); pendingPlan = null }, onDenied = vm::permissionDenied)
     fun chooseWithPermission(plan: ScopePlan) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.choose(plan)
-        else { pendingPlan = plan; permission.launch(Manifest.permission.RECORD_AUDIO) }
+        pendingPlan = plan
+        requestMicrophone()
     }
 
-    // 앱이 뒤로 가면 일시정지(녹음은 유지). 부르는 동안 화면 꺼짐 방지.
+    // Screen locking is allowed; switching to another app invalidates this recording.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) vm.pause() }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP &&
+                (context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) vm.interruptRecording()
+        }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
@@ -150,7 +159,8 @@ fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> U
         view.keepScreenOn = state.isSinging
         onDispose { view.keepScreenOn = false }
     }
-    BackHandler(enabled = state.isSinging) { vm.requestFinish() }
+    BackHandler(enabled = state.isSinging) { vm.requestExit() }
+    BackHandler(enabled = state.phase == Phase.SAVING) { }
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
         when (state.phase) {
@@ -169,6 +179,13 @@ fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> U
             Phase.DONE -> DoneBody(state, vm, onBack = onBack, onBackToReport = onBackToReport)
         }
 
+        if (state.confirmDiscard) {
+            AlertDialog(onDismissRequest = vm::cancelExit,
+                title = { Text("녹음을 그만할까요?") },
+                text = { Text("지금 녹음한 내용은 지워져요. 다시 시작할 수 있어요.") },
+                confirmButton = { TextButton(onClick = { vm.discardAndExit(); onBack() }) { Text("녹음 지우고 나가기") } },
+                dismissButton = { TextButton(onClick = vm::cancelExit) { Text("계속하기") } })
+        }
         if (state.confirmEnd) {
             FinishDialog(
                 sungSeconds = state.sungSeconds,
@@ -221,8 +238,8 @@ private fun SetupBody(state: SingAnalysisViewModel.UiState, onChoose: (ScopePlan
                     Spacer(Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("· 이어폰을 쓰면 반주가 녹음에 섞이지 않아 더 정확해요", fontSize = 13.sp, color = Grey)
-                        Text("· 부르는 중 언제든 ‘여기까지 마치기’ 로 끝낼 수 있어요", fontSize = 13.sp, color = Grey)
-                        Text("· 녹음은 이 기기에만 저장돼요", fontSize = 13.sp, color = Grey)
+                        Text("· 반주와 함께 30초 이상 녹음한 뒤 일시정지하고 마쳐 주세요", fontSize = 13.sp, color = Grey)
+                        Text("· 마이크는 목소리 분석을 위해 사용해요", fontSize = 13.sp, color = Grey)
                     }
                 }
                 Spacer(Modifier.height(24.dp))
@@ -285,7 +302,7 @@ private fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisVi
             Surface(color = Color.White, shadowElevation = 4.dp) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RecIndicator(active = state.phase == Phase.RUNNING, elapsedSec = state.elapsedRecSec)
+                        RecIndicator(active = state.phase == Phase.RUNNING && !state.buffering, elapsedSec = state.elapsedRecSec)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             "${state.title}  ·  ${state.artist}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Purple,
@@ -303,7 +320,7 @@ private fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisVi
                 KaraokePanel(
                     vm.sheet, state.nowSec, Modifier.fillMaxSize(),
                     judgementColors = false,
-                    emptyMessage = "이 곡은 가사 데이터가 없어요. 반주를 들으며 자유롭게 불러 보세요.",
+                    emptyMessage = "가사가 준비되지 않았어요. 다른 곡을 골라 주세요.",
                 )
                 if (paused) {
                     Column(
@@ -377,6 +394,7 @@ private fun ControlSheet(state: SingAnalysisViewModel.UiState, vm: SingAnalysisV
         Column(Modifier.padding(top = 18.dp, bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(
                 onClick = { if (paused) vm.resume() else vm.pause() },
+                enabled = !paused || state.nowSec < (state.plan?.endSec ?: 0.0),
                 shape = CircleShape,
                 color = if (paused) Purple else GreyLight,
                 shadowElevation = 8.dp,
@@ -391,10 +409,15 @@ private fun ControlSheet(state: SingAnalysisViewModel.UiState, vm: SingAnalysisV
             Spacer(Modifier.height(14.dp))
             OutlinePurpleButton(
                 "여기까지 마치기", vm::requestFinish,
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp), height = 48.dp, enabled = state.phase != Phase.COUNTDOWN,
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp), height = 48.dp, enabled = state.canFinish,
             )
             Spacer(Modifier.height(6.dp))
-            Text("부른 만큼만 저장돼요", fontSize = 12.sp, color = Grey)
+            Text(when {
+                state.elapsedRecSec < 30 -> "반주와 함께 녹음한 시간이 30초 이상이어야 해요"
+                !paused -> "일시정지하면 녹음을 마칠 수 있어요"
+                else -> "녹음을 마치고 분석 결과를 확인해 보세요"
+            }, fontSize = 12.sp, color = Grey)
+            TextButton(onClick = vm::requestExit) { Text("녹음 그만하기", color = Grey) }
             state.error?.let { Text(it, color = Red, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp)) }
         }
     }
@@ -436,7 +459,7 @@ private fun DoneBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisViewM
                 Icon(Icons.Filled.CheckCircle, null, Modifier.size(60.dp), tint = Purple)
             }
             Spacer(Modifier.height(22.dp))
-            Text("녹음 저장 완료", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = InkSoft)
+            Text("녹음 완료", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = InkSoft)
             Spacer(Modifier.height(8.dp))
             val scopeLabel = state.plan?.displayLabel ?: ""
             Text("${state.title} · $scopeLabel · ${formatSec(saved?.meta?.durationSec ?: state.elapsedRecSec)} 녹음", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))

@@ -17,9 +17,11 @@ import java.nio.ByteOrder
 data class PendingRange(val submission: RangeSubmission, val analysisId: String? = null, val sampleRate: Int = 16000)
 
 /** Local model-verified reports and pending audio survive failed requests and app restarts. */
-class RangeRepository(context: Context, private val modelApi: RangePreviewClient.Api? = null) {
+class RangeRepository(context: Context, private val modelApi: RangePreviewClient.Api? = null,
+    storageDirectory: File? = null, val deviceOnly: Boolean = false,
+) {
     private val appContext = context.applicationContext
-    private val directory = File(context.filesDir, "guided-range-preview").apply { mkdirs() }
+    private val directory = (storageDirectory ?: File(context.filesDir, "guided-range-preview")).apply { mkdirs() }
     private val preview by lazy { modelApi ?: RangePreviewClient(BuildConfig.RANGE_PREVIEW_BASE_URL).api }
     private val pendingFile = File(directory, "pending.json")
     private val reportFile = File(directory, "report.json")
@@ -28,16 +30,17 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     private val reportAdapter = Json.moshi.adapter(RangeReport::class.java)
     private val submissionAdapter = Json.moshi.adapter(RangeSubmission::class.java)
     private var finalized = false
+    @Volatile private var closed = false
     fun audio(id: String) = File(directory, "$id.wav")
     private fun readAtomic(file: File) = android.util.AtomicFile(file).openRead().bufferedReader().use { it.readText() }
     fun pending(): PendingRange? = runCatching { pendingAdapter.fromJson(readAtomic(pendingFile)) }
         .getOrNull()?.takeIf { RangeProtocol.supports(it.submission.protocolVersion) }
     fun localReport(): RangeReport? = runCatching { reportAdapter.fromJson(readAtomic(reportFile)) }
         .getOrNull()?.takeIf { RangeProtocol.supports(it.protocolVersion) &&
-            it.verification == "model_verified" }
+            it.verification == if (deviceOnly) "device_measured" else "model_verified" }
     fun lastSessionReport(): RangeReport? = runCatching { reportAdapter.fromJson(readAtomic(lastSessionFile)) }
         .getOrNull()?.takeIf { RangeProtocol.supports(it.protocolVersion) &&
-            it.verification == "model_verified" } ?: localReport()
+            it.verification == if (deviceOnly) "device_measured" else "model_verified" } ?: localReport()
 
     fun discardPending() {
         pending()?.let { if (!RangeDiagnostics.retainsAudio(appContext, it.submission.sessionId)) audio(it.submission.sessionId).delete() }
@@ -45,12 +48,14 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     }
 
     @Synchronized fun savePending(pending: PendingRange, checkpoint: Boolean = false) {
+        if (closed) return
         if (checkpoint && finalized) return
         if (!checkpoint) finalized = true
         atomicWrite(pendingFile, pendingAdapter.toJson(pending))
     }
 
-    private fun atomicWrite(file: File, text: String) {
+    @Synchronized private fun atomicWrite(file: File, text: String) {
+        if (closed) return
         // AtomicFile is available at the minimum Android API and preserves the previous successful write.
         val atomic = android.util.AtomicFile(file)
         val output = atomic.startWrite()
@@ -69,6 +74,15 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         val available = (wav.length() - 44).toDouble() / (saved.sampleRate * 2)
         val submission = saved.submission.recoverAudio(available)
         savePending(saved.copy(submission = submission))
+        if (deviceOnly) {
+            onState("측정 결과를 정리하고 있어요")
+            val report = submission.deviceReport()
+            atomicWrite(lastSessionFile, reportAdapter.toJson(report))
+            if (report.availability == "available") saveReport(report)
+            wav.delete()
+            android.util.AtomicFile(pendingFile).delete()
+            return@withContext report
+        }
         onState("분석 중…")
         val report = preview.analyze(
             MultipartBody.Part.createFormData("audio", wav.name, wav.asRequestBody("audio/wav".toMediaType())),
@@ -80,6 +94,15 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         android.util.AtomicFile(pendingFile).delete()
         return@withContext report
     }
+
+    @Synchronized fun clear() {
+        discardPending()
+        android.util.AtomicFile(reportFile).delete()
+        android.util.AtomicFile(lastSessionFile).delete()
+        finalized = false
+    }
+
+    @Synchronized fun closeTemporary() { closed = true; clear() }
 
     /** AudioRecord may be interrupted before stop() finalizes the header. PCM remains recoverable. */
     private fun repairWav(file: File, rate: Int) {

@@ -41,7 +41,7 @@ class RemoteSongRepositoryTest {
         val page = repo.search("번호", page = 0, size = 20)
         val request = server.takeRequest()
         assertEquals("/api/v1/songs?query=%EB%B2%88%ED%98%B8&page=0&size=20", request.path)
-        assertEquals("Bearer access", request.getHeader("Authorization"))
+        assertNull(request.getHeader("Authorization")) // Public search does not require a member token.
         assertEquals(384L, page.totalElements)
         val song = page.items.single()
         assertEquals(1L, song.id)

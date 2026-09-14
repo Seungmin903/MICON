@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -83,6 +84,7 @@ fun MiconRoot() {
         SessionEvents.events.collect {
             // Ignore an already-handled expiration if a new login has since succeeded.
             if (!TokenManager.isLoggedIn() && !session.guest) {
+                session.rememberDestination(nav)
                 session.verified = false
                 nav.replaceAll(Routes.LOGIN)
             }
@@ -106,6 +108,7 @@ fun MiconRoot() {
             initialRoute = session.initialRoute,
             accessGranted = accessGranted,
             isGuest = session.guest,
+            session = session,
             onVerified = {
                 session.verified = it
                 if (it) session.guest = false
@@ -152,11 +155,13 @@ private fun MiconNavHost(
     initialRoute: String,
     accessGranted: Boolean,
     isGuest: Boolean,
+    session: NavigationSessionViewModel,
     onVerified: (Boolean) -> Unit,
     onGuest: (Boolean) -> Unit,
 ) {
-    fun goMain() { onGuest(false); onVerified(true); nav.replaceAll(Routes.RECOMMEND) }
+    fun goMain() { onGuest(false); onVerified(true); nav.replaceAll(session.consumeDestination()) }
     fun openLogin() {
+        session.rememberDestination(nav)
         nav.navigate(Routes.LOGIN) { launchSingleTop = true }
     }
     fun goLogin() {
@@ -168,6 +173,7 @@ private fun MiconNavHost(
         nav.replaceAll(Routes.LOGIN)
     }
     fun goGuest() {
+        session.clearDestination()
         TokenManager.clear()
         onVerified(false)
         onGuest(true)
@@ -219,20 +225,28 @@ private fun MiconNavHost(
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
             VoiceReportScreen(
-                onQuickAnalysis = { nav.navigate(Routes.QUICK_ANALYSIS) },
-                onFileAnalysis = { nav.navigate(Routes.SING_ANALYSIS_PICK) },
+                onQuickAnalysis = { nav.navigate(Routes.VOICE_ONBOARDING) },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
         composable(Routes.QUICK_ANALYSIS) {
             if (!accessGranted) return@composable
-            QuickAnalysisScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack() })
+            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
+        }
+        composable(Routes.VOICE_ONBOARDING) {
+            if (!accessGranted) return@composable
+            com.micon.app.ui.onboarding.VoiceOnboardingFlow(isGuest,
+                onExit = { if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT) },
+                onLogin = {
+                    if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT)
+                    openLogin()
+                })
         }
         // 불러서 분석하기: 곡 선택 → 범위 선택(전곡·2절·하이라이트) → 카운트인 → 가사만 보며 부르기(WAV 녹음) → 저장 완료
         composable(Routes.SING_ANALYSIS_PICK) {
             if (!accessGranted) return@composable
-            SingAnalysisSongPickerScreen(onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.singAnalysis(it)) })
+            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_PICK) { inclusive = true } } }
         }
         composable(
             Routes.SING_ANALYSIS_RUN,
@@ -240,12 +254,7 @@ private fun MiconNavHost(
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SING_ANALYSIS_RUN}" }),
         ) { entry ->
             if (!accessGranted) return@composable
-            val songId = entry.arguments?.getLong("songId") ?: return@composable
-            SingAnalysisScreen(
-                songId = songId,
-                onBack = { nav.popBackStack() },
-                onBackToReport = { nav.popBackStack(Routes.REPORT, inclusive = false) },
-            )
+            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_RUN) { inclusive = true } } }
         }
 
         // ---- 탭: 연습 ----
@@ -356,10 +365,20 @@ private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
 }
 
 /** Survives configuration changes, but a fresh process must validate its server session. */
-class NavigationSessionViewModel : ViewModel() {
+class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
     val initialRoute = if (TokenManager.isLoggedIn()) Routes.SPLASH else Routes.REPORT
     var verified by mutableStateOf(false)
     var guest by mutableStateOf(initialRoute == Routes.REPORT)
+
+    fun rememberDestination(nav: NavHostController) {
+        val entry = nav.currentBackStackEntry ?: return
+        val destination = loginReturnDestination(entry.destination.route,
+            entry.arguments?.getLong("songId"), entry.arguments?.getLong("setlistId")) ?: return
+        savedState["loginDestination"] = destination
+    }
+
+    fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
+    fun clearDestination() { savedState.remove<String>("loginDestination") }
 }
 
 /** Discard all protected history, including saved tab stacks, on account/gate changes. */

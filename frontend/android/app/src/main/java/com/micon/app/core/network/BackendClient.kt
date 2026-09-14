@@ -4,6 +4,7 @@ import com.micon.app.core.auth.AuthTokenStore
 import com.micon.app.core.auth.SessionSnapshot
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.BackendApi
+import com.micon.app.data.onboarding.VoiceSessionAccess
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -26,17 +27,25 @@ class BackendClient(
 
     private fun isPublic(request: Request): Boolean {
         val path = request.url.encodedPath
-        return path.endsWith("/health") ||
+        return request.tag(VoiceSessionAccess::class.java)?.let { it.ownerId == null } == true ||
+            (request.method == "GET" && (path.endsWith("/songs") || Regex(".*/songs/[^/]+/practice-assets").matches(path))) ||
+            path.endsWith("/health") ||
             (request.method == "POST" && (path.endsWith("/auth/login") || path.endsWith("/auth/signup")))
     }
 
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request()
         val builder = request.newBuilder()
+        val voiceAccess = request.tag(VoiceSessionAccess::class.java)
+        builder.removeHeader("X-Guest-Session-Token")
+        if (voiceAccess?.ownerId == null) voiceAccess?.guestToken?.let { builder.header("X-Guest-Session-Token", it) }
         if (isPublic(request)) {
             builder.removeHeader("Authorization")
         } else if (!isRefresh(request)) {
             val session = tokens.snapshot()
+            if (voiceAccess != null && (voiceAccess.ownerId != session.userId || session.accessToken.isNullOrBlank())) {
+                throw IOException("Voice session owner changed")
+            }
             builder.tag(SessionSnapshot::class.java, session).removeHeader("Authorization")
             session.accessToken?.takeIf(String::isNotBlank)?.let { builder.header("Authorization", "Bearer $it") }
         }
@@ -97,6 +106,7 @@ class BackendClient(
                 // Passwords and issued tokens are in bodies: never log bodies, even in debug.
                 level = HttpLoggingInterceptor.Level.BASIC
                 redactHeader("Authorization")
+                redactHeader("X-Guest-Session-Token")
             })
         }.build()
 

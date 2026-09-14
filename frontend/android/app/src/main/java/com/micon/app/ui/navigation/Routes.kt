@@ -31,6 +31,7 @@ object Routes {
     // 하위 화면
     const val SONG_MATCH = "match/{songId}"          // song-match-detail
     const val QUICK_ANALYSIS = "report/quick"        // 음성 분석 리포트 - 음성 간편 분석
+    const val VOICE_ONBOARDING = "report/onboarding"
     const val SING_ANALYSIS_PICK = "report/sing"     // 불러서 분석하기 - 곡 선택 (Figma 없음)
     const val SING_ANALYSIS_RUN = "report/sing/{songId}" // 불러서 분석하기 - 범위 선택/부르기/저장 완료
     const val SONG = "song/{songId}"                 // 노래 연습 - 노래 상세정보 (하단 탭 보임)
