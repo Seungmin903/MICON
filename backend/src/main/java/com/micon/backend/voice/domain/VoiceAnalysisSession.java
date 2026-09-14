@@ -112,6 +112,16 @@ public class VoiceAnalysisSession {
         updatedAt = at;
     }
 
+    public void markSaved() {
+        if (!"READY_TO_SAVE".equals(status) || !"AVAILABLE".equals(rangeStatus)
+                || !"AVAILABLE".equals(timbreStatus)) {
+            throw new IllegalStateException("session is not ready to save");
+        }
+        status = "SAVED";
+        saveStatus = "SAVED";
+        updatedAt = LocalDateTime.now();
+    }
+
     public boolean isExpired() {
         return !expiresAt.isAfter(LocalDateTime.now()) || "EXPIRED".equals(status);
     }

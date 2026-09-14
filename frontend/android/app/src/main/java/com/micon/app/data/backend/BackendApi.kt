@@ -53,6 +53,9 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Tag
+import com.micon.app.data.onboarding.VoiceSessionAccess
+import com.micon.app.data.backend.dto.*
 
 /** Paths are relative to the /api/v1/ backend base URL. */
 interface BackendApi {
@@ -222,4 +225,24 @@ interface BackendApi {
 
     @GET("voice-analyses/{analysisId}/report")
     suspend fun voiceAnalysisReport(@Path("analysisId") analysisId: Long): Response<ApiResponse<VoiceAnalysisReportDto>>
+
+    @POST("voice-analysis-sessions")
+    suspend fun createVoiceSession(@Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
+
+    @PUT("voice-analysis-sessions/{sessionId}/range-result")
+    suspend fun saveDeviceRange(@Path("sessionId") sessionId: Long, @Body body: DeviceRangeResultRequest,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
+
+    @Multipart
+    @POST("voice-analysis-sessions/{sessionId}/analysis")
+    suspend fun submitTimbre(@Path("sessionId") sessionId: Long, @Part file: MultipartBody.Part,
+        @Part("meta") meta: RequestBody, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
+    @GET("voice-analysis-sessions/{sessionId}/result")
+    suspend fun voiceOnboardingResult(@Path("sessionId") sessionId: Long,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceOnboardingResultDto>>
+
+    @POST("voice-analysis-sessions/{sessionId}/profile")
+    suspend fun saveVoiceProfile(@Path("sessionId") sessionId: Long, @Body body: VoiceProfileSaveRequest,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceProfileDto>>
 }

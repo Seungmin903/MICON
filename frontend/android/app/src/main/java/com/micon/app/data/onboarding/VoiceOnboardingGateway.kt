@@ -76,4 +76,4 @@ class PendingVoiceOnboardingGateway : VoiceOnboardingGateway {
     override suspend fun save(request: VoiceOnboardingRequest, result: VoiceAnalysisProgress): ProfileSaveReceipt =
         throw VoiceOnboardingNotReady()
 }
-class VoiceOnboardingNotReady : Exception("음색 분석과 프로필 저장 기능을 준비 중이에요. 측정한 음역은 확인할 수 있어요.")
+class VoiceOnboardingNotReady(message: String = "음색 분석과 프로필 저장 기능을 준비 중이에요. 측정한 음역은 확인할 수 있어요.") : Exception(message)

@@ -58,6 +58,47 @@ public class VoiceSessionService {
         return guestByToken(guestToken).response(true);
     }
 
+    @Transactional
+    public VoiceSessionResponse.Session saveDeviceRange(Long userId, String guestToken, long sessionId,
+            VoiceSessionRequest.DeviceRangeResult request) {
+        if (!"guided-range-v7".equals(request.protocolVersion())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 음역 측정 버전입니다.");
+        }
+        if (request.lowMidi() != null && request.highMidi() != null
+                && request.lowMidi().compareTo(request.highMidi()) > 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "최저음은 최고음보다 높을 수 없습니다.");
+        }
+        if (userId == null) return saveGuestDeviceRange(sessionId, guestToken, request);
+        VoiceAnalysisSession session = sessions.findByIdAndUserId(sessionId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND));
+        VoiceRangeMeasurement existing = ranges.findBySessionId(sessionId).orElse(null);
+        if (existing == null) {
+            ranges.save(new VoiceRangeMeasurement(session, request.measurementId(), request.protocolVersion(),
+                    request.lowMidi(), request.highMidi(), write(request.noteResults()),
+                    request.measurementStatus(), request.qualityStatus(), request.measuredAt()));
+            session.acceptRange(request.measurementStatus());
+        }
+        return member(session, ranges.findBySessionId(sessionId).orElse(null));
+    }
+
+    private synchronized VoiceSessionResponse.Session saveGuestDeviceRange(long sessionId, String token,
+            VoiceSessionRequest.DeviceRangeResult request) {
+        GuestSession guest = guest(sessionId, token);
+        if (guest.range == null) {
+            guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
+                    request.measurementStatus(), request.qualityStatus());
+            guest.rangeStatus = request.measurementStatus();
+            guest.status = "AVAILABLE".equals(request.measurementStatus()) ? "RANGE_IN_PROGRESS" : request.measurementStatus();
+            guest.version++;
+        }
+        return guest.response(false);
+    }
+
+    private String write(Object value) {
+        try { return json.writeValueAsString(value); }
+        catch (Exception exception) { throw new BusinessException(ErrorCode.INVALID_REQUEST); }
+    }
+
     public synchronized VoiceAnalysisJobResponse prepareGuestRange(long sessionId, String guestToken,
                                                                     VoiceSessionRequest.RangeAnalysisUpload request) {
         GuestSession guest = guest(sessionId, guestToken);

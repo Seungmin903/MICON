@@ -26,4 +26,13 @@ public class UserVoiceProfile {
     public User getUser() { return user; }
     public VoiceAnalysisSession getSession() { return session; }
     public long getProfileVersion() { return profileVersion; }
+
+    public void replaceWith(VoiceAnalysisSession session) {
+        if (session == null || !session.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("profile session owner does not match");
+        }
+        this.session = session;
+        this.profileVersion++;
+        this.updatedAt = LocalDateTime.now();
+    }
 }
