@@ -21,16 +21,18 @@ data class SavedRecording(val meta: SingRecordingMeta, val wav: File, val json: 
  *   업로드 연동이 끝나면 더 줄여도 된다.
  * - 분석 담당자는 [list] 로 녹음을 읽거나, 화면이 넘겨주는 [SavedRecording] 을 [SongAnalysisSubmitter] 에서 받는다.
  */
-class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAULT_KEEP) {
-    private val dir = File(context.filesDir, DIR_NAME).apply { mkdirs() }
+class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAULT_KEEP, storageDirectory: File? = null) {
+    private val dir = (storageDirectory ?: File(context.filesDir, DIR_NAME)).apply { mkdirs() }
+    private var closed = false
 
-    fun newId(songId: Long): String = "sing-${ID_FORMAT.format(Date())}-$songId"
+    fun newId(songId: Long): String = "sing-$songId-${java.util.UUID.randomUUID()}"
 
     fun wavFile(id: String) = File(dir, "$id.wav")
     fun metaFile(id: String) = File(dir, "$id.json")
 
     /** 메타를 원자적으로 쓰고 오래된 녹음을 정리한다. IO 스레드에서 호출할 것. */
-    fun save(meta: SingRecordingMeta): SavedRecording {
+    @Synchronized fun save(meta: SingRecordingMeta): SavedRecording {
+        check(!closed) { "종료된 녹음 세션입니다." }
         val wav = wavFile(meta.id)
         require(wav.isFile && wav.length() > WAV_HEADER_BYTES) { "녹음 파일이 없습니다: ${wav.name}" }
         writeMeta(meta)
@@ -86,6 +88,8 @@ class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAU
     fun prune() {
         list().drop(keep).forEach { delete(it.id) }
     }
+
+    @Synchronized fun closeTemporary() { closed = true; dir.deleteRecursively() }
 
     companion object {
         const val DIR_NAME = "sing-analysis"

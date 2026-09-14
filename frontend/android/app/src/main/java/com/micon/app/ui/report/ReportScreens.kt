@@ -78,54 +78,40 @@ import com.micon.app.ui.theme.Orange
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.PurpleMid
 
-/**
- * Figma "음성 분석 리포트" 4 상태를 한 화면에서 처리한다.
- * - 분석 결과 없을 때: 점선 상자 안내
- * - 분석 버튼 누를 때 / 다시 분석할 때: 회색 오버레이 + 큰 원 버튼 2개
- * - 분석 결과 있을 때: 카드 6개
- */
+/** Unified onboarding entry; latest analysis is not an explicitly saved profile. */
 @Composable
 fun VoiceReportScreen(
     onQuickAnalysis: () -> Unit,
-    onFileAnalysis: () -> Unit = {},
     onSettings: () -> Unit,
     onLogin: (() -> Unit)? = null,
 ) {
-    val profile by UserStore.profile.collectAsStateWithLifecycle()
-    var overlay by remember { mutableStateOf(false) }
-    // 로그인 사용자만 서버 최근 분석(`/voice-analyses/latest`)을 확인해 COMPLETED 결과를 프로필 카드에 반영한다.
-    val container = rememberAppContainer()
-    val loggedIn = onLogin == null
-    val reportVm: VoiceReportViewModel = viewModel(
-        key = "voice-report-$loggedIn",
-        factory = viewModelFactory { initializer { VoiceReportViewModel(container.voiceAnalyses, loggedIn) } },
-    )
-    val server by reportVm.state.collectAsStateWithLifecycle()
-    LaunchedEffect(loggedIn) { reportVm.refresh() }
-
-    Box(Modifier.fillMaxSize().background(Color.White)) {
-        Column(Modifier.fillMaxSize()) {
-            if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
-                PrimaryButton("목소리 분석하러 가기", onClick = { overlay = true }, Modifier.fillMaxWidth(), height = 66.dp)
-                Spacer(Modifier.height(16.dp))
-                AnalysisStatusBanner(server)
-                val p = profile
-                if (p == null) EmptyReport() else ReportCards(p, loggedIn)
-                Spacer(Modifier.height(24.dp))
-            }
+    val previousAnalysis by UserStore.profile.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val owner = if (onLogin == null) com.micon.app.core.auth.TokenManager.getUserId().takeIf { it > 0 } else null
+    val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
+        value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner).savedProfile()
         }
-        if (overlay) {
-            // Dialog = 별도 창이라 하단 탭바까지 덮는다(이전엔 Scaffold 내용 영역만 덮어 탭바가 눌렸다). 바깥 터치/뒤로 가기로 닫힘.
-            Dialog(onDismissRequest = { overlay = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-                Box(Modifier.fillMaxSize().background(Color(0x99777777)).clickable { overlay = false }, contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(36.dp)) {
-                        BigCircleButton(Icons.Filled.GraphicEq, "간편 분석하기", "기준음 5개를 따라 부르면 끝") { overlay = false; onQuickAnalysis() }
-                        BigCircleButton(Icons.Outlined.Mic, "불러서 분석하기", "노래 한 곡을 불러 정밀 분석") { overlay = false; onFileAnalysis() }
-                        Text("닫기", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { overlay = false })
-                    }
-                }
-            }
+    }
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
+            PrimaryButton("목소리 분석하러 가기", onQuickAnalysis, Modifier.fillMaxWidth(), height = 66.dp)
+            Spacer(Modifier.height(16.dp))
+            Text("음색 분석과 프로필 저장 기능을 준비 중이에요. 음역 측정과 노래 녹음은 체험할 수 있어요.",
+                color = Grey, fontSize = 13.sp)
+            Spacer(Modifier.height(16.dp))
+            val current = saved
+            if (current != null) {
+                com.micon.app.ui.onboarding.VoiceRangeSummary(current.range)
+                // Preserve develop's server-backed song fit card for a confirmed saved profile.
+                ReportFitCard(owner != null)
+            } else if (owner != null && previousAnalysis != null) {
+                Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
+                Spacer(Modifier.height(12.dp))
+                ReportCards(checkNotNull(previousAnalysis), loggedIn = true)
+            } else EmptyReport()
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

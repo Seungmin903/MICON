@@ -20,7 +20,9 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-class GuidedRangeViewModel(context: Context, extension: Boolean = false) : ViewModel() {
+class GuidedRangeViewModel(context: Context, extension: Boolean = false,
+    private val repository: RangeRepository = RangeRepository(context),
+) : ViewModel() {
     data class State(
         val running: Boolean = false, val finished: Boolean = false, val uploading: Boolean = false,
         val level: Float = 0f, val session: RangeSession.View? = null, val report: RangeReport? = null,
@@ -33,7 +35,6 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false) : ViewM
         val diagnosticMessage: String? = null,
     )
     private val appContext = context.applicationContext
-    private val repository = RangeRepository(context)
     private val keepOriginal = false
     private val parentReport = if (extension) repository.localReport()
         ?.takeIf { it.protocolVersion == RangeProtocol.VERSION && it.analysisId != null && it.availability == "available" } else null
@@ -300,7 +301,9 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false) : ViewM
                 _state.update { it.copy(report = report, finished = true, hasPending = false) }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                _state.update { it.copy(error = "모델 분석에 연결하지 못했습니다. PC와 USB 연결을 확인한 뒤 다시 분석해 주세요. 녹음은 보존되어 있어요.") }
+                _state.update { it.copy(error = if (repository.deviceOnly)
+                    "측정 결과를 정리하지 못했어요. 다시 시도하거나 새로 측정해 주세요."
+                    else "모델 분석에 연결하지 못했습니다. PC와 USB 연결을 확인한 뒤 다시 분석해 주세요. 녹음은 보존되어 있어요.") }
             } finally { _state.update { it.copy(uploading = false) } }
         }
     }

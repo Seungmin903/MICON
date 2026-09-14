@@ -48,11 +48,10 @@ import kotlin.math.abs
 /**
  * 불러서 분석하기 화면 로직. `PracticeViewModel` 에서 채점(YIN 판정·LiveScorer·러너웨이·진동·키 변경·구간 반복)을 뺀 것.
  *
- * 흐름: load(백엔드 practice-assets) → SETUP(범위 카드 3개) → choose(마이크 켜기 → 반주 준비 → 카운트인 "탁탁탁") → RUNNING(가사만)
- *      ⇄ PAUSED(이어서 부르면 다시 카운트인) → finish(곡 끝 또는 "여기까지 마치기") → SAVING(WAV + 메타 JSON) → DONE.
- * - 마이크는 choose 에서 켜고 finish 에서 끈다. 일시정지·카운트인 중에도 계속 녹음해 **한 WAV** 로 남긴다.
- *   대신 "반주가 흐르며 부른 구간" 을 [SingTake] 로 기록해(WAV 시각 ↔ 곡 시각) 분석 쪽이 잘라낼 수 있게 한다.
- * - 저장된 녹음(JSON 있음)은 화면을 떠나도 지우지 않는다. 미저장 WAV 만 지운다.
+ * 흐름: 곡 준비 → 등록 구간 선택 → 카운트인 → 녹음 ⇄ 일시정지 → 사용자 종료 → 임시 WAV 저장.
+ * 카운트인·일시정지 때는 마이크를 끈다. MR과 녹음이 실제 진행된 구간만 [SingTake]에 남긴다.
+ * 최소 30초를 확보하고 일시정지한 상태에서만 종료한다. 곡 끝은 자동 완료하지 않는다.
+ * 저장한 임시 녹음의 수명은 상위 온보딩 세션이 관리한다.
  */
 class SingAnalysisViewModel(
     appContext: Context,
@@ -62,6 +61,7 @@ class SingAnalysisViewModel(
     private val store: SingAnalysisRecordingStore,
     private val submitter: SongAnalysisSubmitter,
     private val voice: VoiceAnalysisRepository,
+    private val onboardingDraftId: String? = null,
 ) : ViewModel() {
     enum class Phase { LOADING, SETUP, COUNTDOWN, RUNNING, PAUSED, SAVING, DONE, ERROR }
 
@@ -80,7 +80,7 @@ class SingAnalysisViewModel(
         val imageUrl: String? = null,
         val durationSec: Double = 0.0,
         val nowSec: Double = 0.0,
-        /** 녹음 파일 길이(초) — REC 경과 표시 */
+        /** MR 재생과 실제 마이크 녹음이 겹친 누적 시간(초). */
         val elapsedRecSec: Double = 0.0,
         val countdown: Int = 0,
         val buffering: Boolean = false,
@@ -91,6 +91,8 @@ class SingAnalysisViewModel(
         val lyricTiming: LyricTiming = LyricTiming.NONE,
         /** "여기까지 마칠까요?" 다이얼로그 표시 */
         val confirmEnd: Boolean = false,
+        val confirmDiscard: Boolean = false,
+        val recordingValid: Boolean = false,
         val saved: SavedRecording? = null,
         val endedEarly: Boolean = false,
         val takePlaying: Boolean = false,
@@ -99,7 +101,9 @@ class SingAnalysisViewModel(
     ) {
         val isSinging: Boolean get() = phase == Phase.COUNTDOWN || phase == Phase.RUNNING || phase == Phase.PAUSED
         /** 지금까지 부른 곡 구간 길이(초) — 다이얼로그·완료 화면 문구 */
-        val sungSeconds: Double get() = if (plan == null) 0.0 else (nowSec - plan.startSec).coerceAtLeast(0.0)
+        val sungSeconds: Double get() = elapsedRecSec
+        val canFinish: Boolean get() = recordingValid && phase == Phase.PAUSED &&
+            elapsedRecSec >= com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS
     }
 
     private val _state = MutableStateFlow(UiState())
@@ -129,9 +133,11 @@ class SingAnalysisViewModel(
     private var wavFile: File? = null
     private var takePlayer: MediaPlayer? = null
 
-    /** 반주가 흐르며 부른 구간들. 열린 take 는 [openTake]. */
+    /** Valid MR/microphone overlaps copied into the final recording metadata. */
     private val takes = ArrayList<SingTake>()
-    private var openTake: SingTake? = null
+    private var eligibility = com.micon.app.data.singanalysis.RecordingEligibility()
+    private var lastAudioProgressAt = 0L
+    private var lastAudioSeconds = 0.0
 
     init {
         player.onError = { message -> onPlayerError(message) }
@@ -152,6 +158,7 @@ class SingAnalysisViewModel(
                 // 음표가 없어도 녹음은 가능하다(가사·구간 정보만 줄어든다) — 연습과 다른 점.
                 notes = assets.targetNotes.toLiveNotes(assets.timeSignature)
                 sheet = LyricLines.build(notes, assets.lyricsSynced, assets.lyricsPlain)
+                check(sheet.lines.any { it.text.isNotBlank() }) { "가사가 준비되지 않은 곡이에요. 다른 곡을 골라 주세요." }
                 beatGrid = assets.beatGrid
                 meter = NoteNormalizer.meterOf(assets.timeSignature)
                 tempoBpm = (assets.tempoBpm ?: detail.analysis?.tempoBpm)?.takeIf { it in 40..240 } ?: 100
@@ -159,7 +166,7 @@ class SingAnalysisViewModel(
                 backendSections = assets.sections
                 sections = if (notes.isEmpty()) SectionMap.EMPTY else SongSections.build(notes, sheet.lines, barStarts())
                 val url = assets.instrumental.playbackUrl
-                    ?: error("반주 재생 주소가 없습니다. 백엔드 practice-assets 응답에 반주 URL(playbackUrl)이 추가되어야 합니다.")
+                    ?: error("반주가 준비되지 않은 곡이에요. 다른 곡을 골라 주세요.")
                 instrumentalUrl = url
                 player.load(url)
                 val duration = fallbackDuration(detail.summary.durationMs)
@@ -186,7 +193,7 @@ class SingAnalysisViewModel(
         SingScopeResolver.resolve(durationSec, notes.firstOrNull()?.start, notes.lastOrNull()?.end, backendSections, sections)
 
     private fun fallbackDuration(durationMs: Long?): Double =
-        notes.lastOrNull()?.end?.plus(6.0) ?: durationMs?.let { it / 1000.0 }?.takeIf { it > 0 } ?: 240.0
+        durationMs?.let { it / 1000.0 }?.takeIf { it > 0 } ?: 0.0
 
     /** 비트 그리드에서 마디 시작 시각만(offsetBeats 기준으로 meter 마다). 연습과 동일. */
     private fun barStarts(): List<Double> {
@@ -210,19 +217,14 @@ class SingAnalysisViewModel(
         val s = _state.value
         if (s.phase != Phase.SETUP || !plan.enabled) return
         stopTake()
-        takes.clear(); openTake = null
+        takes.clear()
+        eligibility = com.micon.app.data.singanalysis.RecordingEligibility()
         val id = store.newId(songId)
         val file = store.wavFile(id)
-        try {
-            capture.start(file, onError = { e -> _state.update { it.copy(error = "녹음 오류: ${e.message}") } }) { frame -> frameChannel.trySend(frame) }
-        } catch (e: Exception) {
-            _state.update { it.copy(error = "마이크를 사용할 수 없습니다: ${e.message}") }
-            return
-        }
         recordingId = id
         wavFile = file
         pollJob?.cancel()
-        _state.update { it.copy(plan = plan, saved = null, endedEarly = false, submit = Submit(), error = null, nowSec = plan.startSec, elapsedRecSec = 0.0) }
+        _state.update { it.copy(plan = plan, saved = null, endedEarly = false, submit = Submit(), error = null, nowSec = plan.startSec, elapsedRecSec = 0.0, recordingValid = false) }
         beginPlayback(plan.startSec, countFrom = meter)
     }
 
@@ -233,6 +235,7 @@ class SingAnalysisViewModel(
     /** PAUSED → 카운트인 후 현재 위치에서 이어서. */
     fun resume() {
         if (_state.value.phase != Phase.PAUSED) return
+        if (!eligibility.valid || player.isEnded || player.positionSec >= (_state.value.plan?.endSec ?: 0.0)) return
         _state.update { it.copy(confirmEnd = false) }
         beginPlayback(player.positionSec, countFrom = meter)
     }
@@ -249,8 +252,14 @@ class SingAnalysisViewModel(
                     return@launch
                 }
             }
+            val duration = player.durationSec ?: _state.value.durationSec
+            if (duration - startAt + eligibility.seconds < 30.0) {
+                interruptRecording("남은 반주로는 30초를 녹음할 수 없어요. 다른 시작 위치나 곡을 골라 주세요.")
+                return@launch
+            }
             player.seekTo(startAt)
-            _state.update { it.copy(buffering = false, nowSec = startAt, durationSec = player.durationSec ?: it.durationSec) }
+            _state.update { it.copy(buffering = false, nowSec = startAt, durationSec = duration,
+                plan = it.plan?.copy(endSec = duration)) }
             // 노래방식 카운트인: 곡 템포로 "탁 탁 탁 탁", 마지막 박은 높은 소리. 그 다음 박에 반주가 들어간다(연습과 동일).
             val beat = beatMillis()
             for (step in countFrom downTo 1) {
@@ -259,9 +268,21 @@ class SingAnalysisViewModel(
                 delay(beat)
             }
             _state.update { it.copy(countdown = 0) }
+            val file = wavFile ?: return@launch
+            try {
+                val onError: (Throwable) -> Unit = {
+                    viewModelScope.launch { interruptRecording("마이크 입력이 중단됐어요. 권한과 연결을 확인한 뒤 다시 녹음해 주세요.") }
+                }
+                if (file.isFile && file.length() > 44) capture.resume(file, onError) { frame -> frameChannel.trySend(frame) }
+                else capture.start(file, onError) { frame -> frameChannel.trySend(frame) }
+            } catch (e: Exception) {
+                interruptRecording("마이크를 사용할 수 없어요. 권한을 확인한 뒤 다시 녹음해 주세요.")
+                return@launch
+            }
+            lastAudioProgressAt = android.os.SystemClock.elapsedRealtime()
+            lastAudioSeconds = capture.capturedSeconds
             player.play()
-            openTake = SingTake(wavStartSec = capture.capturedSeconds, wavEndSec = capture.capturedSeconds, songStartSec = startAt, songEndSec = startAt)
-            _state.update { it.copy(phase = Phase.RUNNING) }
+            _state.update { it.copy(phase = Phase.RUNNING, recordingValid = true) }
             tickJob?.cancel()
             tickJob = launch { tickLoop() }
         }
@@ -271,54 +292,60 @@ class SingAnalysisViewModel(
         val plan = _state.value.plan ?: return
         while (viewModelScope.isActive && _state.value.phase == Phase.RUNNING) {
             val now = player.positionSec
-            _state.update { it.copy(nowSec = now, elapsedRecSec = capture.capturedSeconds) }
+            val clock = android.os.SystemClock.elapsedRealtime()
+            val audio = capture.capturedSeconds
+            if (audio > lastAudioSeconds) { lastAudioSeconds = audio; lastAudioProgressAt = clock }
+            if (!capture.isRunning || clock - lastAudioProgressAt > 2000) {
+                interruptRecording("마이크 입력이 멈췄어요. 다시 녹음해 주세요.")
+                return
+            }
+            eligibility.sample(audio, now, clock / 1000.0, player.isPlaying && capture.isRunning)
+            _state.update { it.copy(nowSec = now, elapsedRecSec = eligibility.seconds, buffering = player.isBuffering) }
             if (player.isEnded || now >= plan.endSec) {
-                finish(early = false)
+                pause()
+                if (!eligibility.canFinish(true)) _state.update {
+                    it.copy(error = "녹음된 구간이 30초 미만이에요. 뒤로 가서 다른 시작 위치나 곡을 골라 주세요.")
+                }
                 return
             }
             delay(33)
         }
     }
 
-    /** 일시정지: 반주만 멈추고 마이크는 유지(한 파일). 카운트다운 중이면 카운트다운 취소. */
+    /** Stop both devices. Resume appends PCM to the same file after the count-in. */
     fun pause() {
         val s = _state.value
         if (s.phase != Phase.RUNNING && s.phase != Phase.COUNTDOWN) return
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()
-        closeTake()
+        capture.stop()
+        eligibility.pause()
         _state.update { it.copy(phase = Phase.PAUSED, countdown = 0, buffering = false, nowSec = player.positionSec) }
     }
 
-    /** "여기까지 마치기" 버튼·뒤로가기: 반주를 멈추고 확인 다이얼로그를 띄운다. */
+    /** Finishing never implicitly pauses playback or bypasses the 30-second gate. */
     fun requestFinish() {
-        val s = _state.value
-        if (!s.isSinging) return
-        if (s.phase != Phase.PAUSED) pause()
+        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = true) }
     }
 
     fun cancelFinish() = _state.update { it.copy(confirmEnd = false) }
 
     fun confirmFinish() {
-        if (_state.value.phase != Phase.PAUSED && !_state.value.isSinging) return
+        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = false) }
-        finish(early = true)
-    }
-
-    private fun closeTake() {
-        val open = openTake ?: return
-        takes.add(open.copy(wavEndSec = capture.capturedSeconds, songEndSec = player.positionSec))
-        openTake = null
+        finish(early = player.positionSec < (_state.value.plan?.endSec ?: 0.0))
     }
 
     private fun finish(early: Boolean) {
+        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()
-        closeTake()
-        val file = capture.stop() ?: wavFile
+        capture.stop()
+        val file = wavFile
+        takes.clear(); takes.addAll(eligibility.takes)
         val plan = _state.value.plan
         val rate = capture.recordingRate
         if (file == null || plan == null || file.length() < 44 + rate * 2 * MIN_SECONDS) {
@@ -333,7 +360,7 @@ class SingAnalysisViewModel(
         viewModelScope.launch {
             try {
                 val saved = withContext(Dispatchers.IO + NonCancellable) { store.save(meta) }
-                _state.update { it.copy(phase = Phase.DONE, saved = saved, elapsedRecSec = meta.durationSec) }
+                _state.update { it.copy(phase = Phase.DONE, saved = saved, elapsedRecSec = eligibility.seconds) }
             } catch (e: Exception) {
                 _state.update { it.copy(phase = Phase.ERROR, error = "녹음을 저장하지 못했어요: ${e.message ?: e.toString()}") }
             }
@@ -355,17 +382,21 @@ class SingAnalysisViewModel(
             lyricTiming = sheet.timing.name,
             lyricLines = sheet.lines.filter { it.end >= sungStart && it.start <= sungEnd }.map { SingLyricLine(it.text, it.start, it.end) },
             wavFileName = file.name, dataVersion = dataVersion,
+            onboardingDraftId = onboardingDraftId,
         )
     }
 
     /** 다시 부르기(DONE → SETUP). 저장된 녹음은 그대로 둔다. */
     fun restart() {
         stopTake()
-        takes.clear(); openTake = null
+        _state.value.saved?.let { store.delete(it.id) }
+        discardUnsaved()
+        eligibility = com.micon.app.data.singanalysis.RecordingEligibility()
+        takes.clear()
         recordingId = null; wavFile = null
         player.seekTo(0.0)
         pollJob?.cancel()
-        _state.update { it.copy(phase = Phase.SETUP, plan = null, nowSec = 0.0, elapsedRecSec = 0.0, saved = null, endedEarly = false, submit = Submit(), error = null, confirmEnd = false, plans = resolvePlans(it.durationSec)) }
+        _state.update { it.copy(phase = Phase.SETUP, plan = null, nowSec = 0.0, elapsedRecSec = 0.0, saved = null, endedEarly = false, submit = Submit(), error = null, confirmEnd = false, confirmDiscard = false, recordingValid = false, plans = resolvePlans(it.durationSec)) }
     }
 
     /** 저장하지 않고 나가기(확인 다이얼로그). 호출 뒤 화면이 onBack 한다. */
@@ -374,19 +405,29 @@ class SingAnalysisViewModel(
         tickJob?.cancel(); tickJob = null
         player.pause()
         discardUnsaved()
-        _state.update { it.copy(confirmEnd = false, phase = Phase.SETUP, plan = null, nowSec = 0.0) }
+        _state.update { it.copy(confirmEnd = false, confirmDiscard = false, phase = Phase.SETUP, plan = null, nowSec = 0.0, recordingValid = false) }
     }
 
     private fun discardUnsaved() {
         if (capture.isRunning) capture.stop()
         if (_state.value.saved == null) wavFile?.delete()
         recordingId = null; wavFile = null
-        takes.clear(); openTake = null
+        takes.clear()
     }
 
     private fun onPlayerError(message: String) {
-        _state.update { it.copy(error = "반주 재생 오류: $message", buffering = false) }
-        if (_state.value.phase == Phase.RUNNING || _state.value.phase == Phase.COUNTDOWN) pause()
+        if (_state.value.isSinging) interruptRecording("반주 재생이 중단됐어요. 연결을 확인한 뒤 다시 녹음해 주세요.")
+        else _state.update { it.copy(error = "반주를 재생하지 못했어요. 다시 시도해 주세요.", buffering = false) }
+    }
+
+    fun requestExit() { pause(); _state.update { it.copy(confirmDiscard = true) } }
+    fun cancelExit() { _state.update { it.copy(confirmDiscard = false) } }
+
+    fun interruptRecording(message: String = "앱을 벗어나 녹음이 중단됐어요. 다시 녹음해 주세요.") {
+        if (!_state.value.isSinging) return
+        eligibility.invalidate()
+        discardAndExit()
+        _state.update { it.copy(error = message, elapsedRecSec = 0.0, micLevel = 0f) }
     }
 
     private fun onFrame(frame: PitchCapture.PitchFrame) {
@@ -400,6 +441,10 @@ class SingAnalysisViewModel(
 
     /** 분석 요청 — [SongAnalysisSubmitter](백엔드 `/recordings` → `/voice-analyses`)에 넘기고, 접수되면 서버 상태를 폴링한다. */
     fun submit() {
+        if (onboardingDraftId != null) {
+            _state.update { it.copy(submit = Submit(SubmitPhase.UNAVAILABLE, "음색 분석 기능을 준비 중이에요.")) }
+            return
+        }
         val saved = _state.value.saved ?: return
         if (_state.value.submit.phase == SubmitPhase.SENDING) return
         pollJob?.cancel()
@@ -493,8 +538,8 @@ class SingAnalysisViewModel(
 
     private companion object {
         /** 이보다 짧은 녹음은 저장하지 않는다(초) */
-        const val MIN_SECONDS = 2
         const val POLL_INTERVAL_MS = 3_000L
         const val POLL_MAX_MS = 120_000L
+        const val MIN_SECONDS = 30
     }
 }

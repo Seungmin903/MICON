@@ -51,6 +51,8 @@ data class SingRecordingMeta(
     val serverRecordingId: Long? = null,
     /** 마지막으로 접수된 서버 분석 id(`POST /voice-analyses`). */
     val serverAnalysisId: Long? = null,
+    /** Local onboarding draft correlation; never a backend sessionId. */
+    val onboardingDraftId: String? = null,
 ) {
     val scopeEnum: SingScope get() = runCatching { SingScope.valueOf(scope) }.getOrDefault(SingScope.FULL)
 }

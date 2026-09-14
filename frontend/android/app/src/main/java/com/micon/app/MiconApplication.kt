@@ -34,6 +34,7 @@ class MiconApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         TokenManager.init(this)
+        com.micon.app.data.onboarding.VoiceOnboardingStore.clearInterruptedGuests(this)
         container = AppContainer(this)
 
         // 소셜 로그인을 켤 때: libs.bundles.login 주석 해제 후 아래를 활성화한다.
@@ -78,6 +79,10 @@ class AppContainer(context: Context) {
 
     /** 음성 녹음 업로드·분석 요청·리포트 조회. 백엔드 `/recordings`, `/voice-analyses`. 리포트 탭·불러서 분석하기가 쓴다. */
     val voiceAnalyses: VoiceAnalysisRepository = RemoteVoiceAnalysisRepository.forClient(backend)
+
+    /** New onboarding needs a confirmed session lifecycle before uploading or saving voice data. */
+    val voiceOnboarding: com.micon.app.data.onboarding.VoiceOnboardingGateway =
+        com.micon.app.data.onboarding.PendingVoiceOnboardingGateway()
 
     /**
      * 불러서 분석하기 녹음 제출: 업로드 → 분석 생성(SONG). 서버 id 는 녹음 메타 JSON 에 남겨 재요청 때 다시 올리지 않는다.

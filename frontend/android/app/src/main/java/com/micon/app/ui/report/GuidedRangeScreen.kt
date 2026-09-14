@@ -32,21 +32,22 @@ import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.theme.*
 
 @Composable
-fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean = false, onRestart: () -> Unit = onDone) {
+fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean = false, onRestart: () -> Unit = onDone,
+    repository: com.micon.app.range.RangeRepository? = null,
+) {
     val context = LocalContext.current
     val vm: GuidedRangeViewModel = viewModel(factory = viewModelFactory {
-        initializer { GuidedRangeViewModel(context.applicationContext, extension) }
+        initializer { GuidedRangeViewModel(context.applicationContext, extension, repository ?: com.micon.app.range.RangeRepository(context)) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     SideEffect { vm.displayed(state.session) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) vm.start() else vm.permissionDenied() }
-    fun start() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.start()
-        else permission.launch(Manifest.permission.RECORD_AUDIO)
-    }
+    val start = com.micon.app.ui.common.rememberMicrophoneAccess(vm::start, vm::permissionDenied)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) vm.finish("app_interrupted") }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP &&
+                (context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) vm.finish("app_interrupted")
+        }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
@@ -82,19 +83,26 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                     else -> null
                 }?.let { Text(it, color = Grey) }
                 val report = state.report
-                if (report != null) RangeReportCards(report)
+                if (report != null) {
+                    if (repository?.deviceOnly == true) com.micon.app.ui.onboarding.VoiceRangeSummary(report)
+                    else RangeReportCards(report)
+                }
                 else if (!state.uploading) Text("분석 대기 중", color = Grey)
                 if (state.uploading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(state.analysisMessage)
                 } else if (state.hasPending) {
-                    if (state.hasAttempts) PrimaryButton("모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth())
+                    if (state.hasAttempts) PrimaryButton(if (repository?.deviceOnly == true) "결과 다시 확인하기" else "모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth())
                     TextButton(onClick = { vm.discardPending(); onRestart() }) { Text("이 녹음을 지우고 새로 측정") }
                 } else {
                     TextButton(onClick = onRestart) { Text("새로 측정하기") }
                 }
-                OutlinePurpleButton("저장한 결과 보기", onDone, Modifier.fillMaxWidth())
+                if (repository?.deviceOnly == true) {
+                    PrimaryButton("다음 · 부를 곡 고르기", onDone, Modifier.fillMaxWidth(),
+                        enabled = state.report?.availability == "available" && !state.uploading)
+                } else OutlinePurpleButton("저장한 결과 보기", onDone, Modifier.fillMaxWidth())
             } else {
+                Text("마이크로 목소리를 듣고 편하게 낼 수 있는 음역을 측정해요. 기준음을 따라 불러 주세요.", color = Grey)
                 PrimaryButton("측정 시작", { start() }, Modifier.fillMaxWidth(), enabled = state.soundReady && !state.previewPlaying)
             }
             state.error?.let { Text(it, color = Red) }
