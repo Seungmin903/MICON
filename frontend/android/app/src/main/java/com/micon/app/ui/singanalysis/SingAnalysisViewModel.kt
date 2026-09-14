@@ -9,8 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.audio.PitchCapture
 import com.micon.app.data.SongRepository
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.toLiveNotes
+import com.micon.app.data.backend.dto.BeatGrid
+import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.data.singanalysis.SavedRecording
 import com.micon.app.data.singanalysis.ScopePlan
 import com.micon.app.data.singanalysis.SingAnalysisRecordingStore

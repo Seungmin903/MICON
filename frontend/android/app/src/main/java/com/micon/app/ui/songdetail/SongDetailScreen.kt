@@ -40,7 +40,7 @@ import com.micon.app.data.SongAnalysis
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongRepository
 import okhttp3.OkHttpClient
-import com.micon.app.data.engine.dto.KaraokeNote
+import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.KaraokeNames
 import com.micon.app.ui.charts.KeyChangeGraph

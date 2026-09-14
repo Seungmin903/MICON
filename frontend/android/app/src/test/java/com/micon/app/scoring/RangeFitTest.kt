@@ -1,8 +1,7 @@
 package com.micon.app.scoring
 
-import com.micon.app.core.network.Json
-import com.micon.app.data.engine.dto.Job
-import com.micon.app.data.engine.dto.KaraokeNote
+import com.micon.app.data.SongDataFixture
+import com.micon.app.data.backend.dto.KaraokeNote
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -10,11 +9,7 @@ import org.junit.Test
 
 /** recommend-algo pitch_range.py 규칙 포팅 검증. 곡은 실제 엔진 픽스처(tj-14260: F3~D5, 1152 음표). */
 class RangeFitTest {
-    private val songNotes: List<KaraokeNote> by lazy {
-        val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/tj-14260.job.json"))
-        val job = checkNotNull(Json.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText()))
-        checkNotNull(job.result?.karaokeNotes)
-    }
+    private val songNotes: List<KaraokeNote> by lazy { SongDataFixture.karaokeNotes("tj-14260.job.json") }
     private val song by lazy { checkNotNull(PitchProfile.fromNotes(songNotes)) }
 
     @Test

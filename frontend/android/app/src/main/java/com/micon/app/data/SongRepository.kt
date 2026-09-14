@@ -1,7 +1,7 @@
 package com.micon.app.data
 
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.KaraokeNote
+import com.micon.app.data.backend.dto.BeatGrid
+import com.micon.app.data.backend.dto.KaraokeNote
 
 /**
  * 곡 카탈로그 접근 인터페이스. 화면·ViewModel 은 이 인터페이스만 본다.

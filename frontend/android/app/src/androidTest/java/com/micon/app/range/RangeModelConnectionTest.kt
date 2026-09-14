@@ -3,7 +3,7 @@ package com.micon.app.range
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.micon.app.BuildConfig
-import com.micon.app.data.engine.EngineClient
+import com.micon.app.core.network.Json
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -70,7 +70,7 @@ class RangeModelConnectionTest {
                     referenceMidi=if(buffered) 60+part*step+part*.35 else null,runEndReason=if(buffered) "manual" else null,
                     anchorMidi=if(adaptive)60 else null,probeStage=if(adaptive) if(part==0)"anchor" else "coarse" else null)
             })
-        val metadata = EngineClient.moshi.adapter(RangeSubmission::class.java).toJson(submission)
+        val metadata = Json.moshi.adapter(RangeSubmission::class.java).toJson(submission)
         val report = RangePreviewClient(BuildConfig.RANGE_PREVIEW_BASE_URL).api.analyze(
             MultipartBody.Part.createFormData("audio", "synthetic-test.wav", wav.array().toRequestBody("audio/wav".toMediaType())),
             metadata.toRequestBody("text/plain".toMediaType()))
