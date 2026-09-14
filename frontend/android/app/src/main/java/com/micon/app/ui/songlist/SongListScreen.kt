@@ -31,6 +31,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.ui.common.describeBackendError
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -38,7 +44,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
-import com.micon.app.data.local.UserStore
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
@@ -88,7 +93,6 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
             val s = _state.value
             runCatching { repo.search(s.query, page = 0, size = PAGE_SIZE) }
                 .onSuccess { page ->
-                    UserStore.seedLikesIfEmpty(page.items.map { it.id })
                     _state.update { it.copy(songs = page.items, totalElements = page.totalElements, loading = false) }
                     val keys = page.items.associate { song -> song.id to runCatching { recommend.fit(song.id)?.recommendedKey }.getOrNull() }
                     _state.update { it.copy(keys = it.keys + keys) }
@@ -118,7 +122,22 @@ fun SongListScreen(
     val container = rememberAppContainer()
     val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
-    val liked by UserStore.liked.collectAsStateWithLifecycle()
+    val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
+    val loggedIn = TokenManager.isLoggedIn()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    // 찜은 서버가 진실. 로그인 상태면 진입 때 캐시를 한 번 맞춘다(비회원은 서버를 부르지 않는다).
+    LaunchedEffect(loggedIn) { if (loggedIn) runCatching { container.favorites.refresh() } }
+    fun like(songId: Long) {
+        if (!loggedIn) {
+            onLogin?.invoke() ?: Toast.makeText(context, "로그인하면 찜할 수 있어요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        scope.launch {
+            runCatching { container.favorites.toggle(songId) }
+                .onFailure { Toast.makeText(context, describeBackendError(it), Toast.LENGTH_SHORT).show() }
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         if (backTitle != null) {
@@ -153,7 +172,7 @@ fun SongListScreen(
                         onClick = { onSongClick(song.id) },
                         keyBadge = state.keys[song.id],
                         liked = song.id in liked,
-                        onLike = { UserStore.toggleLike(song.id) },
+                        onLike = { like(song.id) },
                     )
                 }
                 if (state.songs.isEmpty()) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }

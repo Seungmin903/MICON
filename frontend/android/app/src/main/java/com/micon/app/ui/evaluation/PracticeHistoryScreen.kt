@@ -40,11 +40,11 @@ import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.RetryBlock
+import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.result.PracticeLabels
 import com.micon.app.ui.result.ResultDetailCards
-import com.micon.app.ui.result.describePracticeError
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
@@ -86,7 +86,7 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
                 val items = page.items.map { Item(it, PracticeLabels.date(it.startedAt) ?: "날짜 없음", it.id in seen) }
                 _state.update { it.copy(loading = false, groups = items.groupBy { i -> i.date }.toSortedMap(compareByDescending { d -> d })) }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = describePracticeError(e)) }
+                _state.update { it.copy(loading = false, error = describeBackendError(e, "연습 기록을 불러오지 못했어요.")) }
             }
         }
     }

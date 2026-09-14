@@ -312,9 +312,9 @@ private fun MiconNavHost(
             if (isGuest) GuestMemberTab("찜", openLogin = { openLogin() })
             else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
-        composable(Routes.SETLIST, arguments = listOf(navArgument("setlistId") { type = NavType.StringType })) { entry ->
+        composable(Routes.SETLIST, arguments = listOf(navArgument("setlistId") { type = NavType.LongType })) { entry ->
             if (isGuest || !accessGranted) return@composable
-            val setlistId = entry.arguments?.getString("setlistId") ?: return@composable
+            val setlistId = entry.arguments?.getLong("setlistId") ?: return@composable
             SetlistScreen(setlistId = setlistId, onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.song(it)) })
         }
 

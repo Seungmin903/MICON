@@ -132,6 +132,8 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         val shelves: List<RecommendShelf> = emptyList(),
         /** false = 기본 추천(프로필 없음 등). 개인화 문구를 쓰지 않는다(REC-004) */
         val personalized: Boolean = false,
+        /** 서버 추천 대신 기기 계산을 보여 주는 이유(저장소가 준 문구). null 이면 없음 */
+        val note: String? = null,
         val loading: Boolean = true,
         val error: String? = null,
         /** 필터 바(시안: 성별·시대·장르·인기). null = 전체. 성별·인기는 데이터가 아직 없어 화면에서 비활성 */
@@ -193,7 +195,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null, userName = UserStore.nickname)
             runCatching { recommend.shelves(limit = 30, reshuffle = reshuffle) }   // 필터를 걸어도 화면을 다시 채울 만큼 넉넉히
-                .onSuccess { r -> _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, loading = false) }
+                .onSuccess { r -> _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note, loading = false) }
                 .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString()) }
         }
     }
@@ -294,8 +296,9 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin
                 Icon(if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search, if (searchOpen) "검색 닫기" else "검색", tint = Ink)
             }
         }
-        if (!state.personalized && !state.loading && state.query.isBlank()) {
-            Text("목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요", fontSize = 13.sp, color = Grey, modifier = Modifier.padding(horizontal = 24.dp))
+        if (!state.loading && state.query.isBlank()) {
+            val notice = state.note ?: if (!state.personalized) "목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요" else null
+            if (notice != null) Text(notice, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(10.dp))
         // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게

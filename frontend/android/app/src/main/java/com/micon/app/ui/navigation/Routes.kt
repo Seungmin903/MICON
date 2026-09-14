@@ -48,7 +48,7 @@ object Routes {
     fun practice(songId: Long) = "practice/$songId"
     fun singAnalysis(songId: Long) = "report/sing/$songId"
     fun result(practiceId: Long) = "result/$practiceId"
-    fun setlist(setlistId: String) = "setlist/$setlistId"
+    fun setlist(setlistId: Long) = "setlist/$setlistId"
 
     /** 하단 탭을 보이는 경로 (Figma 에서 하단 바가 있는 화면) */
     val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SETLIST)
