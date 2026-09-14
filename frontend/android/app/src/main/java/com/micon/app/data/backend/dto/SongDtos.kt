@@ -1,7 +1,5 @@
 package com.micon.app.data.backend.dto
 
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.KaraokeNote
 
 /**
  * 곡 API 응답 DTO. 필드 이름은 백엔드 `SongResponse`·`PageResponse`·`PracticeAssetResponse` 와 1:1 (camelCase 그대로).

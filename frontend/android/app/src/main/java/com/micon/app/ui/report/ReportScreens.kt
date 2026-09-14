@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MusicNote
@@ -37,10 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.micon.app.data.local.UserStore
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -59,13 +55,11 @@ import com.micon.app.data.voice.VoiceAnalysisStatus
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.charts.BpmGaugeRow
-import com.micon.app.ui.charts.MetricBar
 import com.micon.app.ui.charts.PhraseSegments
 import com.micon.app.ui.charts.PianoRangeChart
 import com.micon.app.ui.charts.RadarHexagon
 import com.micon.app.ui.charts.RangeMapChart
 import com.micon.app.ui.charts.RangeRow
-import com.micon.app.ui.charts.RingProgress
 import com.micon.app.ui.charts.StabilityLineChart
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.DashedBox
@@ -80,7 +74,6 @@ import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.InkSoft
 import com.micon.app.ui.theme.Lavender
-import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Orange
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.PurpleMid
@@ -118,7 +111,7 @@ fun VoiceReportScreen(
                 Spacer(Modifier.height(16.dp))
                 AnalysisStatusBanner(server)
                 val p = profile
-                if (p == null) EmptyReport() else ReportCards(p)
+                if (p == null) EmptyReport() else ReportCards(p, loggedIn)
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -198,7 +191,7 @@ private fun EmptyReport() {
 }
 
 @Composable
-private fun ReportCards(p: UserStore.VoiceProfile) {
+private fun ReportCards(p: UserStore.VoiceProfile, loggedIn: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -251,7 +244,7 @@ private fun ReportCards(p: UserStore.VoiceProfile) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { p.genres.forEach { SoftChip(it) } }
         }
 
-        FitCard(p)
+        ReportFitCard(loggedIn)
 
         MiconCard {
             CardTitle("종합 보컬 특성")
@@ -272,47 +265,3 @@ private fun ReportCards(p: UserStore.VoiceProfile) {
     }
 }
 
-/** 곡 적합도 카드: 분석할 노래 드롭다운 + 링 + 막대 3개 + 추천 key */
-@Composable
-private fun FitCard(p: UserStore.VoiceProfile) {
-    MiconCard {
-        CardTitle("곡 적합도")
-        Spacer(Modifier.height(12.dp))
-        Row(
-            Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(1.dp)
-                .background(GreyLight.copy(alpha = 0.35f), RoundedCornerShape(12.dp)).padding(12.dp)
-                .clickable { /* TODO: 곡 선택 시트 */ },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).background(LavenderDeep)) {
-                AsyncImage(null, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text("분석할 노래", fontSize = 11.sp, color = Grey)
-                Text("밤편지", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink)   // TODO: 선택 곡
-                Text("아이유", fontSize = 12.sp, color = Grey)
-            }
-            Icon(Icons.Filled.KeyboardArrowDown, null, tint = Ink)
-        }
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RingProgress(92)
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricBar("음역", 0.92f)
-                MetricBar("음색", 0.84f)
-                MetricBar("박자", 0.76f)
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(
-                Modifier.background(Purple, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("추천 key", fontSize = 12.sp, color = Color.White)
-                Text("-2", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        }
-        @Suppress("UNUSED_VARIABLE") val unused = p
-    }
-}

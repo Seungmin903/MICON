@@ -21,8 +21,8 @@ import com.micon.app.data.backend.BackendRequestException
 import com.micon.app.data.practice.PracticeActiveStatus
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeScoreMapper
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.toLiveNotes
+import com.micon.app.data.backend.dto.BeatGrid
+import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.scoring.DisplayBar
 import com.micon.app.scoring.DisplayBars
 import com.micon.app.scoring.Frame

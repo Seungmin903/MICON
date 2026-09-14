@@ -70,11 +70,11 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 
 | 패키지 | 내용 | 상태 |
 |---|---|---|
-| `MiconApplication`, `AppContainer` | 수동 DI. engine / backend / songs 를 화면에 공급 | 완료 |
+| `MiconApplication`, `AppContainer` | 수동 DI. backend 클라이언트와 Repository(songs·practices·favorites·setlists·settings·voiceAnalyses·recommend)를 화면에 공급 | 완료 |
 | `MainActivity` | 단일 Activity, `MiconRoot()` 호출 | 완료 |
 | `core/auth` | `TokenManager` (EncryptedSharedPreferences) | 완료 |
 | `core/network` | `BackendClient` (인증 인터셉터, 401 토큰 갱신), `SessionEvents` | 완료, 백엔드 계약 대기 |
-| `data/engine/dto` | 음표·비트 그리드·엔진 job DTO(백엔드 practice-assets 가 같은 형식을 준다). 엔진 REST 클라이언트는 2026-09-13 제거 | 완료 |
+| `data/backend/dto/SongDataDtos` | 음표(`KaraokeNote`)·비트 그리드(`BeatGrid`)·라이브 음표 변환 — 백엔드 practice-assets 가 주는 곡 데이터 형식. 엔진 패키지(`data/engine`)는 2026-09-14 완전히 제거 | 완료 |
 | `data/backend` | `BackendApi` + `dto/` — 인증·곡 카탈로그·연습 데이터·연습 기록·음성 분석·찜·세트리스트 REST | 완료 |
 | `data/` | `SongRepository` 인터페이스 + `backend/RemoteSongRepository`(백엔드 `/songs`, `/songs/{id}`, `/practice-assets`) | 완료. 곡 id = 백엔드 `song_id`(Long) |
 | `scoring/` | 순수 Kotlin. YIN 피치, 라이브 채점, 채점 상수·색 | 완료 (프로토타입, 테스트 있음) |

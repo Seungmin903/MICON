@@ -1,8 +1,6 @@
 package com.micon.app.data
 
-import com.micon.app.core.network.Json
-import com.micon.app.data.engine.dto.Job
-import com.micon.app.data.engine.dto.KaraokeNote
+import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.data.local.LocalRecommendRepository
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.RangeFitCalculator
@@ -45,10 +43,7 @@ class LocalRecommendRepositoryTest {
             SongAnalysis("D major", 144, "4/4", low, high, taskSupport = mapOf("pitch_range" to "pass"))
     }
 
-    private val notes: List<KaraokeNote> by lazy {
-        val stream = checkNotNull(javaClass.classLoader!!.getResourceAsStream("fixtures/tj-14260.job.json"))
-        checkNotNull(Json.moshi.adapter(Job::class.java).fromJson(stream.bufferedReader().readText())?.result?.karaokeNotes)
-    }
+    private val notes: List<KaraokeNote> by lazy { SongDataFixture.karaokeNotes("tj-14260.job.json") }
     private val songs by lazy { FakeSongs(notes) }
     private val repo by lazy { LocalRecommendRepository(songs) }
 

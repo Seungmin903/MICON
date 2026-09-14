@@ -3,7 +3,7 @@ package com.micon.app.scoring
 import com.micon.app.data.RangeFit
 import com.micon.app.data.StrainSection
 import com.micon.app.data.StrainSections
-import com.micon.app.data.engine.dto.KaraokeNote
+import com.micon.app.data.backend.dto.KaraokeNote
 import kotlin.math.abs
 import kotlin.math.exp
 
