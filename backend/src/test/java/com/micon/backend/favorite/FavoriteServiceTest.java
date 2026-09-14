@@ -29,7 +29,7 @@ class FavoriteServiceTest {
 		jdbcTemplate.execute("CREATE TABLE SONG (song_id BIGINT PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
 		jdbcTemplate.execute("CREATE TABLE SONG_METADATA (song_id BIGINT PRIMARY KEY, display_image_url VARCHAR(2048))");
 		jdbcTemplate.execute("CREATE TABLE SINGER (singer_id BIGINT PRIMARY KEY, name VARCHAR(100))");
-		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id BIGINT, `order` INT)");
+		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id BIGINT, display_order INT)");
 		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id BIGINT, prefer_key BIGINT, PRIMARY KEY(user_id, song_id))");
 		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000)");
 		jdbcTemplate.update("INSERT INTO SONG_METADATA VALUES (1, 'https://example.com/good-day.jpg')");
