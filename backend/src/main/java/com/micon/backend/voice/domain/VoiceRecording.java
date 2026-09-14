@@ -31,7 +31,11 @@ public class VoiceRecording {
     @Column(name = "attempt_no", nullable = false)
     private short attemptNo;
 
-    @Column(name = "storage_path", nullable = false, length = 1024)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "storage_mode", nullable = false, length = 20)
+    private RecordingStorageMode storageMode;
+
+    @Column(name = "storage_path", length = 1024)
     private String storagePath;
 
     @Column(name = "media_type", nullable = false, length = 100)
@@ -74,6 +78,7 @@ public class VoiceRecording {
         }
         this.user = user;
         this.attemptNo = attemptNo;
+        this.storageMode = RecordingStorageMode.STORED;
         this.storagePath = storagePath;
         this.mediaType = mediaType;
         this.keepOriginal = keepOriginal;
@@ -81,9 +86,30 @@ public class VoiceRecording {
         this.createdAt = LocalDateTime.now();
     }
 
+    public static VoiceRecording metadataOnly(User user, short attemptNo, String mediaType,
+                                              long fileBytes, int durationMs, int sampleRate) {
+        VoiceRecording recording = new VoiceRecording();
+        if (user == null || attemptNo < 1 || mediaType == null || mediaType.isBlank()
+                || fileBytes < 1 || durationMs < 1 || sampleRate < 1) {
+            throw new IllegalArgumentException("valid recording metadata is required");
+        }
+        recording.user = user;
+        recording.attemptNo = attemptNo;
+        recording.storageMode = RecordingStorageMode.NOT_STORED;
+        recording.mediaType = mediaType;
+        recording.fileBytes = fileBytes;
+        recording.durationMs = durationMs;
+        recording.sampleRate = sampleRate;
+        recording.keepOriginal = false;
+        recording.uploadStatus = RecordingUploadStatus.UPLOADED;
+        recording.createdAt = LocalDateTime.now();
+        return recording;
+    }
+
     public Long getId() { return id; }
     public User getUser() { return user; }
     public short getAttemptNo() { return attemptNo; }
+    public RecordingStorageMode getStorageMode() { return storageMode; }
     public String getStoragePath() { return storagePath; }
     public String getMediaType() { return mediaType; }
     public String getSha256() { return sha256; }
@@ -95,6 +121,10 @@ public class VoiceRecording {
     public LocalDateTime getDeleteScheduledAt() { return deleteScheduledAt; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public boolean hasStoredObject() {
+        return storageMode == RecordingStorageMode.STORED && storagePath != null && !storagePath.isBlank();
+    }
 
     public void completeUpload(String sha256, long fileBytes) {
         this.sha256 = sha256;

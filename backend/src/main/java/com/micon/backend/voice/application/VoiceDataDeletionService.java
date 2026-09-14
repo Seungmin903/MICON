@@ -7,9 +7,10 @@ import com.micon.backend.user.domain.UserStatus;
 import com.micon.backend.voice.api.VoiceDataDeletionResponse;
 import com.micon.backend.voice.domain.VoiceRecording;
 import com.micon.backend.voice.domain.VoiceRecordingRepository;
-import com.micon.backend.voice.storage.VoiceStorage;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,16 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class VoiceDataDeletionService {
     private final VoiceRecordingRepository recordings;
-    private final VoiceStorage storage;
     private final UserRepository users;
     private final JdbcTemplate jdbc;
+    private final VoiceRecordingDeletionLifecycle deletionLifecycle;
+    private final ApplicationEventPublisher events;
 
-    public VoiceDataDeletionService(VoiceRecordingRepository recordings, VoiceStorage storage,
-                                    UserRepository users, JdbcTemplate jdbc) {
+    public VoiceDataDeletionService(VoiceRecordingRepository recordings, UserRepository users, JdbcTemplate jdbc,
+                                    VoiceRecordingDeletionLifecycle deletionLifecycle,
+                                    ApplicationEventPublisher events) {
         this.recordings = recordings;
-        this.storage = storage;
         this.users = users;
         this.jdbc = jdbc;
+        this.deletionLifecycle = deletionLifecycle;
+        this.events = events;
     }
 
     @Transactional
@@ -40,7 +44,7 @@ public class VoiceDataDeletionService {
                 WHERE c.recording_id = ? AND j.status IN ('PENDING','QUEUED','RUNNING')
                 """, Integer.class, recordingId);
         if (running != null && running > 0) throw new BusinessException(ErrorCode.VOICE_ANALYSIS_IN_PROGRESS);
-        deleteObject(recording, LocalDateTime.now());
+        enqueueDeletion(recording, LocalDateTime.now());
     }
 
     /** Compatibility for the former analysis route: the id now identifies a v4 session. */
@@ -53,9 +57,16 @@ public class VoiceDataDeletionService {
                   AND j.status IN ('PENDING','QUEUED','RUNNING')
                 """, Integer.class, sessionId, userId);
         if (running != null && running > 0) throw new BusinessException(ErrorCode.VOICE_ANALYSIS_IN_PROGRESS);
+        List<Long> recordingIds = jdbc.queryForList("""
+                SELECT recording_id FROM voice_recording_context WHERE session_id = ?
+                """, Long.class, sessionId);
+        jdbc.update("DELETE FROM voice_recording_context WHERE session_id = ?", sessionId);
         if (jdbc.update("DELETE FROM voice_analysis_session WHERE session_id = ? AND user_id = ?", sessionId, userId) == 0) {
             throw new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND);
         }
+        LocalDateTime requestedAt = LocalDateTime.now();
+        recordingIds.forEach(recordingId -> recordings.findByIdAndUserIdForUpdate(recordingId, userId)
+                .ifPresent(recording -> enqueueDeletion(recording, requestedAt)));
     }
 
     @Transactional
@@ -66,14 +77,22 @@ public class VoiceDataDeletionService {
         int sessionCount = count("SELECT COUNT(*) FROM voice_analysis_session WHERE user_id = ?", userId);
         LocalDateTime requestedAt = LocalDateTime.now();
         long deletionId = owned.stream().map(VoiceRecording::getId).max(Long::compareTo).orElse(0L);
+        List<Long> queued = new ArrayList<>();
         jdbc.update("DELETE FROM recommendation WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM voice_profile_save_job WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM user_voice_profile WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM voice_recording_context WHERE session_id IN "
+                + "(SELECT session_id FROM voice_analysis_session WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM voice_analysis_session WHERE user_id = ?", userId);
-        owned.forEach(recording -> deleteObject(recording, requestedAt));
+        owned.forEach(recording -> {
+            Long jobId = enqueueDeletion(recording, requestedAt);
+            if (jobId != null) queued.add(jobId);
+        });
         recordings.flush();
-        return new VoiceDataDeletionResponse.Result(deletionId, VoiceDataDeletionResponse.Status.COMPLETED,
-                sessionCount, owned.size(), requestedAt, LocalDateTime.now());
+        var status = queued.isEmpty() ? VoiceDataDeletionResponse.Status.COMPLETED
+                : VoiceDataDeletionResponse.Status.PROCESSING;
+        return new VoiceDataDeletionResponse.Result(deletionId, status, sessionCount, owned.size(),
+                requestedAt, queued.isEmpty() ? LocalDateTime.now() : null);
     }
 
     @Transactional(readOnly = true)
@@ -92,10 +111,10 @@ public class VoiceDataDeletionService {
         return value == null ? 0 : value;
     }
 
-    private void deleteObject(VoiceRecording recording, LocalDateTime at) {
-        recording.markDeletePending(at);
-        try { storage.delete(recording.getStoragePath()); recording.markDeleted(at); }
-        catch (RuntimeException exception) { throw new BusinessException(ErrorCode.RECORDING_DELETE_FAILED); }
+    private Long enqueueDeletion(VoiceRecording recording, LocalDateTime at) {
+        Long jobId = deletionLifecycle.enqueue(recording, at);
+        if (jobId != null) events.publishEvent(new VoiceRecordingDeletionQueuedEvent(jobId));
+        return jobId;
     }
 
     private void ensureActive(UserStatus status) {

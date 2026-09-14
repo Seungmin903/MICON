@@ -36,5 +36,51 @@ public class VoiceAnalysisSession {
     public User getUser() { return user; }
     public Long getSongId() { return songId; }
     public String getStatus() { return status; }
+    public String getRangeStatus() { return rangeStatus; }
+    public String getTimbreStatus() { return timbreStatus; }
+    public String getArtistSearchStatus() { return artistSearchStatus; }
     public long getResultVersion() { return resultVersion; }
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+
+    public void beginTimbreAnalysis() {
+        if (isExpired() || "CANCELED".equals(status) || "SAVED".equals(status)) {
+            throw new IllegalStateException("session cannot start timbre analysis");
+        }
+        status = "UPLOADING";
+        timbreStatus = "UPLOADING";
+        if (startedAt == null) startedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void acceptTimbreAnalysis() {
+        status = "ANALYZING";
+        timbreStatus = "ANALYZING";
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void completeTimbreAnalysis(LocalDateTime at) {
+        timbreStatus = "AVAILABLE";
+        status = "AVAILABLE".equals(rangeStatus) ? "READY_TO_SAVE" : "PARTIAL_READY";
+        resultVersion++;
+        completedAt = at;
+        updatedAt = at;
+    }
+
+    public void failTimbreAnalysis(boolean insufficient, LocalDateTime at) {
+        timbreStatus = insufficient ? "INSUFFICIENT_DATA" : "FAILED";
+        status = insufficient ? "INSUFFICIENT_DATA" : "FAILED";
+        completedAt = at;
+        updatedAt = at;
+    }
+
+    public void cancelTimbreAnalysis(LocalDateTime at) {
+        timbreStatus = "FAILED";
+        status = "CANCELED";
+        completedAt = at;
+        updatedAt = at;
+    }
+
+    public boolean isExpired() {
+        return !expiresAt.isAfter(LocalDateTime.now()) || "EXPIRED".equals(status);
+    }
 }

@@ -15,4 +15,13 @@ public class VoiceRecordingSegment {
     @Column(name = "song_start_ms", nullable = false) private int songStartMs;
     @Column(name = "song_end_ms", nullable = false) private int songEndMs;
     protected VoiceRecordingSegment() {}
+    public VoiceRecordingSegment(VoiceRecording recording, short sequenceNo, int recordingStartMs,
+                                 int recordingEndMs, int songStartMs, int songEndMs) {
+        this.recording = recording;
+        this.sequenceNo = sequenceNo;
+        this.recordingStartMs = recordingStartMs;
+        this.recordingEndMs = recordingEndMs;
+        this.songStartMs = songStartMs;
+        this.songEndMs = songEndMs;
+    }
 }

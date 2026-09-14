@@ -48,7 +48,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/policies").permitAll()
                         .requestMatchers(HttpMethod.GET, "/songs", "/songs/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses",
+                                "/callbacks/voice-analysis-components").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh",
@@ -59,6 +60,7 @@ public class SecurityConfig {
                         .bearerTokenResolver(request -> {
                             if ("/auth/refresh".equals(request.getRequestURI())
                                     || "/callbacks/voice-analyses".equals(request.getRequestURI())
+                                    || "/callbacks/voice-analysis-components".equals(request.getRequestURI())
                                     || "/internal/embedding-catalog/active".equals(request.getRequestURI())
                                     || request.getRequestURI().startsWith("/internal/catalog-media/vocal-stems/")) {
                                 return null;

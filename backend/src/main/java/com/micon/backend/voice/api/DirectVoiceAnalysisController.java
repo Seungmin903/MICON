@@ -1,0 +1,66 @@
+package com.micon.backend.voice.api;
+
+import com.micon.backend.common.api.ApiResponse;
+import com.micon.backend.common.exception.BusinessException;
+import com.micon.backend.common.exception.ErrorCode;
+import com.micon.backend.voice.application.DirectVoiceAnalysisService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/voice-analysis-sessions/{sessionId}/analysis")
+@Tag(name = "음성 분석", description = "원본 녹음을 보관하지 않고 AI 분석 작업을 관리합니다.")
+public class DirectVoiceAnalysisController {
+    private final DirectVoiceAnalysisService service;
+
+    public DirectVoiceAnalysisController(DirectVoiceAnalysisService service) {
+        this.service = service;
+    }
+
+    @PostMapping(consumes = "multipart/form-data")
+    @Operation(summary = "녹음 파일 분석 요청",
+            description = "녹음 파일과 곡 시간축 메타데이터를 함께 받아 AI에 직접 전달하고 202와 분석 ID를 반환합니다.")
+    public ResponseEntity<ApiResponse<VoiceAnalysisJobResponse>> submit(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable long sessionId,
+            @RequestPart("file") MultipartFile file,
+            @Valid @RequestPart("meta") VoiceAnalysisUploadRequest request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(service.submit(userId(jwt), sessionId, file, request)));
+    }
+
+    @GetMapping
+    @Operation(summary = "음성 분석 상태 조회",
+            description = "세션의 최근 분석 상태와 실패 사유, 재업로드 필요 여부를 조회합니다.")
+    public ApiResponse<VoiceAnalysisJobResponse> status(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable long sessionId) {
+        return ApiResponse.success(service.status(userId(jwt), sessionId));
+    }
+
+    @PostMapping("/{analysisId}/cancel")
+    @Operation(summary = "음성 분석 취소",
+            description = "진행 중인 분석을 취소하고 AI 작업 취소를 요청합니다.")
+    public ApiResponse<VoiceAnalysisJobResponse> cancel(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable long sessionId,
+            @PathVariable long analysisId) {
+        return ApiResponse.success(service.cancel(userId(jwt), sessionId, analysisId));
+    }
+
+    private long userId(Jwt jwt) {
+        if (jwt == null) throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        try { return Long.parseLong(jwt.getSubject()); }
+        catch (NumberFormatException exception) { throw new BusinessException(ErrorCode.UNAUTHENTICATED); }
+    }
+}
