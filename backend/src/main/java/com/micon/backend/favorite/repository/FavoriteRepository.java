@@ -21,7 +21,7 @@ public class FavoriteRepository {
 
 	public boolean songExists(Long songId) {
 		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM SONG WHERE song_id = :songId",
+			"SELECT COUNT(*) FROM song WHERE song_id = :songId",
 			Map.of("songId", songId),
 			Long.class
 		);
@@ -31,7 +31,7 @@ public class FavoriteRepository {
 	public void add(long userId, Long songId) {
 		try {
 			jdbcTemplate.update(
-				"INSERT INTO FAVORITE_SONG(user_id, song_id, prefer_key) VALUES (:userId, :songId, NULL)",
+				"INSERT INTO favorite_song(user_id, song_id, prefer_key) VALUES (:userId, :songId, NULL)",
 				Map.of("userId", userId, "songId", songId)
 			);
 		} catch (DuplicateKeyException ignored) {
@@ -41,7 +41,7 @@ public class FavoriteRepository {
 
 	public void remove(long userId, Long songId) {
 		jdbcTemplate.update(
-			"DELETE FROM FAVORITE_SONG WHERE user_id = :userId AND song_id = :songId",
+			"DELETE FROM favorite_song WHERE user_id = :userId AND song_id = :songId",
 			Map.of("userId", userId, "songId", songId)
 		);
 	}
@@ -49,9 +49,9 @@ public class FavoriteRepository {
 	public List<SongResponse.Summary> findAll(long userId) {
 		String sql = """
 			SELECT s.song_id, s.title, s.duration_ms, sm.display_image_url
-			FROM FAVORITE_SONG favorite
-			JOIN SONG s ON s.song_id = favorite.song_id
-			LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
+			FROM favorite_song favorite
+			JOIN song s ON s.song_id = favorite.song_id
+			LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 			WHERE favorite.user_id = :userId
 			ORDER BY s.title, s.song_id
 			""";
@@ -78,10 +78,10 @@ public class FavoriteRepository {
 		}
 		String sql = """
 			SELECT ss.song_id, si.name
-			FROM SONG_SINGER ss
-			JOIN SINGER si ON si.singer_id = ss.singer_id
+			FROM song_singer ss
+			JOIN singer si ON si.singer_id = ss.singer_id
 			WHERE ss.song_id IN (:songIds)
-			ORDER BY ss.song_id, ss.`order`, si.singer_id
+			ORDER BY ss.song_id, ss.display_order, si.singer_id
 			""";
 		Map<Long, List<String>> artists = new LinkedHashMap<>();
 		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {

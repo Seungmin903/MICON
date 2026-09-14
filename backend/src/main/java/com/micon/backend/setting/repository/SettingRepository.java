@@ -17,7 +17,7 @@ public class SettingRepository {
 
 	public boolean findSaveOriginalRecording(long userId) {
 		List<Boolean> settings = jdbcTemplate.query(
-			"SELECT save_original_recording FROM USER_SETTING WHERE user_id = :userId",
+			"SELECT save_original_recording FROM user_setting WHERE user_id = :userId",
 			Map.of("userId", userId),
 			(resultSet, rowNumber) -> {
 				Long value = resultSet.getObject("save_original_recording", Long.class);
@@ -33,7 +33,7 @@ public class SettingRepository {
 			"saveOriginalRecording", saveOriginalRecording ? 1 : 0
 		);
 		int updated = jdbcTemplate.update("""
-			UPDATE USER_SETTING
+			UPDATE user_setting
 			SET save_original_recording = :saveOriginalRecording,
 			    updated_at = CURRENT_TIMESTAMP
 			WHERE user_id = :userId
@@ -44,12 +44,12 @@ public class SettingRepository {
 
 		try {
 			jdbcTemplate.update("""
-				INSERT INTO USER_SETTING(user_id, save_original_recording)
+				INSERT INTO user_setting(user_id, save_original_recording)
 				VALUES (:userId, :saveOriginalRecording)
 				""", parameters);
 		} catch (DuplicateKeyException exception) {
 			jdbcTemplate.update("""
-				UPDATE USER_SETTING
+				UPDATE user_setting
 				SET save_original_recording = :saveOriginalRecording,
 				    updated_at = CURRENT_TIMESTAMP
 				WHERE user_id = :userId
