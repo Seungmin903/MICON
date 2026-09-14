@@ -26,7 +26,7 @@ public class VoiceRangeMeasurement {
                                  BigDecimal lowMidi, BigDecimal highMidi, String noteResults,
                                  String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
         this.session = session; this.measurementUid = measurementUid; this.ruleVersion = ruleVersion;
-        this.source = "SERVER_AI"; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
+        this.source = "ON_DEVICE"; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
         this.noteResults = noteResults; this.measurementStatus = measurementStatus;
         this.qualityStatus = qualityStatus; this.measuredAt = measuredAt; this.submittedAt = LocalDateTime.now();
     }

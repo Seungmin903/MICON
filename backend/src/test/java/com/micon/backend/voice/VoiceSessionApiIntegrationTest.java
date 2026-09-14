@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
 import org.junit.jupiter.api.Test;
@@ -16,13 +17,63 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.micon.backend.user.domain.User;
+import com.micon.backend.user.domain.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+import com.micon.backend.voice.domain.VoiceAnalysisSessionRepository;
+import java.time.LocalDateTime;
 
 @SpringBootTest(properties = "ai.voice-analysis-enabled=true")
 @AutoConfigureMockMvc
+@Transactional
 class VoiceSessionApiIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @MockitoBean VoiceAnalysisJobGateway gateway;
+    @Autowired UserRepository users;
+    @Autowired PasswordEncoder passwords;
+    @Autowired VoiceAnalysisSessionRepository sessions;
+
+    @Test
+    void memberStoresDeviceRangeAndReadsUnifiedResult() throws Exception {
+        User user = users.saveAndFlush(new User("voice-session@micon.test", passwords.encode("Password123!")));
+        String created = mvc.perform(post("/voice-analysis-sessions").with(jwt().jwt(token -> token.subject(user.getId().toString()))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long sessionId = json.readTree(created).get("data").get("sessionId").asLong();
+        String range = """
+                {"measurementId":"device-range-member","measuredAt":"2026-09-14T00:00:00",
+                 "protocolVersion":"guided-range-v7","lowMidi":48,"highMidi":72,
+                 "noteResults":[{"midi":48,"status":"passed"}],
+                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID"}
+                """;
+
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"));
+
+        mvc.perform(get("/voice-analysis-sessions/{sessionId}/result", sessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.range.lowMidi").value(48))
+                .andExpect(jsonPath("$.data.timbreStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.saveAllowed").value(false));
+
+        var session = sessions.findByIdAndUserId(sessionId, user.getId()).orElseThrow();
+        session.beginTimbreAnalysis();
+        session.acceptTimbreAnalysis();
+        session.completeTimbreAnalysis(LocalDateTime.now());
+        sessions.flush();
+
+        mvc.perform(post("/voice-analysis-sessions/{sessionId}/profile", sessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"resultVersion\":2}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.data.profileVersion").value(1));
+    }
 
     @Test
     void guestStreamsRangeWavToAiAndRecoversPendingSessionWithoutDatabaseAccount() throws Exception {

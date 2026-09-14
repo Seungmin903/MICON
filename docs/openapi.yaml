@@ -46,6 +46,81 @@ tags:
   - name: "회원"
   - name: "카탈로그 미디어"
 paths:
+  "/voice-analysis-sessions":
+    post:
+      tags: ["음성 분석"]
+      summary: "통합 목소리 분석 세션 생성"
+      security: [{ bearerAuth: [] }, {}]
+      responses:
+        "201": { description: "세션 생성 완료" }
+  "/voice-analysis-sessions/{sessionId}/range-result":
+    put:
+      tags: ["음성 측정"]
+      summary: "guided-range-v7 기기 음역 결과 저장"
+      security: [{ bearerAuth: [] }, {}]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: "object" }
+      responses:
+        "200": { description: "음역 결과 저장 완료" }
+  "/voice-analysis-sessions/{sessionId}/analysis":
+    post:
+      tags: ["음성 분석"]
+      summary: "노래 녹음 음색 분석 요청"
+      security: [{ bearerAuth: [] }, {}]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              required: ["file", "meta"]
+              properties:
+                file: { type: "string", format: "binary" }
+                meta: { type: "object" }
+      responses:
+        "202": { description: "음색 분석 접수" }
+    get:
+      tags: ["음성 분석"]
+      summary: "최근 음색 분석 작업 상태 조회"
+      security: [{ bearerAuth: [] }, {}]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      responses:
+        "200": { description: "분석 작업 상태" }
+  "/voice-analysis-sessions/{sessionId}/result":
+    get:
+      tags: ["분석 리포트"]
+      summary: "음역·음색 통합 결과 조회"
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      responses:
+        "200": { description: "통합 결과와 프로필 저장 가능 여부" }
+  "/voice-analysis-sessions/{sessionId}/profile":
+    post:
+      tags: ["분석 리포트"]
+      summary: "통합 분석 결과를 내 음성 프로필로 저장"
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              required: ["resultVersion"]
+              properties:
+                resultVersion: { type: "integer", format: "int64", minimum: 1 }
+      responses:
+        "201": { description: "프로필 저장 또는 동일 요청 결과 반환" }
   "/internal/catalog-media/vocal-stems/{songId}":
     get:
       tags: ["카탈로그 미디어"]
