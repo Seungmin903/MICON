@@ -16,6 +16,17 @@ import com.micon.app.data.backend.dto.PasswordResetVerified
 import com.micon.app.data.backend.dto.PasswordResetChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
 import com.micon.app.data.backend.dto.RecordingUploadDto
+import com.micon.app.data.backend.dto.RecommendationCreateDto
+import com.micon.app.data.backend.dto.RecommendationDto
+import com.micon.app.data.backend.dto.SongFitDto
+import com.micon.app.data.backend.dto.SettingResponseDto
+import com.micon.app.data.backend.dto.SettingUpdateRequest
+import com.micon.app.data.backend.dto.VoiceDataDeletionRequest
+import com.micon.app.data.backend.dto.VoiceDataDeletionResultDto
+import com.micon.app.data.backend.dto.FavoriteResponseDto
+import com.micon.app.data.backend.dto.SetlistDetailDto
+import com.micon.app.data.backend.dto.SetlistNameRequest
+import com.micon.app.data.backend.dto.SetlistSummaryDto
 import com.micon.app.data.backend.dto.PracticeCompleteRequest
 import com.micon.app.data.backend.dto.PracticeCreateRequest
 import com.micon.app.data.backend.dto.PracticeDetailDto
@@ -31,6 +42,7 @@ import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -90,6 +102,68 @@ interface BackendApi {
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: Long, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+
+    // ---- 추천·곡 적합도 (RecommendationController · RecommendationQueryController · SongFitController) ----
+
+    /** 최근 COMPLETED 음성 분석으로 추천 생성 시작(202). 409 RECOMMENDATION_INPUT_NOT_READY·ALREADY_GENERATING, 503 DISPATCH_FAILED. */
+    @POST("recommendations")
+    suspend fun createRecommendation(): Response<ApiResponse<RecommendationCreateDto>>
+
+    /** 가장 최근 추천. 없으면 404 RECOMMENDATION_NOT_FOUND. */
+    @GET("recommendations/latest")
+    suspend fun latestRecommendation(): Response<ApiResponse<RecommendationDto>>
+
+    /** 곡 × 내 음성 분석 적합도. analysisId 는 COMPLETED 음성 분석 id. */
+    @GET("songs/{songId}/fit")
+    suspend fun songFit(@Path("songId") songId: Long, @Query("analysisId") analysisId: Long, @Query("keyOffset") keyOffset: Int = 0): Response<ApiResponse<SongFitDto>>
+
+    // ---- 설정·음성 데이터 (SettingController · VoiceDataDeletionController) ----
+
+    @GET("users/me/settings")
+    suspend fun settings(): Response<ApiResponse<SettingResponseDto>>
+
+    /** 원본 녹음 보관 여부. 업로드가 keepOriginal 을 생략하면 서버가 이 값을 쓴다. */
+    @PATCH("users/me/settings")
+    suspend fun updateSettings(@Body body: SettingUpdateRequest): Response<ApiResponse<SettingResponseDto>>
+
+    /** 내 녹음·분석 전체 삭제. confirmed=true 필수. 진행 중 분석이 있으면 409 VOICE_ANALYSIS_IN_PROGRESS. */
+    @POST("users/me/voice-data-deletions")
+    suspend fun deleteVoiceData(@Body body: VoiceDataDeletionRequest): Response<ApiResponse<VoiceDataDeletionResultDto>>
+
+    // ---- 찜·세트리스트 (FavoriteController · SetlistController) ----
+
+    @GET("users/me/favorites")
+    suspend fun favorites(): Response<ApiResponse<FavoriteResponseDto>>
+
+    /** 멱등. 없는 곡은 404 SONG_NOT_FOUND. */
+    @PUT("users/me/favorites/{songId}")
+    suspend fun addFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
+
+    @DELETE("users/me/favorites/{songId}")
+    suspend fun removeFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
+
+    @GET("setlists")
+    suspend fun setlists(): Response<ApiResponse<List<SetlistSummaryDto>>>
+
+    /** name 1~100자. 201. */
+    @POST("setlists")
+    suspend fun createSetlist(@Body body: SetlistNameRequest): Response<ApiResponse<SetlistSummaryDto>>
+
+    @GET("setlists/{setlistId}")
+    suspend fun setlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<SetlistDetailDto>>
+
+    @PATCH("setlists/{setlistId}")
+    suspend fun renameSetlist(@Path("setlistId") setlistId: Long, @Body body: SetlistNameRequest): Response<ApiResponse<SetlistSummaryDto>>
+
+    @DELETE("setlists/{setlistId}")
+    suspend fun deleteSetlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<Any>>
+
+    /** 찜한 곡만 추가된다(400 SONG_NOT_FAVORITED). 바뀐 상세를 돌려준다. */
+    @PUT("setlists/{setlistId}/songs/{songId}")
+    suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
+
+    @DELETE("setlists/{setlistId}/songs/{songId}")
+    suspend fun removeSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
 
     // ---- 연습 기록 (PracticeController) ----
 

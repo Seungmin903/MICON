@@ -53,6 +53,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.audio.PitchCapture
 import com.micon.app.audio.PianoPlayer
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.voice.ScaleAnalysisSubmitter
+import com.micon.app.data.voice.ScaleSubmitResult
+import com.micon.app.ui.rememberAppContainer
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.charts.PianoRangeChart
@@ -95,11 +98,16 @@ import kotlin.math.roundToInt
  * 2~6단계 기준음 맞추기(5개): 기준음마다 건반에 표시하고, 감지된 음을 건반 위 마커로 보여 준다. 건반을 누르면 그 음을 듣고 기준음으로
  *   바꿀 수 있다(내 음역에 맞게 조정). ±50¢ 이내를 0.6초(누적, 잠깐 끊겨도 서서히만 감소) 유지하면 다음 음으로.
  *   판정은 소음 바닥의 3배 이상·명료도 0.75 이상인 프레임만 쓰고, 최근 5프레임 중앙값으로 흔들림을 줄인다.
- * 완료: 확인된 음들로 편안한 음역(comfortLow~High)을 채운 임시 프로필을 UserStore 에 넣는다.
- *   (정밀 분석은 저장된 WAV 를 엔진 POST /jobs 로 올리는 후속 작업.)
+ * 완료: 확인된 음들로 편안한 음역(comfortLow~High)을 채운 임시 프로필을 UserStore 에 넣고, 로그인 사용자는 녹음 WAV 를
+ *   백엔드에 올려 SCALE 분석을 요청한다([ScaleAnalysisSubmitter]). 서버 결과가 COMPLETED 면 리포트 탭이 임시 프로필을 덮는다.
  */
-class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
+class QuickAnalysisViewModel(appContext: Context, private val submitter: ScaleAnalysisSubmitter) : ViewModel() {
     enum class Step { MIC_CHECK, PITCH, DONE }
+
+    /** 서버 분석 제출 상태. NONE 은 아직 안 함(측정 중), UNAVAILABLE 은 비회원·AI 미준비(정상). */
+    enum class SubmitPhase { NONE, SENDING, ACCEPTED, UNAVAILABLE, ERROR }
+
+    data class Submit(val phase: SubmitPhase = SubmitPhase.NONE, val message: String = "")
 
     /** 시작 기준음 계획 5개. 편안한 중간 음에서 시작해 아래·위로 번갈아 넓혀 간다. 못 내는 음은 건너뛰면 중심 쪽 다른 음으로 대체된다. */
     enum class VoiceType(val label: String, val targets: List<Int>) {
@@ -126,6 +134,7 @@ class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
         val holdProgress: Float = 0f,          // 0~1
         val justConfirmed: Boolean = false,    // 확인 직후 잠깐 true (성공 표시)
         val tonePlaying: Boolean = false,
+        val submit: Submit = Submit(),
         val error: String? = null,
     ) {
         val totalSteps: Int get() = 1 + REQUIRED_NOTES
@@ -270,10 +279,10 @@ class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
 
     private fun finish() {
         if (_state.value.step == Step.DONE) return
-        UserStore.lastRecording = capture.stop()          // 추천 서버 업로드용 (RemoteRecommendRepository)
+        val wav = capture.stop()
         piano.stop()
         val confirmed = _state.value.confirmed
-        // TODO: 저장된 WAV 를 엔진에 올려(POST /jobs, sourceType=vocal) 실제 음역·안정도를 계산한다.
+        // 화면에는 확인된 5음으로 만든 임시 프로필을 먼저 보여 주고, 서버 SCALE 분석 결과가 오면 리포트 탭이 덮는다.
         val profile = if (confirmed.isEmpty()) UserStore.VoiceProfile() else {
             val low = confirmed.min(); val high = confirmed.max()
             UserStore.VoiceProfile(
@@ -284,6 +293,25 @@ class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
         }
         UserStore.setProfile(profile)
         _state.update { it.copy(step = Step.DONE, micRunning = false, justConfirmed = false) }
+        if (wav != null && confirmed.isNotEmpty()) submitToServer(wav)
+    }
+
+    /** 녹음 WAV 를 백엔드에 올려 SCALE 분석을 요청한다(로그인 사용자만). 결과는 리포트 탭이 `latest` 로 읽는다. */
+    private fun submitToServer(wav: File) {
+        _state.update { it.copy(submit = Submit(SubmitPhase.SENDING, "서버에 녹음을 올리고 있어요")) }
+        viewModelScope.launch {
+            val result = runCatching { submitter.submit(wav) { msg -> _state.update { it.copy(submit = it.submit.copy(message = msg)) } } }
+                .getOrElse { e -> ScaleSubmitResult.Failed("정밀 분석 요청 실패: ${e.message ?: e.toString()}") }
+            _state.update {
+                it.copy(
+                    submit = when (result) {
+                        is ScaleSubmitResult.Accepted -> Submit(SubmitPhase.ACCEPTED, "서버가 목소리를 정밀 분석하고 있어요. 결과는 리포트 탭에 채워져요.")
+                        is ScaleSubmitResult.Unavailable -> Submit(SubmitPhase.UNAVAILABLE, result.message)
+                        is ScaleSubmitResult.Failed -> Submit(SubmitPhase.ERROR, result.message)
+                    },
+                )
+            }
+        }
     }
 
     fun stop() { if (capture.isRunning) capture.stop(); piano.stop(); _state.update { it.copy(micRunning = false) } }
@@ -318,7 +346,8 @@ class QuickAnalysisViewModel(appContext: Context) : ViewModel() {
 @Composable
 fun QuickAnalysisScreen(onBack: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
-    val vm: QuickAnalysisViewModel = viewModel(factory = viewModelFactory { initializer { QuickAnalysisViewModel(context.applicationContext) } })
+    val container = rememberAppContainer()
+    val vm: QuickAnalysisViewModel = viewModel(factory = viewModelFactory { initializer { QuickAnalysisViewModel(context.applicationContext, container.scaleAnalysis) } })
     val state by vm.state.collectAsStateWithLifecycle()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) vm.startMic() }
 
@@ -326,7 +355,10 @@ fun QuickAnalysisScreen(onBack: () -> Unit, onDone: () -> Unit) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startMic()
         else permission.launch(Manifest.permission.RECORD_AUDIO)
     }
-    LaunchedEffect(state.step) { if (state.step == QuickAnalysisViewModel.Step.DONE) { delay(2200); onDone() } }
+    // 서버 제출이 진행 중이면 화면을 떠나지 않는다(ViewModel 이 사라지면 업로드가 취소된다). 끝나면 잠시 보여 주고 리포트로.
+    LaunchedEffect(state.step, state.submit.phase) {
+        if (state.step == QuickAnalysisViewModel.Step.DONE && state.submit.phase != QuickAnalysisViewModel.SubmitPhase.SENDING) { delay(2200); onDone() }
+    }
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         BackHeader("목소리 분석", onBack = { vm.stop(); onBack() })
@@ -490,6 +522,12 @@ private fun DoneBody(state: QuickAnalysisViewModel.State) {
             MiconCard { PianoRangeChart(hlLow = low, hlHigh = high, lowMidi = (low - 7).coerceAtLeast(36), highMidi = (high + 7).coerceAtMost(96)) }
         }
         Spacer(Modifier.height(12.dp))
-        Text("리포트 탭에서 결과를 확인할 수 있어요", fontSize = 13.sp, color = Grey)
+        Text(
+            when (state.submit.phase) {
+                QuickAnalysisViewModel.SubmitPhase.NONE -> "리포트 탭에서 결과를 확인할 수 있어요"
+                else -> state.submit.message
+            },
+            fontSize = 13.sp, color = if (state.submit.phase == QuickAnalysisViewModel.SubmitPhase.ERROR) Red else Grey, textAlign = TextAlign.Center,
+        )
     }
 }

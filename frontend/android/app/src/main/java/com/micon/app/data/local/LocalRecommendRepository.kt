@@ -23,7 +23,7 @@ import kotlin.random.Random
  * 앱 안에서 계산하는 추천·적합도 — **오프라인·개발 경로**. 음역만 계산하고 음색은 null(평가 불가).
  *
  * 곡 쪽은 [SongRepository](백엔드) 의 analysis·karaokeNotes, 사용자 쪽은 [UserStore.profile] 의 안정 음역.
- * 서버 추천(RemoteRecommendRepository)이 붙어도 추천 목록 밖의 곡(검색·연습·찜에서 진입) 적합도에는 계속 쓸 수 있다.
+ * 서버 추천(BackendRecommendRepository)이 붙어도 추천 목록 밖의 곡(검색·연습·찜에서 진입) 적합도에는 계속 쓸 수 있다.
  * 결과는 프로필이 바뀔 때까지 곡별로 캐시한다(목록·상세가 같은 값을 보게 — REC-005).
  */
 class LocalRecommendRepository(private val songs: SongRepository) : RecommendRepository {

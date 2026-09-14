@@ -51,10 +51,6 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
 
     // ------------------------------------------------------------------ 매핑
 
-    private fun SongSummaryDto.toSummary() = SongSummary(
-        id = songId, title = title, artist = artists.joinToString(", "), imageUrl = imageUrl, durationMs = durationMs,
-    )
-
     private fun SongDetailDto.toDetail(): SongDetail {
         val analysis = if (originalKey != null || bpm != null || lowestMidi != null || highestMidi != null) {
             SongAnalysis(

@@ -3,8 +3,8 @@ package com.micon.app.data
 /**
  * 추천·적합도 접근 인터페이스 (REC-001~007, FIT-001~006). 화면·ViewModel 은 이 인터페이스만 본다.
  *
- * 현재 구현: [com.micon.app.data.local.LocalRecommendRepository] (백엔드 곡 데이터 + UserStore 프로필로 앱 안에서 계산).
- * 백엔드 추천 API 가 생기면 Retrofit 구현으로 교체한다.
+ * 구현: [com.micon.app.data.recommend.BackendRecommendRepository] (백엔드 `/recommendations`·`/songs/{id}/fit`) —
+ * 서버 추천이 없을 때는 [com.micon.app.data.local.LocalRecommendRepository] (곡 데이터 + UserStore 프로필로 앱 안 음역 계산)로 내려간다.
  */
 interface RecommendRepository {
 
@@ -36,6 +36,8 @@ data class RecommendShelves(
     /** false 면 "기본 추천"으로 표시하고 개인화 문구를 쓰지 않는다(REC-004). */
     val personalized: Boolean,
     val shelves: List<RecommendShelf>,
+    /** 서버 추천 대신 기기 계산을 보여 주는 이유(생성 중·미준비·분석 없음 등). null 이면 안내 없음. 화면이 그대로 보인다. */
+    val note: String? = null,
 )
 
 /** 섹션 하나. [key] 는 서버 문자열 그대로([ShelfKeys]). 제목·설명(metric)도 서버 문구를 그대로 보인다. */

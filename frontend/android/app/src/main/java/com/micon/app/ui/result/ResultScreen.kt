@@ -33,8 +33,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.micon.app.data.backend.AuthSessionExpiredException
-import com.micon.app.data.backend.BackendRequestException
 import com.micon.app.data.practice.PracticeRecord
 import com.micon.app.data.practice.PracticeReport
 import com.micon.app.data.practice.PracticeRepository
@@ -42,6 +40,7 @@ import com.micon.app.data.practice.SectionEvaluation
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.CardTitle
+import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PrimaryButton
@@ -58,7 +57,6 @@ import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.IOException
 import kotlin.math.roundToInt
 
 /**
@@ -85,18 +83,10 @@ class ResultViewModel(private val practices: PracticeRepository, private val pra
                 val practice = practices.get(practiceId)
                 State.Ready(practice, practices.report(practiceId))
             } catch (e: Exception) {
-                State.Error(describePracticeError(e))
+                State.Error(describeBackendError(e, "연습 기록을 불러오지 못했어요."))
             }
         }
     }
-}
-
-/** 연습 기록 화면들이 공유하는 오류 문구. */
-internal fun describePracticeError(e: Exception): String = when (e) {
-    is AuthSessionExpiredException -> e.message ?: "로그인이 만료됐어요. 다시 로그인해주세요."
-    is BackendRequestException -> e.message ?: "연습 기록을 불러오지 못했어요."
-    is IOException -> "서버에 연결할 수 없어요. 네트워크를 확인해 주세요."
-    else -> e.message ?: e.toString()
 }
 
 /** 서버 값 → 화면 라벨. */

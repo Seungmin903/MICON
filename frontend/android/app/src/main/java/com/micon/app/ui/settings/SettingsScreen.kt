@@ -1,6 +1,9 @@
 package com.micon.app.ui.settings
 
 import androidx.activity.compose.BackHandler
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,6 +35,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +49,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.BuildConfig
 import com.micon.app.appContainer
 import com.micon.app.data.backend.NetworkAuthRepository
@@ -60,11 +68,18 @@ import com.micon.app.ui.theme.Purple
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 
-/** Figma "설정": 섹션 라벨 + 아이콘 행 + 토글, 회원 탈퇴는 핑크. */
+/**
+ * Figma "설정": 섹션 라벨 + 아이콘 행 + 토글, 회원 탈퇴는 핑크.
+ * "원본 녹음 저장" 은 서버 설정(`/users/me/settings`)이 진실 — 업로드는 keepOriginal 을 보내지 않고 서버가 이 값을 쓴다.
+ * "음성데이터 삭제" 는 `/users/me/voice-data-deletions` 로 내 녹음·분석을 모두 지운다.
+ */
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
-    var keepOriginal by remember { mutableStateOf(true) } // TODO: 기본값 상충(명세 ON vs SET-002 OFF) 결정 후 저장소 연동
     val context = LocalContext.current
+    val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer { SettingsViewModel(context.appContainer.settings) } })
+    val settingsState by settingsVm.state.collectAsStateWithLifecycle()
+    var showDeleteVoice by remember { mutableStateOf(false) }
+    LaunchedEffect(settingsState.toast) { settingsState.toast?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); settingsVm.consumeToast() } }
     val backend = context.appContainer.backend
     val auth = remember(backend) { NetworkAuthRepository(backend.api) }
     val scope = rememberCoroutineScope()
@@ -74,6 +89,16 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
     var withdrawPassword by remember { mutableStateOf("") }
     var withdrawError by remember { mutableStateOf<String?>(null) }
     BackHandler(enabled = loggingOut) { }
+
+    if (showDeleteVoice) {
+        AlertDialog(
+            onDismissRequest = { showDeleteVoice = false },
+            title = { Text("음성 데이터를 삭제할까요?") },
+            text = { Text("서버에 저장된 내 녹음과 음성 분석 결과가 모두 지워지고 되돌릴 수 없어요. 찜·연습 기록은 남아요.") },
+            confirmButton = { TextButton(onClick = { showDeleteVoice = false; settingsVm.deleteVoiceData() }) { Text("삭제", color = Pink) } },
+            dismissButton = { TextButton(onClick = { showDeleteVoice = false }) { Text("취소") } },
+        )
+    }
 
     if (showWithdraw) {
         AlertDialog(
@@ -125,24 +150,28 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
             SettingRow(Icons.Outlined.FavoriteBorder, "관심 장르·아티스트 수정") { if (!loggingOut) onEditPreferences() }
             Spacer(Modifier.height(20.dp))
             SectionTitle("녹음 및 음성 데이터")
-            SettingRow(Icons.Outlined.Mic, "마이크 권한 설정") { /* TODO: 앱 설정 화면 인텐트 */ }
+            SettingRow(Icons.Outlined.Mic, "마이크 권한 설정") {
+                runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))) }
+            }
             SettingRow(Icons.Outlined.Notifications, "알림 설정") { }
             Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Save, null, Modifier.size(26.dp), tint = Ink)
                 Spacer(Modifier.width(22.dp))
                 Column(Modifier.weight(1f)) {
                     Text("원본 녹음 저장", fontSize = 17.sp, color = Ink)
-                    Text("비활성화시 분석 후 삭제", fontSize = 14.sp, color = Grey)
+                    Text(settingsState.settingsError ?: "비활성화시 분석 후 삭제", fontSize = 14.sp, color = if (settingsState.settingsError != null) Pink else Grey)
                 }
                 Switch(
-                    checked = keepOriginal, onCheckedChange = { keepOriginal = it },
+                    checked = settingsState.saveOriginalRecording ?: false,
+                    onCheckedChange = settingsVm::setSaveOriginalRecording,
+                    enabled = settingsState.saveOriginalRecording != null && !settingsState.saving,
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple, uncheckedTrackColor = GreyLight, uncheckedThumbColor = Color.White, uncheckedBorderColor = GreyLight),
                 )
             }
             Spacer(Modifier.height(20.dp))
             SectionTitle("개인정보 및 보안")
             SettingRow(Icons.Outlined.Shield, "개인정보 설정") { }
-            SettingRow(Icons.Outlined.Delete, "음성데이터 삭제") { /* TODO: BackendApi 음성 데이터 삭제 */ }
+            SettingRow(Icons.Outlined.Delete, if (settingsState.deleting) "음성데이터 삭제 중…" else "음성데이터 삭제") { if (!settingsState.deleting) showDeleteVoice = true }
             SettingRow(Icons.Outlined.PersonOff, if (loggingOut) "로그아웃 중…" else "로그아웃") {
                 if (!loggingOut) {
                     loggingOut = true
