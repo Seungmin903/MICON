@@ -48,6 +48,11 @@ class BackendCdContractTests(unittest.TestCase):
         self.assertIn("superseded", self.install)
         self.assertNotIn("rm -rf", self.install)
 
+    def test_same_sha_retry_moves_root_owned_release_with_sudo(self):
+        self.assertIn('sudo install -d -o root -g root -m 0700 "$superseded_root"', self.install)
+        self.assertIn('sudo mktemp -d "$superseded_root/', self.install)
+        self.assertIn('sudo mv -T "$destination" "$superseded_destination"', self.install)
+
     def test_deploy_uses_inactive_slot_and_all_gates_before_switch(self):
         self.assertIn("candidate_slot=green", self.deploy)
         self.assertIn("candidate_slot=blue", self.deploy)

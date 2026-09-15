@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-sed 's@include /etc/nginx/micon/backend-active.conf;@proxy_pass http://127.0.0.1:18081/;@' \
+sed 's@include /etc/nginx/micon/backend-active.conf;@server 127.0.0.1:18081;@' \
     "$SCRIPT_DIR/micon-https.conf" > "$candidate_site"
 sed \
     -e "s@__MICON_CANDIDATE_PID__@$candidate_pid@" \
