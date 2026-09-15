@@ -22,7 +22,9 @@ import java.nio.ByteOrder
 class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: Double = YinPitch.FMAX,
                    private val collectCandidates: Boolean = false,
                    /** false 면 YIN 을 돌리지 않고 레벨(rms)만 담은 프레임을 낸다 — 녹음만 필요한 화면(불러서 분석하기)용 */
-                   private val analyzePitch: Boolean = true) {
+                   private val analyzePitch: Boolean = true,
+                   /** Preserve the original bandwidth for ECAPA/Singer-BYOL; only YIN is downsampled. */
+                   private val timbreRecording: Boolean = false) {
     data class PitchFrame(val t: Double, val f0: Double, val clarity: Double, val rms: Double, val rmsLow: Double,
         val duration: Double = 0.02, val clippedRatio: Double = 0.0,
         val initialF0: Double? = null, val initialClarity: Double? = null)
@@ -96,7 +98,7 @@ class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: D
 
     @SuppressLint("MissingPermission")
     private fun openRecord(preferredRate: Int? = null): Pair<AudioRecord, Int> {
-        for (rate in preferredRate?.let { intArrayOf(it) } ?: intArrayOf(16000, 48000, 44100)) {
+        for (rate in preferredRate?.let { intArrayOf(it) } ?: captureRates(timbreRecording)) {
             val minBuffer = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             if (minBuffer <= 0) continue
             val buffer = maxOf(minBuffer, rate / 5 * 2) // ≥200 ms

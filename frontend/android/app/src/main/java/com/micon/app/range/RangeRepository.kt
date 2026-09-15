@@ -19,6 +19,7 @@ data class PendingRange(val submission: RangeSubmission, val analysisId: String?
 /** Local model-verified reports and pending audio survive failed requests and app restarts. */
 class RangeRepository(context: Context, private val modelApi: RangePreviewClient.Api? = null,
     storageDirectory: File? = null, val deviceOnly: Boolean = false,
+    private val serverGateway: RangeAnalysisGateway? = null,
 ) {
     private val appContext = context.applicationContext
     private val directory = (storageDirectory ?: File(context.filesDir, "guided-range-preview")).apply { mkdirs() }
@@ -84,7 +85,7 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
             return@withContext report
         }
         onState("분석 중…")
-        val report = preview.analyze(
+        val report = serverGateway?.analyze(wav, submission) ?: preview.analyze(
             MultipartBody.Part.createFormData("audio", wav.name, wav.asRequestBody("audio/wav".toMediaType())),
             submissionAdapter.toJson(submission).toRequestBody("text/plain; charset=utf-8".toMediaType()))
         check(report.protocolVersion == submission.protocolVersion && report.verification == "model_verified") { "모델 검증 결과를 확인하지 못했습니다." }

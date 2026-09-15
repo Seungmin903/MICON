@@ -23,8 +23,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.ResourceAccessException;
 
 class DirectVoiceAnalysisServiceTest {
-    @Test
-    void sendsTheOriginalFileAndStableJobMetadataDirectlyToAi() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"QUEUED", "RUNNING", "COMPLETED", "FAILED", "INSUFFICIENT_DATA"})
+    void sendsTheOriginalFileAndAcceptsExistingAiJobReceipts(String aiStatus) {
         TimbreAnalysisLifecycleService lifecycle = mock(TimbreAnalysisLifecycleService.class);
         VoiceAnalysisUploadValidator validator = mock(VoiceAnalysisUploadValidator.class);
         VoiceAnalysisJobGateway gateway = mock(VoiceAnalysisJobGateway.class);
@@ -36,7 +37,7 @@ class DirectVoiceAnalysisServiceTest {
         var prepared = new TimbreAnalysisLifecycleService.Prepared(
                 31L, 7L, 8L, "request-1", 1, "PENDING", true, response("request-1", null, "PENDING", null));
         when(lifecycle.create(any(Long.class), any(Long.class), any(), any(), any())).thenReturn(prepared);
-        var aiResult = new VoiceAnalysisJobGateway.Result("ai-1", "QUEUED", expiresAt, false);
+        var aiResult = new VoiceAnalysisJobGateway.Result("ai-1", aiStatus, expiresAt, !"QUEUED".equals(aiStatus));
         when(gateway.submit(any())).thenReturn(aiResult);
         when(lifecycle.queued(3L, 31L, aiResult)).thenReturn(queued);
         DirectVoiceAnalysisService service = new DirectVoiceAnalysisService(

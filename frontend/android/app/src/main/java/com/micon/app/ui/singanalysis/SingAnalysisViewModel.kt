@@ -112,7 +112,7 @@ class SingAnalysisViewModel(
     val player = InstrumentalPlayer(appContext, mediaHttp)
     private var instrumentalUrl: String? = null
     /** 녹음만: YIN 을 돌리지 않는다(rms 만) */
-    private val capture = PitchCapture(analyzePitch = false)
+    private val capture = PitchCapture(analyzePitch = false, timbreRecording = true)
     private val clicks: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
 
     var sheet: LyricSheet = LyricSheet.EMPTY; private set

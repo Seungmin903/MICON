@@ -89,7 +89,7 @@ public class TimbreAnalysisLifecycleService {
         parent.queued(result.jobId(), result.status(), result.audioExpiresAt(), result.duplicate(), now);
         List<VoiceAnalysisComponentJob> children = components.findByAnalysisJobIdForUpdate(analysisId);
         children.forEach(child -> child.queued(now));
-        parent.getSession().acceptTimbreAnalysis();
+        if (!parent.terminal()) parent.getSession().acceptTimbreAnalysis();
         return VoiceAnalysisJobResponse.from(parent, children);
     }
 

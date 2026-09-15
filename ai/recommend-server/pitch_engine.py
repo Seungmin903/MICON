@@ -851,7 +851,9 @@ def extract_vocal_melody(
             "beatTimes": [round(float(value), 4) for value in beat_data["beat_times"]],
             "offsetBeats": round(beat_data.get("offset_beats", 0.0), 4),
         },
-        "pitchMethod": "CREPE full (segment Viterbi) + pYIN cross-check + VAD",
+        "pitchMethod": f"CREPE {_crepe_model(target_device)} (segment Viterbi) + pYIN cross-check + VAD",
+        "pitchModel": {"name": "CREPE", "capacity": _crepe_model(target_device), "device": target_device,
+                       "sampleRate": 16000},
         "register": register_summary,
         "timings": {name: round(value, 2) for name, value in timings.items()},
     }

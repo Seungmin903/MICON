@@ -1,0 +1,23 @@
+{
+  "requestId": "0199f9f5-0000-4000-8000-000000000001",
+  "attemptNo": 1,
+  "measurementId": "range-fixture-1",
+  "measuredAt": "2026-09-15T01:00:00",
+  "protocolVersion": "guided-range-v7",
+  "mode": "basic",
+  "startMidi": 60,
+  "noiseRms": 0.01,
+  "durationSeconds": 4.0,
+  "stopReason": "user_stopped",
+  "lowerBoundaryStatus": "unmeasured",
+  "upperBoundaryStatus": "unmeasured",
+  "attempts": [{
+    "attemptId": "a1", "targetMidi": 60, "direction": "anchor",
+    "cueStart": 0.0, "cueEnd": 0.5, "responseStart": 0.75, "responseEnd": 3.0,
+    "clientStatus": "insufficient_quality", "visitId": "v1", "advanceReason": "user_stopped",
+    "anchorMidi": 60, "probeStage": "anchor"
+  }],
+  "contractVersion": "v1",
+  "sampling": {"strategy": "adaptive_6", "coarseStep": 6},
+  "registerEvents": [{"t": 1.0, "register": "modal"}]
+}

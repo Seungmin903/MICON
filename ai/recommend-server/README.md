@@ -8,6 +8,8 @@
 - 호출 주체: 운영은 BE(Spring) → 이 서버. 앱은 BE 만 본다. 개발 중 앱은 `http://10.0.2.2:8788/` 로 직접 붙는다.
 - 카탈로그 v1 은 파일 인덱스 (`recommender-assets/catalog-index/`, 374곡). `*.npy` 는 Git LFS.
 
+노트북 온보딩 통합 실행·검증은 [LAPTOP_AI_ONBOARDING.md](../../docs/operations/LAPTOP_AI_ONBOARDING.md)를 따른다.
+
 ## 설치·실행 (Windows)
 
 ```powershell
@@ -17,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 ```
 
 `setup.ps1` 은 `models/recommender/` 에 가중치를, `workspace/recommender/config.json` 에 이 checkout 의 절대경로 설정을 만든다. 둘 다 Git 제외.
-`nvidia-smi` 가 있으면 CUDA 빌드 PyTorch 로 바꿔 설치한다. 추론은 CPU 로도 돌아간다. 곡 적재(Demucs 분리)는 GPU PC 에서 오프라인으로 한다.
+`setup.ps1`은 CPU가 기본이며, CUDA 12.8 설치는 `setup.ps1 -TorchIndex cu128`로 명시한다. 검증한 torch/torchaudio 2.7.1, torchvision 0.22.1 조합을 사용한다. 추론은 CPU 로도 돌아간다. 곡 적재(Demucs 분리)는 GPU PC 에서 오프라인으로 한다.
 
 ## 배포 (Docker, EC2 CPU)
 
@@ -45,11 +47,11 @@ curl http://127.0.0.1:8788/health
 | `GET /recommendations/status` | — | 카탈로그 곡 수·모델·누락 설정 |
 | `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(섹션당, ≤50), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복, 온보딩 선호 장르), `preferredArtists`(반복, 온보딩 선호 가수) | job `{id, status, progress, message, genres, preferred_artists}` |
 | `GET /recommendations/{jobId}` | — | job. `status=complete` 면 `result.recommendations[]` |
-| `POST /voice-analysis-jobs` (202) | BE 전용. multipart `file`(또는 `timbreFile`) + `meta` JSON(`requestId` 필수) | `{jobId, status: QUEUED, audioExpiresAt, duplicate}`. 같은 `requestId`: 같은 음원 → 기존 jobId, 다른 음원 409, 원음 만료 410 |
+| `POST /voice-analysis-jobs` (202) | BE 전용. multipart `file` WAV 하나 + `meta` JSON(`requestId`, `analysisType`, `components` 필수) | `{jobId, status: QUEUED, audioExpiresAt, duplicate}`. 같은 `requestId`: 같은 음원 → 기존 jobId, 다른 음원 409, 원음 만료 410 |
 | `POST /voice-analysis-jobs/{jobId}/cancel` | — | `{jobId, status}`. 원음 삭제 |
 | `GET /voice-analysis-jobs/{jobId}` | — | 진단용 job.json (임베딩 값 제외) |
 
-**BE 음성 분석 작업** (`analysis_jobs.py`): 이 서버가 맡는 컴포넌트는 `ECAPA` 와 `SINGER_BYOL` 이다. 음역(`RANGE`)은 분석 AI 담당.
+**BE 음성 분석 작업** (`analysis_jobs.py`): `TIMBRE`는 `ECAPA` + `SINGER_BYOL`, `RANGE`는 저장소의 `ai/vocal-scope/model-server/be_range_worker.py`를 별도 프로세스로 실행한다. 기존 Docker build context에는 RANGE worker가 없으므로 이 문서의 노트북 실행 경로를 사용한다.
 접수 후 백그라운드에서 임베딩을 만들고 컴포넌트마다 `MICON_BE_CALLBACK_URL` 로 콜백 1건을 보낸다.
 
 ```json
@@ -62,11 +64,11 @@ curl http://127.0.0.1:8788/health
 ```
 
 `embedding` 은 1×D 평균, `segmentInfo.embeddings` 는 구간별 벡터다. 구간별 벡터가 없으면 추천 점수의 70%가 빠진다.
-상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(쓸 만한 4초 구간 5개 미만). 5xx·연결 오류는 3회 재시도, 4xx는 중단.
+상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(쓸 만한 4초 구간 5개 미만). 한 전송 회차에서 5xx·연결 오류를 3회 재시도한다. 미수신 콜백은 디스크에 남아 서버 재시작 후에도 최대 60초 간격으로 재전송하며 원음 강제 만료 시 함께 삭제한다.
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
 
-환경변수: `AI_SERVICE_TOKEN`(비우면 검사 안 함; 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_CALLBACK_URL`(비우면 콜백 생략) ·
-`RECOMMEND_CONCURRENCY=2` · `RECOMMEND_CALLBACK_COMPONENTS=ECAPA,SINGER_BYOL` · `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
+환경변수: `AI_SERVICE_TOKEN`(비우면 검사 안 함; 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
+`RECOMMEND_CONCURRENCY=1` · `MICON_RANGE_MODEL_PYTHON`(선택) · `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
@@ -100,7 +102,7 @@ curl http://127.0.0.1:8788/health
 | 필드 | 뜻 |
 |---|---|
 | `position` | 목록 위치 1~. **`final_score` 내림차순**이라 앞일수록 적합. 화면의 "적합할수록 크게" 규칙과 같은 뜻. 클라이언트 재정렬 금지 |
-| `song_id` | 앱 `songs.song_id` (`tj-번호`). `metadata.tj_id` 에서 유도 |
+| `song_id` | BE JSON 추천에서는 숫자 DB song_id. 활성 카탈로그 짝표로 변환하며 TJ 번호로 추측하지 않는다. 로컬 데모는 문자열 ID도 허용 |
 | `shelf`, `metrics` | 소속 섹션 key 와 그 섹션의 표시 지표(`coverage0`·`center0`·`artist_similarity`·`high_ratio0`·`genre` …) |
 | `axis`, `label` | `voice` 섹션에서만. 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안). 다른 섹션은 null |
 | `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |

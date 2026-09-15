@@ -36,7 +36,8 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
         MultipartBodyBuilder body = new MultipartBodyBuilder();
         addFile(body, command.file());
         body.part("meta", new Metadata(command.analysisId(), command.sessionId(), command.recordingId(),
-                        command.requestId(), command.attemptNo(), command.components(), command.contractVersion()))
+                        command.requestId(), command.attemptNo(), "TIMBRE", command.components(), command.contractVersion(),
+                        command.recordingMetadata()))
                 .contentType(MediaType.APPLICATION_JSON);
         var response = restClient.post().uri("/voice-analysis-jobs")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -58,11 +59,16 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                         request.measuredAt(), request.protocolVersion(), request.mode(), request.parentAnalysisId(),
                         request.startMidi(), request.noiseRms(), request.durationSeconds(), request.stopReason(),
                         request.lowerBoundaryStatus(), request.upperBoundaryStatus(), request.attempts(),
-                        request.contractVersion()))
+                        request.contractVersion(), request.sampling(), request.registerEvents()))
                 .contentType(MediaType.APPLICATION_JSON);
-        return restClient.post().uri("/voice-analysis-jobs")
+        var response = restClient.post().uri("/voice-analysis-jobs")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(body.build()).retrieve().body(Result.class);
+                .body(body.build()).retrieve().toEntity(Result.class);
+        if (response.getStatusCode() != HttpStatus.ACCEPTED || response.getBody() == null
+                || response.getBody().audioExpiresAt() == null) {
+            throw new VoiceAnalysisJobGateway.Rejected("AI must acknowledge durable range audio with 202");
+        }
+        return response.getBody();
     }
 
     private void addFile(MultipartBodyBuilder body, MultipartFile file) {
@@ -84,8 +90,8 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
     }
 
     private record Metadata(long analysisId, long sessionId, Long recordingId, String requestId,
-                            int attemptNo, java.util.List<String> components,
-                            String contractVersion) { }
+                            int attemptNo, String analysisType, java.util.List<String> components,
+                            String contractVersion, com.micon.backend.voice.api.VoiceAnalysisUploadRequest recording) { }
 
     private record RangeMetadata(long analysisId, long sessionId, String requestId, int attemptNo,
                                  String analysisType, java.util.List<String> components,
@@ -93,5 +99,7 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                                  String protocolVersion, String mode, Long parentAnalysisId, int startMidi,
                                  java.math.BigDecimal noiseRms, java.math.BigDecimal durationSeconds,
                                  String stopReason, String lowerBoundaryStatus, String upperBoundaryStatus,
-                                 tools.jackson.databind.JsonNode attempts, String contractVersion) { }
+                                 tools.jackson.databind.JsonNode attempts, String contractVersion,
+                                 tools.jackson.databind.JsonNode sampling,
+                                 tools.jackson.databind.JsonNode registerEvents) { }
 }

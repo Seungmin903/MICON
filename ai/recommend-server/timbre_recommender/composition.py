@@ -49,8 +49,11 @@ _TJ_NUMBER = re.compile(r"(\d+)\s*$")
 _AXES = ("ecapa", "singer_byol")
 
 
-def song_id_of(metadata: Mapping[str, Any] | None) -> str | None:
-    """카탈로그 tj_id("TJ-00140", "TJ001-13588") → 앱 songs.song_id("tj-00140", "tj-13588"). 마지막 숫자 묶음을 쓴다."""
+def song_id_of(metadata: Mapping[str, Any] | None) -> str | int | None:
+    """Prefer the explicit DB ID; retain TJ string IDs only for the local demo catalog."""
+    song_id = (metadata or {}).get("song_id")
+    if isinstance(song_id, int) and not isinstance(song_id, bool) and song_id > 0:
+        return song_id
     tj_id = (metadata or {}).get("tj_id")
     if not tj_id:
         return None

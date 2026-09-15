@@ -45,6 +45,11 @@ def refresh() -> dict[str, Any]:
             for track in (data.get("tracks") or [])
             if track.get("catalog_track_id") is not None and track.get("song_id") is not None
         }
+        for song_id in tuple(mapping.values()):
+            key = str(song_id)
+            if key in mapping and mapping[key] != song_id:
+                raise ValueError("Ambiguous catalog track ID and DB song ID")
+            mapping[key] = song_id
         with _LOCK:
             _CACHE.update(revision=data.get("revision"), batchId=data.get("batch_id"), songIds=mapping, error=None)
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, ValueError, KeyError) as error:
@@ -57,7 +62,7 @@ def refresh() -> dict[str, Any]:
 def status() -> dict[str, Any]:
     with _LOCK:
         return {"revision": _CACHE["revision"], "batchId": _CACHE["batchId"],
-                "mappedTracks": len(_CACHE["songIds"]), "error": _CACHE["error"]}
+                "mappedTracks": len(set(_CACHE["songIds"].values())), "error": _CACHE["error"]}
 
 
 def song_ids() -> dict[str, int]:

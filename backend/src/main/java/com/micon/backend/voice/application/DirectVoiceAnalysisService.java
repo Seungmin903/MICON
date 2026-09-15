@@ -60,7 +60,7 @@ public class DirectVoiceAnalysisService {
         try {
             accepted = gateway.submit(new VoiceAnalysisJobGateway.Command(pending.analysisId(), sessionId,
                     pending.recordingId(), request.requestId(), userId == null ? 1 : member.attemptNo(),
-                    TimbreAnalysisLifecycleService.MODEL_COMPONENTS, contractVersion, file));
+                    TimbreAnalysisLifecycleService.MODEL_COMPONENTS, contractVersion, file, request));
         } catch (RestClientResponseException exception) {
             handleRejection(userId, request.requestId(), pending.analysisId(), exception);
             throw new BusinessException(ErrorCode.VOICE_ANALYSIS_DISPATCH_FAILED);
@@ -107,7 +107,8 @@ public class DirectVoiceAnalysisService {
     private boolean isAccepted(VoiceAnalysisJobGateway.Result result) {
         return result != null && result.jobId() != null && !result.jobId().isBlank()
                 && result.audioExpiresAt() != null
-                && ("QUEUED".equals(result.status()) || "COMPLETED".equals(result.status()));
+                && result.status() != null
+                && java.util.Set.of("QUEUED", "RUNNING", "COMPLETED", "FAILED", "INSUFFICIENT_DATA").contains(result.status());
     }
 
     private void handleRejection(Long userId, String requestId, long analysisId,

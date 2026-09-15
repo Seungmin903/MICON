@@ -26,12 +26,16 @@ interface VoiceOnboardingPersistence {
 }
 
 /** One member draft per account; guests get an isolated directory, never a member database/profile. */
-class VoiceOnboardingStore(context: Context, val ownerId: Long?) : VoiceOnboardingPersistence {
+class VoiceOnboardingStore(context: Context, val ownerId: Long?,
+    backendApi: com.micon.app.data.backend.BackendApi? = null) : VoiceOnboardingPersistence {
     private val directory = if (ownerId != null) File(context.filesDir, "voice-onboarding/member-$ownerId")
         else File(context.cacheDir, "voice-onboarding-guests/${UUID.randomUUID()}")
     private val draftFile = File(directory, "draft.json")
     private val profileFile = File(directory, "saved-profile.json")
-    val rangeRepository = RangeRepository(context, storageDirectory = File(directory, "range"), deviceOnly = true)
+    val rangeRepository = RangeRepository(context, storageDirectory = File(directory, "range"),
+        deviceOnly = backendApi == null || ownerId == null,
+        serverGateway = if (backendApi != null && ownerId != null)
+            BackendRangeAnalysisGateway(backendApi, ownerId, File(directory, "range-link.json")) else null)
     val recordings = SingAnalysisRecordingStore(context, storageDirectory = File(directory, "recordings"))
     private val draftAdapter = Json.moshi.adapter(VoiceOnboardingDraft::class.java)
     private val profileAdapter = Json.moshi.adapter(SavedVoiceOnboardingProfile::class.java)
@@ -58,6 +62,7 @@ class VoiceOnboardingStore(context: Context, val ownerId: Long?) : VoiceOnboardi
 
     override fun clearDraft() {
         rangeRepository.clear()
+        AtomicFile(File(directory, "range-link.json")).delete()
         recordings.list().forEach { recordings.delete(it.id) }
         recordings.deleteOrphans()
         AtomicFile(draftFile).delete()

@@ -10,5 +10,10 @@ public final class VoiceSessionResponse {
                           long resultVersion, boolean savedProfileExists, boolean recoverable,
                           LocalDateTime expiresAt, Range range) {}
     public record Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
-                        String qualityStatus) {}
+                        String qualityStatus,
+                        @com.fasterxml.jackson.annotation.JsonRawValue String noteResults) {
+        public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus, String qualityStatus) {
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, null);
+        }
+    }
 }

@@ -203,9 +203,10 @@ public class VoiceSessionService {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
         }
         job.aiJobId = result.jobId();
-        job.status = "QUEUED";
         job.audioExpiresAt = result.audioExpiresAt();
         job.duplicate = result.duplicate();
+        if (job.terminal()) return job.response();
+        job.status = "RUNNING".equals(job.status) || "RUNNING".equals(result.status()) ? "RUNNING" : "QUEUED";
         if (job.startedAt == null) job.startedAt = LocalDateTime.now();
         job.failureCode = null;
         job.failureReason = null;

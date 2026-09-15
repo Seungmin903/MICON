@@ -26,6 +26,8 @@ def test_existing_recommender_index_preserves_mysql_ids(package_factory, store, 
     loaded = CatalogIndex.load(output, verify_hashes=True)
     assert [track.track_id for track in loaded.tracks] == ["1", "2"]
     assert loaded.tracks[0].metadata["catalog_track_id"] == "catalog-0"
+    from timbre_recommender.composition import song_id_of
+    assert [song_id_of(track.metadata) for track in loaded.tracks] == [1, 2]
     for song_id in (1, 2):
         for model in models:
             np.testing.assert_allclose(loaded.embeddings(str(song_id), model),

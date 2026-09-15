@@ -123,7 +123,8 @@ class VoiceSessionApiIntegrationTest {
                  "protocolVersion":"%s","mode":"basic","startMidi":60,"noiseRms":0.01,
                  "durationSeconds":20,"stopReason":"BOUNDARIES_FOUND",
                  "lowerBoundaryStatus":"FOUND","upperBoundaryStatus":"FOUND",
-                 "attempts":[{"targetMidi":60,"direction":"UP"}],"contractVersion":"v1"}
+                 "attempts":[{"targetMidi":60,"direction":"UP"}],"contractVersion":"v1",
+                 "sampling":{"strategy":"adaptive","sampleRate":16000},"registerEvents":[]}
                 """.formatted(protocol);
         return new MockMultipartFile("meta", "", MediaType.APPLICATION_JSON_VALUE, body.getBytes());
     }

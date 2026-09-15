@@ -60,7 +60,7 @@ public class DirectVoiceAnalysisLifecycleService {
     public VoiceAnalysisJobResponse queuedRange(long userId, long analysisId, String aiJobId) {
         VoiceAnalysisComponentJob job = ownedForUpdate(userId, analysisId);
         job.queued(aiJobId, LocalDateTime.now());
-        job.getSession().queueRangeAnalysis();
+        if (!job.isTerminal()) job.getSession().queueRangeAnalysis();
         return VoiceAnalysisJobResponse.from(job);
     }
 

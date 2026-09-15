@@ -11,9 +11,10 @@ import com.micon.backend.voice.domain.VoiceRangeMeasurement;
 import com.micon.backend.voice.domain.VoiceRangeMeasurementRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class RecommendationInputAssembler {
@@ -22,18 +23,17 @@ public class RecommendationInputAssembler {
     private final VoiceRangeMeasurementRepository rangeResults;
     private final VoiceModelResultRepository modelResults;
     private final RecommendationPreferenceReader preferences;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper json;
 
     public RecommendationInputAssembler(UserVoiceProfileRepository profiles,
                                         VoiceRangeMeasurementRepository rangeResults,
                                         VoiceModelResultRepository modelResults,
-                                        RecommendationPreferenceReader preferences,
-                                        ObjectMapper objectMapper) {
+                                        RecommendationPreferenceReader preferences, ObjectMapper json) {
         this.profiles = profiles;
         this.rangeResults = rangeResults;
         this.modelResults = modelResults;
         this.preferences = preferences;
-        this.objectMapper = objectMapper;
+        this.json = json;
     }
 
     @Transactional(readOnly = true)
@@ -44,12 +44,10 @@ public class RecommendationInputAssembler {
 
         long sessionId = savedProfile.getSession().getId();
         VoiceRangeMeasurement range = rangeResults.findBySessionId(sessionId).orElse(null);
-        VoiceModelResult ecapa = modelResults.findBySessionIdAndModelKey(sessionId, "ECAPA").orElse(null);
-        VoiceModelResult singerByol = modelResults.findBySessionIdAndModelKey(sessionId, "SINGER_BYOL").orElse(null);
-        RecommendationInput.VoiceProfile profile = profile(range, ecapa, singerByol);
-        if (profile.userEmbedding() == null || profile.userEmbedding().isBlank()) {
-            throw new BusinessException(ErrorCode.RECOMMENDATION_INPUT_NOT_READY);
-        }
+        Map<String, Object> embeddings = new LinkedHashMap<>();
+        embeddings.put("ECAPA", model(sessionId, "ECAPA", 192));
+        embeddings.put("SINGER_BYOL", model(sessionId, "SINGER_BYOL", 1000));
+        RecommendationInput.VoiceProfile profile = profile(range, json.writeValueAsString(embeddings));
         RecommendationPreferenceReader.Preferences preference = preferences.findByUserId(userId);
         if (preference == null) {
             preference = RecommendationPreferenceReader.Preferences.empty();
@@ -69,44 +67,39 @@ public class RecommendationInputAssembler {
         }
     }
 
-    private RecommendationInput.VoiceProfile profile(VoiceRangeMeasurement range, VoiceModelResult ecapa,
-                                                       VoiceModelResult singerByol) {
+    private Map<String, Object> model(long sessionId, String key, int dimension) {
+        VoiceModelResult result = modelResults.findBySessionIdAndModelKey(sessionId, key)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_INPUT_NOT_READY));
+        try {
+            JsonNode vector = json.readTree(result.getVectorJson());
+            JsonNode segments = json.readTree(result.getSegmentInfo());
+            if (!key.equals(result.getModelKey()) || result.getDimension() != dimension
+                    || result.getModelVersion() == null || result.getModelVersion().isBlank()
+                    || vector == null || !vector.isArray() || vector.size() != dimension
+                    || segments == null || !segments.isObject()) throw new IllegalArgumentException();
+            double energy = 0;
+            for (JsonNode value : vector) {
+                if (!value.isNumber() || !Double.isFinite(value.asDouble())) throw new IllegalArgumentException();
+                energy += value.asDouble() * value.asDouble();
+            }
+            if (!Double.isFinite(energy) || energy < 1e-12) throw new IllegalArgumentException();
+            return Map.of("modelVersion", result.getModelVersion(), "dimension", dimension,
+                    "embedding", vector, "segmentInfo", segments);
+        } catch (RuntimeException invalid) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_INPUT_NOT_READY,
+                    "저장된 " + key + " 임베딩이 추천 입력 계약과 일치하지 않습니다.");
+        }
+    }
+
+    private RecommendationInput.VoiceProfile profile(VoiceRangeMeasurement range, String embeddings) {
         return new RecommendationInput.VoiceProfile(
                 range == null ? null : range.getFullLowMidi(),
                 range == null ? null : range.getFullHighMidi(),
                 null,
                 range == null ? null : range.getNoteResults(),
                 null,
-                null, null, null,
-                userEmbedding(ecapa, singerByol),
+                null, null, null, embeddings,
                 null,
                 null, null, null, null);
-    }
-
-    private String userEmbedding(VoiceModelResult ecapa, VoiceModelResult singerByol) {
-        if (!valid(ecapa, 192) || !valid(singerByol, 1000)) return null;
-        try {
-            ObjectNode root = objectMapper.createObjectNode();
-            root.set("ECAPA", modelResult(ecapa));
-            root.set("SINGER_BYOL", modelResult(singerByol));
-            return objectMapper.writeValueAsString(root);
-        } catch (JacksonException exception) {
-            return null;
-        }
-    }
-
-    private ObjectNode modelResult(VoiceModelResult result) throws JacksonException {
-        ObjectNode node = objectMapper.createObjectNode();
-        node.put("modelVersion", result.getModelVersion());
-        node.put("dimension", result.getDimension());
-        node.set("embedding", objectMapper.readTree(result.getVectorJson()));
-        node.set("segmentInfo", objectMapper.readTree(result.getSegmentInfo()));
-        return node;
-    }
-
-    private boolean valid(VoiceModelResult result, int dimension) {
-        return result != null && result.getDimension() == dimension
-                && result.getVectorJson() != null && !result.getVectorJson().isBlank()
-                && result.getSegmentInfo() != null && !result.getSegmentInfo().isBlank();
     }
 }
