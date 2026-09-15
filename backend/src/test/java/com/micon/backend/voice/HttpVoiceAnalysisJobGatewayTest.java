@@ -19,6 +19,29 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpVoiceAnalysisJobGatewayTest {
+    @Test void retriesOnlyRequestedTimbreComponent() throws Exception {
+        var query = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/voice-analysis-jobs/job_123/retry", exchange -> {
+            query.set(exchange.getRequestURI().getQuery());
+            byte[] reply = """
+                    {"jobId":"job_123","status":"QUEUED","audioExpiresAt":"2026-09-16T00:00:00","duplicate":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(202, reply.length);
+            try (var body = exchange.getResponseBody()) { body.write(reply); }
+        });
+        server.start();
+        try {
+            var gateway = new HttpVoiceAnalysisJobGateway("http://127.0.0.1:" + server.getAddress().getPort(),
+                    "token", Duration.ofSeconds(3), Duration.ofSeconds(3));
+            var result = gateway.retry("job_123", "SINGER_BYOL");
+            assertThat(query.get()).isEqualTo("component=SINGER_BYOL");
+            assertThat(result.status()).isEqualTo("QUEUED");
+            assertThat(result.duplicate()).isTrue();
+        } finally { server.stop(0); }
+    }
+
     @Test void multipartCarriesRangeEvidenceAndTimbreRecordingTimeline() throws Exception {
         var json = new ObjectMapper();
         var received = new AtomicReference<String>();

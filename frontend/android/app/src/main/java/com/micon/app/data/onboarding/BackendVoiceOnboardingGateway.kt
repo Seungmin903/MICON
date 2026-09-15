@@ -43,15 +43,15 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             val component = when (retry) {
                 AnalysisComponent.ECAPA -> "ECAPA"
                 AnalysisComponent.SINGER_BYOL -> "SINGER_BYOL"
-                AnalysisComponent.ARTIST_SEARCH -> throw IllegalStateException("닮은 가수 검색 재시도는 아직 지원하지 않습니다.")
+                AnalysisComponent.ARTIST_SEARCH -> "ARTIST_SEARCH"
             }
             api.retryTimbreComponent(sessionId, analysisId, component, access).data()
             return awaitResult(sessionId, analysisId, access, linkFile, null, onProgress)
         }
-        if (retry == null && request.range.backendSessionId == null) {
+        if (request.range.backendSessionId == null) {
             api.saveDeviceRange(sessionId, request.range.toRequest(), access).data()
         }
-        val link = if (previous != null && retry == null && !previous.terminalFailure && previous.sessionId == sessionId) previous
+        val link = if (previous != null && !previous.terminalFailure && previous.sessionId == sessionId) previous
             else TimbreSubmissionLink(sessionId, UUID.randomUUID().toString())
         stateStore.write(linkFile, linkAdapter.toJson(link))
         val meta = recording.toMeta(link.requestId)
