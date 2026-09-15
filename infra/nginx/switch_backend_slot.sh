@@ -97,7 +97,7 @@ while [ "$public_smoke_attempt" -le 10 ]; do
     public_status=
     if public_status="$(curl --silent --show-error --max-time 3 \
         --output "$smoke_body" --write-out '%{http_code}' \
-        "https://$DOMAIN/api/v1/songs")" \
+        "https://$DOMAIN/api/v1/users/me")" \
         && [ "$public_status" = 401 ] \
         && grep -q '"code":"UNAUTHENTICATED"' "$smoke_body"; then
         public_smoke_ready=true

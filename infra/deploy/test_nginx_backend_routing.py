@@ -50,6 +50,8 @@ class NginxBackendRoutingTests(unittest.TestCase):
         self.assertGreaterEqual(self.switch.count("nginx -t"), 4)
         self.assertIn("systemctl reload nginx.service", self.switch)
         self.assertIn('if public_status="$(curl', self.switch)
+        self.assertIn('"https://$DOMAIN/api/v1/users/me"', self.switch)
+        self.assertNotIn('"https://$DOMAIN/api/v1/songs"', self.switch)
         self.assertIn("public API smoke failed; previous route restored", self.switch)
         self.assertIn('public_status" = 401', self.switch)
         self.assertIn('"code":"UNAUTHENTICATED"', self.switch)
