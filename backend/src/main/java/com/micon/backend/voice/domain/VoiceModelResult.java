@@ -33,8 +33,10 @@ public class VoiceModelResult {
         this.qualityMetrics = qualityMetrics;
     }
     public String getModelKey() { return modelKey; }
+    public String getModelVersion() { return modelVersion; }
     public int getDimension() { return dimension; }
     public String getVectorJson() { return vectorJson; }
     public String getVectorObjectKey() { return vectorObjectKey; }
+    public String getSegmentInfo() { return segmentInfo; }
     public String getQualityMetrics() { return qualityMetrics; }
 }

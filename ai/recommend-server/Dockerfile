@@ -22,6 +22,10 @@ COPY . .
 #    시작 시가 아니라 빌드 시에 해 두면 배포 순간에 Hugging Face 가 느리거나 죽어도 컨테이너는 바로 뜬다.
 RUN python setup_recommender.py
 
+# 4) BE 음성 분석 작업의 원음·job.json. 소프트 1h / 강제 24h 뒤 삭제된다. 재시작에도 진행 상태를 남기려면 볼륨을 붙인다.
+#    운영 환경변수: AI_SERVICE_TOKEN, MICON_BE_CALLBACK_URL, RECOMMEND_CONCURRENCY(기본 2), RECOMMEND_AUDIO_TTL_SECONDS(3600).
+VOLUME ["/app/workspace/analysis"]
+
 EXPOSE 8788
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/health', timeout=4)" || exit 1
