@@ -43,7 +43,18 @@ class VoiceOnboardingViewModel(
         error = if (expired) "이전 분석이 만료됐어요. 음역부터 새로 측정해 주세요." else null))
     val state = mutableState.asStateFlow()
     private var job: Job? = null
-    init { if (expired) persistence.clearDraft() }
+    init {
+        if (expired) persistence.clearDraft()
+        else if (ownerId != null) viewModelScope.launch {
+            runCatching { gateway.recover(ownerId) }.getOrNull()?.let { recovered ->
+                if (isCurrentOwner() && state.value.progress == null) {
+                    recovered.expiresAtMillis?.let { expiresAtMillis = it }
+                    mutableState.update { it.copy(progress = recovered, error = null) }
+                    persist()
+                }
+            }
+        }
+    }
 
     fun rangeReady(): Boolean {
         if (!isCurrentOwner() || checkExpired()) return false
@@ -96,12 +107,22 @@ class VoiceOnboardingViewModel(
         }
     }
 
-    /** Stops local polling only. Remote cancellation awaits a confirmed contract. */
     fun cancelAnalysis() {
         job?.cancel()
-        mutableState.update { it.copy(revision = it.revision + 1, busy = false,
-            error = "분석 확인을 중단했어요.") }
-        persist()
+        val result = state.value.progress
+        if (ownerId == null || result?.analysisId == null) {
+            mutableState.update { it.copy(revision = it.revision + 1, busy = false,
+                error = "분석 확인을 중단했어요.") }
+            persist()
+            return
+        }
+        mutableState.update { it.copy(busy = true, error = null) }
+        job = viewModelScope.launch {
+            val failure = runCatching { gateway.cancel(ownerId, result) }.exceptionOrNull()
+            mutableState.update { it.copy(revision = it.revision + 1, busy = false,
+                error = if (failure == null) "분석을 취소했어요." else "분석 취소를 확인하지 못했어요.") }
+            persist()
+        }
     }
 
     fun save() {

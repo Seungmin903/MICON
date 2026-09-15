@@ -229,6 +229,9 @@ interface BackendApi {
     @POST("voice-analysis-sessions")
     suspend fun createVoiceSession(@Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
 
+    @GET("voice-analysis-sessions/active")
+    suspend fun activeVoiceSession(@Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
+
     @PUT("voice-analysis-sessions/{sessionId}/range-result")
     suspend fun saveDeviceRange(@Path("sessionId") sessionId: Long, @Body body: DeviceRangeResultRequest,
         @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
@@ -243,6 +246,18 @@ interface BackendApi {
     suspend fun submitTimbre(@Path("sessionId") sessionId: Long, @Part file: MultipartBody.Part,
         @Part("meta") meta: RequestBody, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
 
+    @GET("voice-analysis-sessions/{sessionId}/analysis")
+    suspend fun timbreStatus(@Path("sessionId") sessionId: Long,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
+    @POST("voice-analysis-sessions/{sessionId}/analysis/{analysisId}/cancel")
+    suspend fun cancelTimbre(@Path("sessionId") sessionId: Long, @Path("analysisId") analysisId: Long,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
+    @POST("voice-analysis-sessions/{sessionId}/analysis/{analysisId}/components/{component}/retry")
+    suspend fun retryTimbreComponent(@Path("sessionId") sessionId: Long, @Path("analysisId") analysisId: Long,
+        @Path("component") component: String, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
     @GET("voice-analysis-sessions/{sessionId}/result")
     suspend fun voiceOnboardingResult(@Path("sessionId") sessionId: Long,
         @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceOnboardingResultDto>>
@@ -250,4 +265,7 @@ interface BackendApi {
     @POST("voice-analysis-sessions/{sessionId}/profile")
     suspend fun saveVoiceProfile(@Path("sessionId") sessionId: Long, @Body body: VoiceProfileSaveRequest,
         @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceProfileDto>>
+
+    @GET("users/me/voice-profile")
+    suspend fun latestVoiceProfile(): Response<ApiResponse<VoiceProfileDto>>
 }

@@ -270,6 +270,26 @@ def cancel_job(job_id: str) -> dict[str, Any]:
     return {"jobId": job_id, "status": JOBS[job_id]["status"]}
 
 
+@router.post("/voice-analysis-jobs/{job_id}/retry", status_code=202)
+def retry_job(job_id: str, background_tasks: BackgroundTasks, component: str) -> dict[str, Any]:
+    job = _get(job_id)
+    if component not in job["components"]:
+        raise HTTPException(422, "재시도할 수 없는 컴포넌트입니다.")
+    state = job["components"][component]
+    if state.get("status") not in {"FAILED", "INSUFFICIENT_DATA"}:
+        raise HTTPException(409, "실패한 컴포넌트만 재시도할 수 있습니다.")
+    if job.get("audioDeleted") or _now() >= datetime.fromisoformat(job["hardExpiresAt"]):
+        raise HTTPException(410, "재시도할 원본 음원이 만료됐습니다.")
+    components = dict(job["components"])
+    components[component] = {"status": "PENDING", "accepted": False}
+    _update(job_id, status="QUEUED", componentStatus="RUNNING", components=components,
+            failureCode=None, failureReason=None)
+    background_tasks.add_task(process, job_id)
+    current = JOBS[job_id]
+    return {"jobId": job_id, "status": "QUEUED",
+            "audioExpiresAt": current["audioExpiresAt"], "duplicate": True}
+
+
 @router.get("/voice-analysis-jobs/{job_id}")
 def get_job(job_id: str) -> dict[str, Any]:
     return _get(job_id)

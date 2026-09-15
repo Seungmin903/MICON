@@ -39,6 +39,7 @@ data class VoiceAnalysisProgress(
     val recordingId: String? = null,
     val savedProfileExists: Boolean = false,
     val recoverable: Boolean = true,
+    val analysisId: Long? = null,
 ) {
     // The backend grants eligibility. Completion on the client alone never grants permission to save.
     val canSave get() = saveAllowed && sessionStatus == VoiceSessionStatus.READY_TO_SAVE &&
@@ -66,6 +67,8 @@ interface VoiceOnboardingGateway {
     suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent? = null,
         onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress
     suspend fun save(request: VoiceOnboardingRequest, result: VoiceAnalysisProgress): ProfileSaveReceipt
+    suspend fun recover(ownerId: Long): VoiceAnalysisProgress? = null
+    suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {}
 }
 
 /** No upload, legacy API fallback, invented job statuses, or fake save while the contract is pending. */

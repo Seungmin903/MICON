@@ -37,6 +37,17 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             sessions[request.draftId] = sessionId
         }
         sessions[request.draftId] = sessionId
+        if (retry != null) {
+            val current = api.timbreStatus(sessionId, access).data()
+            val analysisId = current.analysisId ?: throw IllegalStateException("재시도할 분석을 찾을 수 없습니다.")
+            val component = when (retry) {
+                AnalysisComponent.ECAPA -> "ECAPA"
+                AnalysisComponent.SINGER_BYOL -> "SINGER_BYOL"
+                AnalysisComponent.ARTIST_SEARCH -> throw IllegalStateException("닮은 가수 검색 재시도는 아직 지원하지 않습니다.")
+            }
+            api.retryTimbreComponent(sessionId, analysisId, component, access).data()
+            return awaitResult(sessionId, analysisId, access, linkFile, null, onProgress)
+        }
         if (retry == null && request.range.backendSessionId == null) {
             api.saveDeviceRange(sessionId, request.range.toRequest(), access).data()
         }
@@ -48,13 +59,20 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val file = MultipartBody.Part.createFormData("file", recording.wav.name,
             recording.wav.asRequestBody("audio/wav".toMediaType()))
-        api.submitTimbre(sessionId, file, body, access).data()
+        val accepted = api.submitTimbre(sessionId, file, body, access).data()
+        return awaitResult(sessionId, accepted.analysisId, access, linkFile, link, onProgress)
+    }
+
+    private suspend fun awaitResult(sessionId: Long, analysisId: Long?, access: VoiceSessionAccess,
+        linkFile: File, link: TimbreSubmissionLink?, onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
         repeat(300) {
-            val result = api.voiceOnboardingResult(sessionId, access).data().toProgress()
+            val result = try { api.voiceOnboardingResult(sessionId, access).data().toProgress(analysisId) }
+            catch (_: Exception) { delay(2_000); return@repeat }
             onProgress(result)
             if (!result.analyzing && result.sessionStatus !in setOf(VoiceSessionStatus.CREATED,
                     VoiceSessionStatus.RANGE_IN_PROGRESS, VoiceSessionStatus.UPLOADING)) {
-                if (!result.canSave) stateStore.write(linkFile, linkAdapter.toJson(link.copy(terminalFailure = true)))
+                if (!result.canSave && link != null) stateStore.write(linkFile,
+                    Json.moshi.adapter(TimbreSubmissionLink::class.java).toJson(link.copy(terminalFailure = true)))
                 return result
             }
             delay(2_000)
@@ -69,6 +87,20 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         val saved = api.saveVoiceProfile(sessionId,
             VoiceProfileSaveRequest(result.version), VoiceSessionAccess(owner)).data()
         return ProfileSaveReceipt(saved.sessionId.toString(), result.version, saved.profileId.toString())
+    }
+
+    override suspend fun recover(ownerId: Long): VoiceAnalysisProgress? {
+        val access = VoiceSessionAccess(ownerId)
+        val response = api.activeVoiceSession(access)
+        if (response.code() == 404) return null
+        val active = response.data()
+        val job = runCatching { api.timbreStatus(active.sessionId, access).data() }.getOrNull()
+        return api.voiceOnboardingResult(active.sessionId, access).data().toProgress(job?.analysisId)
+    }
+
+    override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {
+        val analysisId = result.analysisId ?: throw IllegalStateException("취소할 분석 작업을 찾을 수 없습니다.")
+        api.cancelTimbre(result.sessionId.toLong(), analysisId, VoiceSessionAccess(ownerId)).data()
     }
 
     private fun com.micon.app.range.RangeReport.toRequest() = DeviceRangeResultRequest(
@@ -92,7 +124,7 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             segments = meta.takes.map { VoiceSegmentDto(ms(it.wavStartSec), ms(it.wavEndSec), ms(it.songStartSec), ms(it.songEndSec)) })
     }
 
-    private fun VoiceOnboardingResultDto.toProgress(): VoiceAnalysisProgress {
+    private fun VoiceOnboardingResultDto.toProgress(analysisId: Long? = null): VoiceAnalysisProgress {
         fun status(name: String) = components.firstOrNull { it.component == name }?.status.toComponentStatus()
         return VoiceAnalysisProgress(sessionId.toString(), resultVersion,
             ecapa = status("ECAPA"), byol = status("SINGER_BYOL"),
@@ -100,7 +132,7 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             artists = artists.map { SimilarVoiceArtist(it.artistId, it.name, it.imageUrl, it.similarity) },
             sessionStatus = runCatching { VoiceSessionStatus.valueOf(this.status) }.getOrDefault(VoiceSessionStatus.FAILED),
             saveAllowed = saveAllowed, rangeStatus = rangeStatus,
-            recordingId = null, savedProfileExists = savedProfileExists,
+            recordingId = null, savedProfileExists = savedProfileExists, analysisId = analysisId,
             expiresAtMillis = runCatching { java.time.LocalDateTime.parse(expiresAt).toInstant(ZoneOffset.UTC).toEpochMilli() }.getOrNull())
     }
 

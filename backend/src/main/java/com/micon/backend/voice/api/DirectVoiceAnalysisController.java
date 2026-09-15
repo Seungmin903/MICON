@@ -60,6 +60,16 @@ public class DirectVoiceAnalysisController {
         return ApiResponse.success(service.cancel(userId(jwt), guestToken, sessionId, analysisId));
     }
 
+    @PostMapping("/{analysisId}/components/{component}/retry")
+    @Operation(summary = "실패한 음색 분석 컴포넌트 재시도")
+    public ResponseEntity<ApiResponse<VoiceAnalysisJobResponse>> retryComponent(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable long sessionId,
+            @PathVariable long analysisId, @PathVariable String component) {
+        if (jwt == null) throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(
+                service.retryComponent(userId(jwt), sessionId, analysisId, component)));
+    }
+
     private Long userId(Jwt jwt) {
         if (jwt == null) return null;
         try { return Long.parseLong(jwt.getSubject()); }

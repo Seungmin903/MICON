@@ -142,6 +142,14 @@ public class VoiceAnalysisJob {
         updatedAt = at;
     }
 
+    public void retry(LocalDateTime at) {
+        status = "RUNNING";
+        completedAt = null;
+        failureCode = null;
+        failureReason = null;
+        updatedAt = at;
+    }
+
     public boolean terminal() {
         return "COMPLETED".equals(status) || "FAILED".equals(status) || "CANCELED".equals(status);
     }

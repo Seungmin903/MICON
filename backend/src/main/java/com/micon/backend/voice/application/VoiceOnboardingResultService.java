@@ -71,6 +71,14 @@ public class VoiceOnboardingResultService {
         return new VoiceProfileResponse(profile.getId(), sessionId, profile.getProfileVersion());
     }
 
+    @Transactional(readOnly = true)
+    public VoiceProfileResponse latestProfile(long userId) {
+        UserVoiceProfile profile = profiles.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        return new VoiceProfileResponse(profile.getId(), profile.getSession().getId(),
+                profile.getProfileVersion());
+    }
+
     private VoiceAnalysisSession owned(long userId, long sessionId) {
         return sessions.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND));

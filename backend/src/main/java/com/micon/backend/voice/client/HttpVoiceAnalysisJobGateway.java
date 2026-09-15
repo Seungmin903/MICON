@@ -89,6 +89,17 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                 .retrieve().toBodilessEntity();
     }
 
+    @Override
+    public Result retry(String jobId, String component) {
+        var response = restClient.post().uri(uri -> uri.path("/voice-analysis-jobs/{jobId}/retry")
+                        .queryParam("component", component).build(jobId))
+                .retrieve().toEntity(Result.class);
+        if (response.getStatusCode() != HttpStatus.ACCEPTED || response.getBody() == null) {
+            throw new VoiceAnalysisJobGateway.Rejected("AI did not accept the component retry");
+        }
+        return response.getBody();
+    }
+
     private record Metadata(long analysisId, long sessionId, Long recordingId, String requestId,
                             int attemptNo, String analysisType, java.util.List<String> components,
                             String contractVersion, com.micon.backend.voice.api.VoiceAnalysisUploadRequest recording) { }
