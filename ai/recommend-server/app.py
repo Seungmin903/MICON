@@ -15,6 +15,7 @@ import analysis_jobs
 import catalog_link
 from recommendation_api import router as recommendation_router
 from service_auth import require_service_token
+from song_fit_api import router as song_fit_router
 
 
 @asynccontextmanager
@@ -28,6 +29,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="MICON Recommend Server", version="0.2.0", lifespan=lifespan)
 app.include_router(recommendation_router, dependencies=[Depends(require_service_token)])
 app.include_router(analysis_jobs.router, dependencies=[Depends(require_service_token)])
+app.include_router(song_fit_router, dependencies=[Depends(require_service_token)])
 
 
 @app.get("/health")
