@@ -103,13 +103,22 @@ concurrent = 1
     service_memory = "1g"
     service_memory_swap = "1g"
     cpus = "1"
-    memory = "1g"
-    memory_swap = "1g"
+    memory = "2g"
+    memory_swap = "2g"
 ```
 
 GitLab 프로젝트 설정은 `project_type`, `locked=true`, `run_untagged=false`, `access_level=ref_protected`, 최대 실행 시간 600초로 유지한다. 인증 토큰은 GitLab에서 생성 직후 한 번만 받아 서버 설정에 저장하며 문서·Git·채팅에 복사하지 않는다.
 
-MySQL 검증은 Java 작업 컨테이너(1 CPU·1 GiB)와 MySQL 서비스(1 CPU·1 GiB)를 사용한다.
+MySQL 검증은 Java 작업 컨테이너(1 CPU·2 GiB)와 MySQL 서비스(1 CPU·1 GiB)를 사용한다.
+2026-09-15 pipeline #195793의 작업 #539824는 곡 적재를 통과한 뒤 Gradle 테스트에서
+작업 컨테이너의 1 GiB 제한에 도달했다. 커널의 `CONSTRAINT_MEMCG`와 Java OOM kill을
+확인해 2026-09-15 15:23 KST에 작업 제한만 2 GiB로 올렸다. 실행 중 작업 0건을 확인하고
+Runner pause → root 전용 원본 백업 → 설정 반영·재시작 → verify → pause 해제를 수행했다.
+원본 설정은 서버의 `/etc/gitlab-runner/config.toml.ci-recovery-20260915T062338Z.bak`에
+root 0600으로 보존했다. `memory_swap`은 메모리와 swap의 합산 상한이므로
+같은 2 GiB로 지정해 swap 추가 허용 없이 여유를 확보한다. Gradle daemon 힙 384 MiB와
+테스트 JVM 힙 256 MiB 외에도 metaspace·코드 캐시·스레드·클라이언트 프로세스 메모리가 필요하다.
+동시 작업 수 1, CPU 1개, MySQL 서비스 메모리 1 GiB와 Protected 제한은 유지한다.
 227의 `embedding-catalog-tests`도 기존 allowlist의 Python 이미지와 같은 MySQL 이미지를 사용한다.
 모의 S3(moto)는 Python 프로세스 안에서 실행하며 실제 AWS 키/버킷과 운영 DB를 사용하지 않는다.
 `mysql-song-import`는 실제 V1~V7 Flyway·두 번 적재 검증 뒤 임베딩 BE 인증/DB 조회 테스트도 실행한다.
