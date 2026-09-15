@@ -2337,7 +2337,7 @@ paths:
     get:
       tags: ["음성 분석"]
       summary: "음성 분석 작업 상태·결과 조회 API"
-      description: "콜백 유실 시 작업 상태와 결과를 복구한다."
+      description: "운영 진단용으로 AI 작업 상태를 조회한다. 콜백 유실은 AI의 영속 콜백 재전송으로 복구한다."
       operationId: "micon080"
       servers:
         - url: "{aiUrl}"
@@ -2349,8 +2349,8 @@ paths:
         - serviceAuth: []
       x-direction: "백 → AI"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현 완료"
+      x-backend-status: "호출 미사용"
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
@@ -2359,6 +2359,46 @@ paths:
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
+  "/voice-analysis-jobs/{jobId}/retry":
+    post:
+      tags: ["음성 분석"]
+      summary: "실패한 음색 분석 컴포넌트 재시도 API"
+      description: "AI가 보관 중인 원음을 사용해 지정한 ECAPA 또는 SINGER_BYOL 컴포넌트만 다시 실행한다."
+      servers:
+        - url: "{aiUrl}"
+          variables: { aiUrl: { default: "http://localhost:8000" } }
+      security: [{ serviceAuth: [] }]
+      x-direction: "백 → AI"
+      x-work-status: "구현 완료"
+      parameters:
+        - $ref: "#/components/parameters/VoiceAnalysisJobId"
+        - name: "component"
+          in: "query"
+          required: true
+          schema: { type: "string", enum: ["ECAPA", "SINGER_BYOL"] }
+      responses:
+        "202": { description: "컴포넌트 재시도 접수" }
+        "409": { description: "실패 상태가 아님" }
+        "410": { description: "원음 만료" }
+  "/artist-search-jobs/{jobId}/retry":
+    post:
+      tags: ["음성 분석"]
+      summary: "실패한 닮은 가수 검색 재시도 API"
+      description: "AI가 보관 중인 모델 임베딩 입력을 사용해 닮은 가수 검색을 다시 실행한다."
+      servers:
+        - url: "{aiUrl}"
+          variables: { aiUrl: { default: "http://localhost:8000" } }
+      security: [{ serviceAuth: [] }]
+      x-direction: "백 → AI"
+      x-work-status: "구현 완료"
+      parameters:
+        - name: "jobId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "202": { description: "닮은 가수 검색 재시도 접수" }
+        "409": { description: "실패 상태가 아님" }
   "/voice-analysis-jobs/{jobId}/cancel":
     post:
       tags: ["음성 분석"]

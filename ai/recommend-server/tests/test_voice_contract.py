@@ -189,6 +189,24 @@ class VoiceContractTest(unittest.TestCase):
         infer.assert_not_called()
         self.assertTrue(jobs.JOBS[reply["jobId"]]["audioDeleted"])
 
+    def test_failed_component_retry_reuses_persisted_audio(self):
+        reply, _ = jobs.ingest({"file": wav()}, meta())
+        identifier = reply["jobId"]
+        components = dict(jobs.JOBS[identifier]["components"])
+        components["ECAPA"] = {"status": "FAILED", "accepted": True, "failureCode": "TEST"}
+        components["SINGER_BYOL"] = {"status": "COMPLETED", "accepted": True}
+        jobs._update(identifier, status="FAILED", componentStatus="FAILED", components=components)
+        app = FastAPI()
+        app.include_router(jobs.router)
+        with mock.patch.object(jobs, "process") as process:
+            response = TestClient(app).post(
+                f"/voice-analysis-jobs/{identifier}/retry?component=ECAPA")
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(jobs.JOBS[identifier]["components"]["ECAPA"]["status"], "PENDING")
+        self.assertEqual(jobs.JOBS[identifier]["components"]["SINGER_BYOL"]["status"], "COMPLETED")
+        self.assertTrue((Path(self.tmp.name) / identifier / "file.wav").is_file())
+        process.assert_called_once_with(identifier)
+
     def test_multipart_file_and_json_blob_match_the_be_http_contract(self):
         app = FastAPI()
         app.include_router(jobs.router, dependencies=[Depends(require_service_token)])
