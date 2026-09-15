@@ -17,14 +17,17 @@ pipeline {
     stages {
         stage('Checkout reviewed main') {
             steps {
-                checkout scm
                 script {
+                    def checkoutMetadata = checkout scm
                     def candidates = [
                         env.BRANCH_NAME,
-                        env.GIT_BRANCH?.replaceFirst('^(origin/|refs/remotes/origin/)', ''),
+                        checkoutMetadata.GIT_BRANCH,
+                        checkoutMetadata.GIT_LOCAL_BRANCH,
                         env.gitlabBranch
-                    ]
-                    if (!candidates.contains('main')) {
+                    ].findAll { it }.collect {
+                        it.replaceFirst('^(origin/|refs/remotes/origin/)', '')
+                    }
+                    if (candidates && !candidates.contains('main')) {
                         error('Backend deployment is restricted to the main branch')
                     }
                     env.RELEASE_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
