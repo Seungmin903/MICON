@@ -73,6 +73,18 @@ class VoiceSessionApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.sessionId").value(sessionId))
                 .andExpect(jsonPath("$.data.profileVersion").value(1));
+
+        mvc.perform(get("/users/me/voice-profile")
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.data.profileVersion").value(1));
+    }
+
+    @Test
+    void latestProfileRequiresAuthentication() throws Exception {
+        mvc.perform(get("/users/me/voice-profile"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

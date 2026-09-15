@@ -76,6 +76,37 @@ class DirectVoiceAnalysisServiceTest {
         verify(lifecycle).unknown(3L, 31L, "read timed out");
     }
 
+    @Test
+    void retriesOnlyTheRequestedAiComponentUsingTheExistingJob() {
+        TimbreAnalysisLifecycleService lifecycle = mock(TimbreAnalysisLifecycleService.class);
+        VoiceAnalysisJobGateway gateway = mock(VoiceAnalysisJobGateway.class);
+        VoiceAnalysisJobResponse retrying = response("request-1", "ai-1", "QUEUED", LocalDateTime.now().plusHours(1));
+        when(lifecycle.retryComponent(3L, 7L, 31L, "ECAPA")).thenReturn(retrying);
+        when(gateway.retry("ai-1", "ECAPA")).thenReturn(new VoiceAnalysisJobGateway.Result("ai-1", "QUEUED"));
+        DirectVoiceAnalysisService service = new DirectVoiceAnalysisService(
+                lifecycle, mock(VoiceAnalysisUploadValidator.class), gateway, mock(VoiceSessionService.class), true, "v1");
+
+        VoiceAnalysisJobResponse result = service.retryComponent(3L, 7L, 31L, "ECAPA");
+
+        assertThat(result).isSameAs(retrying);
+        verify(gateway).retry("ai-1", "ECAPA");
+    }
+
+    @Test
+    void marksRetryFailedWhenAiRejectsTheRequest() {
+        TimbreAnalysisLifecycleService lifecycle = mock(TimbreAnalysisLifecycleService.class);
+        VoiceAnalysisJobGateway gateway = mock(VoiceAnalysisJobGateway.class);
+        VoiceAnalysisJobResponse retrying = response("request-1", "ai-1", "QUEUED", LocalDateTime.now().plusHours(1));
+        when(lifecycle.retryComponent(3L, 7L, 31L, "SINGER_BYOL")).thenReturn(retrying);
+        when(gateway.retry("ai-1", "SINGER_BYOL")).thenThrow(new ResourceAccessException("AI unavailable"));
+        DirectVoiceAnalysisService service = new DirectVoiceAnalysisService(
+                lifecycle, mock(VoiceAnalysisUploadValidator.class), gateway, mock(VoiceSessionService.class), true, "v1");
+
+        assertThatThrownBy(() -> service.retryComponent(3L, 7L, 31L, "SINGER_BYOL"))
+                .isInstanceOf(com.micon.backend.common.exception.BusinessException.class);
+        verify(lifecycle).fail(3L, 31L, "AI_RETRY_REJECTED", "AI unavailable");
+    }
+
     private MockMultipartFile file() {
         return new MockMultipartFile("file", "sample.wav", "audio/wav", new byte[] {1});
     }
