@@ -18,9 +18,17 @@ class NginxBackendRoutingTests(unittest.TestCase):
 
     def test_public_prefix_is_stripped_once(self):
         self.assertIn("location /api/v1/", self.nginx)
+        self.assertIn("upstream micon_backend_active", self.nginx)
         self.assertIn("include /etc/nginx/micon/backend-active.conf;", self.nginx)
-        self.assertIn("proxy_pass http://127.0.0.1:18081/;", self.blue)
-        self.assertIn("proxy_pass http://127.0.0.1:18082/;", self.green)
+        self.assertIn("proxy_pass http://micon_backend_active/;", self.nginx)
+        self.assertIn("server 127.0.0.1:18081;", self.blue)
+        self.assertIn("server 127.0.0.1:18082;", self.green)
+
+    def test_ai_catalog_bridge_is_loopback_only_and_exact(self):
+        self.assertIn("listen 127.0.0.1:18080;", self.nginx)
+        self.assertIn("location = /internal/embedding-catalog/active", self.nginx)
+        self.assertIn("proxy_pass http://micon_backend_active;", self.nginx)
+        self.assertEqual(self.nginx.count("location = /internal/embedding-catalog/active"), 1)
 
     def test_management_and_internal_routes_are_publicly_blocked(self):
         for path in ("/actuator", "/internal", "/api/v1/actuator", "/api/v1/internal"):
@@ -74,6 +82,7 @@ class NginxBackendRoutingTests(unittest.TestCase):
     def test_candidate_syntax_check_uses_isolated_files(self):
         self.assertIn("mktemp -d /tmp/micon-nginx-candidate.", self.verify)
         self.assertIn("nginx -t", self.verify)
+        self.assertIn("server 127.0.0.1:18081;", self.verify)
         self.assertNotIn("systemctl", self.verify)
         self.assertNotIn("/etc/nginx/sites-available", self.verify)
 
