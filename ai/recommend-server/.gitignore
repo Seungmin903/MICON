@@ -1,5 +1,6 @@
 .venv/
-models/
+# Downloaded weights only; third_party packages also contain source named models/.
+/models/
 workspace/
 __pycache__/
 *.pyc
