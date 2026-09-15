@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Min;
 import java.security.Principal;
 import java.time.LocalDate;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -43,7 +44,6 @@ public class PracticeController {
 		this.historyService = historyService;
 	}
 
-	@Operation(summary = "연습 리포트 목록 조회", description = "로그인한 사용자의 연습 기록을 날짜와 페이지 조건으로 조회합니다.")
 	@GetMapping
 	public ApiResponse<PracticeHistoryResponse.Page> getHistory(
 		Principal principal,
@@ -73,6 +73,19 @@ public class PracticeController {
 		@PathVariable("practiceId") @Min(1) Long practiceId
 	) {
 		return ApiResponse.success(service.get(userId(principal), practiceId));
+	}
+
+	@Operation(
+		summary = "연습 리포트 개별 삭제",
+		description = "본인의 연습 기록과 해당 기록에 속한 점수·구간 리포트를 삭제합니다. 녹음 및 음성 분석 데이터는 삭제하지 않습니다."
+	)
+	@DeleteMapping("/{practiceId}")
+	public ApiResponse<Void> delete(
+		Principal principal,
+		@PathVariable @Min(1) Long practiceId
+	) {
+		service.delete(userId(principal), practiceId);
+		return ApiResponse.success(null);
 	}
 
 	@Operation(summary = "연습 완료", description = "연습 시간과 선택적 녹음·분석 식별자를 저장하고 연습을 완료 처리합니다.")

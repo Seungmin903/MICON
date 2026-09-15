@@ -69,6 +69,14 @@ public class PracticeService {
 	}
 
 	@Transactional
+	public void delete(Long userId, Long practiceId) {
+		requireOwned(userId, practiceId);
+		if (repository.delete(practiceId, userId) == 0) {
+			throw new BusinessException(ErrorCode.PRACTICE_NOT_FOUND);
+		}
+	}
+
+	@Transactional
 	public PracticeResponse.Detail complete(Long userId, Long practiceId, PracticeRequest.Complete request) {
 		requireOwned(userId, practiceId);
 		if (request.recordingId() != null

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +86,26 @@ class PracticeServiceTest {
 		assertThatThrownBy(() -> service.get(7L, 50L))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PRACTICE_NOT_FOUND));
+	}
+
+	@Test
+	void deletesOwnedPracticeReport() {
+		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("COMPLETED")));
+		when(repository.delete(50L, 7L)).thenReturn(1);
+
+		service.delete(7L, 50L);
+
+		verify(repository).delete(50L, 7L);
+	}
+
+	@Test
+	void rejectsDeletingAnotherUsersPracticeReport() {
+		when(repository.findOwned(50L, 7L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.delete(7L, 50L))
+			.isInstanceOfSatisfying(BusinessException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PRACTICE_NOT_FOUND));
+		verify(repository, never()).delete(50L, 7L);
 	}
 
 	@Test
