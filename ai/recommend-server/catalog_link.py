@@ -1,7 +1,8 @@
 """카탈로그 track_id ↔ 앱 song_id 짝표. BE 활성 임베딩 카탈로그에서 받아 온다.
 
 추천 응답의 song_id 는 앱 SONG.song_id(숫자)여야 하는데 카탈로그는 tj 번호만 안다.
-MICON_BE_BASE_URL 이 비어 있으면 짝표 없이 동작한다(개발 모드).
+MICON_BE_BASE_URL 은 BE 컨테이너 주소여야 한다. 공개 nginx 는 /internal/ 을 404 로 막는다.
+비어 있으면 짝표 없이 동작한다(개발 모드).
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Any
 
 
 log = logging.getLogger("catalog_link")
-PATH = "/api/v1/internal/embedding-catalog/active"
+PATH = "/internal/embedding-catalog/active"   # 스프링 컨트롤러 경로 그대로. /api/v1 은 nginx 가 붙이는 접두사다
 _LOCK = threading.Lock()
 _CACHE: dict[str, Any] = {"revision": None, "batchId": None, "songIds": {}, "error": None}
 

@@ -119,7 +119,10 @@ def _audio_alive(job: dict[str, Any]) -> bool:
 
 
 def _duplicate_response(job: dict[str, Any]) -> dict[str, Any]:
-    return {"jobId": job["jobId"], "status": job["status"], "audioExpiresAt": job["audioExpiresAt"], "duplicate": True}
+    # CALLBACK_PENDING 은 내부 상태다. BE 에는 계산 결과를 알린다.
+    status = job.get("componentStatus") if job["status"] == "CALLBACK_PENDING" else job["status"]
+    return {"jobId": job["jobId"], "status": status or job["status"],
+            "audioExpiresAt": job["audioExpiresAt"], "duplicate": True}
 
 
 def ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -141,6 +144,9 @@ def ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, Any
             raise HTTPException(409, {"code": "IDEMPOTENCY_KEY_REUSED", "message": "같은 requestId 로 다른 음원이 전송되었습니다."})
         if existing["status"] == "COMPLETED":
             return _duplicate_response(existing), False
+        if existing["status"] == "CALLBACK_PENDING":     # 계산은 끝났고 BE 가 못 받았다. 다시 보내기만 한다
+            resend_pending_callbacks()
+            return _duplicate_response(JOBS[existing["jobId"]]), False
         if not _audio_alive(existing):
             raise HTTPException(410, {"code": "AUDIO_EXPIRED", "message": "원음이 만료되어 다시 녹음해야 합니다."})
         if existing["status"] in {"FAILED", "INSUFFICIENT_DATA"}:
@@ -348,16 +354,45 @@ def process(job_id: str) -> None:
         components[component] = {"status": payload["status"], "accepted": result["accepted"], "callback": result,
                                  "failureCode": payload["failureCode"], "processedAt": payload["processedAt"]}
         (job_dir / f"callback.{component}.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    _finish(job_id, components)
+
+
+def _finish(job_id: str, components: dict[str, Any]) -> None:
+    """작업 상태를 정한다. BE 가 받아 주지 않은 컴포넌트가 있으면 완료로 두지 않는다 — 그래야 다시 보낼 수 있다."""
+    job = JOBS[job_id]
     statuses = {c["status"] for c in components.values()}
     status = "COMPLETED" if statuses == {"COMPLETED"} else ("INSUFFICIENT_DATA" if "INSUFFICIENT_DATA" in statuses else "FAILED")
+    accepted = all(c["accepted"] for c in components.values())
     failed = next((c for c in components.values() if c["status"] != "COMPLETED"), None)
-    values: dict[str, Any] = {"status": status, "components": components,
+    values: dict[str, Any] = {"status": status if accepted else "CALLBACK_PENDING", "components": components,
+                              "componentStatus": status,
                               "failureCode": failed and failed.get("failureCode"), "failureReason": None}
-    if all(c["accepted"] for c in components.values()):
+    if accepted:
         soft = _now() + timedelta(seconds=_env_int("RECOMMEND_AUDIO_TTL_SECONDS", 3600))
         values["softExpiresAt"] = _iso(soft)
         values["audioExpiresAt"] = _iso(min(soft, datetime.fromisoformat(job["hardExpiresAt"])))
     _update(job_id, **values)
+
+
+def resend_pending_callbacks() -> list[str]:
+    """BE 가 살아난 뒤 밀린 콜백을 보낸다. 계산은 끝났고 본문도 남아 있으므로 다시 계산하지 않는다."""
+    resent = []
+    for job in [j for j in list(JOBS.values()) if j["status"] == "CALLBACK_PENDING"]:
+        components = dict(job["components"])
+        changed = False
+        for component, state in components.items():
+            if state.get("accepted"):
+                continue
+            path = ANALYSIS_DIR / job["jobId"] / f"callback.{component}.json"
+            if not path.is_file():
+                continue
+            result = post_callback(json.loads(path.read_text(encoding="utf-8")))
+            components[component] = {**state, "accepted": result["accepted"], "callback": result}
+            changed = True
+        if changed:
+            _finish(job["jobId"], components)
+            resent.append(job["jobId"])
+    return resent
 
 
 def _limit_torch_threads() -> None:
@@ -399,10 +434,11 @@ def start_sweeper(interval_seconds: int = 60) -> threading.Thread:
     def run() -> None:
         while True:
             time.sleep(interval_seconds)
-            try:
-                sweep()
-            except Exception:
-                log.exception("audio sweep failed")
+            for step in (resend_pending_callbacks, sweep):
+                try:
+                    step()
+                except Exception:
+                    log.exception("%s failed", step.__name__)
 
     thread = threading.Thread(target=run, name="analysis-audio-sweeper", daemon=True)
     thread.start()
