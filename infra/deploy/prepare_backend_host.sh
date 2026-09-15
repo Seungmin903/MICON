@@ -64,6 +64,15 @@ if [ ! -e "$RUNTIME_DIR/backend.env" ]; then
         "$RUNTIME_DIR/backend.env"
 fi
 
+if [ ! -e "$RUNTIME_DIR/recommendation.env" ]; then
+    install \
+        -o root \
+        -g root \
+        -m 0600 \
+        "$REPOSITORY_ROOT/infra/compose/recommendation.env.example" \
+        "$RUNTIME_DIR/recommendation.env"
+fi
+
 if [ ! -e "$RUNTIME_DIR/backend-deploy.env" ]; then
     install \
         -o root \

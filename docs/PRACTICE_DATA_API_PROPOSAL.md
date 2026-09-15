@@ -84,7 +84,7 @@ PATCH /practices/{practiceId}/status
 
 ## B. AI 서버 API (정다운 구현, BE 가 호출)
 
-베이스 URL `AI_BASE_URL`, 인증 `Authorization: Bearer <AI_SERVICE_TOKEN>` (BE 와 같은 토큰), JSON, 타임아웃: 접수 3초/조회 10초. 작업은 비동기(202 → 조회 또는 콜백).
+베이스 URL `AI_RECOMMENDATION_BASE_URL`, 인증 `Authorization: Bearer <AI_SERVICE_TOKEN>` (BE 와 같은 토큰), JSON, 타임아웃: 접수 3초/조회 10초. 작업은 비동기(202 → 조회 또는 콜백).
 상태 값: `QUEUED | PROCESSING | COMPLETED | PARTIAL | FAILED | CANCELLED`. 오류 본문은 `{ "code": "…", "message": "…" }`.
 
 ### B1. `POST /song-processing-jobs` — 곡 하나를 연습 가능하게 만드는 작업
@@ -221,6 +221,6 @@ PATCH /practices/{practiceId}/status
 3. A1 `lyricsSynced` 타입: LRC 문자열 고정 확인.
 4. C `sections` 병합 규칙과 `practice_ready` 갱신 조건.
 5. B1 `vocalStem.expiresAt` 최소 30분 가능 여부 (`CATALOG_MEDIA_DOWNLOAD_URL_TTL` 현재 10분, 1시간 초과 불가).
-6. B 전체: 콜백 사용 여부(콜백 + 폴링 병행 제안), AI 서버의 운영 주소·포트(`AI_BASE_URL`), 서비스 토큰 전달 방식.
+6. B 전체: 콜백 사용 여부(콜백 + 폴링 병행 제안), AI 서버의 운영 주소·포트(`AI_RECOMMENDATION_BASE_URL`), 서비스 토큰 전달 방식.
 
 회신이 오는 대로 AI 서버 라우터(B1~B4, B5·B6)를 구현하고, 앱은 A1·A3·A4 계약에 맞춰 `PracticeRepository` 를 붙인다.

@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import threading
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -19,6 +20,8 @@ from typing import Any
 log = logging.getLogger("catalog_link")
 PATH = "/internal/embedding-catalog/active"   # 스프링 컨트롤러 경로 그대로. /api/v1 은 nginx 가 붙이는 접두사다
 _LOCK = threading.Lock()
+_REFRESH_LOCK = threading.Lock()
+_LAST_ATTEMPT_MONOTONIC: float | None = None
 _CACHE: dict[str, Any] = {"revision": None, "batchId": None, "songIds": {}, "error": None}
 
 
@@ -30,8 +33,9 @@ def _get(url: str, token: str) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
-def refresh() -> dict[str, Any]:
-    """BE 에서 활성 카탈로그를 다시 받아 짝표를 갱신한다. 실패해도 예외를 올리지 않고 error 에 남긴다."""
+def _refresh(attempted_at: float | None = None) -> dict[str, Any]:
+    global _LAST_ATTEMPT_MONOTONIC
+    _LAST_ATTEMPT_MONOTONIC = time.monotonic() if attempted_at is None else attempted_at
     base = os.environ.get("MICON_BE_BASE_URL", "").strip().rstrip("/")
     if not base:
         with _LOCK:
@@ -57,6 +61,26 @@ def refresh() -> dict[str, Any]:
         with _LOCK:
             _CACHE["error"] = str(error)[:200]
     return status()
+
+
+def refresh() -> dict[str, Any]:
+    """BE 에서 활성 카탈로그를 다시 받아 짝표를 갱신한다. 실패해도 예외를 올리지 않고 error 에 남긴다."""
+    with _REFRESH_LOCK:
+        return _refresh()
+
+
+def ensure(min_interval_seconds: float = 30.0) -> dict[str, Any]:
+    """빈 짝표를 제한적으로 재조회한다. 동시 요청과 BE 장애가 재조회 폭주를 만들지 않게 한다."""
+    if song_ids():
+        return status()
+    with _REFRESH_LOCK:
+        if song_ids():
+            return status()
+        now = time.monotonic()
+        if (_LAST_ATTEMPT_MONOTONIC is not None
+                and now - _LAST_ATTEMPT_MONOTONIC < max(0.0, min_interval_seconds)):
+            return status()
+        return _refresh(now)
 
 
 def status() -> dict[str, Any]:

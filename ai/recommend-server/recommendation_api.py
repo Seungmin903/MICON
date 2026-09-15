@@ -486,6 +486,7 @@ def recommendation_status() -> dict[str, Any]:
     import torch
 
     config, missing = _configuration_status()
+    catalog_link_state = catalog_link.ensure()
     tracks = 0
     catalog_tracks: list[dict[str, str]] = []
     if not missing:
@@ -508,14 +509,15 @@ def recommendation_status() -> dict[str, Any]:
         except Exception:
             missing.append("데모 카탈로그 검증")
     return {
-        "ready": not missing,
+        "ready": not missing and catalog_link_state["mappedTracks"] > 0,
+        "engineReady": not missing,
         "device": "cuda" if torch.cuda.is_available() else "cpu",
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "catalogTracks": tracks,
         "catalog": catalog_tracks,
         "models": ["ECAPA-TDNN VoxCeleb", "Singer-BYOL", "VocalScope CREPE + pYIN"],
         "rangeModes": ["timbre", "range"],
-        "catalogLink": catalog_link.status(),   # 앱 song_id 짝표. mappedTracks 가 0 이면 BE 에 저장할 수 없다
+        "catalogLink": catalog_link_state,   # 앱 song_id 짝표. mappedTracks 가 0 이면 BE 에 저장할 수 없다
         "missing": missing,
     }
 
@@ -536,7 +538,7 @@ def _create_from_json(payload: Any, background_tasks: BackgroundTasks) -> dict[s
         raise HTTPException(422, "요청 본문은 객체여야 합니다.")
     user_embedding_matrices(payload.get("userEmbedding"))      # 잡을 만들기 전에 입력부터 검증한다
     _ai_mode(payload.get("mode"))
-    if not catalog_link.song_ids():
+    if catalog_link.ensure()["mappedTracks"] == 0:
         raise HTTPException(503, "DB song_id 카탈로그 연결이 준비되지 않았습니다.")
     if type(payload.get("topK")) is not int or not 1 <= payload["topK"] <= MAX_TOP_K:
         raise HTTPException(422, "topK는 1~50 정수여야 합니다.")

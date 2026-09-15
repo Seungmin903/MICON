@@ -1,0 +1,12 @@
+**/.venv
+recommend-server/models
+recommend-server/workspace
+recommend-server/pretrained_models
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+recommend-server/tests
+recommend-server/docs
+recommend-server/scripts
+recommend-server/*.ps1
+vocal-scope/model-server/tests

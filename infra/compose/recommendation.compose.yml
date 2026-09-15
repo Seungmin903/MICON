@@ -1,0 +1,46 @@
+name: micon-recommendation
+
+services:
+  micon-recommendation:
+    image: ${MICON_RECOMMENDATION_IMAGE:?Set MICON_RECOMMENDATION_IMAGE to an immutable commit tag}
+    build:
+      context: ../../ai
+      dockerfile: recommend-server/Dockerfile
+    container_name: micon-recommendation
+    restart: unless-stopped
+    env_file:
+      - ${MICON_RECOMMENDATION_ENV_FILE:-/etc/micon/runtime/recommendation.env}
+    environment:
+      AI_SERVICE_TOKEN_FILE: /run/secrets/ai_service_token
+    ports:
+      - 127.0.0.1:${MICON_RECOMMENDATION_BIND_PORT:-8788}:8788
+    networks:
+      - backend
+    secrets:
+      - ai_service_token
+    volumes:
+      - analysis-jobs:/app/workspace/analysis
+      - recommendation-jobs:/app/workspace/recommender/jobs
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 40s
+
+networks:
+  backend:
+    name: micon_backend
+    external: true
+
+volumes:
+  analysis-jobs:
+    name: micon_analysis_jobs
+  recommendation-jobs:
+    name: micon_recommendation_jobs
+
+secrets:
+  ai_service_token:
+    file: /etc/micon/backend-secrets/ai_service_token
