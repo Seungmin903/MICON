@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import csv
+from datetime import datetime, timezone
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -239,5 +240,51 @@ def build_recommender_index(catalog: LoadedCatalog, destination: Path) -> Path:
                                            .removeprefix(catalog.manifest["prefix"])).resolve())
             writer.writerow(row)
     index_path = build_catalog_index(csv_path, destination, max_segments=12)
+    _write_range_catalog(catalog, destination, index_path, mapping)
     atomic_write(destination / "activation.json", json_bytes(catalog.snapshot))
     return index_path
+
+
+def _write_range_catalog(catalog: LoadedCatalog, destination: Path, index_path: Path,
+                         mapping: dict) -> None:
+    """곡 음역 프로파일을 인덱스 옆에 쓴다. 이 파일이 없으면 추천 서버가 기동하다 멈춘다.
+
+    출처는 스냅샷 track 의 range_profile 이다. BE 가 아직 싣지 않으면
+    MICON_RANGE_PROFILES 가 가리키는 파일에서 읽는다(catalog_track_id 키).
+    """
+    from timbre_recommender.pitch_range import (RANGE_CATALOG_FILENAME, RANGE_SCORING_VERSION,
+                                                canonical_json_sha256)
+    from pitch_profile import PITCH_EXTRACTION_VERSION
+
+    fallback = {}
+    source = os.environ.get("MICON_RANGE_PROFILES", "").strip()
+    if source:
+        payload = parse_json(Path(source).read_bytes())
+        fallback = payload.get("profiles", payload)
+
+    tracks = catalog.snapshot["tracks"]
+    if not fallback and not any(t.get("range_profile") for t in tracks):
+        return          # 음역 프로파일을 아직 아무도 주지 않았다. 서버 기동 시 누락으로 잡힌다
+
+    profiles, missing = {}, []
+    for track in tracks:
+        track_id = track["catalog_track_id"]
+        profile = track.get("range_profile") or fallback.get(track_id)
+        if profile is None:
+            missing.append(track_id)
+            continue
+        profiles[str(mapping[track_id])] = profile
+    require(not missing, f"Range profile missing for {len(missing)} tracks: {sorted(missing)[:5]}")
+
+    atomic_write(destination / RANGE_CATALOG_FILENAME, json_bytes({
+        "schemaVersion": 1,
+        "scoringVersion": RANGE_SCORING_VERSION,
+        "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
+        "keyShiftRange": [-6, 6],
+        "source": {"indexFile": index_path.name,
+                   "indexCanonicalSha256": canonical_json_sha256(index_path),
+                   "batchId": catalog.snapshot["batch_id"]},
+        "profiles": profiles,
+    }))
