@@ -59,7 +59,7 @@ $env:RECOMMEND_CONCURRENCY = '1'
 BE 설정:
 
 ```text
-AI_BASE_URL=http://<BE에서 접근 가능한 노트북 주소>:8788
+AI_RECOMMENDATION_BASE_URL=http://<BE에서 접근 가능한 노트북 주소>:8788
 AI_SERVICE_TOKEN=<동일한 토큰>
 AI_VOICE_ANALYSIS_ENABLED=true
 AI_VOICE_ANALYSIS_MAX_WAIT=10m
@@ -76,11 +76,11 @@ AI_RECOMMENDATION_POLLING_MAX_WAIT=10m
 
 1. `GET /health` 200으로 프로세스 생존을 확인한다. 모델 준비 완료 판정은 아니다.
 2. 서비스 토큰을 넣은 `GET /recommendations/status`로 모델·인덱스 누락과 카탈로그 연결 상태를 확인한다.
-3. BE 내부 주소의 `GET /internal/embedding-catalog/active`에서 `catalog_track_id ↔ song_id` 짝표를 받는다. 짝표가 없으면 운영 JSON 추천은 503으로 거절한다. 카탈로그 등록 후 서버를 재시작해 짝표를 갱신한다.
+3. BE 내부 주소의 `GET /internal/embedding-catalog/active`에서 `catalog_track_id ↔ song_id` 짝표를 받는다. 짝표가 없으면 운영 JSON 추천은 503으로 거절한다. 조회 실패 뒤에는 추천 접수 또는 상태 확인 시 최대 30초에 한 번 재조회한다.
 4. 추천의 파일 인덱스에는 음색 임베딩뿐 아니라 RangeCatalog가 읽는 곡 음역 프로파일도 있어야 한다. embedding_catalog 어댑터만 실행하면 곡 음역 프로파일이 새로 생성되는 것은 아니다.
 5. BE → 노트북 접수와 노트북 → BE 콜백을 모두 실제 주소에서 확인한다.
 
-기존 recommend-server Dockerfile은 TIMBRE/추천 서버용이다. RANGE까지 같은 컨테이너에서 실행하려면 sibling worker 소스와 실행 환경을 포함하는 별도 패키징이 필요하다. 이번 실행 대상은 전체 저장소를 둔 노트북이다.
+서버 배포용 recommend-server 이미지는 RANGE sibling worker도 포함한다. 노트북 경로는 GPU 또는 현장 마이크 검증이 필요한 경우에 사용하고, 서버 상시 운영 절차는 [추천 AI 컨테이너 실행](RECOMMENDATION_CONTAINER_RUNTIME.md)을 따른다.
 
 ## 재시도와 삭제
 
