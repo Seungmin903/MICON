@@ -105,6 +105,31 @@ class VoiceSessionApiIntegrationTest {
     }
 
     @Test
+    void memberStreamsRangeWavToAiAndPersistsAnalyzingState() throws Exception {
+        when(gateway.submitRange(any())).thenReturn(new VoiceAnalysisJobGateway.Result("range-job-member", "QUEUED"));
+        User user = users.saveAndFlush(new User("voice-range-member@micon.test", passwords.encode("Password123!")));
+        var member = jwt().jwt(token -> token.subject(user.getId().toString()));
+        String created = mvc.perform(post("/voice-analysis-sessions").with(member))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long sessionId = json.readTree(created).get("data").get("sessionId").asLong();
+
+        mvc.perform(multipart("/voice-analysis-sessions/{sessionId}/range-analysis", sessionId)
+                        .file(rangeWav())
+                        .file(meta("guided-range-v7"))
+                        .with(member))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.componentType").value("RANGE"))
+                .andExpect(jsonPath("$.data.status").value("QUEUED"))
+                .andExpect(jsonPath("$.data.aiJobId").value("range-job-member"));
+
+        mvc.perform(get("/voice-analysis-sessions/{sessionId}/result", sessionId).with(member))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ANALYZING"))
+                .andExpect(jsonPath("$.data.rangeStatus").value("ANALYZING"));
+    }
+
+    @Test
     void latestProfileRequiresAuthentication() throws Exception {
         mvc.perform(get("/users/me/voice-profile"))
                 .andExpect(status().isUnauthorized());
