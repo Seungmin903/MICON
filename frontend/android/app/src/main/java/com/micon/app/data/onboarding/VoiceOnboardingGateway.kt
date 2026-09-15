@@ -68,6 +68,7 @@ interface VoiceOnboardingGateway {
         onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress
     suspend fun save(request: VoiceOnboardingRequest, result: VoiceAnalysisProgress): ProfileSaveReceipt
     suspend fun recover(ownerId: Long): VoiceAnalysisProgress? = null
+    suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? = null
     suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {}
 }
 

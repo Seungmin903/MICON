@@ -3,6 +3,8 @@ package com.micon.app.data.onboarding
 import com.micon.app.core.network.Json
 import com.micon.app.data.backend.BackendApi
 import com.micon.app.data.backend.dto.*
+import com.micon.app.range.RangeProtocol
+import com.micon.app.range.RangeReport
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -98,6 +100,20 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         return api.voiceOnboardingResult(active.sessionId, access).data().toProgress(job?.analysisId)
     }
 
+    override suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? {
+        val profileResponse = api.latestVoiceProfile()
+        if (profileResponse.code() == 404) return null
+        val profile = profileResponse.data()
+        val result = api.voiceOnboardingResult(profile.sessionId, VoiceSessionAccess(ownerId)).data()
+        val range = result.range?.toReport(profile.sessionId) ?: return null
+        val progress = result.toProgress()
+        return SavedVoiceOnboardingProfile(
+            ProfileSaveReceipt(profile.sessionId.toString(), result.resultVersion, profile.profileId.toString()),
+            range,
+            progress,
+        )
+    }
+
     override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {
         val analysisId = result.analysisId ?: throw IllegalStateException("취소할 분석 작업을 찾을 수 없습니다.")
         api.cancelTimbre(result.sessionId.toLong(), analysisId, VoiceSessionAccess(ownerId)).data()
@@ -132,9 +148,24 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             artists = artists.map { SimilarVoiceArtist(it.artistId, it.name, it.imageUrl, it.similarity) },
             sessionStatus = runCatching { VoiceSessionStatus.valueOf(this.status) }.getOrDefault(VoiceSessionStatus.FAILED),
             saveAllowed = saveAllowed, rangeStatus = rangeStatus,
+            range = range?.toReport(sessionId),
             recordingId = null, savedProfileExists = savedProfileExists, analysisId = analysisId,
             expiresAtMillis = runCatching { java.time.LocalDateTime.parse(expiresAt).toInstant(ZoneOffset.UTC).toEpochMilli() }.getOrNull())
     }
+
+    private fun VoiceRangeDto.toReport(sessionId: Long) = RangeReport(
+        protocolVersion = RangeProtocol.VERSION,
+        notes = noteResults.orEmpty(),
+        lowMidi = lowMidi?.toInt(),
+        highMidi = highMidi?.toInt(),
+        stableIntervals = emptyList(),
+        stopReason = if (measurementStatus == "AVAILABLE") "completed" else "insufficient_data",
+        lowerBoundaryStatus = if (lowMidi != null) "FOUND" else "NOT_FOUND",
+        upperBoundaryStatus = if (highMidi != null) "FOUND" else "NOT_FOUND",
+        availability = if (measurementStatus == "AVAILABLE") "available" else "insufficient_data",
+        verification = "server_verified",
+        backendSessionId = sessionId,
+    )
 
     private fun String?.toComponentStatus() = runCatching { ComponentStatus.valueOf(this ?: "PENDING") }
         .getOrDefault(ComponentStatus.PENDING)

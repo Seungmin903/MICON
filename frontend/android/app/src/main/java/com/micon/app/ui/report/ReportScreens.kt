@@ -87,10 +87,13 @@ fun VoiceReportScreen(
 ) {
     val previousAnalysis by UserStore.profile.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val container = rememberAppContainer()
     val owner = if (onLogin == null) com.micon.app.core.auth.TokenManager.getUserId().takeIf { it > 0 } else null
     val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
         value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner).savedProfile()
+            val store = com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner)
+            store.savedProfile() ?: runCatching { container.voiceOnboarding.latestSaved(owner) }.getOrNull()
+                ?.also(store::saveProfile)
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
