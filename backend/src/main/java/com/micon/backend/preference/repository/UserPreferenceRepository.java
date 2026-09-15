@@ -33,20 +33,13 @@ public class UserPreferenceRepository {
 	}
 
 	public boolean isOnboardingCompleted(long userId) {
-		Long count = jdbcTemplate.queryForObject("""
-			SELECT COUNT(*)
-			FROM user_setting setting
-			WHERE setting.user_id = :userId
-			  AND EXISTS (
-			      SELECT 1 FROM user_genre_preference genre
-			      WHERE genre.user_id = setting.user_id
-			  )
-			  AND EXISTS (
-			      SELECT 1 FROM user_singer_preference singer
-			      WHERE singer.user_id = setting.user_id
-			  )
-			""", Map.of("userId", userId), Long.class);
-		return count != null && count > 0;
+		Boolean completed = jdbcTemplate.query("""
+			SELECT preference_onboarding_completed
+			FROM user_setting
+			WHERE user_id = :userId
+			""", Map.of("userId", userId), resultSet ->
+			resultSet.next() && resultSet.getBoolean("preference_onboarding_completed"));
+		return Boolean.TRUE.equals(completed);
 	}
 
 	public void replace(long userId, List<Long> genreIds, List<Long> artistIds) {
@@ -70,15 +63,20 @@ public class UserPreferenceRepository {
 
 	public void markOnboardingCompleted(long userId) {
 		Map<String, Object> parameters = Map.of("userId", userId);
-		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM user_setting WHERE user_id = :userId",
-			parameters,
-			Long.class
-		);
-		if (count == null || count == 0) {
+		int updated = jdbcTemplate.update("""
+			UPDATE user_setting
+			SET preference_onboarding_completed = TRUE,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE user_id = :userId
+			""", parameters);
+		if (updated == 0) {
 			jdbcTemplate.update("""
-				INSERT INTO user_setting(user_id, save_original_recording)
-				VALUES (:userId, FALSE)
+				INSERT INTO user_setting(
+				    user_id,
+				    save_original_recording,
+				    preference_onboarding_completed
+				)
+				VALUES (:userId, FALSE, TRUE)
 				""", parameters);
 		}
 	}

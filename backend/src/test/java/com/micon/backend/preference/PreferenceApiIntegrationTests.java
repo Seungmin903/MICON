@@ -38,6 +38,7 @@ class PreferenceApiIntegrationTests {
 			CREATE TABLE IF NOT EXISTS USER_SETTING (
 			  user_id BIGINT PRIMARY KEY,
 			  save_original_recording BOOLEAN NOT NULL DEFAULT FALSE,
+			  preference_onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
 			  count_in_enabled BOOLEAN NOT NULL DEFAULT TRUE,
 			  count_in_seconds SMALLINT NOT NULL DEFAULT 3,
 			  vibration_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -61,6 +62,31 @@ class PreferenceApiIntegrationTests {
 			       (302, 'DAY6', 'day6', 'day6.jpg'),
 			       (303, '100%_밴드', '100%_밴드', NULL)
 			""");
+	}
+
+	@Test
+	void settingCreatedBeforePreferenceDraftDoesNotCompleteOnboarding() throws Exception {
+		jdbcTemplate.update("""
+			INSERT INTO USER_SETTING(user_id, save_original_recording)
+			VALUES (?, TRUE)
+			""", user.getId());
+
+		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":false}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.onboardingCompleted").value(false));
+
+		mockMvc.perform(get("/users/me/preferences").with(jwtFor(user)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.onboardingCompleted").value(false));
+
+		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.onboardingCompleted").value(true));
+		assertThat(jdbcTemplate.queryForObject(
+			"SELECT save_original_recording FROM USER_SETTING WHERE user_id = ?",
+			Boolean.class,
+			user.getId()
+		)).isTrue();
 	}
 
 	@Test
