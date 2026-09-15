@@ -28,7 +28,10 @@ public record VoiceAnalysisComponentCallbackRequest(
         BigDecimal highMidi,
         JsonNode noteResults,
         String measurementStatus,
-        String qualityStatus
+        String qualityStatus,
+        Long resultVersion,
+        String catalogVersion,
+        List<Artist> artists
 ) {
     public enum Status {
         RUNNING,
@@ -36,4 +39,12 @@ public record VoiceAnalysisComponentCallbackRequest(
         FAILED,
         INSUFFICIENT_DATA
     }
+
+    public record Artist(
+            @NotNull Long artistId,
+            @NotNull Integer rank,
+            @NotNull Double similarity,
+            Double ecapaScore,
+            Double singerByolScore
+    ) { }
 }

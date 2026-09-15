@@ -27,7 +27,7 @@ public class VoiceAnalysisComponentCallbackController {
 
     @PostMapping
     @Operation(summary = "AI 음성 분석 결과 접수",
-            description = "서비스 토큰과 부모 jobId를 검증하고 ECAPA·SINGER_BYOL 컴포넌트 결과를 각각 저장합니다. WAV는 받지 않습니다.")
+            description = "서비스 토큰과 작업 ID를 검증하고 ECAPA·SINGER_BYOL 임베딩 또는 ARTIST_SEARCH 유사 가수 결과를 저장합니다. WAV는 받지 않습니다.")
     public ApiResponse<VoiceAnalysisComponentCallbackResponse> accept(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody VoiceAnalysisComponentCallbackRequest request) {

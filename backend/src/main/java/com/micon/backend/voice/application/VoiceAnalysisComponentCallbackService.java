@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -31,16 +32,21 @@ public class VoiceAnalysisComponentCallbackService {
     private final VoiceRangeMeasurementRepository ranges;
     private final VoiceSessionService sessions;
     private final VoiceAnalysisJobRepository parentJobs;
+    private final ArtistSearchCallbackService artistSearchCallbacks;
+    private final ApplicationEventPublisher events;
 
     public VoiceAnalysisComponentCallbackService(VoiceAnalysisComponentJobRepository jobs,
             VoiceModelResultRepository results, ObjectMapper json, VoiceRangeMeasurementRepository ranges,
-            VoiceSessionService sessions, VoiceAnalysisJobRepository parentJobs) {
+            VoiceSessionService sessions, VoiceAnalysisJobRepository parentJobs,
+            ArtistSearchCallbackService artistSearchCallbacks, ApplicationEventPublisher events) {
         this.jobs = jobs;
         this.results = results;
         this.json = json;
         this.ranges = ranges;
         this.sessions = sessions;
         this.parentJobs = parentJobs;
+        this.artistSearchCallbacks = artistSearchCallbacks;
+        this.events = events;
     }
 
     @Transactional
@@ -57,6 +63,15 @@ public class VoiceAnalysisComponentCallbackService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK));
         bind(job, request.jobId());
         ensureAttempt(job.getAttemptNo(), request.attemptNo());
+        if ("ARTIST_SEARCH".equals(job.getComponentType())) {
+            if (job.isTerminal()) {
+                return new VoiceAnalysisComponentCallbackResponse(
+                        job.getAnalysisJob().getId(), job.getStatus(), true);
+            }
+            artistSearchCallbacks.accept(job, request);
+            return new VoiceAnalysisComponentCallbackResponse(
+                    job.getAnalysisJob().getId(), job.getStatus(), false);
+        }
         if (job.isTerminal()) return response(job, true);
         switch (request.status()) {
             case RUNNING -> job.running(request.processedAt());
@@ -201,6 +216,7 @@ public class VoiceAnalysisComponentCallbackService {
         if (children.stream().allMatch(job -> "COMPLETED".equals(job.getStatus()))) {
             parent.complete(at);
             parent.getSession().completeTimbreAnalysis(at);
+            events.publishEvent(new ArtistSearchRequested(parent.getId()));
             return;
         }
         if (children.stream().allMatch(VoiceAnalysisComponentJob::isTerminal)) {
