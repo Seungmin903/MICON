@@ -112,6 +112,21 @@ public class VoiceAnalysisSession {
         updatedAt = at;
     }
 
+    public void beginArtistSearch() {
+        artistSearchStatus = "RUNNING";
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void completeArtistSearch(boolean empty, LocalDateTime at) {
+        artistSearchStatus = empty ? "NO_RESULT" : "COMPLETED";
+        updatedAt = at;
+    }
+
+    public void failArtistSearch(LocalDateTime at) {
+        artistSearchStatus = "FAILED";
+        updatedAt = at;
+    }
+
     public void markSaved() {
         if (!"READY_TO_SAVE".equals(status) || !"AVAILABLE".equals(rangeStatus)
                 || !"AVAILABLE".equals(timbreStatus)) {

@@ -12,6 +12,8 @@ import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.voice.api.VoiceAnalysisComponentCallbackRequest;
 import com.micon.backend.voice.application.VoiceAnalysisComponentCallbackService;
 import com.micon.backend.voice.application.VoiceSessionService;
+import com.micon.backend.voice.application.ArtistSearchCallbackService;
+import com.micon.backend.voice.application.ArtistSearchRequested;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJob;
 import com.micon.backend.voice.domain.VoiceAnalysisComponentJobRepository;
 import com.micon.backend.voice.domain.VoiceAnalysisJob;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.ObjectMapper;
 
 class VoiceAnalysisComponentCallbackServiceTest {
@@ -36,9 +39,11 @@ class VoiceAnalysisComponentCallbackServiceTest {
     private final VoiceAnalysisComponentJob job = mock(VoiceAnalysisComponentJob.class);
     private final VoiceAnalysisSession session = mock(VoiceAnalysisSession.class);
     private final VoiceAnalysisJob parent = mock(VoiceAnalysisJob.class);
+    private final ArtistSearchCallbackService artistSearchCallbacks = mock(ArtistSearchCallbackService.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final VoiceAnalysisComponentCallbackService service = new VoiceAnalysisComponentCallbackService(
             jobs, results, new ObjectMapper(), mock(VoiceRangeMeasurementRepository.class),
-            voiceSessions, parentJobs);
+            voiceSessions, parentJobs, artistSearchCallbacks, events);
 
     @BeforeEach
     void setUp() {
@@ -69,7 +74,58 @@ class VoiceAnalysisComponentCallbackServiceTest {
         assertThat(captor.getValue().getVectorJson()).isNotBlank();
         verify(job).complete(any(), any(), any());
         verify(session).completeTimbreAnalysis(any());
+        verify(events).publishEvent(any(ArtistSearchRequested.class));
         assertThat(response.analysisId()).isEqualTo(31L);
+    }
+
+    @Test
+    void delegatesArtistSearchCallbackAndReturnsParentAnalysisId() {
+        VoiceAnalysisComponentJob artistJob = mock(VoiceAnalysisComponentJob.class);
+        when(parentJobs.findByRequestIdForUpdate("artist-request")).thenReturn(Optional.empty());
+        when(jobs.findByRequestIdForUpdate("artist-request")).thenReturn(Optional.of(artistJob));
+        when(artistJob.getAttemptNo()).thenReturn(1);
+        when(artistJob.getComponentType()).thenReturn("ARTIST_SEARCH");
+        when(artistJob.getAnalysisJob()).thenReturn(parent);
+        when(artistJob.getStatus()).thenReturn("COMPLETED");
+
+        var request = new VoiceAnalysisComponentCallbackRequest(
+                "artist-request", "artist-job-1", "ARTIST_SEARCH",
+                VoiceAnalysisComponentCallbackRequest.Status.COMPLETED,
+                "ARTIST_SEARCH", "fusion-v2", null, null, null, null,
+                null, null, LocalDateTime.now(), 1,
+                null, null, null, null, null, null, null,
+                2L, "catalog-v1", java.util.List.of());
+
+        var response = service.accept(request);
+
+        verify(artistSearchCallbacks).accept(artistJob, request);
+        assertThat(response.analysisId()).isEqualTo(31L);
+        assertThat(response.status()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void acceptsARepeatedTerminalArtistSearchCallbackAsDuplicate() {
+        VoiceAnalysisComponentJob artistJob = mock(VoiceAnalysisComponentJob.class);
+        when(parentJobs.findByRequestIdForUpdate("artist-request")).thenReturn(Optional.empty());
+        when(jobs.findByRequestIdForUpdate("artist-request")).thenReturn(Optional.of(artistJob));
+        when(artistJob.getAttemptNo()).thenReturn(1);
+        when(artistJob.getComponentType()).thenReturn("ARTIST_SEARCH");
+        when(artistJob.getAnalysisJob()).thenReturn(parent);
+        when(artistJob.getStatus()).thenReturn("COMPLETED");
+        when(artistJob.isTerminal()).thenReturn(true);
+        var request = new VoiceAnalysisComponentCallbackRequest(
+                "artist-request", "artist-job-1", "ARTIST_SEARCH",
+                VoiceAnalysisComponentCallbackRequest.Status.COMPLETED,
+                "ARTIST_SEARCH", "fusion-v2", null, null, null, null,
+                null, null, LocalDateTime.now(), 1,
+                null, null, null, null, null, null, null,
+                2L, "catalog-v1", java.util.List.of());
+
+        var response = service.accept(request);
+
+        assertThat(response.analysisId()).isEqualTo(31L);
+        assertThat(response.duplicate()).isTrue();
+        verify(artistSearchCallbacks, never()).accept(any(), any());
     }
 
     @Test
@@ -120,6 +176,6 @@ class VoiceAnalysisComponentCallbackServiceTest {
                 VoiceAnalysisComponentCallbackRequest.Status.COMPLETED, "SINGER_BYOL", "v2",
                 dimension, embedding, mapper.createObjectNode().put("validChunkCount", 5),
                 mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now(),
-                1, null, null, null, null, null, null, null);
+                1, null, null, null, null, null, null, null, null, null, null);
     }
 }

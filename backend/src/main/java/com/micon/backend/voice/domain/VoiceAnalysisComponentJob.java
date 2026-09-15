@@ -23,6 +23,10 @@ public class VoiceAnalysisComponentJob {
     @Column(name = "failure_reason", length = 1000) private String failureReason;
     @Column(name = "model_key", length = 50) private String modelKey;
     @Column(name = "model_version", length = 100) private String modelVersion;
+    @Column(name = "requested_result_version") private Long requestedResultVersion;
+    @Column(name = "requested_top_k") private Integer requestedTopK;
+    @Column(name = "catalog_version", length = 64) private String catalogVersion;
+    @Column(name = "scoring_version", length = 100) private String scoringVersion;
     @Column(name = "started_at") private LocalDateTime startedAt;
     @Column(name = "completed_at") private LocalDateTime completedAt;
     @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
@@ -51,6 +55,12 @@ public class VoiceAnalysisComponentJob {
         this.analysisJob = parent;
     }
 
+    public VoiceAnalysisComponentJob(VoiceAnalysisJob parent, String componentType,
+                                     int attemptNo, String requestId) {
+        this(parent.getSession(), parent.getRecording(), componentType, attemptNo, requestId);
+        this.analysisJob = parent;
+    }
+
     public Long getId() { return id; }
     public VoiceAnalysisJob getAnalysisJob() { return analysisJob; }
     public VoiceAnalysisSession getSession() { return session; }
@@ -67,6 +77,24 @@ public class VoiceAnalysisComponentJob {
     public LocalDateTime getStartedAt() { return startedAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public Long getRequestedResultVersion() { return requestedResultVersion; }
+    public Integer getRequestedTopK() { return requestedTopK; }
+    public String getCatalogVersion() { return catalogVersion; }
+    public String getScoringVersion() { return scoringVersion; }
+
+    public void configureArtistSearch(long resultVersion, int topK, String catalogVersion,
+                                      String scoringVersion) {
+        if (!"ARTIST_SEARCH".equals(componentType) || resultVersion < 1 || topK < 1
+                || catalogVersion == null || catalogVersion.isBlank()
+                || scoringVersion == null || scoringVersion.isBlank()) {
+            throw new IllegalStateException("valid artist search contract is required");
+        }
+        this.requestedResultVersion = resultVersion;
+        this.requestedTopK = topK;
+        this.catalogVersion = catalogVersion;
+        this.scoringVersion = scoringVersion;
+        this.updatedAt = LocalDateTime.now();
+    }
 
     public void queued(String aiJobId, LocalDateTime at) {
         if (aiJobId == null || aiJobId.isBlank()) {
@@ -152,5 +180,9 @@ public class VoiceAnalysisComponentJob {
     public boolean isTerminal() {
         return "COMPLETED".equals(status) || "FAILED".equals(status)
                 || "INSUFFICIENT_DATA".equals(status) || "CANCELED".equals(status);
+    }
+
+    public boolean canDispatch() {
+        return "PENDING".equals(status) || "DISPATCH_UNKNOWN".equals(status);
     }
 }
