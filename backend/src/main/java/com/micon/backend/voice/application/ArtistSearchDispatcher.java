@@ -21,7 +21,7 @@ public class ArtistSearchDispatcher {
     public ArtistSearchDispatcher(
             ArtistSearchJobService jobs,
             ArtistSearchJobGateway gateway,
-            @Value("${AI_ARTIST_SEARCH_ENABLED:${AI_VOICE_ANALYSIS_ENABLED:false}}") boolean enabled
+            @Value("${ai.artist-search-enabled:false}") boolean enabled
     ) {
         this.jobs = jobs;
         this.gateway = gateway;

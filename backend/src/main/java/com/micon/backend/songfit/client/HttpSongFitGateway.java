@@ -12,7 +12,7 @@ public class HttpSongFitGateway implements SongFitGateway {
 	private final RestClient restClient;
 
 	public HttpSongFitGateway(
-		@Value("${ai.base-url:http://localhost:8000}") String baseUrl,
+		@Value("${ai.recommendation.base-url:http://localhost:8788}") String baseUrl,
 		@Value("${ai.service-token:}") String serviceToken
 	) {
 		RestClient.Builder configured = RestClient.builder().baseUrl(baseUrl);

@@ -30,9 +30,9 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | MAIL_PASSWORD | 빈 값 | 인증 SMTP 사용 시 별도 비밀값 |
 | MAIL_SMTP_AUTH | false | true/false. 제공자 요구와 일치; 운영 false를 임의 채택하지 않음 |
 | MAIL_STARTTLS | false | true/false. 제공자 TLS 방식과 일치; enable=true만으로 TLS 필수 강제가 되었다고 보지 않음 |
-| AI_BASE_URL | http://localhost:8000 | BE에서 접근 가능한 AI 서비스 주소. AI 위치·네트워크는 별도 확인; 운영 localhost fallback 금지 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
+| AI_ARTIST_SEARCH_ENABLED | false | true/false. 음성 분석과 별도로 닮은 가수 작업·callback을 통합 검증한 뒤에만 true |
 | AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |
@@ -41,13 +41,13 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_VOICE_ANALYSIS_READ_TIMEOUT | 30s | 음성 분석 AI 접수 응답 제한 시간인 Spring Duration |
 | AI_VOICE_ANALYSIS_MAX_WAIT | 10m | 접수된 음성 분석의 완료 대기 상한인 Spring Duration |
 | AI_VOICE_ANALYSIS_TIMEOUT_CHECK_INTERVAL | 1m | 미완료 음성 분석의 timeout 검사 주기인 Spring Duration |
-| AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
-| AI_RECOMMENDATION_BASE_URL | http://localhost:8788 | BE에서 접근 가능한 추천 AI 서비스 주소. 운영에서는 명시적으로 주입하고 localhost fallback을 사용하지 않음 |
+| AI_SONG_FIT_ENABLED | false | true/false. AI 준비 상태에 따라 명시적으로 선택 |
+| AI_RECOMMENDATION_BASE_URL | http://localhost:8788 | 음성 분석·곡 적합도·닮은 가수·추천이 함께 사용하는 recommend-server 주소. 운영 Compose에서는 `http://micon-recommendation:8788`을 주입 |
 | AI_RECOMMENDATION_ENABLED | false | true/false. 추천 작업 제출·조회 계약과 서비스 인증을 통합 검증한 뒤에만 true |
 | AI_RECOMMENDATION_SERVICE_TOKEN | AI_SERVICE_TOKEN 값 | 추천 AI 서비스 인증용 비밀값. 별도 값이 없으면 공통 AI 서비스 토큰을 사용하며 추적 파일에 기록하지 않음 |
 | AI_RECOMMENDATION_CONNECT_TIMEOUT | 3s | 추천 AI 연결 제한 시간인 양의 Spring Duration |
 | AI_RECOMMENDATION_READ_TIMEOUT | 10s | 추천 작업 접수·상태 조회 응답 제한 시간인 양의 Spring Duration |
-| AI_RECOMMENDATION_POLLING_ENABLED | true | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
+| AI_RECOMMENDATION_POLLING_ENABLED | false | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
 | AI_RECOMMENDATION_POLL_INTERVAL | 1500ms | 추천 작업별 상태 조회가 끝난 뒤 다음 폴링까지 기다리는 양의 Spring Duration |
 | AI_RECOMMENDATION_POLL_INITIAL_DELAY | 5s | 애플리케이션 시작 후 첫 추천 폴링까지 기다리는 음수가 아닌 Spring Duration |
 | VOICE_ANALYSIS_REQUEST_MAX_SIZE | 250MB | multipart 파일 및 전체 요청 제한. 운영 Compose 예제는 기존 의도대로 25MB를 명시하며 프록시·부가정보 크기도 함께 고려. 이전 VOICE_RECORDING_MAX_SIZE 이름은 더 이상 읽지 않음 |
@@ -90,7 +90,7 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 | AI 내부 보컬 stem 조회 | /internal/catalog-media/vocal-stems/{songId} | AI 서비스 토큰 전용. DB의 검증된 object key에만 단기 URL 발급; 일반 JWT 접근 불가 |
 | /api/v1/health | 해당 앱용 컨트롤러 없음 | 앱은 ApiResponse 봉투 기대. Actuator를 그대로 연결해 해결되었다고 보지 않음 |
 
-인증 경로 변경은 Android API 선언과 인증 예외/갱신 처리에도 반영했다. health 사용 여부는 별도로 확인해야 한다. 기존 인증 경로의 하위 호환 alias는 제공하지 않으므로 BE와 앱을 함께 전환해야 한다. 상세 요청·응답은 [인증 API 문서](../AUTH_API.md)를 참고한다. AI 주소/포트는 BE와 별도 미결 계약이다.
+인증 경로 변경은 Android API 선언과 인증 예외/갱신 처리에도 반영했다. health 사용 여부는 별도로 확인해야 한다. 기존 인증 경로의 하위 호환 alias는 제공하지 않으므로 BE와 앱을 함께 전환해야 한다. 상세 요청·응답은 [인증 API 문서](../AUTH_API.md)를 참고한다. AI는 [추천 AI 운영 컨테이너](RECOMMENDATION_CONTAINER_RUNTIME.md)의 내부 8788 연결 계약을 따른다.
 
 ## 3. health/readiness (153 구현·후보 검증 완료)
 

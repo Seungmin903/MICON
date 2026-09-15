@@ -19,7 +19,7 @@ servers:
     description: "AI 서버"
     variables:
       aiUrl:
-        default: "http://localhost:8000"
+        default: "http://localhost:8788"
 tags:
   - name: "개인정보"
   - name: "곡"
@@ -592,7 +592,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -616,7 +616,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -688,7 +688,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -712,7 +712,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -736,7 +736,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -1498,7 +1498,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -1522,7 +1522,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -1546,7 +1546,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -2310,7 +2310,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -2344,7 +2344,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"
@@ -2366,7 +2366,7 @@ paths:
       description: "AI가 보관 중인 원음을 사용해 지정한 ECAPA 또는 SINGER_BYOL 컴포넌트만 다시 실행한다."
       servers:
         - url: "{aiUrl}"
-          variables: { aiUrl: { default: "http://localhost:8000" } }
+          variables: { aiUrl: { default: "http://localhost:8788" } }
       security: [{ serviceAuth: [] }]
       x-direction: "백 → AI"
       x-work-status: "구현 완료"
@@ -2387,7 +2387,7 @@ paths:
       description: "AI가 보관 중인 모델 임베딩 입력을 사용해 닮은 가수 검색을 다시 실행한다."
       servers:
         - url: "{aiUrl}"
-          variables: { aiUrl: { default: "http://localhost:8000" } }
+          variables: { aiUrl: { default: "http://localhost:8788" } }
       security: [{ serviceAuth: [] }]
       x-direction: "백 → AI"
       x-work-status: "구현 완료"
@@ -2410,7 +2410,7 @@ paths:
           description: "AI 서버"
           variables:
             aiUrl:
-              default: "http://localhost:8000"
+              default: "http://localhost:8788"
       security:
         - serviceAuth: []
       x-direction: "백 → AI"

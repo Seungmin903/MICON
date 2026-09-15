@@ -23,7 +23,7 @@ public class HttpArtistSearchJobGateway implements ArtistSearchJobGateway {
     private final boolean serviceTokenConfigured;
 
     public HttpArtistSearchJobGateway(
-            @Value("${SEARCH_AI_BASE_URL:${AI_BASE_URL:http://localhost:8000}}") String baseUrl,
+            @Value("${ai.recommendation.base-url:http://localhost:8788}") String baseUrl,
             @Value("${AI_SERVICE_TOKEN:}") String serviceToken,
             @Value("${ai.voice-analysis-connect-timeout:3s}") Duration connectTimeout,
             @Value("${ai.voice-analysis-read-timeout:30s}") Duration readTimeout

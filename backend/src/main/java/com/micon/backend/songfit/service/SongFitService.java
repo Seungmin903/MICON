@@ -29,7 +29,7 @@ public class SongFitService {
 	public SongFitService(
 		SongFitQueryRepository songFitQueryRepository,
 		SongFitGateway songFitGateway,
-		@Value("${ai.song-fit-enabled:true}") boolean aiEnabled
+		@Value("${ai.song-fit-enabled:false}") boolean aiEnabled
 	) {
 		this.songFitQueryRepository = songFitQueryRepository;
 		this.songFitGateway = songFitGateway;
