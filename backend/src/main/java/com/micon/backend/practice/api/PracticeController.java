@@ -4,12 +4,14 @@ import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.practice.service.PracticeHistoryService;
 import com.micon.backend.practice.service.PracticeResultService;
 import com.micon.backend.practice.service.PracticeService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.security.Principal;
 import java.time.LocalDate;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -63,6 +65,19 @@ public class PracticeController {
 		@PathVariable @Min(1) Long practiceId
 	) {
 		return ApiResponse.success(service.get(userId(principal), practiceId));
+	}
+
+	@Operation(
+		summary = "연습 리포트 개별 삭제",
+		description = "본인의 연습 기록과 해당 기록에 속한 점수·구간 리포트를 삭제합니다. 녹음 및 음성 분석 데이터는 삭제하지 않습니다."
+	)
+	@DeleteMapping("/{practiceId}")
+	public ApiResponse<Void> delete(
+		Principal principal,
+		@PathVariable @Min(1) Long practiceId
+	) {
+		service.delete(userId(principal), practiceId);
+		return ApiResponse.success(null);
 	}
 
 	@PostMapping("/{practiceId}/complete")

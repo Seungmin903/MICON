@@ -166,6 +166,11 @@ public class PracticeRepository {
 		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
 	}
 
+	public int delete(Long practiceId, Long userId) {
+		String sql = "DELETE FROM practice_session WHERE practice_id = :practiceId AND user_id = :userId";
+		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
+	}
+
 	public int updateStatus(Long practiceId, Long userId, String status) {
 		String sql = """
 				UPDATE practice_session
