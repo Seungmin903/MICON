@@ -60,6 +60,8 @@ class VoiceOnboardingViewModelTest {
         var savedResult: VoiceAnalysisProgress? = null
         var saveFailure = false
         var saveWait: CompletableDeferred<Unit>? = null
+        var recovered: VoiceAnalysisProgress? = null
+        var cancels = 0
         override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
             onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
             analyses++; this.request = request; this.retry = retry; update = onProgress
@@ -70,6 +72,25 @@ class VoiceOnboardingViewModelTest {
             if (saveFailure) error("offline")
             return ProfileSaveReceipt(result.sessionId, result.version, "profile")
         }
+        override suspend fun recover(ownerId: Long) = recovered
+        override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) { cancels++ }
+    }
+
+    @Test fun restoresActiveServerSessionForSignedInOwner() = runTest {
+        val gateway = Gateway().apply { recovered = ready().copy(analysisId = 77) }
+        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        advanceUntilIdle()
+        assertEquals("server-session", model.state.value.progress?.sessionId)
+        assertEquals(77L, model.state.value.progress?.analysisId)
+    }
+
+    @Test fun cancelStopsRemoteAnalysisWhenServerJobIsKnown() = runTest {
+        val gateway = Gateway().apply { result = ready().copy(analysisId = 77) }
+        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        model.analyze(); advanceUntilIdle()
+        model.cancelAnalysis(); advanceUntilIdle()
+        assertEquals(1, gateway.cancels)
+        assertTrue(model.state.value.error!!.contains("취소"))
     }
 
     @Test fun pendingServiceKeepsMeasuredRangeWithoutSendingOrInventingJobs() = runTest {

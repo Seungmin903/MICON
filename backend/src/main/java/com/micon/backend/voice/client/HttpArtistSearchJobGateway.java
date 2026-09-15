@@ -65,6 +65,17 @@ public class HttpArtistSearchJobGateway implements ArtistSearchJobGateway {
         return result;
     }
 
+    @Override
+    public Result retry(String jobId) {
+        var response = restClient.post().uri("/artist-search-jobs/{jobId}/retry", jobId)
+                .retrieve().toEntity(Result.class);
+        if (response.getStatusCode() != org.springframework.http.HttpStatus.ACCEPTED
+                || response.getBody() == null) {
+            throw new ArtistSearchJobGateway.Rejected("AI did not accept the artist search retry");
+        }
+        return response.getBody();
+    }
+
     private void validate(Command command) {
         if (command == null
                 || command.requestId() == null || command.requestId().isBlank()

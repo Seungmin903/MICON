@@ -46,6 +46,14 @@ tags:
   - name: "회원"
   - name: "카탈로그 미디어"
 paths:
+  "/users/me/voice-profile":
+    get:
+      tags: ["분석 리포트"]
+      summary: "최신 저장 음성 프로필 조회"
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "최신 저장 프로필" }
+        "404": { description: "저장된 음성 프로필 없음" }
   "/voice-analysis-sessions":
     post:
       tags: ["음성 분석"]
@@ -53,6 +61,33 @@ paths:
       security: [{ bearerAuth: [] }, {}]
       responses:
         "201": { description: "세션 생성 완료" }
+  "/voice-analysis-sessions/active":
+    get:
+      tags: ["음성 분석"]
+      summary: "진행 중 분석 세션 복구"
+      security: [{ bearerAuth: [] }, {}]
+      responses:
+        "200": { description: "복구 가능한 최신 세션" }
+        "404": { description: "진행 중 세션 없음" }
+  "/voice-analysis-sessions/{sessionId}/range-analysis":
+    post:
+      tags: ["음성 측정"]
+      summary: "음역 녹음 제출 및 서버 분석 시작"
+      security: [{ bearerAuth: [] }, {}]
+      parameters:
+        - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              required: ["file", "meta"]
+              properties:
+                file: { type: "string", format: "binary" }
+                meta: { type: "object" }
+      responses:
+        "202": { description: "음역 분석 접수" }
   "/voice-analysis-sessions/{sessionId}/range-result":
     put:
       tags: ["음성 측정"]
@@ -103,6 +138,20 @@ paths:
         - { name: "sessionId", in: "path", required: true, schema: { type: "integer", format: "int64" } }
       responses:
         "200": { description: "통합 결과와 프로필 저장 가능 여부" }
+  "/voice-analysis-sessions/{sessionId}/analysis/{analysisId}/cancel":
+    post:
+      tags: ["음성 분석"]
+      summary: "진행 중 음색 분석 취소"
+      security: [{ bearerAuth: [] }, {}]
+      responses:
+        "200": { description: "취소 결과" }
+  "/voice-analysis-sessions/{sessionId}/analysis/{analysisId}/components/{component}/retry":
+    post:
+      tags: ["음성 분석"]
+      summary: "실패한 음색 분석 컴포넌트 재시도"
+      security: [{ bearerAuth: [] }]
+      responses:
+        "202": { description: "컴포넌트 재시도 접수" }
   "/voice-analysis-sessions/{sessionId}/profile":
     post:
       tags: ["분석 리포트"]
@@ -2288,7 +2337,7 @@ paths:
     get:
       tags: ["음성 분석"]
       summary: "음성 분석 작업 상태·결과 조회 API"
-      description: "콜백 유실 시 작업 상태와 결과를 복구한다."
+      description: "운영 진단용으로 AI 작업 상태를 조회한다. 콜백 유실은 AI의 영속 콜백 재전송으로 복구한다."
       operationId: "micon080"
       servers:
         - url: "{aiUrl}"
@@ -2300,8 +2349,8 @@ paths:
         - serviceAuth: []
       x-direction: "백 → AI"
       x-api-type: "API"
-      x-work-status: "시작 전"
-      x-backend-status: "미확인"
+      x-work-status: "구현 완료"
+      x-backend-status: "호출 미사용"
       x-frontend-status: "해당 없음"
       x-permission: "백엔드 서비스"
       x-auth-token: "서비스 토큰"
@@ -2310,6 +2359,46 @@ paths:
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
+  "/voice-analysis-jobs/{jobId}/retry":
+    post:
+      tags: ["음성 분석"]
+      summary: "실패한 음색 분석 컴포넌트 재시도 API"
+      description: "AI가 보관 중인 원음을 사용해 지정한 ECAPA 또는 SINGER_BYOL 컴포넌트만 다시 실행한다."
+      servers:
+        - url: "{aiUrl}"
+          variables: { aiUrl: { default: "http://localhost:8000" } }
+      security: [{ serviceAuth: [] }]
+      x-direction: "백 → AI"
+      x-work-status: "구현 완료"
+      parameters:
+        - $ref: "#/components/parameters/VoiceAnalysisJobId"
+        - name: "component"
+          in: "query"
+          required: true
+          schema: { type: "string", enum: ["ECAPA", "SINGER_BYOL"] }
+      responses:
+        "202": { description: "컴포넌트 재시도 접수" }
+        "409": { description: "실패 상태가 아님" }
+        "410": { description: "원음 만료" }
+  "/artist-search-jobs/{jobId}/retry":
+    post:
+      tags: ["음성 분석"]
+      summary: "실패한 닮은 가수 검색 재시도 API"
+      description: "AI가 보관 중인 모델 임베딩 입력을 사용해 닮은 가수 검색을 다시 실행한다."
+      servers:
+        - url: "{aiUrl}"
+          variables: { aiUrl: { default: "http://localhost:8000" } }
+      security: [{ serviceAuth: [] }]
+      x-direction: "백 → AI"
+      x-work-status: "구현 완료"
+      parameters:
+        - name: "jobId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "202": { description: "닮은 가수 검색 재시도 접수" }
+        "409": { description: "실패 상태가 아님" }
   "/voice-analysis-jobs/{jobId}/cancel":
     post:
       tags: ["음성 분석"]

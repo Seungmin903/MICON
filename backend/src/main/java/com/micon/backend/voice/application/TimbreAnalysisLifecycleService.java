@@ -131,6 +131,27 @@ public class TimbreAnalysisLifecycleService {
     }
 
     @Transactional
+    public VoiceAnalysisJobResponse retryComponent(long userId, long sessionId, long analysisId,
+                                                    String component) {
+        if (!MODEL_COMPONENTS.contains(component)) throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        VoiceAnalysisJob parent = owned(userId, analysisId);
+        if (!parent.getSession().getId().equals(sessionId) || parent.getAiJobId() == null) {
+            throw new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND);
+        }
+        VoiceAnalysisComponentJob child = components.findByAnalysisJobIdForUpdate(analysisId).stream()
+                .filter(item -> component.equals(item.getComponentType())).findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        LocalDateTime now = LocalDateTime.now();
+        try { child.retry(now); }
+        catch (IllegalStateException exception) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
+        parent.retry(now);
+        parent.getSession().acceptTimbreAnalysis();
+        return response(parent);
+    }
+
+    @Transactional
     public int failTimedOut(LocalDateTime cutoff) {
         List<VoiceAnalysisJob> timedOut = parents.findTimedOutForUpdate(cutoff).stream().limit(100).toList();
         LocalDateTime now = LocalDateTime.now();

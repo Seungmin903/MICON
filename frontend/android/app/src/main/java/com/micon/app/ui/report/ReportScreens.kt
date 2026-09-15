@@ -87,10 +87,13 @@ fun VoiceReportScreen(
 ) {
     val previousAnalysis by UserStore.profile.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val container = rememberAppContainer()
     val owner = if (onLogin == null) com.micon.app.core.auth.TokenManager.getUserId().takeIf { it > 0 } else null
     val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
         value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner).savedProfile()
+            val store = com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner)
+            store.savedProfile() ?: runCatching { container.voiceOnboarding.latestSaved(owner) }.getOrNull()
+                ?.also(store::saveProfile)
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -98,7 +101,7 @@ fun VoiceReportScreen(
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             PrimaryButton("목소리 분석하러 가기", onQuickAnalysis, Modifier.fillMaxWidth(), height = 66.dp)
             Spacer(Modifier.height(16.dp))
-            Text("음색 분석과 프로필 저장 기능을 준비 중이에요. 음역 측정과 노래 녹음은 체험할 수 있어요.",
+            Text("저장한 목소리 프로필이 있으면 음역과 분석 결과를 여기서 다시 확인할 수 있어요.",
                 color = Grey, fontSize = 13.sp)
             Spacer(Modifier.height(16.dp))
             val current = saved

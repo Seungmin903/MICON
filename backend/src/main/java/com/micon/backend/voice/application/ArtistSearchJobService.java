@@ -90,6 +90,23 @@ public class ArtistSearchJobService {
     }
 
     @Transactional
+    public RetryPrepared prepareRetry(long userId, long analysisId) {
+        VoiceAnalysisJob analysis = analyses.findOwnedForUpdate(analysisId, userId)
+                .orElseThrow(() -> new com.micon.backend.common.exception.BusinessException(
+                        com.micon.backend.common.exception.ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        VoiceAnalysisComponentJob job = jobs.findByAnalysisJobIdAndComponentType(analysisId, COMPONENT)
+                .orElseThrow(() -> new com.micon.backend.common.exception.BusinessException(
+                        com.micon.backend.common.exception.ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        try { job.retry(LocalDateTime.now()); }
+        catch (IllegalStateException exception) {
+            throw new com.micon.backend.common.exception.BusinessException(
+                    com.micon.backend.common.exception.ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
+        analysis.getSession().beginArtistSearch();
+        return new RetryPrepared(job.getId(), job.getAiJobId());
+    }
+
+    @Transactional
     public void queued(long jobId, ArtistSearchJobGateway.Result result) {
         VoiceAnalysisComponentJob job = job(jobId);
         job.queued(result.jobId(), LocalDateTime.now());
@@ -154,4 +171,5 @@ public class ArtistSearchJobService {
 
     public record Prepared(long jobId, boolean shouldDispatch,
                            ArtistSearchJobGateway.Command command) { }
+    public record RetryPrepared(long jobId, String aiJobId) { }
 }

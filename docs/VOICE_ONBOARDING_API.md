@@ -44,7 +44,8 @@ GET /voice-analysis-sessions/{sessionId}/result
 ```
 
 응답은 음역, `ECAPA`·`SINGER_BYOL` 컴포넌트 상태, 닮은 가수 결과, 저장 가능 여부와
-`resultVersion`을 함께 반환한다. 클라이언트는 `saveAllowed=true`이고 세션 상태가
+`artistSearchStatus`, `resultVersion`을 함께 반환한다. 가수 검색 결과가 0건이어도
+`artistSearchStatus=NO_RESULT`로 완료 상태를 구분한다. 클라이언트는 `saveAllowed=true`이고 세션 상태가
 `READY_TO_SAVE`일 때만 프로필 저장을 허용한다.
 
 ## 프로필 저장
@@ -65,3 +66,32 @@ Content-Type: application/json
 
 실제 음색 완료 결과를 받으려면 백엔드의 `ai.voice-analysis-enabled=true` 설정과 AI 서버의
 `ECAPA`, `SINGER_BYOL` 콜백이 필요하다.
+
+## 명세 정리 및 구현 상태
+
+| 방향 | Method | Endpoint | 판단 | 구현 상태 |
+|---|---|---|---|---|
+| 앱 → 백엔드 | POST | `/voice-analysis-sessions` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | GET | `/voice-analysis-sessions/active` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | PUT | `/voice-analysis-sessions/{sessionId}/range-result` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | GET | `/songs/{songId}/practice-assets` | 녹음 가이드에 필요 | 기존 구현 사용 |
+| 앱 → 백엔드 | POST | `/voice-analysis-sessions/{sessionId}/analysis` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | GET | `/voice-analysis-sessions/{sessionId}/result` | 필요 | 구현·테스트 완료 (`artistSearchStatus` 포함) |
+| 앱 → 백엔드 | POST | `/{sessionId}/retry` | 삭제 대상 | 범위가 모호해 사용하지 않음 |
+| 앱 → 백엔드 | POST | `/voice-analysis-sessions/{sessionId}/analysis/{analysisId}/components/{component}/retry` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | POST | `/voice-analysis-sessions/{sessionId}/analysis/{analysisId}/cancel` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | POST | `/voice-analysis-sessions/{sessionId}/profile` | 필요 | 구현·테스트 완료 |
+| 앱 → 백엔드 | GET | `/users/me/voice-profile` | 저장 결과 복구에 필요 | 구현·앱 연결·테스트 완료 |
+| 백엔드 → AI | POST | `/voice-analysis-jobs` | 필요 | 구현·테스트 완료 |
+| 백엔드 → AI | GET | `/voice-analysis-jobs/{jobId}` | 운영 진단용 | 구현, 앱 흐름에서는 미사용 |
+| 백엔드 → AI | POST | `/voice-analysis-jobs/{jobId}/retry` | 모델 재시도에 필요 | 구현·테스트 완료 |
+| 백엔드 → AI | POST | `/voice-analysis-jobs/{jobId}/cancel` | 취소 전파에 필요 | 구현·테스트 완료 |
+| AI → 백엔드 | POST | `/callbacks/voice-analysis-components` | 모델별 결과 콜백에 필요 | 구현·테스트 완료 |
+| 백엔드 → AI | POST | `/artist-search-jobs` | 닮은 가수 검색에 필요 | 구현·테스트 완료 |
+| 백엔드 → AI | POST | `/artist-search-jobs/{jobId}/retry` | 검색 재시도에 필요 | 구현·테스트 완료 |
+| AI → 백엔드 | POST | `/callbacks/voice-analysis-components` | 가수 검색도 동일 콜백 사용 | 별도 콜백 API 추가 불필요 |
+| AI → 백엔드 | GET | `/internal/embedding-catalog/active` | 활성 카탈로그 조회에 필요 | 구현·테스트 완료 |
+
+`GET /voice-analysis-jobs/{jobId}`를 백엔드의 별도 폴링 복구 작업으로 연결하지 않는다. AI가 계산 결과를
+저장한 뒤 콜백 실패를 `CALLBACK_PENDING`으로 보관하고 자동 재전송하므로, 백엔드 폴링까지 추가하면
+동일 결과의 복구 주체가 중복된다.

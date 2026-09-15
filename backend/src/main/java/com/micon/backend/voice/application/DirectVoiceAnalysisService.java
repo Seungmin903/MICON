@@ -104,6 +104,18 @@ public class DirectVoiceAnalysisService {
         return response;
     }
 
+    public VoiceAnalysisJobResponse retryComponent(long userId, long sessionId, long analysisId,
+                                                    String component) {
+        VoiceAnalysisJobResponse response = lifecycle.retryComponent(userId, sessionId, analysisId, component);
+        try {
+            gateway.retry(response.aiJobId(), component);
+            return response;
+        } catch (RuntimeException exception) {
+            lifecycle.fail(userId, analysisId, "AI_RETRY_REJECTED", exception.getMessage());
+            throw new BusinessException(ErrorCode.VOICE_ANALYSIS_DISPATCH_FAILED);
+        }
+    }
+
     private boolean isAccepted(VoiceAnalysisJobGateway.Result result) {
         return result != null && result.jobId() != null && !result.jobId().isBlank()
                 && result.audioExpiresAt() != null

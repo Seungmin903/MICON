@@ -9,6 +9,7 @@ public interface VoiceAnalysisJobGateway {
     Result submit(Command command);
     Result submitRange(RangeCommand command);
     void cancel(String jobId);
+    Result retry(String jobId, String component);
 
     record Command(long analysisId, long sessionId, Long recordingId, String requestId,
                    int attemptNo, List<String> components, String contractVersion,

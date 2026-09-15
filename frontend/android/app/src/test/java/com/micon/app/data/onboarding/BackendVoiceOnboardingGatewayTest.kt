@@ -12,6 +12,47 @@ import org.junit.Test
 import java.io.File
 
 class BackendVoiceOnboardingGatewayTest {
+    @Test fun `latest saved profile is restored with server range and result version`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        try {
+            server.enqueue(ok(200, """{"profileId":3,"sessionId":7,"profileVersion":4}"""))
+            server.enqueue(ok(200, """{"sessionId":7,"status":"SAVED","resultVersion":9,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","saveAllowed":false,"savedProfileExists":true,"expiresAt":"2026-09-15T00:00:00","range":{"lowMidi":48.0,"highMidi":72.0,"measurementStatus":"AVAILABLE","qualityStatus":"VALID","noteResults":[{"midi":48,"status":"passed"}]},"components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+
+            val saved = gateway.latestSaved(42)
+            assertNotNull(saved)
+            checkNotNull(saved)
+            assertEquals("3", saved.receipt.profileId)
+            assertEquals(9, saved.receipt.version)
+            assertEquals(48, saved.range.lowMidi)
+            assertEquals(72, saved.range.highMidi)
+            assertEquals(7L, saved.range.backendSessionId)
+            assertEquals(VoiceSessionStatus.SAVED, saved.progress.sessionStatus)
+            assertEquals(listOf(
+                "/api/v1/users/me/voice-profile",
+                "/api/v1/voice-analysis-sessions/7/result"),
+                (1..2).map { server.takeRequest().path })
+        } finally { server.shutdown() }
+    }
+
+    @Test fun `completed artist search with no matches is not left pending`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        try {
+            server.enqueue(ok(200, """{"sessionId":7,"status":"PARTIAL_READY","rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","resultVersion":3,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-15T00:00:00"}"""))
+            server.enqueue(ok(200, """{"analysisId":9,"sessionId":7,"status":"COMPLETED","components":[]}"""))
+            server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2026-09-15T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+
+            val progress = checkNotNull(gateway.recover(42))
+
+            assertEquals(ComponentStatus.COMPLETED, progress.artistSearch)
+        } finally { server.shutdown() }
+    }
+
     @Test fun `member submits range and song then saves ready profile`() = runBlocking {
         val server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }

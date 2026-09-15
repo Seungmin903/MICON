@@ -48,7 +48,8 @@ public class VoiceOnboardingResultService {
                     item.getCosineSimilarity());
         }).toList();
         return new VoiceOnboardingResultResponse(sessionId, session.getStatus(), session.getResultVersion(),
-                session.getRangeStatus(), session.getTimbreStatus(), "READY_TO_SAVE".equals(session.getStatus()),
+                session.getRangeStatus(), session.getTimbreStatus(), session.getArtistSearchStatus(),
+                "READY_TO_SAVE".equals(session.getStatus()),
                 profiles.findByUserId(userId).isPresent(), session.getExpiresAt(),
                 range == null ? null : new VoiceSessionResponse.Range(range.getFullLowMidi(), range.getFullHighMidi(),
                         range.getMeasurementStatus(), range.getQualityStatus(), range.getNoteResults()), componentResults, artistResults);
@@ -69,6 +70,14 @@ public class VoiceOnboardingResultService {
         else if (!profile.getSession().getId().equals(sessionId)) { profile.replaceWith(session); profile = profiles.save(profile); }
         session.markSaved();
         return new VoiceProfileResponse(profile.getId(), sessionId, profile.getProfileVersion());
+    }
+
+    @Transactional(readOnly = true)
+    public VoiceProfileResponse latestProfile(long userId) {
+        UserVoiceProfile profile = profiles.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        return new VoiceProfileResponse(profile.getId(), profile.getSession().getId(),
+                profile.getProfileVersion());
     }
 
     private VoiceAnalysisSession owned(long userId, long sessionId) {

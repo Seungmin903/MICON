@@ -30,7 +30,7 @@ data class VoiceComponentDto(val component: String, val status: String, val fail
 data class VoiceOnboardingResultDto(
     val sessionId: Long, val status: String, val resultVersion: Long,
     val rangeStatus: String, val timbreStatus: String, val saveAllowed: Boolean,
-    val savedProfileExists: Boolean, val expiresAt: String, val range: VoiceRangeDto? = null,
+    val savedProfileExists: Boolean, val expiresAt: String, val artistSearchStatus: String = "PENDING", val range: VoiceRangeDto? = null,
     val components: List<VoiceComponentDto> = emptyList(), val artists: List<VoiceArtistDto> = emptyList(),
 )
 data class VoiceArtistDto(val artistId: Long, val name: String, val imageUrl: String? = null, val similarity: Double)

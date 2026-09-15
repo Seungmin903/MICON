@@ -7,6 +7,7 @@ import java.util.Map;
 public interface ArtistSearchJobGateway {
 
     Result submit(Command command);
+    Result retry(String jobId);
 
     record Command(
             String requestId,
