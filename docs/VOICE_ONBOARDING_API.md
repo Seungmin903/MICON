@@ -44,7 +44,8 @@ GET /voice-analysis-sessions/{sessionId}/result
 ```
 
 응답은 음역, `ECAPA`·`SINGER_BYOL` 컴포넌트 상태, 닮은 가수 결과, 저장 가능 여부와
-`resultVersion`을 함께 반환한다. 클라이언트는 `saveAllowed=true`이고 세션 상태가
+`artistSearchStatus`, `resultVersion`을 함께 반환한다. 가수 검색 결과가 0건이어도
+`artistSearchStatus=NO_RESULT`로 완료 상태를 구분한다. 클라이언트는 `saveAllowed=true`이고 세션 상태가
 `READY_TO_SAVE`일 때만 프로필 저장을 허용한다.
 
 ## 프로필 저장

@@ -59,6 +59,7 @@ class VoiceSessionApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.range.lowMidi").value(48))
                 .andExpect(jsonPath("$.data.timbreStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.artistSearchStatus").value("PENDING"))
                 .andExpect(jsonPath("$.data.saveAllowed").value(false));
 
         var session = sessions.findByIdAndUserId(sessionId, user.getId()).orElseThrow();

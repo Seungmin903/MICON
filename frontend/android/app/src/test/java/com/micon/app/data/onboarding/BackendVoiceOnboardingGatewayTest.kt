@@ -37,6 +37,22 @@ class BackendVoiceOnboardingGatewayTest {
         } finally { server.shutdown() }
     }
 
+    @Test fun `completed artist search with no matches is not left pending`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        try {
+            server.enqueue(ok(200, """{"sessionId":7,"status":"PARTIAL_READY","rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","resultVersion":3,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-15T00:00:00"}"""))
+            server.enqueue(ok(200, """{"analysisId":9,"sessionId":7,"status":"COMPLETED","components":[]}"""))
+            server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2026-09-15T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+
+            val progress = checkNotNull(gateway.recover(42))
+
+            assertEquals(ComponentStatus.COMPLETED, progress.artistSearch)
+        } finally { server.shutdown() }
+    }
+
     @Test fun `member submits range and song then saves ready profile`() = runBlocking {
         val server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }

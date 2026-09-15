@@ -48,7 +48,8 @@ public class VoiceOnboardingResultService {
                     item.getCosineSimilarity());
         }).toList();
         return new VoiceOnboardingResultResponse(sessionId, session.getStatus(), session.getResultVersion(),
-                session.getRangeStatus(), session.getTimbreStatus(), "READY_TO_SAVE".equals(session.getStatus()),
+                session.getRangeStatus(), session.getTimbreStatus(), session.getArtistSearchStatus(),
+                "READY_TO_SAVE".equals(session.getStatus()),
                 profiles.findByUserId(userId).isPresent(), session.getExpiresAt(),
                 range == null ? null : new VoiceSessionResponse.Range(range.getFullLowMidi(), range.getFullHighMidi(),
                         range.getMeasurementStatus(), range.getQualityStatus(), range.getNoteResults()), componentResults, artistResults);

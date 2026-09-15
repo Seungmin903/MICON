@@ -144,7 +144,12 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         fun status(name: String) = components.firstOrNull { it.component == name }?.status.toComponentStatus()
         return VoiceAnalysisProgress(sessionId.toString(), resultVersion,
             ecapa = status("ECAPA"), byol = status("SINGER_BYOL"),
-            artistSearch = if (artists.isNotEmpty()) ComponentStatus.COMPLETED else ComponentStatus.PENDING,
+            artistSearch = components.firstOrNull { it.component == "ARTIST_SEARCH" }?.status.toComponentStatus()
+                .takeUnless { it == ComponentStatus.PENDING }
+                ?: when (artistSearchStatus) {
+                    "COMPLETED", "NO_RESULT" -> ComponentStatus.COMPLETED
+                    else -> artistSearchStatus.toComponentStatus()
+                },
             artists = artists.map { SimilarVoiceArtist(it.artistId, it.name, it.imageUrl, it.similarity) },
             sessionStatus = runCatching { VoiceSessionStatus.valueOf(this.status) }.getOrDefault(VoiceSessionStatus.FAILED),
             saveAllowed = saveAllowed, rangeStatus = rangeStatus,
