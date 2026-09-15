@@ -20,6 +20,33 @@ import tools.jackson.databind.ObjectMapper;
 class HttpArtistSearchJobGatewayTest {
 
     @Test
+    void retriesFailedArtistSearchJob() throws Exception {
+        var method = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/artist-search-jobs/artist-search-job-1/retry", exchange -> {
+            method.set(exchange.getRequestMethod());
+            byte[] reply = """
+                    {"jobId":"artist-search-job-1","status":"QUEUED","audioExpiresAt":null,"duplicate":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(202, reply.length);
+            try (var response = exchange.getResponseBody()) { response.write(reply); }
+        });
+        server.start();
+        try {
+            var gateway = new HttpArtistSearchJobGateway(
+                    "http://127.0.0.1:" + server.getAddress().getPort(), "token",
+                    Duration.ofSeconds(3), Duration.ofSeconds(3));
+            var result = gateway.retry("artist-search-job-1");
+            assertThat(method.get()).isEqualTo("POST");
+            assertThat(result.status()).isEqualTo("QUEUED");
+            assertThat(result.duplicate()).isTrue();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void sendsModelResultsToSearchAiAsJson() throws Exception {
         var requestBody = new AtomicReference<String>();
         var authorization = new AtomicReference<String>();

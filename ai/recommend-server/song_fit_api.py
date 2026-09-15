@@ -219,7 +219,8 @@ def create_artist_search(payload: dict[str, Any], background_tasks: BackgroundTa
                         "attemptNo": int(payload.get("attemptNo") or 1),
                         "resultVersion": payload.get("resultVersion"),
                         "catalogVersion": payload.get("catalogVersion"),
-                        "createdAt": time.time(), "artists": None, "callback": None, "failureCode": None}
+                        "createdAt": time.time(), "artists": None, "callback": None, "failureCode": None,
+                        "payload": dict(payload)}
     background_tasks.add_task(_artist_process, job_id, dict(payload))
     return {"jobId": job_id, "status": "QUEUED", "audioExpiresAt": None, "duplicate": False}
 
@@ -230,3 +231,19 @@ def get_artist_search(job_id: str) -> dict[str, Any]:
     if not job:
         raise HTTPException(404, "검색 작업을 찾을 수 없습니다.")
     return job
+
+
+@router.post("/artist-search-jobs/{job_id}/retry", status_code=202)
+def retry_artist_search(job_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(404, "검색 작업을 찾을 수 없습니다.")
+    if job["status"] not in {"FAILED", "INSUFFICIENT_DATA"}:
+        raise HTTPException(409, "실패한 검색 작업만 재시도할 수 있습니다.")
+    payload = job.get("payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(410, "재시도할 검색 입력이 만료됐습니다.")
+    with _LOCK:
+        job.update(status="QUEUED", artists=None, callback=None, failureCode=None)
+    background_tasks.add_task(_artist_process, job_id, dict(payload))
+    return {"jobId": job_id, "status": "QUEUED", "audioExpiresAt": None, "duplicate": True}
