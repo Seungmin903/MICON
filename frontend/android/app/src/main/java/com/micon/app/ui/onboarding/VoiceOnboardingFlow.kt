@@ -36,7 +36,7 @@ import com.micon.app.ui.theme.*
 fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Unit) {
     val context = LocalContext.current
     val ownerId = if (isGuest) null else TokenManager.getUserId().takeIf { it > 0 }
-    val store = remember(ownerId) { VoiceOnboardingStore(context.applicationContext, ownerId) }
+    val store = remember(ownerId) { VoiceOnboardingStore(context.applicationContext, ownerId, context.appContainer.backend.api) }
     val gateway = context.appContainer.voiceOnboarding
     val vm: VoiceOnboardingViewModel = viewModel(key = "voice-onboarding-$ownerId", factory = viewModelFactory {
         initializer { VoiceOnboardingViewModel(ownerId, store, gateway,

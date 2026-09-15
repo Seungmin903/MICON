@@ -63,6 +63,14 @@ public class RecommendationResultStore {
         }
     }
 
+    @Transactional
+    public Outcome failPending(String jobId, String code, String reason) {
+        Recommendation recommendation = recommendations.findByJobIdForUpdate(jobId)
+                .orElseThrow(() -> new IllegalStateException("recommendation job not found"));
+        if (recommendation.getStatus() != RecommendationStatus.GENERATING) return Outcome.ALREADY_TERMINAL;
+        return fail(recommendation, code, reason);
+    }
+
     private Outcome updateProgress(Recommendation recommendation, int progress) {
         recommendation.updateProgress(progress);
         return Outcome.PROCESSING;

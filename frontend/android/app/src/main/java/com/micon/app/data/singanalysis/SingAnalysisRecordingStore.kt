@@ -74,6 +74,7 @@ class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAU
 
     fun delete(id: String) {
         AtomicFile(metaFile(id)).delete()
+        AtomicFile(File(dir, "$id.wav.submission.json")).delete()
         wavFile(id).delete()
     }
 

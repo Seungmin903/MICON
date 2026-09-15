@@ -11,7 +11,7 @@ WORKDIR /app
 # 1) torch 3종을 CPU 빌드로 먼저 깐다(버전은 requirements.txt 와 같아야 한다 — 그래야 2)에서 다시 안 받는다).
 #    기본 PyPI 의 리눅스 torch 는 CUDA 포함 2.5 GB 라 쓰지 않는다.
 COPY requirements.txt .
-RUN pip install torch==2.13.0 torchaudio==2.11.0 torchvision==0.28.0 --index-url https://download.pytorch.org/whl/cpu \
+RUN pip install torch==2.7.1 torchaudio==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu \
  && grep -vE '^(demucs|pytest)' requirements.txt > /tmp/requirements.server.txt \
  && pip install -r /tmp/requirements.server.txt
 

@@ -12,7 +12,12 @@ public interface VoiceAnalysisJobGateway {
 
     record Command(long analysisId, long sessionId, Long recordingId, String requestId,
                    int attemptNo, List<String> components, String contractVersion,
-                   MultipartFile file) { }
+                   MultipartFile file, com.micon.backend.voice.api.VoiceAnalysisUploadRequest recordingMetadata) {
+        public Command(long analysisId, long sessionId, Long recordingId, String requestId,
+                       int attemptNo, List<String> components, String contractVersion, MultipartFile file) {
+            this(analysisId, sessionId, recordingId, requestId, attemptNo, components, contractVersion, file, null);
+        }
+    }
 
     record RangeCommand(long analysisId, long sessionId, MultipartFile file,
                         VoiceSessionRequest.RangeAnalysisUpload metadata) { }

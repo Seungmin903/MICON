@@ -206,14 +206,21 @@ def _rows_of(value: Any, label: str) -> list[list[float]]:
 def _matrix(value: Any, key: str) -> np.ndarray:
     dimension = MODEL_DIMENSIONS[key]
     rows = _rows_of(value, key)
-    matrix = np.asarray(rows, dtype=np.float64)
+    try:
+        matrix = np.asarray(rows, dtype=np.float64)
+    except (ValueError, TypeError) as error:
+        raise HTTPException(422, f"userEmbedding.{key}: 숫자 벡터가 필요합니다.") from error
     if matrix.ndim != 2 or matrix.shape[1] != dimension:
         raise HTTPException(422, f"userEmbedding.{key}: {dimension}차원 벡터가 필요합니다(받은 모양 {matrix.shape}).")
     if not np.all(np.isfinite(matrix)):
         raise HTTPException(422, f"userEmbedding.{key}: 유한한 실수만 넣어주세요.")
     if not 1 <= matrix.shape[0] <= 12:
         raise HTTPException(422, f"userEmbedding.{key}: 구간은 1~12개여야 합니다(받은 개수 {matrix.shape[0]}).")
-    return matrix / np.maximum(np.linalg.norm(matrix, axis=1, keepdims=True), 1e-12)
+    with np.errstate(over="ignore"):
+        norms = np.linalg.norm(matrix, axis=1)
+    if not np.isfinite(norms).all() or np.any(norms < 1e-12):
+        raise HTTPException(422, f"userEmbedding.{key}: 영벡터는 사용할 수 없습니다.")
+    return matrix / norms[:, None]
 
 
 def user_embedding_matrices(payload: Any) -> dict[str, np.ndarray]:
@@ -529,6 +536,12 @@ def _create_from_json(payload: Any, background_tasks: BackgroundTasks) -> dict[s
         raise HTTPException(422, "요청 본문은 객체여야 합니다.")
     user_embedding_matrices(payload.get("userEmbedding"))      # 잡을 만들기 전에 입력부터 검증한다
     _ai_mode(payload.get("mode"))
+    if not catalog_link.song_ids():
+        raise HTTPException(503, "DB song_id 카탈로그 연결이 준비되지 않았습니다.")
+    if type(payload.get("topK")) is not int or not 1 <= payload["topK"] <= MAX_TOP_K:
+        raise HTTPException(422, "topK는 1~50 정수여야 합니다.")
+    if type(payload.get("profileId")) is not int or payload["profileId"] < 1:
+        raise HTTPException(422, "profileId는 양수 DB ID여야 합니다.")
     job_id = str(uuid.uuid4())
     JOBS[job_id] = {
         "id": job_id, "filename": None, "mode": _ai_mode(payload.get("mode")),

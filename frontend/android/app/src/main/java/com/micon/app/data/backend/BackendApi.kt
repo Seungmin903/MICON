@@ -234,6 +234,11 @@ interface BackendApi {
         @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceSessionDto>>
 
     @Multipart
+    @POST("voice-analysis-sessions/{sessionId}/range-analysis")
+    suspend fun submitRange(@Path("sessionId") sessionId: Long, @Part file: MultipartBody.Part,
+        @Part("meta") meta: RequestBody, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
+    @Multipart
     @POST("voice-analysis-sessions/{sessionId}/analysis")
     suspend fun submitTimbre(@Path("sessionId") sessionId: Long, @Part file: MultipartBody.Part,
         @Part("meta") meta: RequestBody, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>

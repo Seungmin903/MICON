@@ -151,16 +151,18 @@ public class VoiceAnalysisComponentCallbackService {
                 || request.dimension() == null || request.dimension() != expectedDimension
                 || embedding == null || embedding.size() != expectedDimension
                 || embedding.stream().anyMatch(item -> item == null || !Double.isFinite(item))
-                || request.segmentInfo() == null || request.segmentInfo().isNull()) {
+                || !validEnergy(embedding)
+                || request.segmentInfo() == null || !request.segmentInfo().isObject()) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
                     "모델 키·버전·임베딩 차원·구간 정보가 완료 계약과 일치하지 않습니다.");
         }
-        if (results.findBySessionIdAndModelKey(job.getSession().getId(), request.modelKey()).isPresent()) {
-            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
-                    "해당 모델 결과가 이미 저장되어 있습니다.");
-        }
         String vectorJson = write(embedding);
-        results.save(new VoiceModelResult(job.getSession(), job.getId(), request.modelKey(),
+        VoiceModelResult previous = results.findBySessionIdAndModelKey(job.getSession().getId(), request.modelKey()).orElse(null);
+        if (previous != null) {
+            previous.replaceResult(job.getId(), request.modelVersion(), request.dimension(), vectorJson,
+                    sha256(vectorJson), write(request.segmentInfo()), writeNullable(request.qualityMetrics()));
+            results.save(previous);
+        } else results.save(new VoiceModelResult(job.getSession(), job.getId(), request.modelKey(),
                 request.modelVersion(), request.dimension(), vectorJson, sha256(vectorJson),
                 write(request.segmentInfo()), writeNullable(request.qualityMetrics())));
         job.complete(request.modelKey(), request.modelVersion(), request.processedAt());
@@ -188,6 +190,11 @@ public class VoiceAnalysisComponentCallbackService {
                 request.qualityStatus(), request.processedAt()));
         job.complete("RANGE", value(request.modelVersion(), "guided-range-v7"), request.processedAt());
         job.getSession().acceptRange(request.measurementStatus());
+    }
+
+    private boolean validEnergy(List<Double> embedding) {
+        double energy = embedding.stream().mapToDouble(item -> item * item).sum();
+        return Double.isFinite(energy) && energy >= 1e-12;
     }
 
     private void aggregate(VoiceAnalysisJob parent, List<VoiceAnalysisComponentJob> children, LocalDateTime at) {

@@ -34,9 +34,20 @@ public class VoiceModelResult {
     }
     public String getModelKey() { return modelKey; }
     public String getModelVersion() { return modelVersion; }
+    public String getSegmentInfo() { return segmentInfo; }
+    public void replaceResult(Long componentJobId, String version, int dimension, String vector,
+                              String sha256, String segments, String quality) {
+        this.componentJobId = componentJobId;
+        this.modelVersion = version;
+        this.dimension = dimension;
+        this.vectorJson = vector;
+        this.vectorSha256 = sha256;
+        this.vectorObjectKey = null;
+        this.segmentInfo = segments;
+        this.qualityMetrics = quality;
+    }
     public int getDimension() { return dimension; }
     public String getVectorJson() { return vectorJson; }
     public String getVectorObjectKey() { return vectorObjectKey; }
-    public String getSegmentInfo() { return segmentInfo; }
     public String getQualityMetrics() { return qualityMetrics; }
 }

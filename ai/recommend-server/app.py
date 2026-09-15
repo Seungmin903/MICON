@@ -21,9 +21,12 @@ from song_fit_api import router as song_fit_router
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     analysis_jobs.restore_jobs()
-    analysis_jobs.start_sweeper()
+    stop = analysis_jobs.start_sweeper()
     catalog_link.refresh()          # 앱 song_id 짝표. 실패해도 기동은 계속된다(상태는 /recommendations/status)
-    yield
+    try:
+        yield
+    finally:
+        stop.set()
 
 
 app = FastAPI(title="MICON Recommend Server", version="0.2.0", lifespan=lifespan)

@@ -37,7 +37,7 @@ public class RangeAnalysisService {
         VoiceAnalysisJobResponse pending = userId == null
                 ? sessions.prepareGuestRange(sessionId, guestToken, request)
                 : lifecycle.createRangePending(userId, sessionId, file, request).response();
-        if (!"PENDING".equals(pending.status())) return pending;
+        if (!"PENDING".equals(pending.status()) && !"DISPATCH_UNKNOWN".equals(pending.status())) return pending;
         try {
             VoiceAnalysisJobGateway.Result accepted = gateway.submitRange(
                     new VoiceAnalysisJobGateway.RangeCommand(pending.analysisId(), sessionId, file, request));

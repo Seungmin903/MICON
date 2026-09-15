@@ -16,7 +16,7 @@ class BackendVoiceOnboardingGatewayTest {
         val server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
         val gateway = BackendVoiceOnboardingGateway(
-            BackendClient(server.url("/api/v1/").toString(), false, tokens).api)
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
         val wav = File.createTempFile("voice-onboarding", ".wav").apply {
             writeBytes(byteArrayOf('R'.code.toByte(), 'I'.code.toByte(), 'F'.code.toByte(), 'F'.code.toByte(),
                 0, 0, 0, 0, 'W'.code.toByte(), 'A'.code.toByte(), 'V'.code.toByte(), 'E'.code.toByte(), 1))
@@ -31,7 +31,7 @@ class BackendVoiceOnboardingGatewayTest {
             val recording = SavedRecording(SingRecordingMeta("recording", songId = 1, title = "Song", artist = "Artist",
                 scope = "FULL", planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 35.0,
                 sungStartSec = 0.0, sungEndSec = 35.0, endedEarly = false, recordedAt = 0,
-                sampleRate = 16000, durationSec = 35.0, takes = listOf(SingTake(0.0, 35.0, 0.0, 35.0)),
+                sampleRate = 48000, durationSec = 35.0, takes = listOf(SingTake(0.0, 35.0, 0.0, 35.0)),
                 lyricTiming = "SYNCED", wavFileName = wav.name, onboardingDraftId = "draft"), wav, wav)
             val range = RangeReport(RangeProtocol.VERSION, listOf(RangeNote(48, "passed")), 48, 72,
                 emptyList(), "completed", "FOUND", "FOUND", "available", verification = "device_measured")

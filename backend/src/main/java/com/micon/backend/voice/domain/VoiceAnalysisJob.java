@@ -78,13 +78,16 @@ public class VoiceAnalysisJob {
     public void queued(String jobId, String acceptedStatus, LocalDateTime expiresAt,
                        boolean duplicate, LocalDateTime at) {
         if (jobId == null || jobId.isBlank()
-                || (!"QUEUED".equals(acceptedStatus) && !"COMPLETED".equals(acceptedStatus))) {
+                || acceptedStatus == null || !java.util.Set.of("QUEUED", "RUNNING", "COMPLETED",
+                        "FAILED", "INSUFFICIENT_DATA").contains(acceptedStatus)) {
             throw new IllegalStateException("AI did not accept the analysis job");
         }
         bindAiJobId(jobId);
-        this.status = "QUEUED";
         this.audioExpiresAt = expiresAt;
         this.duplicate = duplicate;
+        // Completion is driven by validated callbacks, which may arrive before this receipt.
+        if (terminal()) return;
+        this.status = "RUNNING".equals(this.status) || "RUNNING".equals(acceptedStatus) ? "RUNNING" : "QUEUED";
         if (startedAt == null) startedAt = at;
         this.failureCode = null;
         this.failureReason = null;

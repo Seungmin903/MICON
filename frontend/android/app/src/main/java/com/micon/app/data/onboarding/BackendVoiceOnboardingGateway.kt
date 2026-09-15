@@ -14,8 +14,12 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.io.File
 
-class BackendVoiceOnboardingGateway(private val api: BackendApi) : VoiceOnboardingGateway {
+data class TimbreSubmissionLink(val sessionId: Long, val requestId: String, val terminalFailure: Boolean = false)
+
+class BackendVoiceOnboardingGateway(private val api: BackendApi,
+    private val stateStore: SubmissionStateStore = AtomicSubmissionStateStore) : VoiceOnboardingGateway {
     override val available: Boolean get() = true
     private val sessions = ConcurrentHashMap<String, Long>()
 
@@ -23,16 +27,23 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi) : VoiceOnboardi
         onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
         if (request.ownerId == null) throw VoiceOnboardingNotReady("로그인하면 음색 분석 결과를 확인할 수 있어요.")
         val access = VoiceSessionAccess(request.ownerId)
-        var sessionId = sessions[request.draftId]
+        val recording = request.recording
+        val linkFile = File(recording.wav.parentFile, recording.wav.name + ".submission.json")
+        val linkAdapter = Json.moshi.adapter(TimbreSubmissionLink::class.java)
+        val previous = stateStore.read(linkFile)?.let { linkAdapter.fromJson(it) }
+        var sessionId = request.range.backendSessionId ?: previous?.sessionId ?: sessions[request.draftId]
         if (sessionId == null) {
             sessionId = api.createVoiceSession(access).data().sessionId
             sessions[request.draftId] = sessionId
         }
-        if (retry == null) {
+        sessions[request.draftId] = sessionId
+        if (retry == null && request.range.backendSessionId == null) {
             api.saveDeviceRange(sessionId, request.range.toRequest(), access).data()
         }
-        val recording = request.recording
-        val meta = recording.toMeta()
+        val link = if (previous != null && retry == null && !previous.terminalFailure && previous.sessionId == sessionId) previous
+            else TimbreSubmissionLink(sessionId, UUID.randomUUID().toString())
+        stateStore.write(linkFile, linkAdapter.toJson(link))
+        val meta = recording.toMeta(link.requestId)
         val body = Json.moshi.adapter(VoiceTimbreMetaRequest::class.java).toJson(meta)
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val file = MultipartBody.Part.createFormData("file", recording.wav.name,
@@ -42,7 +53,10 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi) : VoiceOnboardi
             val result = api.voiceOnboardingResult(sessionId, access).data().toProgress()
             onProgress(result)
             if (!result.analyzing && result.sessionStatus !in setOf(VoiceSessionStatus.CREATED,
-                    VoiceSessionStatus.RANGE_IN_PROGRESS, VoiceSessionStatus.UPLOADING)) return result
+                    VoiceSessionStatus.RANGE_IN_PROGRESS, VoiceSessionStatus.UPLOADING)) {
+                if (!result.canSave) stateStore.write(linkFile, linkAdapter.toJson(link.copy(terminalFailure = true)))
+                return result
+            }
             delay(2_000)
         }
         throw IllegalStateException("음색 분석 대기 시간이 초과됐어요.")
@@ -66,10 +80,10 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi) : VoiceOnboardi
         qualityStatus = if (availability == "available") "VALID" else "INSUFFICIENT_VOICE",
     )
 
-    private fun com.micon.app.data.singanalysis.SavedRecording.toMeta(): VoiceTimbreMetaRequest {
+    private fun com.micon.app.data.singanalysis.SavedRecording.toMeta(requestId: String): VoiceTimbreMetaRequest {
         fun ms(value: Double) = (value * 1000).toInt().coerceAtLeast(0)
         val position = when (meta.scope) { "VERSE_2" -> "VERSE_2"; "HIGHLIGHT" -> "HIGHLIGHT"; else -> "BEGINNING" }
-        return VoiceTimbreMetaRequest(UUID.randomUUID().toString(), songId = meta.songId,
+        return VoiceTimbreMetaRequest(requestId, songId = meta.songId,
             guideVersion = "v4", recordedAt = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(
                 Instant.ofEpochMilli(meta.recordedAt).atOffset(ZoneOffset.UTC).toLocalDateTime()),
             durationMs = ms(meta.durationSec), sampleRate = meta.sampleRate,

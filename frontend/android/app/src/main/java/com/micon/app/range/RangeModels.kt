@@ -103,6 +103,7 @@ data class RangeReport(
     val verification: String = "server_verified",
     val sampling: RangeSampling? = null,
     val rangeMap: RangeMap? = null,
+    val backendSessionId: Long? = null,
 )
 
 data class RangeAnalysis(val analysisId: String, val status: String, val error: String? = null)

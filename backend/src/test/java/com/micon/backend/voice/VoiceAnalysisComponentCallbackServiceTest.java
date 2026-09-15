@@ -93,6 +93,27 @@ class VoiceAnalysisComponentCallbackServiceTest {
         verify(session, never()).completeTimbreAnalysis(any());
     }
 
+    @Test
+    void rejectsZeroAndOverflowVectorsBeforeCompletingOrSaving() {
+        for (double value : new double[]{0.0, Double.MAX_VALUE}) {
+            assertThatThrownBy(() -> service.accept(completed(Collections.nCopies(1000, value), 1000)))
+                    .isInstanceOf(BusinessException.class);
+        }
+        verify(results, never()).save(any());
+        verify(session, never()).completeTimbreAnalysis(any());
+    }
+
+    @Test
+    void newAttemptReplacesThePreviousModelResult() {
+        VoiceModelResult previous = new VoiceModelResult(session, 3L, "SINGER_BYOL", "old", 1000,
+                "[]", "old-sha", "{}", null);
+        when(results.findBySessionIdAndModelKey(7L, "SINGER_BYOL")).thenReturn(Optional.of(previous));
+        service.accept(completed(Collections.nCopies(1000, 0.125), 1000));
+        verify(results).save(previous);
+        assertThat(previous.getModelVersion()).isEqualTo("v2");
+        assertThat(previous.getVectorJson()).contains("0.125");
+    }
+
     private VoiceAnalysisComponentCallbackRequest completed(java.util.List<Double> embedding, int dimension) {
         ObjectMapper mapper = new ObjectMapper();
         return new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1", "SINGER_BYOL",

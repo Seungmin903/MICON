@@ -230,12 +230,14 @@ def build_recommender_index(catalog: LoadedCatalog, destination: Path) -> Path:
         writer.writeheader()
         for track in catalog.manifest["tracks"]:
             row = {"track_id": str(mapping[track["catalog_track_id"]]), "title": track["title"], "artist": track["artist"],
-                   "metadata_json": json_bytes({"catalog_track_id": track["catalog_track_id"],
+                   "metadata_json": json_bytes({**track.get("metadata", {}),
+                                                 "song_id": mapping[track["catalog_track_id"]],
+                                                 "catalog_track_id": track["catalog_track_id"],
                                                  "batch_id": catalog.snapshot["batch_id"]}).decode()}
             for model in DIMENSIONS:
                 row[model + "_path"] = str((catalog.root / track["embeddings"][model]["key"]
                                            .removeprefix(catalog.manifest["prefix"])).resolve())
             writer.writerow(row)
-    index_path = build_catalog_index(csv_path, destination, max_segments=9)
+    index_path = build_catalog_index(csv_path, destination, max_segments=12)
     atomic_write(destination / "activation.json", json_bytes(catalog.snapshot))
     return index_path
