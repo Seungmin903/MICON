@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class RecommendationInputAssemblerTest {
@@ -25,30 +26,40 @@ class RecommendationInputAssemblerTest {
     @Mock RecommendationPreferenceReader preferences;
     RecommendationInputAssembler assembler;
 
-    @BeforeEach void setUp() { assembler = new RecommendationInputAssembler(profiles, ranges, models, preferences); }
+    @BeforeEach void setUp() { assembler = new RecommendationInputAssembler(profiles, ranges, models, preferences, new ObjectMapper()); }
 
-    @Test void assemblesSavedProfileUsingEcapaReference() {
+    @Test void assemblesSavedProfileUsingBothModelResults() {
         UserVoiceProfile profile = mock(UserVoiceProfile.class);
         User user = mock(User.class);
         VoiceAnalysisSession session = mock(VoiceAnalysisSession.class);
         VoiceRangeMeasurement range = mock(VoiceRangeMeasurement.class);
         VoiceModelResult ecapa = mock(VoiceModelResult.class);
+        VoiceModelResult singerByol = mock(VoiceModelResult.class);
         when(profile.getUser()).thenReturn(user); when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
         when(profile.getId()).thenReturn(10L); when(profile.getSession()).thenReturn(session);
         when(session.getId()).thenReturn(20L); when(session.getSongId()).thenReturn(30L);
         when(range.getFullLowMidi()).thenReturn(new BigDecimal("48.5"));
         when(range.getFullHighMidi()).thenReturn(new BigDecimal("70.5"));
-        when(ecapa.getVectorObjectKey()).thenReturn("embeddings/user-1.bin");
+        when(ecapa.getModelVersion()).thenReturn("ecapa-v1");
+        when(ecapa.getDimension()).thenReturn(192);
+        when(ecapa.getVectorJson()).thenReturn("[0.1,0.2]");
+        when(ecapa.getSegmentInfo()).thenReturn("{\"embeddings\":[[0.1,0.2]]}");
+        when(singerByol.getModelVersion()).thenReturn("byol-v1");
+        when(singerByol.getDimension()).thenReturn(1000);
+        when(singerByol.getVectorJson()).thenReturn("[0.3,0.4]");
+        when(singerByol.getSegmentInfo()).thenReturn("{\"embeddings\":[[0.3,0.4]]}");
         when(profiles.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(profile));
         when(ranges.findBySessionId(20L)).thenReturn(Optional.of(range));
         when(models.findBySessionIdAndModelKey(20L, "ECAPA")).thenReturn(Optional.of(ecapa));
+        when(models.findBySessionIdAndModelKey(20L, "SINGER_BYOL")).thenReturn(Optional.of(singerByol));
         when(preferences.findByUserId(1L)).thenReturn(new RecommendationPreferenceReader.Preferences(List.of("록"), List.of("아이유")));
 
         RecommendationInput input = assembler.assemble(1L, 10L);
         assertThat(input.profileId()).isEqualTo(10L);
         assertThat(input.sourceSongId()).isEqualTo(30L);
         assertThat(input.voiceProfile().stableLowMidi()).isEqualByComparingTo("48.5");
-        assertThat(input.voiceProfile().embeddingRef()).isEqualTo("embeddings/user-1.bin");
+        assertThat(input.voiceProfile().userEmbedding()).contains("\"ECAPA\"").contains("\"SINGER_BYOL\"");
+        assertThat(input.voiceProfile().embeddingRef()).isNull();
     }
 
     @Test void rejectsMissingProfile() {
@@ -56,5 +67,21 @@ class RecommendationInputAssemblerTest {
         assertThatThrownBy(() -> assembler.assemble(1L, 10L))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+    }
+
+    @Test void rejectsProfileWithoutBothModelResults() {
+        UserVoiceProfile profile = mock(UserVoiceProfile.class);
+        User user = mock(User.class);
+        VoiceAnalysisSession session = mock(VoiceAnalysisSession.class);
+        VoiceModelResult ecapa = mock(VoiceModelResult.class);
+        when(profile.getUser()).thenReturn(user); when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
+        when(profile.getSession()).thenReturn(session); when(session.getId()).thenReturn(20L);
+        when(profiles.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(profile));
+        when(models.findBySessionIdAndModelKey(20L, "ECAPA")).thenReturn(Optional.of(ecapa));
+        when(models.findBySessionIdAndModelKey(20L, "SINGER_BYOL")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> assembler.assemble(1L, 10L))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RECOMMENDATION_INPUT_NOT_READY));
     }
 }
