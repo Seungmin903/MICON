@@ -80,7 +80,7 @@ def write_range_catalog(
         "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
-        "keyShiftRange": [-6, 6],
+        "keyShiftRange": [-6, 5],
         "generationRuntime": _runtime_versions(),
         "source": {
             "indexFile": index_path.name,

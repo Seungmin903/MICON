@@ -282,7 +282,7 @@ def _write_range_catalog(catalog: LoadedCatalog, destination: Path, index_path: 
         "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
-        "keyShiftRange": [-6, 6],
+        "keyShiftRange": [-6, 5],
         "source": {"indexFile": index_path.name,
                    "indexCanonicalSha256": canonical_json_sha256(index_path),
                    "batchId": catalog.snapshot["batch_id"]},
