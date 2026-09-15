@@ -48,7 +48,7 @@ git lfs pull --include="ai/recommend-server/recommender-assets/catalog-index/*"
 
 ```powershell
 $env:AI_SERVICE_TOKEN = '<BE와 공유하는 서비스 토큰>'
-$env:MICON_BE_BASE_URL = 'https://<BE의 Tailscale DNS 이름>'
+$env:MICON_BE_BASE_URL = 'http://<BE의 Tailscale DNS 이름>:18080'
 $env:MICON_BE_CALLBACK_URL = 'https://<BE 호스트>/api/v1/callbacks/voice-analysis-components'
 $env:RECOMMEND_CONCURRENCY = '1'
 # RANGE를 다른 가상환경에서 실행할 때만 지정
@@ -70,13 +70,13 @@ AI_RECOMMENDATION_POLLING_MAX_WAIT=10m
 
 `MICON_BE_BASE_URL`은 `/api/v1` 없이 BE 내부 주소를 지정한다. AI는 여기에 `/internal/embedding-catalog/active`를 붙인다. 공개 Nginx는 `/internal/`과 `/api/v1/internal/`을 모두 404로 차단하므로 노트북에서 BE 내부망 또는 터널로 접근할 수 있어야 한다. 위 콜백 예시는 공개 API 주소이며, 콜백도 내부 BE로 보낼 때는 `/callbacks/voice-analysis-components`를 사용한다.
 
-노트북 경로를 선택하면 BE 릴리스 배포 후 서버에서 아래 스크립트를 한 번 실행한다. 스크립트는 공개 443 설정을 바꾸지 않고, Nginx의 `127.0.0.1:18080` 단일 카탈로그 경로를 Tailscale Serve의 tailnet 전용 HTTPS 주소에 연결한다. 기존에 관계없는 Serve 구성이 있으면 덮어쓰지 않고 실패한다.
+노트북 경로를 선택하면 BE 릴리스 배포 후 서버에서 아래 스크립트를 한 번 실행한다. 스크립트는 공개 443 설정을 바꾸지 않고, Nginx의 `127.0.0.1:18080` 단일 카탈로그 경로를 Tailscale Serve의 tailnet 전용 HTTP 18080 포트에 연결한다. 전송 구간은 Tailscale의 WireGuard 터널로 암호화되며 tailnet 밖에는 공개되지 않는다. 이 방식은 tailnet HTTPS 인증서 활성화를 기다리지 않는다. 기존에 관계없는 Serve 구성이 있으면 덮어쓰지 않고 실패하며, CLI가 반환되지 않아도 20초 뒤 실제 등록 상태를 검증하고 종료한다.
 
 ```sh
 sudo <활성 릴리스>/infra/tailscale/enable_backend_catalog_serve.sh
 ```
 
-AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <token>`을 사용한다. `X-API-Key`는 현재 서버 계약이 아니다. Tailscale Serve 주소에는 `/api/v1`을 붙이지 않는다. Funnel은 사용하지 않는다.
+AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <token>`을 사용한다. `X-API-Key`는 현재 서버 계약이 아니다. Tailscale Serve 주소는 `http://<BE Tailscale DNS>:18080`이며 `/api/v1`을 붙이지 않는다. Funnel은 사용하지 않는다.
 
 동시에 여러 uvicorn worker를 실행하지 않는다. 현재 멱등 요청 조회·동시 실행 제한은 단일 프로세스를 전제로 한다.
 
