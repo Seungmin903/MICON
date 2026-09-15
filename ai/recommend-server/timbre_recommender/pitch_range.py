@@ -25,7 +25,7 @@ MODE_WEIGHTS = {
     "timbre": {"timbre": 0.75, "range": 0.25},
     "range": {"timbre": 0.30, "range": 0.70},
 }
-KEY_SHIFTS = tuple(range(-6, 7))
+KEY_SHIFTS = tuple(range(-6, 6))   # 반주가 -6..+5 만 있다. +6 을 추천하면 앱이 재생을 못 한다
 COMFORT_PADDING_SEMITONES = 2
 COVERAGE_CENTER = 0.80
 COVERAGE_SIGMOID_SCALE = 0.05
