@@ -33,8 +33,14 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_BASE_URL | http://localhost:8000 | BE에서 접근 가능한 AI 서비스 주소. AI 위치·네트워크는 별도 확인; 운영 localhost fallback 금지 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
+| AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
-| AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 분석용 S3 presigned GET URL 만료 Duration. 실제 다운로드 시간·보안 요구 검증 |
+| AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |
+| AI_VOICE_ANALYSIS_MAX_FILE_BYTES | 262144000 | 직접 분석 WAV의 크기 상한(바이트). multipart 및 프록시 제한도 함께 적용됨 |
+| AI_VOICE_ANALYSIS_CONNECT_TIMEOUT | 3s | 음성 분석 AI 접수 연결 제한 시간인 Spring Duration |
+| AI_VOICE_ANALYSIS_READ_TIMEOUT | 30s | 음성 분석 AI 접수 응답 제한 시간인 Spring Duration |
+| AI_VOICE_ANALYSIS_MAX_WAIT | 10m | 접수된 음성 분석의 완료 대기 상한인 Spring Duration |
+| AI_VOICE_ANALYSIS_TIMEOUT_CHECK_INTERVAL | 1m | 미완료 음성 분석의 timeout 검사 주기인 Spring Duration |
 | AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
 | AI_RECOMMENDATION_BASE_URL | http://localhost:8788 | BE에서 접근 가능한 추천 AI 서비스 주소. 운영에서는 명시적으로 주입하고 localhost fallback을 사용하지 않음 |
 | AI_RECOMMENDATION_ENABLED | false | true/false. 추천 작업 제출·조회 계약과 서비스 인증을 통합 검증한 뒤에만 true |
@@ -44,12 +50,13 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_RECOMMENDATION_POLLING_ENABLED | true | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
 | AI_RECOMMENDATION_POLL_INTERVAL | 1500ms | 추천 작업별 상태 조회가 끝난 뒤 다음 폴링까지 기다리는 양의 Spring Duration |
 | AI_RECOMMENDATION_POLL_INITIAL_DELAY | 5s | 애플리케이션 시작 후 첫 추천 폴링까지 기다리는 음수가 아닌 Spring Duration |
-| VOICE_RECORDING_MAX_SIZE | 25MB | multipart 파일 및 전체 요청 제한. 부가정보 포함 경계 크기는 시험 필요 |
+| VOICE_ANALYSIS_REQUEST_MAX_SIZE | 250MB | multipart 파일 및 전체 요청 제한. 운영 Compose 예제는 기존 의도대로 25MB를 명시하며 프록시·부가정보 크기도 함께 고려. 이전 VOICE_RECORDING_MAX_SIZE 이름은 더 이상 읽지 않음 |
 | VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정 비공개 버킷 `micon-b110-prod-apne2-20260909`. 운영 실행기에 명시 주입; 추적 예제는 빈 값 유지 |
 | VOICE_STORAGE_REGION | ap-northeast-2 | 개인 버킷과 일치하는 서울 리전 |
 | VOICE_STORAGE_PREFIX | voice-recordings | 객체 prefix. IAM의 voice-recordings/*와 함께 변경; catalog/와 분리 |
 | VOICE_STORAGE_PLAYBACK_URL_TTL | 10m | 녹음 재생 presigned GET URL 만료 Duration |
 | VOICE_STORAGE_MAX_FILE_BYTES | 26214400 | S3 업로드 전 파일 크기 상한(바이트), 프록시·multipart 제한과 함께 검증 |
+| VOICE_STORAGE_DELETION_RETRY_INTERVAL | 30s | 삭제 큐에 남은 저장 녹음의 삭제 재시도 주기인 Spring Duration |
 | CATALOG_MEDIA_ALLOWED_PREFIX | catalog/정영주/section-384-v1/vocals/ | S15P21B110-228에서 승인한 보컬 stem 경로. DB object key와 정확히 일치해야 하며 다른 catalog 경로는 서명 거부 |
 | CATALOG_MEDIA_DOWNLOAD_URL_TTL | 10m | AI 전용 보컬 stem presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
 | VOICE_DATA_POLICY_VERSION | UNCONFIRMED | 공개 음성 데이터 정책 버전. 정책 승인 전에는 `UNCONFIRMED`를 유지하고 확정 버전처럼 표시하지 않음 |

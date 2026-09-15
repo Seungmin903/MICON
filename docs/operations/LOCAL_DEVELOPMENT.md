@@ -124,7 +124,7 @@ cd backend
 | `DB_PASSWORD` | 개인 로컬 DB 비밀번호, Git·MR·로그에 기록 금지 |
 | `JWT_SECRET` | 개발 전용 무작위 비밀값, UTF-8 32바이트 이상; 운영 키 복사 금지 |
 | `AI_*` | 실제 접근할 AI 주소·인증·분석 설정. 전체 이름은 BE 실행 계약 참고 |
-| `VOICE_STORAGE_*`, `VOICE_RECORDING_MAX_SIZE` | 승인된 개발용 버킷·리전·prefix·URL 만료·용량 |
+| `VOICE_STORAGE_*`, `VOICE_ANALYSIS_REQUEST_MAX_SIZE` | 승인된 개발용 버킷·리전·prefix·URL 만료·용량 |
 | `AWS_SHARED_CREDENTIALS_FILE`, `AWS_PROFILE`, `AWS_EC2_METADATA_DISABLED` | 개발 전용 AWS 프로필·로컬 파일 경로, metadata 비활성화 true. 서버 컨테이너 경로를 PC에 그대로 쓰지 않음 |
 
 `.env` 파일만 만들면 현재 Spring 설정이 자동으로 읽어주는 것은 아니다. 환경변수가 실행 프로세스에 전달되도록 설정하고, 위 준비가 끝난 후 `backend` 폴더에서 `.\gradlew.bat bootRun`한다. 운영용 DB URL/계정은 이 예시와 별도로 안전하게 관리한다.
