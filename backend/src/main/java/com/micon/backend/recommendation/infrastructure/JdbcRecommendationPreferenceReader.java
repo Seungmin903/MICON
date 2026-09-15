@@ -20,7 +20,7 @@ public class JdbcRecommendationPreferenceReader implements RecommendationPrefere
     public Preferences findByUserId(long userId) {
         Map<String, Object> parameters = Map.of("userId", userId);
         List<String> genres = jdbcTemplate.queryForList("""
-                SELECT genre.name
+                SELECT COALESCE(genre.preference_label, genre.name)
                 FROM user_genre_preference preference
                 JOIN genre ON genre.genre_id = preference.genre_id
                 WHERE preference.user_id = :userId

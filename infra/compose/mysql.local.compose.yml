@@ -1,0 +1,37 @@
+name: micon-local
+
+services:
+  mysql:
+    image: mysql:8.4.11
+    container_name: micon-local-mysql
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:3307:3306"
+
+    environment:
+      MYSQL_DATABASE: micon
+      MYSQL_USER: micon
+      MYSQL_PASSWORD: micon-local
+      MYSQL_ROOT_PASSWORD: root-local
+      TZ: Asia/Seoul
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+
+    volumes:
+      - micon-local-mysql-data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD=$$MYSQL_PASSWORD mysqladmin ping --host=127.0.0.1 --user=$$MYSQL_USER --silent
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  micon-local-mysql-data:

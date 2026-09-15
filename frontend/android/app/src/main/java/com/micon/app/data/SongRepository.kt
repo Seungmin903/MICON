@@ -1,98 +1,139 @@
 package com.micon.app.data
 
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.KaraokeNote
-import com.micon.app.data.engine.dto.RangeRatios
-import com.micon.app.data.engine.dto.Register
+import com.micon.app.data.backend.dto.BeatGrid
+import com.micon.app.data.backend.dto.KaraokeNote
 
 /**
  * 곡 카탈로그 접근 인터페이스. 화면·ViewModel 은 이 인터페이스만 본다.
  *
- * 현재 구현: [com.micon.app.data.sqlite.SqliteSongRepository] (assets 의 개발용 샘플 DB).
- * 앱 백엔드(MySQL 8 `micon`) REST API 가 생기면 Retrofit 구현으로 교체하고 sqlite 구현·asset 은 삭제한다.
- * 컬럼 의미는 docs/micon_schema.sql (songs, song_analysis, song_notes, song_artifacts).
+ * 구현: [com.micon.app.data.backend.RemoteSongRepository] — 앱 백엔드(Spring, MySQL `micon`) REST.
+ * 곡 식별자는 백엔드 `song.song_id`(BIGINT) 하나다. TJ 번호·카탈로그 track_id 는 앱에서 쓰지 않는다(팀 결정 2026-09-10).
+ * 엔드포인트: `GET /songs`, `GET /songs/{id}`, `GET /songs/{id}/practice-assets` (docs/openapi.yaml, backend `SongController`·`PracticeAssetController`).
  */
 interface SongRepository {
+    /** 제목·가수 검색. query 가 비면 전체. 서버 페이지 크기 최대 100. */
+    suspend fun search(query: String = "", page: Int = 0, size: Int = 50): SongPage
+
+    /** 곡 상세. 없는 곡(404)은 null. */
+    suspend fun detail(songId: Long): SongDetail?
+
     /**
-     * 제목·가수 검색. query 가 비면 전체. analyzedOnly = 분석(song_analysis complete) 된 곡만.
-     * @param language songs.primary_language (kor/eng/jpn…) 로 걸러냄. null = 전체
-     * @param chartTag TJ 차트 분류(market_context_tags 의 `tj_chart:발라드` 등, 접두어 없이). null = 전체
-     * @param sort 정렬: [Sort.ARTIST] 가수·제목, [Sort.TITLE] 제목, [Sort.NEWEST] 발매 최신순
+     * 연습에 필요한 데이터 한 묶음(반주·목표 음정·가사·구간).
+     * 준비되지 않은 곡은 [PracticeAssetsNotReadyException](409), 미리 렌더되지 않은 키는 [UnsupportedPracticeKeyException](422).
      */
-    suspend fun search(
-        query: String = "", analyzedOnly: Boolean = false, limit: Int = 100, offset: Int = 0,
-        language: String? = null, chartTag: String? = null, sort: Sort = Sort.ARTIST,
-    ): List<SongSummary>
+    suspend fun practiceAssets(songId: Long, selectedKey: Int = 0): PracticeAssets
 
-    /** 분석 완료 곡의 분류 개수 — 필터 칩 라벨용. 언어를 주면 그 언어 안에서 센다. */
-    suspend fun chartTagCounts(language: String? = null): Map<String, Int>
-
-    enum class Sort { ARTIST, TITLE, NEWEST }
-
-    suspend fun detail(songId: String): SongDetail?
-
-    /** song_notes.karaoke_notes (= 엔진 result.karaokeNotes). 분석 안 된 곡은 null. */
-    suspend fun karaokeNotes(songId: String): List<KaraokeNote>?
-
-    suspend fun counts(): Counts
-
-    /** @property synced 분석 완료 곡 중 LRC(가사 싱크) 가 있는 곡 수 */
-    data class Counts(val songs: Int, val analyzed: Int, val synced: Int = 0)
+    /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
+    suspend fun karaokeNotes(songId: Long): List<KaraokeNote>? =
+        try { practiceAssets(songId).targetNotes } catch (_: PracticeAssetsNotReadyException) { null }
 }
 
-/** songs 테이블의 목록용 컬럼 */
-data class SongSummary(
-    val id: String,              // songs.song_id = 엔진 job id (tj-<번호>)
-    val tjNumber: String?,
-    val title: String,
-    val artist: String,
-    val album: String?,
-    val durationMs: Int?,
-    val imageUrl: String?,
-    val genre: String?,
-    val language: String?,
-    val releaseDate: String?,
-    val analyzed: Boolean,
-    /** TJ 차트 분류(발라드·댄스·트로트…). market_context_tags 의 첫 `tj_chart:` 태그 */
-    val chartTag: String? = null,
-    /** LRC(줄 시각) 가사가 있어 노래방식 가사 싱크가 가능한가 */
-    val lyricsSynced: Boolean = false,
-    /** 가사 텍스트(lyrics_plain)가 있는가 */
-    val hasLyrics: Boolean = false,
+/** 백엔드 `PageResponse` 그대로 */
+data class SongPage(
+    val items: List<SongSummary>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
 )
 
-/** song_analysis 한 행 (JSON 컬럼은 DTO 로 풀어 둠) */
+/** 목록 항목 (백엔드 `SongResponse.Summary`). 상세에서만 오는 값은 nullable. */
+data class SongSummary(
+    /** 백엔드 song.song_id */
+    val id: Long,
+    val title: String,
+    /** 참여 가수 이름을 `, ` 로 이은 표시용 문자열 */
+    val artist: String,
+    val imageUrl: String?,
+    val durationMs: Long?,
+    val album: String? = null,
+    val genre: String? = null,
+    /** yyyy-MM-dd */
+    val releaseDate: String? = null,
+)
+
+/**
+ * 곡 분석 값. 백엔드 상세에는 원키·BPM·음역만 있고, 박자표·비트 그리드는 `practice-assets` 확장 후 채워진다(그때까지 null).
+ * 화면은 null 을 "값 없음" 으로 다루고 기본값으로 대체한다.
+ */
 data class SongAnalysis(
-    val analysisVersion: String?,
-    val analyzedAt: String?,
     val keyName: String?,
-    val keyConfidence: Double?,
     val tempoBpm: Int?,
     val timeSignature: String?,
     val lowestMidi: Int?,
     val highestMidi: Int?,
-    val coreLowMidi: Int?,
-    val coreHighMidi: Int?,
-    val rangeRatios: RangeRatios?,
-    val vocalStartSec: Double?,
-    val vocalEndSec: Double?,
-    val voicedRatio: Double?,
-    val noteCount: Int?,
-    val rangeConfidence: Int?,
-    val taskSupport: Map<String, String>?,   // pitch_range / timbre / rhythm / vocal_identity → pass|review|fail|not_analyzed
-    val register: Register?,
-    val beatGrid: BeatGrid?,
-    val scoreOctaveShift: Int?,
+    val coreLowMidi: Int? = null,
+    val coreHighMidi: Int? = null,
+    /** pitch_range / timbre / rhythm / vocal_identity → pass|review|fail|not_analyzed. 백엔드 미제공 시 null */
+    val taskSupport: Map<String, String>? = null,
+    val beatGrid: BeatGrid? = null,
+    val noteCount: Int? = null,
 )
 
+/** 곡 상세 (백엔드 `SongResponse.Detail`) */
 data class SongDetail(
     val summary: SongSummary,
+    val genres: List<String>,
+    /** 원키·BPM·음역. 백엔드가 분석 값을 주지 않는 곡은 null */
+    val analysis: SongAnalysis?,
+    /** 내가 찜한 곡인가 */
+    val favorite: Boolean,
+    /** 반주·음표·가사가 준비되어 연습 가능한가 (`song.practice_ready`) */
+    val practiceReady: Boolean,
+) {
+    val hasInstrumental: Boolean get() = practiceReady
+}
+
+/** `GET /songs/{id}/practice-assets` 응답 (백엔드 `PracticeAssetResponse.Detail`) */
+data class PracticeAssets(
+    val songId: Long,
+    val title: String,
+    val selectedKey: Int,
+    val instrumental: InstrumentalMedia,
     val lyricsPlain: String?,
     /** LRC 텍스트(`[mm:ss.xx] 가사` 줄). 없으면 null */
-    val lyricsSynced: String? = null,
-    val analysis: SongAnalysis?,
-    /** song_artifacts 에 instrumental 이 있는가 (엔진 스트리밍 가능) */
-    val hasInstrumental: Boolean,
-    /** 미리 렌더된 키 변경 반주 semitones 목록 */
-    val renderedKeyShifts: List<Int>,
+    val lyricsSynced: String?,
+    /** 목표 음정 = `song_note.karaoke_notes` (엔진 `result.karaokeNotes` 와 같은 형식) */
+    val targetNotes: List<KaraokeNote>,
+    val dataVersion: String?,
+    val sections: List<PracticeSection>,
+    // 아래 4개는 백엔드 확장 요청 항목. 응답에 없으면 null (연습 화면은 기본값 4/4·100 BPM 으로 동작).
+    val keyName: String? = null,
+    val tempoBpm: Int? = null,
+    val timeSignature: String? = null,
+    val beatGrid: BeatGrid? = null,
 )
+
+/**
+ * 반주 미디어 (`song_media` 행). [filePath] 는 S3 object key 라 앱이 직접 열 수 없다.
+ * 재생은 백엔드가 발급하는 만료 URL [playbackUrl] 로만 한다 — 백엔드 응답에 아직 없으면 null 이고 연습 화면은 "반주 준비 중" 으로 안내한다.
+ */
+data class InstrumentalMedia(
+    val mediaId: Long?,
+    val filePath: String?,
+    val mimeType: String?,
+    val fileBytes: Long?,
+    val sha256: String?,
+    val playbackUrl: String?,
+)
+
+/** 곡 구간 (`song_section`). 시간은 ms. */
+data class PracticeSection(
+    val sectionId: Long,
+    /** INTRO | VOCAL | INTERLUDE | VERSE | PRE_CHORUS | CHORUS | BRIDGE | OUTRO | CUSTOM */
+    val sectionType: String,
+    val sectionName: String,
+    val startMs: Int,
+    val endMs: Int,
+    val sequenceNo: Int,
+    /** NONE | HIGH_NOTE | LONG_BREATH | FAST_LYRICS | PITCH_JUMP | MIXED */
+    val difficultyType: String,
+    val difficultyScore: Double?,
+    val description: String?,
+)
+
+/** 연습 데이터가 아직 없는 곡 (백엔드 409 `PRACTICE_ASSET_NOT_READY`) */
+class PracticeAssetsNotReadyException(message: String) : Exception(message)
+
+/** 미리 렌더되지 않은 키 (백엔드 422 `UNSUPPORTED_PRACTICE_KEY`) */
+class UnsupportedPracticeKeyException(message: String) : Exception(message)

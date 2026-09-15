@@ -18,7 +18,7 @@ class BackendContainerContractTests(unittest.TestCase):
         cls.security = (ROOT / "backend/src/main/java/com/micon/backend/auth/config/SecurityConfig.java").read_text(encoding="utf-8")
         cls.host_prep = (ROOT / "infra/deploy/prepare_backend_host.sh").read_text(encoding="utf-8")
         cls.runtime_env = (ROOT / "infra/compose/backend.env.example").read_text(encoding="utf-8")
-        cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/voice/application/VoiceAnalysisService.java").read_text(encoding="utf-8")
+        cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/voice/application/DirectVoiceAnalysisService.java").read_text(encoding="utf-8")
         cls.recommendation_service = (ROOT / "backend/src/main/java/com/micon/backend/recommendation/application/RecommendationDispatchService.java").read_text(encoding="utf-8")
 
     def test_image_is_pinned_and_runs_as_non_root(self):

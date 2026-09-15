@@ -5,14 +5,14 @@ import java.util.List;
 import java.util.Objects;
 
 public record RecommendationInput(
-        Long voiceAnalysisId,
+        Long profileId,
         Long sourceSongId,
         VoiceProfile voiceProfile,
         List<String> genres,
         List<String> preferredArtists
 ) {
     public RecommendationInput {
-        Objects.requireNonNull(voiceAnalysisId, "voiceAnalysisId is required");
+        Objects.requireNonNull(profileId, "profileId is required");
         Objects.requireNonNull(voiceProfile, "voiceProfile is required");
         genres = genres == null ? List.of() : List.copyOf(genres);
         preferredArtists = preferredArtists == null ? List.of() : List.copyOf(preferredArtists);

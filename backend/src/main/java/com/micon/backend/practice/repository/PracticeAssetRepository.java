@@ -20,12 +20,13 @@ public class PracticeAssetRepository {
 		String sql = """
 				SELECT s.song_id, s.title, s.practice_ready,
 				       sm.lyrics_plain, sm.lyrics_synced,
-				       sa.analysis_id, sa.analysis_version
-				FROM SONG s
-				LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
-				LEFT JOIN SONG_ANALYSIS sa ON sa.analysis_id = (
+				       sa.analysis_id, sa.analysis_version, sa.key_name,
+				       sa.tempo_bpm, sa.time_signature, sa.beat_grid
+				FROM song s
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+				LEFT JOIN song_analysis sa ON sa.analysis_id = (
 				    SELECT latest.analysis_id
-				    FROM SONG_ANALYSIS latest
+				    FROM song_analysis latest
 				    WHERE latest.song_id = s.song_id
 				      AND latest.status IN ('COMPLETED', 'PARTIAL')
 				    ORDER BY latest.analyzed_at DESC, latest.analysis_id DESC
@@ -40,14 +41,18 @@ public class PracticeAssetRepository {
 			resultSet.getString("lyrics_plain"),
 			resultSet.getString("lyrics_synced"),
 			resultSet.getObject("analysis_id", Long.class),
-			resultSet.getString("analysis_version")
+			resultSet.getString("analysis_version"),
+			resultSet.getString("key_name"),
+			resultSet.getBigDecimal("tempo_bpm"),
+			resultSet.getString("time_signature"),
+			resultSet.getString("beat_grid")
 		)).stream().findFirst();
 	}
 
 	public Optional<MediaRow> findInstrumental(Long songId, int selectedKey) {
 		String sql = """
 				SELECT media_id, file_path, mime_type, file_bytes, sha256
-				FROM SONG_MEDIA
+				FROM song_media
 				WHERE song_id = :songId
 				  AND generation_status = 'READY'
 				  AND semitones = :selectedKey
@@ -69,7 +74,7 @@ public class PracticeAssetRepository {
 	public Optional<NoteRow> findNotes(Long analysisId) {
 		String sql = """
 				SELECT karaoke_notes, karaoke_version
-				FROM SONG_NOTE
+				FROM song_note
 				WHERE analysis_id = :analysisId
 				ORDER BY updated_at DESC, song_note_id DESC
 				LIMIT 1
@@ -84,7 +89,7 @@ public class PracticeAssetRepository {
 		String sql = """
 				SELECT section_id, section_type, section_name, start_ms, end_ms, sequence_no,
 				       difficulty_type, difficulty_score, confidence, description
-				FROM SONG_SECTION
+				FROM song_section
 				WHERE song_id = :songId AND analysis_id = :analysisId
 				ORDER BY sequence_no, section_id
 				""";
@@ -110,7 +115,11 @@ public class PracticeAssetRepository {
 		String lyricsPlain,
 		String lyricsSynced,
 		Long analysisId,
-		String analysisVersion
+		String analysisVersion,
+		String keyName,
+		java.math.BigDecimal tempoBpm,
+		String timeSignature,
+		String beatGrid
 	) {
 	}
 

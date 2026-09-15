@@ -17,6 +17,7 @@ object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
+    const val PASSWORD_RESET = "password-reset"
     const val SURVEY = "survey"
     const val EDIT_PREFERENCES = "settings/preferences"
 
@@ -30,9 +31,12 @@ object Routes {
     // 하위 화면
     const val SONG_MATCH = "match/{songId}"          // song-match-detail
     const val QUICK_ANALYSIS = "report/quick"        // 음성 분석 리포트 - 음성 간편 분석
+    const val VOICE_ONBOARDING = "report/onboarding"
+    const val SING_ANALYSIS_PICK = "report/sing"     // 불러서 분석하기 - 곡 선택 (Figma 없음)
+    const val SING_ANALYSIS_RUN = "report/sing/{songId}" // 불러서 분석하기 - 범위 선택/부르기/저장 완료
     const val SONG = "song/{songId}"                 // 노래 연습 - 노래 상세정보 (하단 탭 보임)
     const val PRACTICE_RUN = "practice/{songId}"     // 노래 연습 - 연습전/연습중
-    const val RESULT = "result/{jobId}"              // 노래 연습 분석 상세 (전체 화면)
+    const val RESULT = "result/{practiceId}"         // 노래 연습 분석 상세 (전체 화면, 백엔드 practiceId)
     const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 세트리스트 세부 (하단 탭 보임)
     const val SETTINGS = "settings"
     const val DEV_SEED_PROFILE = "dev/seed-profile"  // 개발용
@@ -40,20 +44,21 @@ object Routes {
     /** 개발용 딥링크 접두 (AndroidManifest 의 micon://app) */
     const val DEEP_LINK = "micon://app"
 
-    fun songMatch(songId: String) = "match/$songId"
-    fun song(songId: String) = "song/$songId"
-    fun practice(songId: String) = "practice/$songId"
-    fun result(jobId: String) = "result/$jobId"
-    fun setlist(setlistId: String) = "setlist/$setlistId"
+    fun songMatch(songId: Long) = "match/$songId"
+    fun song(songId: Long) = "song/$songId"
+    fun practice(songId: Long) = "practice/$songId"
+    fun singAnalysis(songId: Long) = "report/sing/$songId"
+    fun result(practiceId: Long) = "result/$practiceId"
+    fun setlist(setlistId: Long) = "setlist/$setlistId"
 
     /** 하단 탭을 보이는 경로 (Figma 에서 하단 바가 있는 화면) */
     val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SETLIST)
 }
 
-/** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 추천(음표 원) · 리포트(그래프) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */
+/** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 리포트(그래프) · 추천(음표 원) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */
 enum class BottomTab(val route: String, val label: String, val icon: ImageVector) {
-    RECOMMEND(Routes.RECOMMEND, "추천", Icons.Outlined.Explore),
     REPORT(Routes.REPORT, "리포트", Icons.Outlined.Assessment),
+    RECOMMEND(Routes.RECOMMEND, "추천", Icons.Outlined.Explore),
     PRACTICE(Routes.PRACTICE, "연습", Icons.Outlined.Mic),
     EVALUATION(Routes.EVALUATION, "평가", Icons.Outlined.RateReview),
     FAVORITES(Routes.FAVORITES, "찜", Icons.Outlined.BookmarkBorder);

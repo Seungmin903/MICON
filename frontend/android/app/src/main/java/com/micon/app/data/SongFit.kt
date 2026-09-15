@@ -3,15 +3,15 @@ package com.micon.app.data
 /**
  * 사용자 × 곡 적합도 (FIT-001~006). 화면은 이 값을 **그리기만** 하고 계산·재정렬하지 않는다.
  *
- * 채우는 곳 둘: `LocalRecommendRepository`(음역만, 오프라인) / `RemoteRecommendRepository`(서버 `compose_two_axis` 응답 매핑).
- * 서버 응답 DTO 는 별도(`data/recommend/dto`)로 1:1 유지하고, 이 클래스는 앱 용어로 둔다.
+ * 채우는 곳 둘: `LocalRecommendRepository`(음역만, 오프라인) / `BackendRecommendRepository`(백엔드 추천·`/songs/{id}/fit` 응답 매핑).
+ * 서버 응답 DTO 는 별도(`data/backend/dto/RecommendationDtos`)로 1:1 유지하고, 이 클래스는 앱 용어로 둔다.
  * 제목·가수는 [SongSummary] 가 이미 가지고 있어 여기 두지 않는다.
  *
  * `null` 은 0점이 아니라 **평가 불가**(데이터 없음)다 — 화면에서 반드시 구분해 표시한다(FIT-002·003, ANL-008).
  */
 data class SongFit(
-    /** = 서버 track_id = songs.song_id (tj-번호) */
-    val songId: String,
+    /** 백엔드 song_id */
+    val songId: Long,
     /** 음색 — 두 축 + 라벨. 서버 응답에만 있고 로컬 계산은 null. FIT-002 */
     val timbre: TimbreMatch?,
     /** 음색 적합도 단일 숫자 0~1. 현재 서버는 라벨만 내려주므로 null. 숫자 표시가 결정되면 채운다. FIT-002 */

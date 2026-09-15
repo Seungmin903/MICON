@@ -27,8 +27,8 @@ public class SongQueryRepository {
 			   OR LOWER(COALESCE(sm.tj_number, '')) LIKE :queryPattern
 			   OR EXISTS (
 			       SELECT 1
-			       FROM SONG_SINGER search_ss
-			       JOIN SINGER search_si ON search_si.singer_id = search_ss.singer_id
+			       FROM song_singer search_ss
+			       JOIN singer search_si ON search_si.singer_id = search_ss.singer_id
 			       WHERE search_ss.song_id = s.song_id
 			         AND LOWER(COALESCE(search_si.name, '')) LIKE :queryPattern
 			   ))
@@ -43,8 +43,8 @@ public class SongQueryRepository {
 	public List<SongResponse.Summary> findPage(String query, int size, long offset) {
 		String sql = """
 				SELECT s.song_id, s.title, s.duration_ms, sm.display_image_url
-				FROM SONG s
-				LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
+				FROM song s
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 				""" + SEARCH_CONDITION + """
 				ORDER BY s.title, s.song_id
 				LIMIT :size OFFSET :offset
@@ -68,8 +68,8 @@ public class SongQueryRepository {
 	public long count(String query) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM SONG s
-				LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
+				FROM song s
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 				""" + SEARCH_CONDITION;
 		Long count = jdbcTemplate.queryForObject(sql, searchParameters(query), Long.class);
 		return count == null ? 0 : count;
@@ -80,11 +80,11 @@ public class SongQueryRepository {
 				SELECT s.song_id, s.title, s.duration_ms, s.practice_ready,
 				       sm.album_name, sm.display_image_url, sm.release_date,
 				       sa.key_name, sa.tempo_bpm, sa.lowest_midi, sa.highest_midi
-				FROM SONG s
-				LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
-				LEFT JOIN SONG_ANALYSIS sa ON sa.analysis_id = (
+				FROM song s
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+				LEFT JOIN song_analysis sa ON sa.analysis_id = (
 				    SELECT latest.analysis_id
-				    FROM SONG_ANALYSIS latest
+				    FROM song_analysis latest
 				    WHERE latest.song_id = s.song_id AND latest.status = 'COMPLETED'
 				    ORDER BY latest.analyzed_at DESC, latest.analysis_id DESC
 				    LIMIT 1
@@ -99,7 +99,7 @@ public class SongQueryRepository {
 		if (songIds.isEmpty()) {
 			return Set.of();
 		}
-		String sql = "SELECT song_id FROM SONG WHERE song_id IN (:songIds)";
+		String sql = "SELECT song_id FROM song WHERE song_id IN (:songIds)";
 		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), Long.class));
 	}
 
@@ -110,8 +110,8 @@ public class SongQueryRepository {
 	public List<String> findGenres(Long songId) {
 		String sql = """
 				SELECT g.name
-				FROM SONG_GENRE sg
-				JOIN GENRE g ON g.genre_id = sg.genre_id
+				FROM song_genre sg
+				JOIN genre g ON g.genre_id = sg.genre_id
 				WHERE sg.song_id = :songId
 				ORDER BY sg.is_primary DESC, g.name
 				""";
@@ -124,7 +124,7 @@ public class SongQueryRepository {
 		}
 		String sql = """
 				SELECT COUNT(*)
-				FROM FAVORITE_SONG favorite
+				FROM favorite_song favorite
 				WHERE favorite.song_id = :songId AND favorite.user_id = :userId
 				""";
 		Long count = jdbcTemplate.queryForObject(
@@ -141,10 +141,10 @@ public class SongQueryRepository {
 		}
 		String sql = """
 				SELECT ss.song_id, si.name
-				FROM SONG_SINGER ss
-				JOIN SINGER si ON si.singer_id = ss.singer_id
+				FROM song_singer ss
+				JOIN singer si ON si.singer_id = ss.singer_id
 				WHERE ss.song_id IN (:songIds)
-				ORDER BY ss.song_id, ss.`order`, si.singer_id
+				ORDER BY ss.song_id, ss.`display_order`, si.singer_id
 				""";
 		Map<Long, List<String>> artists = new LinkedHashMap<>();
 		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {

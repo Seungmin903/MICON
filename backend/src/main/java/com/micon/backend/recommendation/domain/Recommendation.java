@@ -1,7 +1,7 @@
 package com.micon.backend.recommendation.domain;
 
 import com.micon.backend.user.domain.User;
-import com.micon.backend.voice.domain.VoiceAnalysis;
+import com.micon.backend.voice.domain.UserVoiceProfile;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -31,8 +31,8 @@ public class Recommendation {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "voice_analysis_id", nullable = false)
-    private VoiceAnalysis voiceAnalysis;
+    @JoinColumn(name = "profile_id", nullable = false)
+    private UserVoiceProfile voiceProfile;
 
     @Column(name = "job_id", unique = true, length = 255)
     private String jobId;
@@ -75,15 +75,15 @@ public class Recommendation {
     protected Recommendation() {
     }
 
-    public Recommendation(User user, VoiceAnalysis voiceAnalysis, RecommendationMode mode) {
-        if (user == null || voiceAnalysis == null) {
-            throw new IllegalArgumentException("user and voiceAnalysis are required");
+    public Recommendation(User user, UserVoiceProfile voiceProfile, RecommendationMode mode) {
+        if (user == null || voiceProfile == null) {
+            throw new IllegalArgumentException("user and voiceProfile are required");
         }
-        if (!sameUser(user, voiceAnalysis.getUser())) {
-            throw new IllegalArgumentException("voiceAnalysis must belong to user");
+        if (!sameUser(user, voiceProfile.getUser())) {
+            throw new IllegalArgumentException("voiceProfile must belong to user");
         }
         this.user = user;
-        this.voiceAnalysis = voiceAnalysis;
+        this.voiceProfile = voiceProfile;
         this.mode = mode == null ? RecommendationMode.OVERALL : mode;
         this.status = RecommendationStatus.GENERATING;
         this.progress = 0;
@@ -92,7 +92,7 @@ public class Recommendation {
 
     public Long getId() { return id; }
     public User getUser() { return user; }
-    public VoiceAnalysis getVoiceAnalysis() { return voiceAnalysis; }
+    public UserVoiceProfile getVoiceProfile() { return voiceProfile; }
     public String getJobId() { return jobId; }
     public RecommendationMode getMode() { return mode; }
     public RecommendationStatus getStatus() { return status; }

@@ -46,13 +46,23 @@ class NginxBackendRoutingTests(unittest.TestCase):
         self.assertIn("--required-successes 3", self.switch)
 
     def test_switch_restores_route_on_nginx_or_public_smoke_failure(self):
-        self.assertGreaterEqual(self.switch.count("restore_previous"), 5)
-        self.assertGreaterEqual(self.switch.count("nginx -t"), 5)
+        self.assertGreaterEqual(self.switch.count("restore_previous"), 4)
+        self.assertGreaterEqual(self.switch.count("nginx -t"), 4)
         self.assertIn("systemctl reload nginx.service", self.switch)
-        self.assertIn('if ! public_status="$(curl', self.switch)
-        self.assertIn("public API smoke request failed; previous route restored", self.switch)
-        self.assertIn('public_status" != 401', self.switch)
+        self.assertIn('if public_status="$(curl', self.switch)
+        self.assertIn("public API smoke failed; previous route restored", self.switch)
+        self.assertIn('public_status" = 401', self.switch)
         self.assertIn('"code":"UNAUTHENTICATED"', self.switch)
+
+    def test_switch_allows_bounded_nginx_reload_handover(self):
+        reload_position = self.switch.index("systemctl reload nginx.service")
+        retry_position = self.switch.index('while [ "$public_smoke_attempt" -le 10 ]')
+        self.assertLess(reload_position, retry_position)
+        self.assertIn("public_smoke_attempt=1", self.switch)
+        self.assertIn("--max-time 3", self.switch)
+        self.assertIn("sleep 1", self.switch)
+        self.assertIn("public_smoke_attempt=$((public_smoke_attempt + 1))", self.switch)
+        self.assertIn('if [ "$public_smoke_ready" != true ]', self.switch)
 
     def test_script_only_accepts_two_loopback_slots(self):
         self.assertIn("blue) port=18081", self.switch)

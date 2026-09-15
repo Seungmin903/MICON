@@ -42,19 +42,26 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**",
-                                "/v1/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                                "/v1/swagger-ui.html", "/v1/swagger-ui/**",
+                                "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/policies").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs", "/songs/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses",
+                                "/callbacks/voice-analysis-components").permitAll()
+                        .requestMatchers("/voice-analysis-sessions", "/voice-analysis-sessions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/users", "/auth/sessions", "/auth/tokens/refresh",
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(request -> {
-                            if ("/auth/tokens/refresh".equals(request.getRequestURI())
+                            if ("/auth/refresh".equals(request.getRequestURI())
                                     || "/callbacks/voice-analyses".equals(request.getRequestURI())
+                                    || "/callbacks/voice-analysis-components".equals(request.getRequestURI())
                                     || "/internal/embedding-catalog/active".equals(request.getRequestURI())
                                     || request.getRequestURI().startsWith("/internal/catalog-media/vocal-stems/")) {
                                 return null;

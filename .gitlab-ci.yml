@@ -1,5 +1,6 @@
 stages:
   - verify
+  - notify
 
 default:
   image: python:3.13-alpine
@@ -9,6 +10,7 @@ default:
 
 workflow:
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "develop"'
     - when: never
 
@@ -19,6 +21,8 @@ runtime-contract-tests:
     - python --version
     - python -m unittest discover -s backend/contract_tests -v
     - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
 
 mysql-song-import:
   stage: verify
@@ -39,6 +43,8 @@ mysql-song-import:
   script:
     - sh infra/mysql/verify-song-import.sh
     - cd backend && sh ./gradlew --no-daemon --max-workers=1 --console=plain test --tests '*EmbeddingCatalog*'
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
 
 embedding-catalog-tests:
   stage: verify
@@ -55,4 +61,43 @@ embedding-catalog-tests:
   script:
     - 'pip install --disable-pip-version-check --only-binary=:all: -r ai/embedding_catalog/requirements-test.txt'
     - python -m pytest ai/embedding_catalog/tests ai/catalog_media/tests -v
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
 
+notify_mm_mr:
+  stage: notify
+  image: python:3.13-alpine
+  tags:
+    - micon-notify
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      python - <<'PY'
+      import json
+      import os
+      import urllib.request
+
+      text = (
+          f"🙋‍♂️ **{os.environ['GITLAB_USER_NAME']} "
+          f"({os.environ['GITLAB_USER_LOGIN']})** opened or updated merge request "
+          f"**!{os.environ['CI_MERGE_REQUEST_IID']}**\n\n"
+          f"**{os.environ['CI_MERGE_REQUEST_TITLE']}**\n\n"
+          f"🌿 **Source**: `{os.environ['CI_MERGE_REQUEST_SOURCE_BRANCH_NAME']}`\n"
+          f"🎯 **Target**: `{os.environ['CI_MERGE_REQUEST_TARGET_BRANCH_NAME']}`\n"
+          f"📦 **Project**: {os.environ['CI_PROJECT_PATH']}\n"
+          f"🔗 **Link**: {os.environ['CI_MERGE_REQUEST_PROJECT_URL']}"
+          f"/-/merge_requests/{os.environ['CI_MERGE_REQUEST_IID']}"
+      )
+      body = json.dumps({"text": text}, ensure_ascii=False).encode("utf-8")
+      request = urllib.request.Request(
+          os.environ["MM_WEBHOOK_URL"],
+          data=body,
+          headers={"Content-Type": "application/json; charset=utf-8"},
+          method="POST",
+      )
+      with urllib.request.urlopen(request, timeout=15) as response:
+          print(f"Mattermost webhook response: {response.status}")
+      PY
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

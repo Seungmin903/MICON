@@ -72,16 +72,20 @@ class NetworkAuthRepository(
 
     private fun Response<ApiResponse<AuthResponse>>.authData(signup: Boolean): AuthResponse {
         if (!isSuccessful) {
-            val message = when (code()) {
-                400, 422 -> "이메일과 비밀번호 형식을 확인해주세요."
-                401 -> "이메일 또는 비밀번호가 올바르지 않아요."
-                403 -> "로그인할 수 없는 계정이에요. 계정 상태를 확인해주세요."
-                409 -> if (signup) "이미 사용 중인 이메일이에요. 로그인해주세요." else "로그인 상태를 확인한 뒤 다시 시도해주세요."
-                429 -> "요청이 많아요. 잠시 후 다시 시도해주세요."
-                else -> "서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요."
-            }
-            throw AuthRequestException(code(), message)
+            throw authFailure(signup)
         }
         return body()?.data ?: throw AuthRequestException(code(), "로그인 응답을 확인할 수 없어요. 다시 시도해주세요.")
+    }
+
+    private fun Response<*>.authFailure(signup: Boolean): AuthRequestException {
+        val message = when (code()) {
+            400, 422 -> "이메일과 비밀번호 형식을 확인해주세요."
+            401 -> "이메일 또는 비밀번호가 올바르지 않아요."
+            403 -> "로그인할 수 없는 계정이에요. 계정 상태를 확인해주세요."
+            409 -> if (signup) "이미 사용 중인 이메일이에요. 로그인해주세요." else "로그인 상태를 확인한 뒤 다시 시도해주세요."
+            429 -> "요청이 많아요. 잠시 후 다시 시도해주세요."
+            else -> "서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요."
+        }
+        return AuthRequestException(code(), message)
     }
 }

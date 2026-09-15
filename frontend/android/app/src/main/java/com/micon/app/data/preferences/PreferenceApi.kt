@@ -7,8 +7,12 @@ import retrofit2.http.GET
 import retrofit2.http.PUT
 import retrofit2.http.Query
 
-data class PreferenceGenre(val genreId: Long = 0, val name: String = "")
-data class PreferenceArtist(val artistId: Long = 0, val name: String = "", val imageUrl: String? = null)
+data class PreferenceGenre(val genreId: Long = 0, val name: String = "", val code: String = "")
+data class PreferenceArtist(
+    val artistId: Long = 0, val name: String = "", val imageUrl: String? = null,
+    val imageSourceUrl: String? = null, val imageAttribution: String? = null,
+    val imageLicense: String? = null, val imageLicenseUrl: String? = null,
+)
 data class PreferenceArtistPage(
     val content: List<PreferenceArtist> = emptyList(),
     val page: Int = 0,

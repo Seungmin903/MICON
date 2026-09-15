@@ -113,8 +113,8 @@ public class PracticeResultService {
 	private void validateCompletedScores(PracticeResultRequest.Save request) {
 		if (request.status() == PracticeResultRequest.ResultStatus.COMPLETED
 			&& (request.overallScore() == null || request.pitchScore() == null
-			|| request.sustainScore() == null || request.rhythmScore() == null)) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "완료된 연습 결과에는 모든 점수가 필요합니다.");
+			|| request.rhythmScore() == null)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "완료된 연습 결과에는 종합·음정·리듬 점수가 필요합니다.");
 		}
 	}
 

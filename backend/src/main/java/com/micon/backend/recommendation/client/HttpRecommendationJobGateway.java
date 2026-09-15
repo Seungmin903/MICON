@@ -40,7 +40,7 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
         RecommendationInput input = command.input();
         RecommendationInput.VoiceProfile profile = input.voiceProfile();
         return new AiRecommendationRequest(
-                input.voiceAnalysisId(), input.sourceSongId(), command.topK(), aiMode(command.mode()),
+                input.profileId(), input.sourceSongId(), command.topK(), aiMode(command.mode()),
                 input.genres(), input.preferredArtists(),
                 new AiVoiceProfile(
                         profile.stableLowMidi(), profile.stableHighMidi(), profile.medianMidi(),
@@ -85,7 +85,7 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
     }
 
     private record AiRecommendationRequest(
-            Long voiceAnalysisId, Long sourceSongId, int topK, String mode,
+            Long profileId, Long sourceSongId, int topK, String mode,
             List<String> genres, List<String> preferredArtists,
             AiVoiceProfile voiceProfile, JsonNode userEmbedding, String embeddingRef
     ) {}

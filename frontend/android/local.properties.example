@@ -2,16 +2,10 @@
 # 경로 구분자는 / 를 쓴다.
 sdk.dir=C:/Users/YOUR_NAME/AppData/Local/Android/Sdk
 
-# VocalScope 엔진(FastAPI). 에뮬레이터에서 PC localhost = 10.0.2.2.
-# 실기기는 `adb reverse tcp:8787 tcp:8787` 후 http://127.0.0.1:8787/ 로.
-ENGINE_BASE_URL=http://10.0.2.2:8787/
-
-# 앱 백엔드(Spring/MySQL, 예정). 아직 없으면 그대로 둔다.
+# 앱 백엔드(Spring/MySQL). 곡 카탈로그·연습 데이터·인증이 전부 여기서 온다 — 로컬 BE(bootRun) 또는 운영 https://j15b110.p.ssafy.io/api/v1/
+# 실기기: `adb reverse tcp:8080 tcp:8080` 후 http://127.0.0.1:8080/api/v1/ (HTTP 는 10.0.2.2·127.0.0.1·localhost 만 허용)
 API_BASE_URL=http://10.0.2.2:8080/api/v1/
 
-# 추천 서버(ai/recommend-server, FastAPI 8788). 비워 두면 앱 안 로컬 계산(음역만)으로 동작한다.
-# 서버를 켜고 시험할 때만: RECOMMEND_BASE_URL=http://10.0.2.2:8788/
-RECOMMEND_BASE_URL=
 
 # 소셜 로그인 키 (비어 있어도 빌드된다. 해당 기능만 동작하지 않음)
 GOOGLE_WEB_CLIENT_ID=
@@ -28,3 +22,7 @@ RELEASE_KEY_PASSWORD=
 RELEASE_VERSION_CODE=
 PREVIOUS_RELEASE_VERSION_CODE=
 RELEASE_VERSION_NAME=
+
+# PC model preview: explicit debug-only entry; production login remains the default.
+GUIDED_RANGE_STANDALONE=false
+RANGE_PREVIEW_BASE_URL=http://127.0.0.1:8789/

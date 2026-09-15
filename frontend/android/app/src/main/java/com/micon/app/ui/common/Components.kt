@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -83,6 +85,7 @@ import com.micon.app.ui.theme.GreyBg
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.InkSoft
+import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Paper
 import com.micon.app.ui.theme.Purple
@@ -124,17 +127,27 @@ fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: Te
     }
 }
 
-/** Figma 공통 헤더: 로고 + 알림·설정 아이콘. 탭 최상위 화면에서 쓴다. */
+/** Figma 공통 헤더. 비회원에게는 계정 아이콘 대신 로그인 버튼만 노출한다. */
 @Composable
-fun MiconHeader(onNotifications: () -> Unit = {}, onSettings: () -> Unit = {}) {
+fun MiconHeader(
+    onNotifications: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    onLogin: (() -> Unit)? = null,
+) {
     Row(
         Modifier.fillMaxWidth().height(64.dp).padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MiconLogo()
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
-        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+        if (onLogin != null) {
+            TextButton(onClick = onLogin) {
+                Text("로그인", color = Purple, fontWeight = FontWeight.SemiBold)
+            }
+        } else {
+            IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
+            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+        }
     }
 }
 
@@ -283,14 +296,28 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
 }
 
 @Composable
-fun OutlinePurpleButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 56.dp) {
+fun OutlinePurpleButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 56.dp, enabled: Boolean = true) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(height),
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Purple),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Purple),
+        border = BorderStroke(1.dp, if (enabled) Purple else GreyLight),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Purple, disabledContentColor = Grey),
     ) { Text(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+}
+
+/** 단계 진행선 + "n / m" (Figma 음성 간편 분석 상단). 가로 패딩 32dp 를 포함한다. */
+@Composable
+fun StepBar(step: Int, total: Int) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Canvas(Modifier.fillMaxWidth().height(6.dp)) {
+            drawLine(Lavender, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), size.height, StrokeCap.Round)
+            drawLine(Purple, Offset(0f, size.height / 2), Offset(size.width * step / total, size.height / 2), size.height, StrokeCap.Round)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("$step / $total", fontSize = 14.sp, color = Grey)
+    }
 }
 
 @Composable

@@ -14,19 +14,29 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class AuthFormState(val submitting: Boolean = false, val authenticated: Boolean = false, val error: String? = null)
+data class AuthFormState(
+    val submitting: Boolean = false,
+    val authenticated: Boolean = false,
+    val signupCompleted: Boolean = false,
+    val error: String? = null,
+)
 
 class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(AuthFormState())
     val state = mutableState.asStateFlow()
 
     fun submit(email: String, password: String, signup: Boolean) {
-        if (mutableState.value.submitting || mutableState.value.authenticated) return
+        if (mutableState.value.submitting || mutableState.value.authenticated || mutableState.value.signupCompleted) return
         mutableState.value = AuthFormState(submitting = true)
         viewModelScope.launch {
             try {
-                if (signup) repository.signup(email, password) else repository.login(email, password)
-                mutableState.value = AuthFormState(authenticated = true)
+                if (signup) {
+                    repository.signup(email, password)
+                    mutableState.value = AuthFormState(authenticated = true)
+                } else {
+                    repository.login(email, password)
+                    mutableState.value = AuthFormState(authenticated = true)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {

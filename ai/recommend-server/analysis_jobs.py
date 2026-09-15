@@ -1,0 +1,583 @@
+"""BE → 추천 AI 음성 분석 작업. 녹음 WAV 를 받아 음색 임베딩을 만들고 BE 콜백으로 돌려준다.
+
+계약과 환경변수는 README 의 API 절에 있다.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+import hashlib
+import json
+import logging
+import os
+from pathlib import Path
+import re
+import threading
+import time
+import shutil
+import subprocess
+import sys
+from typing import Any
+import urllib.error
+import urllib.request
+import uuid
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+import numpy as np
+import soundfile as sf
+
+from recommendation_api import _configuration_status, _replace_with_retry
+from timbre_recommender.embedding import embed_vocal_audio
+
+
+log = logging.getLogger("analysis_jobs")
+ROOT = Path(__file__).resolve().parent
+ANALYSIS_DIR = ROOT / "workspace" / "analysis"
+MAX_BYTES = 64 * 1024 * 1024
+MAX_DURATION_SECONDS = 120.0
+TIMBRE_PARTS = ("timbreFile", "file")        # 음색 임베딩에 쓰는 파트. 앞의 것이 우선
+COMPONENT_MODELS = {"ECAPA": ("ecapa", 192), "SINGER_BYOL": ("singer_byol", 1000)}
+TERMINAL = {"COMPLETED", "FAILED", "INSUFFICIENT_DATA", "CANCELED"}
+
+LOCK = threading.RLock()
+INGEST_LOCK = threading.Lock()
+DELIVERY_LOCK = threading.Lock()
+JOBS: dict[str, dict[str, Any]] = {}          # jobId → job
+REQUESTS: dict[str, str] = {}                 # requestId → jobId
+_slots: threading.BoundedSemaphore | None = None
+router = APIRouter(tags=["voice-analysis-jobs"])
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.environ.get(name, "") or default))
+    except ValueError:
+        return default
+
+
+def _now() -> datetime:
+    return datetime.now().replace(microsecond=0)
+
+
+def _iso(value: datetime) -> str:
+    return value.isoformat(timespec="seconds")      # BE 는 LocalDateTime: 오프셋 없는 ISO
+
+
+def _components(meta: dict[str, Any]) -> list[str]:
+    expected = ["RANGE"] if meta.get("analysisType") == "RANGE" else list(COMPONENT_MODELS)
+    if meta.get("analysisType") not in {"RANGE", "TIMBRE"} or meta.get("components") != expected:
+        raise HTTPException(422, "analysisType과 components가 일치해야 합니다.")
+    return expected
+
+
+def _slot() -> threading.BoundedSemaphore:
+    global _slots
+    with LOCK:
+        if _slots is None:
+            _slots = threading.BoundedSemaphore(_env_int("RECOMMEND_CONCURRENCY", 1))
+    return _slots
+
+
+def _save(job: dict[str, Any]) -> None:
+    job_dir = ANALYSIS_DIR / job["jobId"]
+    job_dir.mkdir(parents=True, exist_ok=True)
+    temporary = job_dir / ".job.json.tmp"
+    temporary.write_text(json.dumps(job, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _replace_with_retry(temporary, job_dir / "job.json")
+
+
+def _update(job_id: str, **values: Any) -> dict[str, Any]:
+    with LOCK:
+        job = JOBS[job_id]
+        job.update(values)
+        job["updatedAt"] = _iso(_now())
+        _save(job)
+        return job
+
+
+def restore_jobs() -> None:
+    """서버 재시작 뒤 작업과 미전송 콜백을 복원한다. 미완료 계산은 다시 시작한다."""
+    if not ANALYSIS_DIR.is_dir():
+        return
+    for path in ANALYSIS_DIR.glob("*/job.json"):
+        try:
+            job = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if job.get("status") in {"QUEUED", "RUNNING"}:
+            job.update(status="QUEUED")
+        JOBS[job["jobId"]] = job
+        REQUESTS[job["requestId"]] = job["jobId"]
+        _save(job)
+
+
+# ── 접수 ─────────────────────────────────────────────────────────────────────
+
+def _audio_info(path: Path, maximum_seconds: float = MAX_DURATION_SECONDS) -> dict[str, Any]:
+    try:
+        info = sf.info(path)
+    except Exception as error:
+        raise HTTPException(415, f"디코딩할 수 없는 오디오입니다: {str(error)[:200]}") from error
+    if info.duration <= 0 or info.duration > maximum_seconds + 0.05:
+        raise HTTPException(422, f"녹음은 0초 초과 {maximum_seconds:g}초 이하여야 합니다.")
+    if info.channels != 1 or info.samplerate not in (16000, 44100, 48000) or info.subtype != "PCM_16":
+        raise HTTPException(422, "16/44.1/48kHz mono PCM16 WAV가 필요합니다.")
+    return {"durationSeconds": round(float(info.duration), 3), "sampleRate": int(info.samplerate), "channels": int(info.channels)}
+
+
+def _audio_alive(job: dict[str, Any]) -> bool:
+    return not job.get("audioDeleted") and any((ANALYSIS_DIR / job["jobId"] / f["stored"]).is_file() for f in job["files"].values())
+
+
+def _duplicate_response(job: dict[str, Any]) -> dict[str, Any]:
+    # CALLBACK_PENDING is internal; the receipt reports the computed result.
+    status = job.get("componentStatus") if job["status"] == "CALLBACK_PENDING" else job["status"]
+    return {"jobId": job["jobId"], "status": status or job["status"],
+            "audioExpiresAt": job["audioExpiresAt"], "duplicate": True}
+
+
+def ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    with INGEST_LOCK:
+        return _ingest(files, meta)
+
+
+def _ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """파일과 meta 를 받아 작업을 만든다. (응답 dict, 새 작업이면 True). 멱등 규칙은 여기 한 곳."""
+    request_id = str(meta.get("requestId") or "").strip()
+    try:
+        uuid.UUID(request_id)
+        if any(type(meta.get(k)) is not int or meta[k] < 1 for k in ("analysisId", "sessionId", "attemptNo")):
+            raise ValueError()
+        if meta.get("contractVersion") != "v1":
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise HTTPException(422, "requestId UUID, 양수 analysisId/sessionId/attemptNo, contractVersion v1이 필요합니다.")
+    components = _components(meta)
+    if set(files) != {"file"} or not files["file"] or len(files["file"]) > MAX_BYTES:
+        raise HTTPException(422, "64MB 이하 file WAV 파트 하나가 필요합니다.")
+    if not any(part in files for part in TIMBRE_PARTS):
+        raise HTTPException(422, f"음색 녹음 파트가 필요합니다: {' 또는 '.join(TIMBRE_PARTS)}")
+    digest = hashlib.sha256()
+    digest.update(json.dumps(meta, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8"))
+    for name in sorted(files):
+        digest.update(name.encode("utf-8")); digest.update(files[name])
+    audio_sha = digest.hexdigest()
+
+    with LOCK:
+        existing = JOBS.get(REQUESTS.get(request_id, ""))
+    if existing:
+        if existing["audioSha256"] != audio_sha:
+            raise HTTPException(409, {"code": "IDEMPOTENCY_KEY_REUSED", "message": "같은 requestId 로 다른 음원이 전송되었습니다."})
+        if existing["status"] == "COMPLETED":
+            return _duplicate_response(existing), False
+        if existing["status"] == "CALLBACK_PENDING":
+            # The route schedules delivery after returning 202; sweep also retries it.
+            _update(existing["jobId"], nextCallbackAt=None)
+            return _duplicate_response(existing), False
+        if not _audio_alive(existing):
+            raise HTTPException(410, {"code": "AUDIO_EXPIRED", "message": "원음이 만료되어 다시 녹음해야 합니다."})
+        # A terminal BE component is immutable. A new attempt uses a new requestId.
+        return _duplicate_response(existing), False
+
+    job_id = f"job_{uuid.uuid4().hex}"
+    job_dir = ANALYSIS_DIR / job_id
+    job_dir.mkdir(parents=True, exist_ok=False)
+    stored: dict[str, dict[str, Any]] = {}
+    try:
+        for name, data in files.items():
+            path = job_dir / f"{name}.wav"
+            path.write_bytes(data)
+            stored[name] = {"stored": path.name, "bytes": len(data),
+                            **_audio_info(path, 180.0 if components == ["RANGE"] else 120.0)}
+        if components != ["RANGE"] and stored["file"]["sampleRate"] < 44100:
+            raise HTTPException(422, "음색 녹음은 44.1kHz 또는 48kHz 원음이 필요합니다.")
+    except Exception:
+        shutil.rmtree(job_dir)
+        raise
+    created = _now()
+    hard = created + timedelta(seconds=_env_int("RECOMMEND_AUDIO_HARD_TTL_SECONDS", 86400))
+    job = {
+        "jobId": job_id, "requestId": request_id, "analysisId": meta.get("analysisId"), "meta": meta,
+        "files": stored, "audioSha256": audio_sha, "status": "QUEUED",
+        "components": {c: {"status": "PENDING", "accepted": False} for c in components},
+        "createdAt": _iso(created), "updatedAt": _iso(created),
+        "audioExpiresAt": _iso(hard), "hardExpiresAt": _iso(hard), "softExpiresAt": None, "audioDeleted": False,
+        "failureCode": None, "failureReason": None,
+    }
+    with LOCK:
+        try:
+            _save(job)
+        except Exception:
+            shutil.rmtree(job_dir)
+            raise
+        JOBS[job_id] = job
+        REQUESTS[request_id] = job_id
+    return {"jobId": job_id, "status": "QUEUED", "audioExpiresAt": job["audioExpiresAt"], "duplicate": False}, True
+
+
+@router.post("/voice-analysis-jobs", status_code=202)
+async def create_job(request: Request, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    form = await request.form(max_part_size=8_000_000)
+    files: dict[str, bytes] = {}
+    meta: dict[str, Any] | None = None
+    try:
+        for name, value in form.multi_items():
+            if name == "meta":
+                raw = value if isinstance(value, str) else (await value.read(8_000_001)).decode("utf-8")
+                if len(raw.encode("utf-8")) > 8_000_000:
+                    raise HTTPException(413, "meta 크기 초과")
+                try:
+                    meta = json.loads(raw)
+                except json.JSONDecodeError as error:
+                    raise HTTPException(422, "meta 는 JSON 이어야 합니다.") from error
+            elif hasattr(value, "read"):
+                if name != "file" or name in files:
+                    raise HTTPException(422, "file 파트는 하나만 받습니다.")
+                chunks = bytearray()
+                while chunk := await value.read(65536):
+                    chunks.extend(chunk)
+                    if len(chunks) > MAX_BYTES:
+                        raise HTTPException(413, "녹음 크기 초과")
+                files[name] = bytes(chunks)
+    finally:
+        await form.close()
+    if not isinstance(meta, dict):
+        raise HTTPException(422, "meta 파트가 필요합니다.")
+    components = _components(meta)
+    if components != ["RANGE"]:
+        _, missing = _configuration_status()
+        missing = [name for name in missing if "카탈로그" not in name]
+        if missing:
+            raise HTTPException(503, f"음색 모델 설정이 필요합니다: {', '.join(missing)}")
+    if not os.environ.get("MICON_BE_CALLBACK_URL", "").strip():
+        raise HTTPException(503, "BE callback URL이 설정되지 않았습니다.")
+    response, should_run = ingest(files, meta)
+    if should_run:
+        background_tasks.add_task(process, response["jobId"])
+    elif JOBS[response["jobId"]]["status"] == "CALLBACK_PENDING":
+        background_tasks.add_task(deliver_callbacks, response["jobId"])
+    return response
+
+
+@router.post("/voice-analysis-jobs/{job_id}/cancel")
+def cancel_job(job_id: str) -> dict[str, Any]:
+    job = _get(job_id)
+    running = job["status"] == "RUNNING"
+    if job["status"] not in TERMINAL:
+        _update(job_id, status="CANCELED")
+    if not running:                              # 계산 중이면 worker 가 끝난 뒤 지운다
+        _delete_audio(job_id)
+    return {"jobId": job_id, "status": JOBS[job_id]["status"]}
+
+
+@router.post("/voice-analysis-jobs/{job_id}/retry", status_code=202)
+def retry_job(job_id: str, background_tasks: BackgroundTasks, component: str) -> dict[str, Any]:
+    job = _get(job_id)
+    if component not in job["components"]:
+        raise HTTPException(422, "재시도할 수 없는 컴포넌트입니다.")
+    state = job["components"][component]
+    if state.get("status") not in {"FAILED", "INSUFFICIENT_DATA"}:
+        raise HTTPException(409, "실패한 컴포넌트만 재시도할 수 있습니다.")
+    if job.get("audioDeleted") or _now() >= datetime.fromisoformat(job["hardExpiresAt"]):
+        raise HTTPException(410, "재시도할 원본 음원이 만료됐습니다.")
+    components = dict(job["components"])
+    components[component] = {"status": "PENDING", "accepted": False}
+    _update(job_id, status="QUEUED", componentStatus="RUNNING", components=components,
+            failureCode=None, failureReason=None)
+    background_tasks.add_task(process, job_id)
+    current = JOBS[job_id]
+    return {"jobId": job_id, "status": "QUEUED",
+            "audioExpiresAt": current["audioExpiresAt"], "duplicate": True}
+
+
+@router.get("/voice-analysis-jobs/{job_id}")
+def get_job(job_id: str) -> dict[str, Any]:
+    return _get(job_id)
+
+
+def _get(job_id: str) -> dict[str, Any]:
+    if not re.fullmatch(r"job_[0-9a-f]{32}", job_id):
+        raise HTTPException(400, "잘못된 작업 번호입니다.")
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(404, "작업을 찾을 수 없습니다.")
+    return job
+
+
+# ── 계산과 콜백 ───────────────────────────────────────────────────────────────
+
+def _attempt_no(job: dict[str, Any]) -> int:
+    try:
+        return max(1, int(job.get("meta", {}).get("attemptNo", 1)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """컴포넌트별 COMPLETED 콜백 본문.
+
+    segmentInfo 는 명세의 세 필드에 embeddings 를 더한다. 구간별 벡터가 없으면 추천 점수의 70%가 사라진다.
+    """
+    matrices = {"ecapa": ecapa, "singer_byol": byol}
+    segments = metadata["segments"]
+    duration = job["files"][_timbre_part(job)]["durationSeconds"]
+    quality = {
+        "voicedDurationSeconds": round(duration * float(np.mean([s["active_frame_fraction"] for s in segments])), 2),
+        "clippingRatio": round(float(np.max([s["clipped_fraction"] for s in segments])), 5),
+    }
+    attempt = _attempt_no(job)
+    out: dict[str, dict[str, Any]] = {}
+    for component in job["components"]:
+        key, dimension = COMPONENT_MODELS[component]
+        rows = matrices[key].astype(np.float64)
+        if rows.ndim != 2 or rows.shape != (len(segments), dimension) or not 1 <= len(rows) <= 12:
+            raise ValueError("Invalid embedding dimensions or segment count")
+        if not np.isfinite(rows).all() or np.any(np.linalg.norm(rows, axis=1) < 1e-12):
+            raise ValueError("Embeddings must be finite and nonzero")
+        rows /= np.maximum(np.linalg.norm(rows, axis=1, keepdims=True), 1e-12)
+        mean = rows.mean(axis=0)
+        mean_norm = float(np.linalg.norm(mean))
+        if not np.isfinite(mean_norm) or mean_norm < 1e-12:
+            raise ValueError("Segment embeddings do not have a usable mean")
+        mean /= mean_norm
+        out[component] = {
+            "requestId": job["requestId"], "jobId": job["jobId"], "component": component, "attemptNo": attempt,
+            "status": "COMPLETED", "modelKey": component,
+            "modelVersion": metadata["models"][key]["checkpoint_sha256"], "dimension": dimension,
+            "embedding": [round(float(v), 7) for v in mean],
+            "segmentInfo": {
+                "segmentDurationSeconds": metadata["window_seconds"],
+                "segmentCount": len(segments),
+                "startTimes": [round(s["start_seconds"], 3) for s in segments],
+                "embeddings": [[round(float(v), 7) for v in row] for row in rows],
+            },
+            "qualityMetrics": quality, "failureCode": None, "failureReason": None, "processedAt": _iso(_now()),
+        }
+    return out
+
+
+def _failure_callback(job: dict[str, Any], component: str, status: str, code: str, reason: str) -> dict[str, Any]:
+    return {"requestId": job["requestId"], "jobId": job["jobId"], "component": component,
+            "attemptNo": _attempt_no(job), "status": status, "modelKey": component,
+            "modelVersion": None, "dimension": None, "embedding": None, "segmentInfo": None, "qualityMetrics": None,
+            "failureCode": code, "failureReason": reason[:1000], "processedAt": _iso(_now())}
+
+
+def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
+    """콜백 1건. 5xx·연결 오류·타임아웃은 3회 재시도, 4xx 는 즉시 중단. 결과 {http, attempts, accepted}."""
+    url = os.environ.get("MICON_BE_CALLBACK_URL", "").strip()
+    if not url:
+        return {"http": None, "attempts": 0, "accepted": False, "skipped": "MICON_BE_CALLBACK_URL 미설정"}
+    headers = {"Content-Type": "application/json"}
+    token = os.environ.get("AI_SERVICE_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    last: dict[str, Any] = {"http": None, "attempts": 0, "accepted": False}
+    for attempt in range(1, 4):
+        last["attempts"] = attempt
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, data=body, headers=headers, method="POST"), timeout=10) as response:
+                last.update(http=response.status, accepted=True)
+                return last
+        except urllib.error.HTTPError as error:
+            last["http"] = error.code
+            if error.code < 500:
+                last["error"] = error.read(500).decode("utf-8", "replace")
+                return last
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            last["error"] = str(error)[:200]
+        time.sleep(2 ** (attempt - 1))
+    return last
+
+
+def _timbre_part(job: dict[str, Any]) -> str:
+    return next(part for part in TIMBRE_PARTS if part in job["files"])
+
+
+def process(job_id: str) -> None:
+    job = JOBS[job_id]
+    with LOCK:
+        if job["status"] != "QUEUED":
+            return
+        _update(job_id, status="RUNNING")
+    config, _ = _configuration_status()
+    job_dir = ANALYSIS_DIR / job_id
+    audio = job_dir / job["files"][_timbre_part(job)]["stored"]
+    prefix = job_dir / "query"
+    pending = [c for c, state in job["components"].items() if not state["accepted"]]
+    callbacks: dict[str, dict[str, Any]] = {}
+    try:
+        with _slot():
+            if JOBS[job_id]["status"] == "CANCELED":
+                _delete_audio(job_id)
+                return
+            if job["meta"]["analysisType"] == "RANGE":
+                callbacks = {"RANGE": _range_callback(job, audio)}
+            else:
+                callbacks = _timbre_callbacks(job, audio, prefix, config)
+        callbacks = {c: callbacks[c] for c in pending}
+    except ValueError as error:                     # 쓸 만한 4초 구간 부족 등 입력 문제
+        callbacks = {c: _failure_callback(job, c, "INSUFFICIENT_DATA", "INSUFFICIENT_DATA", str(error)) for c in pending}
+    except Exception as error:
+        log.exception("analysis job %s failed", job_id)
+        callbacks = {c: _failure_callback(job, c, "FAILED", "AI_ANALYSIS_FAILED", str(error)) for c in pending}
+    finally:
+        for name in (f"{prefix}.ecapa.npy", f"{prefix}.singer_byol.npy", f"{prefix}.segments.json"):
+            Path(name).unlink(missing_ok=True)
+
+    if JOBS[job_id]["status"] == "CANCELED":
+        _delete_audio(job_id)
+        return
+    components = dict(job["components"])
+    for component, payload in callbacks.items():
+        payload_file = job_dir / f"callback.{component}.json"
+        temporary = payload_file.with_suffix(".tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+        _replace_with_retry(temporary, payload_file)
+        components[component] = {"status": payload["status"], "accepted": False,
+                                 "failureCode": payload["failureCode"], "processedAt": payload["processedAt"]}
+    _finish(job_id, components)
+    deliver_callbacks(job_id)
+
+
+def _finish(job_id: str, components: dict[str, Any]) -> None:
+    """Keep the computed result separate from delivery until BE acknowledges it."""
+    with LOCK:
+        job = JOBS[job_id]
+        if job["status"] == "CANCELED" or job.get("audioDeleted"):
+            return
+        statuses = {c["status"] for c in components.values()}
+        status = "COMPLETED" if statuses == {"COMPLETED"} else ("INSUFFICIENT_DATA" if "INSUFFICIENT_DATA" in statuses else "FAILED")
+        accepted = all(c["accepted"] for c in components.values())
+        failed = next((c for c in components.values() if c["status"] != "COMPLETED"), None)
+        values: dict[str, Any] = {
+            "status": status if accepted else "CALLBACK_PENDING", "componentStatus": status,
+            "components": components, "failureCode": failed and failed.get("failureCode"),
+            "failureReason": None,
+        }
+        if accepted:
+            values["nextCallbackAt"] = None
+            if job.get("softExpiresAt") is None:
+                soft = min(_now() + timedelta(seconds=_env_int("RECOMMEND_AUDIO_TTL_SECONDS", 3600)),
+                           datetime.fromisoformat(job["hardExpiresAt"]))
+                values.update(softExpiresAt=_iso(soft), audioExpiresAt=_iso(soft))
+        _update(job_id, **values)
+
+
+def _timbre_callbacks(job, audio, prefix, config):
+    _limit_torch_threads()
+    metadata = embed_vocal_audio(
+        audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
+        singer_checkpoint_root=config["singer_checkpoint_root"], device=config.get("device", "auto"),
+        batch_size=8, max_segments=12, min_segments=5, force=True,
+    )
+    return build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
+                           np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata)
+
+
+def _range_callback(job, audio):
+    root = ANALYSIS_DIR / job["jobId"]
+    meta_path = root / "range-meta.json"
+    output = root / "range-result.json"
+    meta_path.write_text(json.dumps(job["meta"], ensure_ascii=False), encoding="utf-8")
+    command = [os.environ.get("MICON_RANGE_MODEL_PYTHON", sys.executable),
+               str(ROOT.parent / "vocal-scope" / "model-server" / "be_range_worker.py"),
+               str(audio.resolve()), str(meta_path.resolve()), str(output.resolve())]
+    parent = job["meta"].get("parentAnalysisId")
+    if parent is not None:
+        previous = next((j for j in JOBS.values() if j["analysisId"] == parent and
+                         j["meta"].get("analysisType") == "RANGE"), None)
+        if previous is None:
+            raise ValueError("이전 음역 결과가 만료되었습니다. 기본 측정을 다시 시작해 주세요.")
+        command.append(str((ANALYSIS_DIR / previous["jobId"] / "range-result.json").resolve()))
+    run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+    if run.returncode != 0:
+        raise RuntimeError("음역 모델 검증 실패: " + run.stderr[-500:])
+    report = json.loads(output.read_text(encoding="utf-8"))
+    payload = _failure_callback(job, "RANGE", "INSUFFICIENT_DATA", "INSUFFICIENT_DATA", "확인된 음역이 없습니다.")
+    if report.get("availability") != "available":
+        return payload
+    payload.update(status="COMPLETED", modelKey="RANGE", modelVersion="guided-range-v7",
+                   failureCode=None, failureReason=None, measurementId=job["meta"]["measurementId"],
+                   protocolVersion="guided-range-v7", lowMidi=report["lowMidi"], highMidi=report["highMidi"],
+                   noteResults=report["notes"], measurementStatus="AVAILABLE", qualityStatus="VALID")
+    return payload
+
+
+def deliver_callbacks(job_id: str) -> None:
+    with DELIVERY_LOCK:
+        job = JOBS[job_id]
+        if job["status"] in {"CANCELED", "RUNNING", "QUEUED"} or job.get("audioDeleted"):
+            return
+        if job.get("softExpiresAt") and all(c["accepted"] for c in job["components"].values()):
+            return
+        if job.get("nextCallbackAt") and _now() < datetime.fromisoformat(job["nextCallbackAt"]):
+            return
+        for component, state in list(job["components"].items()):
+            payload = ANALYSIS_DIR / job_id / f"callback.{component}.json"
+            if state["accepted"] or not payload.is_file():
+                continue
+            result = post_callback(json.loads(payload.read_text(encoding="utf-8")))
+            state.update(accepted=result["accepted"], callback=result)
+            _update(job_id, components=job["components"])
+        _finish(job_id, job["components"])
+        if job["status"] == "CALLBACK_PENDING" and not job.get("audioDeleted"):
+            attempts = job.get("callbackRounds", 0) + 1
+            _update(job_id, callbackRounds=attempts,
+                    nextCallbackAt=_iso(_now() + timedelta(seconds=min(60, 2 ** min(attempts, 6)))))
+
+
+def _limit_torch_threads() -> None:
+    import torch
+
+    if not torch.cuda.is_available():
+        torch.set_num_threads(max(1, (os.cpu_count() or 2) // _env_int("RECOMMEND_CONCURRENCY", 2)))
+
+
+# ── 원음 삭제 ─────────────────────────────────────────────────────────────────
+
+def _delete_audio(job_id: str) -> None:
+    job = JOBS[job_id]
+    for entry in job["files"].values():
+        (ANALYSIS_DIR / job_id / entry["stored"]).unlink(missing_ok=True)
+    for copy in (ANALYSIS_DIR / job_id).glob("callback.*.json"):     # 임베딩 사본도 원음과 함께 지운다. 정본은 BE
+        copy.unlink(missing_ok=True)
+    for name in ("range-meta.json", "range-result.json"):
+        (ANALYSIS_DIR / job_id / name).unlink(missing_ok=True)
+    if not job.get("audioDeleted"):
+        _update(job_id, audioDeleted=True)
+
+
+def sweep(now: datetime | None = None) -> list[str]:
+    """만료된 원음을 지운다. 삭제 시각 = min(soft, hard). 지운 jobId 목록을 돌려준다."""
+    now = now or _now()
+    deleted = []
+    for job in list(JOBS.values()):
+        if job.get("audioDeleted") or job["status"] == "RUNNING":
+            continue
+        due = datetime.fromisoformat(job["hardExpiresAt"])
+        if job.get("softExpiresAt"):
+            due = min(due, datetime.fromisoformat(job["softExpiresAt"]))
+        if now >= due:
+            _delete_audio(job["jobId"])
+            deleted.append(job["jobId"])
+        elif job["status"] == "QUEUED":
+            threading.Thread(target=process, args=(job["jobId"],), daemon=True).start()
+        else:
+            deliver_callbacks(job["jobId"])
+    return deleted
+
+
+def start_sweeper(interval_seconds: int = 5):
+    stop = threading.Event()
+    def run() -> None:
+        while not stop.wait(interval_seconds):
+            try:
+                sweep()
+            except Exception:
+                log.exception("audio sweep failed")
+
+    thread = threading.Thread(target=run, name="analysis-audio-sweeper", daemon=True)
+    thread.start()
+    return stop

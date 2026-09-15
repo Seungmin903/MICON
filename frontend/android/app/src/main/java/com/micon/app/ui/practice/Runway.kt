@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import com.micon.app.data.engine.dto.BeatGrid
+import com.micon.app.data.backend.dto.BeatGrid
 import com.micon.app.scoring.DisplayBar
 import com.micon.app.scoring.Frame
 import com.micon.app.scoring.LiveNote

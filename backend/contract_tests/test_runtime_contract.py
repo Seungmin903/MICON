@@ -23,6 +23,16 @@ class RuntimeContractTests(unittest.TestCase):
         names = set(re.findall(r'\$\{([A-Z][A-Z0-9_]*)(?::[^}]*)?\}', self.properties))
         self.assertEqual(names | AWS_SDK_ENVIRONMENT_NAMES, {key for key, _ in self.entries})
 
+    def test_compose_example_has_no_obsolete_custom_variables(self):
+        example = (ROOT / 'infra/compose/backend.env.example').read_text(encoding='utf-8')
+        names = {line.split('=', 1)[0] for line in example.splitlines()
+                 if line.strip() and not line.lstrip().startswith('#')}
+        # These standard Spring properties do not need application placeholders.
+        spring_names = {'SPRING_PROFILES_ACTIVE', 'SERVER_PORT'}
+        documented_names = {key for key, _ in self.entries}
+        self.assertFalse(names - documented_names - spring_names,
+                         'Compose example contains variables the application no longer reads')
+
     def test_example_has_no_duplicate_variables(self):
         keys = [key for key, _ in self.entries]
         self.assertEqual(len(keys), len(set(keys)))

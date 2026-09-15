@@ -22,9 +22,8 @@ fun localSetting(name: String, default: String = ""): String =
         ?: System.getenv(name)?.takeIf(String::isNotBlank)
         ?: default
 
-val engineBaseUrl = localSetting("ENGINE_BASE_URL", "http://10.0.2.2:8787/")
 val apiBaseUrl = localSetting("API_BASE_URL", "http://10.0.2.2:8080/api/v1/")
-val recommendBaseUrl = localSetting("RECOMMEND_BASE_URL", "")   // 비어 있으면 앱 안 로컬 계산만 사용
+val rangePreviewBaseUrl = localSetting("RANGE_PREVIEW_BASE_URL", "http://127.0.0.1:8789/")
 val googleWebClientId = localSetting("GOOGLE_WEB_CLIENT_ID")
 val kakaoNativeAppKey = localSetting("KAKAO_NATIVE_APP_KEY")
 val naverClientId = localSetting("NAVER_CLIENT_ID")
@@ -55,12 +54,12 @@ val validateReleaseConfiguration by tasks.registering {
         check(releaseVersionName.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?"))) {
             "RELEASE_VERSION_NAME must be a filename-safe version."
         }
-        for (value in listOf(apiBaseUrl, engineBaseUrl)) {
+        for (value in listOf(apiBaseUrl)) {
             val uri = runCatching { URI(value) }.getOrNull()
             check(uri != null && uri.scheme == "https" && !uri.host.isNullOrBlank() &&
                 uri.userInfo == null && uri.query == null && uri.fragment == null &&
                 uri.path.endsWith("/") && uri.host !in listOf("localhost", "127.0.0.1", "10.0.2.2", "[::1]")) {
-                "Release API and engine URLs must be explicit HTTPS base URLs, not emulator defaults."
+                "Release API URL must be an explicit HTTPS base URL, not the emulator default."
             }
         }
     }
@@ -73,18 +72,19 @@ android {
     namespace = "com.micon.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
+    // Android and the PC model evaluate the same checked-in pitch fixtures.
+    sourceSets.getByName("test").resources.srcDir(rootProject.file("../../tests/fixtures"))
+
     defaultConfig {
         applicationId = "com.micon.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = releaseVersionCode.toIntOrNull() ?: 1
+        versionCode = releaseVersionCode.toIntOrNull() ?: 3
         versionName = releaseVersionName.ifBlank { "0.1.0" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "ENGINE_BASE_URL", "\"$engineBaseUrl\"")
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
-        buildConfigField("String", "RECOMMEND_BASE_URL", "\"$recommendBaseUrl\"")
 
         resValue("string", "google_web_client_id", googleWebClientId)
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
@@ -107,9 +107,18 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "HTTP_LOGGING", "true")
+            buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", localSetting("GUIDED_RANGE_STANDALONE", "false").toBoolean().toString())
+            buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"$rangePreviewBaseUrl\"")
+            // Diagnostic capture is opt-in; never arm it in a normal test build.
+            val diagnosticToken = localSetting("GUIDED_RANGE_DIAGNOSTIC_TOKEN")
+            require(diagnosticToken.matches(Regex("[A-Za-z0-9_-]{0,80}")))
+            buildConfigField("String", "GUIDED_RANGE_DIAGNOSTIC_TOKEN", "\"$diagnosticToken\"")
         }
         release {
             buildConfigField("boolean", "HTTP_LOGGING", "false")
+            buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", "false")
+            buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"\"")
+            buildConfigField("String", "GUIDED_RANGE_DIAGNOSTIC_TOKEN", "\"\"")
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -123,11 +132,6 @@ android {
         compose = true
         buildConfig = true
         resValues = true
-    }
-
-    androidResources {
-        // 개발용 샘플 DB(assets/micon_catalog.sqlite)를 APK 안에서 압축하지 않음 -> 첫 실행 복사 빠름
-        noCompress += "sqlite"
     }
 
     compileOptions {

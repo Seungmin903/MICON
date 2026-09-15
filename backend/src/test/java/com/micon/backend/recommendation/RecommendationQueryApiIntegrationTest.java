@@ -7,11 +7,10 @@ import com.micon.backend.recommendation.domain.RecommendationMode;
 import com.micon.backend.recommendation.domain.RecommendationRepository;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
-import com.micon.backend.voice.domain.VoiceAnalysis;
-import com.micon.backend.voice.domain.VoiceAnalysisMethod;
-import com.micon.backend.voice.domain.VoiceAnalysisRepository;
-import com.micon.backend.voice.domain.VoiceRecording;
-import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.domain.UserVoiceProfile;
+import com.micon.backend.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.voice.domain.VoiceAnalysisSessionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,8 +37,8 @@ class RecommendationQueryApiIntegrationTest {
     @Autowired RecommendationResultStore resultStore;
     @Autowired RecommendationRepository recommendations;
     @Autowired UserRepository users;
-    @Autowired VoiceRecordingRepository recordings;
-    @Autowired VoiceAnalysisRepository analyses;
+    @Autowired VoiceAnalysisSessionRepository sessions;
+    @Autowired UserVoiceProfileRepository profiles;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper json;
 
@@ -102,11 +102,12 @@ class RecommendationQueryApiIntegrationTest {
     }
 
     private Recommendation recommendation(User user, String jobId) {
-        VoiceRecording recording = recordings.saveAndFlush(
-                new VoiceRecording(user, (short) 1, "voice/" + jobId + ".wav", "audio/wav", false));
-        VoiceAnalysis analysis = analyses.saveAndFlush(
-                new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
-        Recommendation recommendation = new Recommendation(user, analysis, RecommendationMode.OVERALL);
+        UserVoiceProfile profile = profiles.findByUserId(user.getId()).orElseGet(() -> {
+            VoiceAnalysisSession session = sessions.saveAndFlush(
+                    new VoiceAnalysisSession(user, null, LocalDateTime.now().plusHours(1)));
+            return profiles.saveAndFlush(new UserVoiceProfile(user, session, 1));
+        });
+        Recommendation recommendation = new Recommendation(user, profile, RecommendationMode.OVERALL);
         recommendation.assignJob(jobId);
         return recommendations.saveAndFlush(recommendation);
     }

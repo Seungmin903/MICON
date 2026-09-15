@@ -46,8 +46,8 @@ public class EmailAuthService {
         }
 
         User user = new User(email, passwordEncoder.encode(request.password()));
-        user.markLoggedIn(LocalDateTime.ofInstant(clock.instant(), clock.getZone()));
         try {
+            user.markLoggedIn(LocalDateTime.ofInstant(clock.instant(), clock.getZone()));
             user = userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);

@@ -27,12 +27,12 @@ public class PracticeHistoryRepository {
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, sm.display_image_url,
 				       ps.selected_key, ps.practice_scope, ps.section_id, ps.status,
 				       ps.started_at, ps.duration_ms, pr.status AS result_status, pr.overall_score
-				FROM PRACTICE_SESSION ps
-				JOIN SONG s ON s.song_id = ps.song_id
-				LEFT JOIN SONG_METADATA sm ON sm.song_id = s.song_id
-				LEFT JOIN PRACTICE_RESULT pr ON pr.practice_result_id = (
+				FROM practice_session ps
+				JOIN song s ON s.song_id = ps.song_id
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+				LEFT JOIN practice_result pr ON pr.practice_result_id = (
 				    SELECT latest.practice_result_id
-				    FROM PRACTICE_RESULT latest
+				    FROM practice_result latest
 				    WHERE latest.practice_id = ps.practice_id
 				    ORDER BY latest.created_at DESC, latest.practice_result_id DESC
 				    LIMIT 1
@@ -64,7 +64,7 @@ public class PracticeHistoryRepository {
 	public long count(Long userId, LocalDate date) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM PRACTICE_SESSION ps
+				FROM practice_session ps
 				WHERE ps.user_id = :userId
 				""" + dateCondition(date);
 		Long count = jdbcTemplate.queryForObject(sql, parameters(userId, date), Long.class);

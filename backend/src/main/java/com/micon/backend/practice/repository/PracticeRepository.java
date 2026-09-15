@@ -5,12 +5,6 @@ import com.micon.backend.practice.api.PracticeResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Collection;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import javax.sql.DataSource;
-import org.springframework.dao.DataAccessResourceFailureException;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -28,7 +22,7 @@ public class PracticeRepository {
 	public Optional<SongRow> findPracticeReadySong(Long songId) {
 		String sql = """
 				SELECT song_id, duration_ms, practice_ready
-				FROM SONG
+				FROM song
 				WHERE song_id = :songId
 				""";
 		return jdbcTemplate.query(sql, Map.of("songId", songId), (resultSet, rowNumber) -> new SongRow(
@@ -41,7 +35,7 @@ public class PracticeRepository {
 	public boolean isUploadedRecordingOwnedBy(Long recordingId, Long userId) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM VOICE_RECORDING
+				FROM voice_recording
 				WHERE recording_id = :recordingId
 				  AND user_id = :userId
 				  AND upload_status = 'UPLOADED'
@@ -52,7 +46,7 @@ public class PracticeRepository {
 	}
 
 	public boolean sectionBelongsToSong(Long sectionId, Long songId) {
-		String sql = "SELECT COUNT(*) FROM SONG_SECTION WHERE section_id = :sectionId AND song_id = :songId";
+		String sql = "SELECT COUNT(*) FROM song_section WHERE section_id = :sectionId AND song_id = :songId";
 		Long count = jdbcTemplate.queryForObject(sql,
 			Map.of("sectionId", sectionId, "songId", songId), Long.class);
 		return count != null && count > 0;
@@ -61,7 +55,7 @@ public class PracticeRepository {
 	public boolean hasReadyInstrumental(Long songId, int selectedKey) {
 		String sql = """
 				SELECT COUNT(*)
-				FROM SONG_MEDIA
+				FROM song_media
 				WHERE song_id = :songId
 				  AND semitones = :selectedKey
 				  AND generation_status = 'READY'
@@ -86,14 +80,14 @@ public class PracticeRepository {
 		PracticeScope scope
 	) {
 		String sql = """
-				INSERT INTO PRACTICE_SESSION (
+				INSERT INTO practice_session (
 				    practice_id, user_id, song_id, section_id, recording_id,
 				    selected_key, playback_speed, custom_start_ms, custom_end_ms,
 				    status, started_at, created_at, practice_scope
 				) VALUES (
 				    :practiceId, :userId, :songId, :sectionId, :recordingId,
 				    :selectedKey, :playbackSpeed, :customStartMs, :customEndMs,
-				    'IN_PROGRESS', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), :practiceScope
+				    'READY', NULL, CURRENT_TIMESTAMP(6), :practiceScope
 				)
 				""";
 		jdbcTemplate.update(sql, new MapSqlParameterSource()
@@ -112,11 +106,11 @@ public class PracticeRepository {
 	public Optional<PracticeResponse.Detail> findOwned(Long practiceId, Long userId) {
 		String sql = """
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, ps.section_id,
-				       ps.recording_id, ps.voice_analysis_id, ps.selected_key, ps.playback_speed,
+				       ps.recording_id, ps.selected_key, ps.playback_speed,
 				       ps.custom_start_ms, ps.custom_end_ms, ps.practice_scope, ps.status,
 				       ps.started_at, ps.ended_at, ps.duration_ms, ps.created_at
-				FROM PRACTICE_SESSION ps
-				JOIN SONG s ON s.song_id = ps.song_id
+				FROM practice_session ps
+				JOIN song s ON s.song_id = ps.song_id
 				WHERE ps.practice_id = :practiceId AND ps.user_id = :userId
 				""";
 		return jdbcTemplate.query(sql, Map.of("practiceId", practiceId, "userId", userId),
@@ -125,8 +119,8 @@ public class PracticeRepository {
 				resultSet.getLong("song_id"),
 				resultSet.getString("song_title"),
 				resultSet.getObject("section_id", Long.class),
-				resultSet.getLong("recording_id"),
-				resultSet.getObject("voice_analysis_id", Long.class),
+				resultSet.getObject("recording_id", Long.class),
+				null,
 				resultSet.getInt("selected_key"),
 				resultSet.getBigDecimal("playback_speed"),
 				resultSet.getObject("custom_start_ms", Integer.class),
@@ -140,34 +134,70 @@ public class PracticeRepository {
 			)).stream().findFirst();
 	}
 
-	public int complete(Long practiceId, Long userId, int durationMs, Long voiceAnalysisId) {
+	public int complete(
+		Long practiceId,
+		Long userId,
+		int durationMs,
+		Long voiceAnalysisId,
+		Long recordingId
+	) {
 		String sql = """
-				UPDATE PRACTICE_SESSION
+				UPDATE practice_session
 				SET status = 'COMPLETED', ended_at = CURRENT_TIMESTAMP(6),
-				    duration_ms = :durationMs, voice_analysis_id = :voiceAnalysisId
+				    duration_ms = :durationMs,
+				    recording_id = COALESCE(:recordingId, recording_id)
 				WHERE practice_id = :practiceId AND user_id = :userId
-				  AND status IN ('IN_PROGRESS', 'PAUSED')
+				  AND status IN ('RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
 		return jdbcTemplate.update(sql, new MapSqlParameterSource()
 			.addValue("practiceId", practiceId)
 			.addValue("userId", userId)
 			.addValue("durationMs", durationMs)
-			.addValue("voiceAnalysisId", voiceAnalysisId));
+			.addValue("recordingId", recordingId));
 	}
 
 	public int cancel(Long practiceId, Long userId) {
 		String sql = """
-				UPDATE PRACTICE_SESSION
+				UPDATE practice_session
 				SET status = 'ABORTED', ended_at = CURRENT_TIMESTAMP(6)
 				WHERE practice_id = :practiceId AND user_id = :userId
-				  AND status IN ('READY', 'IN_PROGRESS', 'PAUSED')
+				  AND status IN ('READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
 		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
 	}
 
+	public int delete(Long practiceId, Long userId) {
+		String sql = "DELETE FROM practice_session WHERE practice_id = :practiceId AND user_id = :userId";
+		return jdbcTemplate.update(sql, Map.of("practiceId", practiceId, "userId", userId));
+	}
+
+	public int updateStatus(Long practiceId, Long userId, String status) {
+		String sql = """
+				UPDATE practice_session
+				SET status = :status,
+				    started_at = CASE
+				        WHEN status = 'READY' AND :status IN ('RECORDING', 'IN_PROGRESS')
+				        THEN CURRENT_TIMESTAMP(6)
+				        ELSE started_at
+				    END
+				WHERE practice_id = :practiceId
+				  AND user_id = :userId
+				  AND (
+				      (status = 'READY' AND :status IN ('RECORDING', 'IN_PROGRESS'))
+				      OR (status IN ('RECORDING', 'IN_PROGRESS') AND :status = 'PAUSED')
+				      OR (status = 'PAUSED' AND :status IN ('RECORDING', 'IN_PROGRESS'))
+				  )
+				""";
+		return jdbcTemplate.update(sql, Map.of(
+			"practiceId", practiceId,
+			"userId", userId,
+			"status", status
+		));
+	}
+
 	public boolean identifierExists(Long practiceId) {
 		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM PRACTICE_SESSION WHERE practice_id = :practiceId",
+			"SELECT COUNT(*) FROM practice_session WHERE practice_id = :practiceId",
 			Map.of("practiceId", practiceId), Long.class);
 		return count != null && count > 0;
 	}
@@ -175,33 +205,4 @@ public class PracticeRepository {
 	public record SongRow(Long songId, Long durationMs, boolean practiceReady) {
 	}
 
-	public int clearVoiceAnalysisReferences(Collection<Long> analysisIds) {
-		if (analysisIds.isEmpty() || !tableExists("PRACTICE_SESSION")) {
-			return 0;
-		}
-		return jdbcTemplate.update("""
-				UPDATE PRACTICE_SESSION
-				SET voice_analysis_id = NULL
-				WHERE voice_analysis_id IN (:analysisIds)
-				""", Map.of("analysisIds", analysisIds));
-	}
-
-	private boolean tableExists(String tableName) {
-		DataSource dataSource = jdbcTemplate.getJdbcTemplate().getDataSource();
-		if (dataSource == null) {
-			throw new DataAccessResourceFailureException("DataSource is not available");
-		}
-		try (Connection connection = dataSource.getConnection();
-			 ResultSet tables = connection.getMetaData().getTables(
-				 connection.getCatalog(), null, null, new String[] {"TABLE"})) {
-			while (tables.next()) {
-				if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
-					return true;
-				}
-			}
-			return false;
-		} catch (SQLException exception) {
-			throw new DataAccessResourceFailureException("Failed to inspect database tables", exception);
-		}
-	}
 }

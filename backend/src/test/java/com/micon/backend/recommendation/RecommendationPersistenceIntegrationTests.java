@@ -10,11 +10,10 @@ import com.micon.backend.recommendation.domain.RecommendationSongRepository;
 import com.micon.backend.recommendation.domain.RecommendationStatus;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
-import com.micon.backend.voice.domain.VoiceAnalysis;
-import com.micon.backend.voice.domain.VoiceAnalysisMethod;
-import com.micon.backend.voice.domain.VoiceAnalysisRepository;
-import com.micon.backend.voice.domain.VoiceRecording;
-import com.micon.backend.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.voice.domain.UserVoiceProfile;
+import com.micon.backend.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.voice.domain.VoiceAnalysisSessionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RecommendationPersistenceIntegrationTests {
 
     @Autowired UserRepository users;
-    @Autowired VoiceRecordingRepository recordings;
-    @Autowired VoiceAnalysisRepository analyses;
+    @Autowired VoiceAnalysisSessionRepository sessions;
+    @Autowired UserVoiceProfileRepository profiles;
     @Autowired RecommendationRepository recommendations;
     @Autowired RecommendationShelfRepository shelves;
     @Autowired RecommendationSongRepository songs;
@@ -48,6 +47,8 @@ class RecommendationPersistenceIntegrationTests {
         RecommendationShelf timbre = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "timbre", "내 음색과 닮은 곡", 2, "timbreScore"));
 
+        insertCatalogSong(101L);
+        insertCatalogSong(102L);
         songs.save(new RecommendationSong(recommendation, timbre, 102L, 2, 1));
         songs.save(new RecommendationSong(recommendation, range, 101L, 1, 1));
         songs.flush();
@@ -68,10 +69,13 @@ class RecommendationPersistenceIntegrationTests {
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
 
         for (int rank = 1; rank <= 50; rank++) {
-            insertSong(recommendation.getId(), shelf.getId(), 1000L + rank, rank, rank);
+            long songId = 1000L + rank;
+            insertCatalogSong(songId);
+            insertSong(recommendation.getId(), shelf.getId(), songId, rank, rank);
         }
         RecommendationShelf secondShelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "range", "음역 추천", 2, "rangeFit"));
+        insertCatalogSong(1051L);
         insertSong(recommendation.getId(), secondShelf.getId(), 1051L, 51, 1);
 
         assertThat(countSongs(recommendation.getId())).isEqualTo(51);
@@ -83,6 +87,8 @@ class RecommendationPersistenceIntegrationTests {
         Recommendation recommendation = fixture.recommendation();
         RecommendationShelf shelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
+        insertCatalogSong(2001L);
+        insertCatalogSong(2002L);
         insertSong(recommendation.getId(), shelf.getId(), 2001L, 1, 1);
 
         assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), 2001L, 2, 2))
@@ -116,12 +122,11 @@ class RecommendationPersistenceIntegrationTests {
 
     private Fixture fixture(String email) {
         User user = users.saveAndFlush(new User(email, "encoded-password"));
-        VoiceRecording recording = recordings.saveAndFlush(
-                new VoiceRecording(user, (short) 1, "recommendations/input.wav", "audio/wav", false));
-        VoiceAnalysis analysis = analyses.saveAndFlush(
-                new VoiceAnalysis(user, recording, null, VoiceAnalysisMethod.SCALE));
+        VoiceAnalysisSession session = sessions.saveAndFlush(
+                new VoiceAnalysisSession(user, null, LocalDateTime.now().plusHours(1)));
+        UserVoiceProfile profile = profiles.saveAndFlush(new UserVoiceProfile(user, session, 1));
         Recommendation recommendation = recommendations.saveAndFlush(
-                new Recommendation(user, analysis, RecommendationMode.OVERALL));
+                new Recommendation(user, profile, RecommendationMode.OVERALL));
         return new Fixture(recommendation);
     }
 
@@ -131,6 +136,12 @@ class RecommendationPersistenceIntegrationTests {
                     recommendation_id, song_id, recommendation_shelf_id, overall_rank, shelf_position
                 ) VALUES (?, ?, ?, ?, ?)
                 """, recommendationId, songId, shelfId, overallRank, shelfPosition);
+    }
+
+    private void insertCatalogSong(long songId) {
+        jdbcTemplate.update(
+                "INSERT INTO song (song_id, title, status, practice_ready) VALUES (?, ?, 'ACTIVE', TRUE)",
+                songId, "test-song-" + songId);
     }
 
     private int countSongs(long recommendationId) {

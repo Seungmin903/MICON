@@ -132,6 +132,8 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         val shelves: List<RecommendShelf> = emptyList(),
         /** false = 기본 추천(프로필 없음 등). 개인화 문구를 쓰지 않는다(REC-004) */
         val personalized: Boolean = false,
+        /** 서버 추천 대신 기기 계산을 보여 주는 이유(저장소가 준 문구). null 이면 없음 */
+        val note: String? = null,
         val loading: Boolean = true,
         val error: String? = null,
         /** 필터 바(시안: 성별·시대·장르·인기). null = 전체. 성별·인기는 데이터가 아직 없어 화면에서 비활성 */
@@ -193,7 +195,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null, userName = UserStore.nickname)
             runCatching { recommend.shelves(limit = 30, reshuffle = reshuffle) }   // 필터를 걸어도 화면을 다시 채울 만큼 넉넉히
-                .onSuccess { r -> _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, loading = false) }
+                .onSuccess { r -> _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note, loading = false) }
                 .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString()) }
         }
     }
@@ -201,7 +203,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
     private fun search(q: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            runCatching { songs.search(q, analyzedOnly = true, limit = 10) }
+            runCatching { songs.search(q, size = 10).items }
                 .onSuccess { found ->
                     val items = found.mapIndexed { i, song -> RecommendedSong(i + 1, song, fit = null, reasons = listOf("검색 결과")) }
                     _state.value = _state.value.copy(searchItems = items, loading = false)
@@ -245,7 +247,7 @@ fun eraOf(releaseDate: String?): String? {
  * 제목은 현재 섹션 제목. 칩은 **필터 바**(성별·시대·장르·인기) — 추천받은 곡을 걸러 보인다. 상태 4종(로딩·성공·결과 없음·실패).
  */
 @Composable
-fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
+fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin: (() -> Unit)? = null) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -263,14 +265,14 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
         )
         onSongClick(item.song.id)
     }
-    fun openId(id: String) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
+    fun openId(id: Long) { state.allItems.firstOrNull { it.song.id == id }?.let(::open) ?: onSongClick(id) }
 
     // 시안: 검색바 없음, 제목 옆 🔍 만. 누르면 제목 자리가 검색창으로 바뀌고, 다시 누르면 검색을 접고 지운다.
     var searchOpen by remember { mutableStateOf(false) }
     var openFilter by remember { mutableStateOf<String?>(null) }     // "era" | "genre" — 열려 있는 드롭다운
 
     Column(Modifier.fillMaxSize().background(RecommendBackground)) {
-        MiconHeader(onSettings = onSettings)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (searchOpen) {
                 MiconSearchBar(state.query, vm::setQuery, Modifier.weight(1f))
@@ -294,8 +296,9 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit) {
                 Icon(if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search, if (searchOpen) "검색 닫기" else "검색", tint = Ink)
             }
         }
-        if (!state.personalized && !state.loading && state.query.isBlank()) {
-            Text("목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요", fontSize = 13.sp, color = Grey, modifier = Modifier.padding(horizontal = 24.dp))
+        if (!state.loading && state.query.isBlank()) {
+            val notice = state.note ?: if (!state.personalized) "목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요" else null
+            if (notice != null) Text(notice, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(10.dp))
         // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게
@@ -440,7 +443,7 @@ private const val GOLDEN_ANGLE = 2.39996f
  * 곡이 슬롯 수보다 적으면 있는 만큼만 그리되 그 수에 맞춰 다시 풀어 화면을 채운다.
  */
 @Composable
-private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (Long) -> Unit, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val w = maxWidth
         val aspect = maxHeight / maxWidth
@@ -461,7 +464,7 @@ private fun BubbleCluster(songs: List<SongSummary>, onSongClick: (String) -> Uni
 // song-match-detail (곡 분석 및 추천)
 // ---------------------------------------------------------------------------
 
-class SongMatchViewModel(private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String) : ViewModel() {
+class SongMatchViewModel(private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: Long) : ViewModel() {
     sealed interface State {
         data object Loading : State
         data class Error(val message: String) : State
@@ -493,7 +496,7 @@ fun karaokeOctaveName(midi: Int): String {
 }
 
 @Composable
-fun SongMatchDetailScreen(songId: String, onBack: () -> Unit, onPractice: () -> Unit) {
+fun SongMatchDetailScreen(songId: Long, onBack: () -> Unit, onPractice: () -> Unit) {
     val container = rememberAppContainer()
     val vm: SongMatchViewModel = viewModel(key = "match-$songId", factory = viewModelFactory { initializer { SongMatchViewModel(container.songs, container.recommend, songId) } })
     val state by vm.state.collectAsStateWithLifecycle()

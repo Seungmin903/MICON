@@ -21,7 +21,7 @@ public class SongFitQueryRepository {
 
 	public boolean songExists(Long songId) {
 		Long count = jdbcTemplate.queryForObject(
-			"SELECT COUNT(*) FROM SONG WHERE song_id = :songId",
+			"SELECT COUNT(*) FROM song WHERE song_id = :songId",
 			Map.of("songId", songId),
 			Long.class
 		);
@@ -30,10 +30,12 @@ public class SongFitQueryRepository {
 
 	public Optional<UserRangeRow> findUserRange(Long userId, Long analysisId) {
 		String sql = """
-			SELECT va.status, vra.stable_low_midi, vra.stable_high_midi
-			FROM VOICE_ANALYSIS va
-			LEFT JOIN VOCAL_RANGE_ANALYSIS vra ON vra.voice_analysis_id = va.voice_analysis_id
-			WHERE va.voice_analysis_id = :analysisId AND va.user_id = :userId
+			SELECT vas.status, vrm.full_low_midi AS stable_low_midi,
+			       vrm.full_high_midi AS stable_high_midi
+			FROM user_voice_profile uvp
+			JOIN voice_analysis_session vas ON vas.session_id = uvp.session_id
+			LEFT JOIN voice_range_measurement vrm ON vrm.session_id = vas.session_id
+			WHERE uvp.profile_id = :analysisId AND uvp.user_id = :userId
 			""";
 		return jdbcTemplate.query(
 			sql,
@@ -49,7 +51,7 @@ public class SongFitQueryRepository {
 	public Optional<SongRangeRow> findLatestSongRange(Long songId) {
 		String sql = """
 			SELECT analysis_id, lowest_midi, highest_midi
-			FROM SONG_ANALYSIS
+			FROM song_analysis
 			WHERE song_id = :songId AND status = 'COMPLETED'
 			ORDER BY analyzed_at DESC, analysis_id DESC
 			LIMIT 1
@@ -70,10 +72,10 @@ public class SongFitQueryRepository {
 			SELECT rs.recommended_key, rs.overall_score, rs.range_fit_score,
 			       rs.timbre_fit_score, rs.rhythm_fit_score, rs.reason_text,
 			       r.algorithm_version
-			FROM RECOMMENDATION r
-			JOIN RECOMMENDATION_SONG rs ON rs.recommendation_id = r.recommendation_id
+			FROM recommendation r
+			JOIN recommendation_song rs ON rs.recommendation_id = r.recommendation_id
 			WHERE r.user_id = :userId
-			  AND r.voice_analysis_id = :analysisId
+			  AND r.profile_id = :analysisId
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId
 			ORDER BY r.generated_at DESC, r.recommendation_id DESC
@@ -98,7 +100,7 @@ public class SongFitQueryRepository {
 		String sql = """
 			SELECT section_id, section_type, section_name, start_ms, end_ms,
 			       difficulty_type, difficulty_score, description
-			FROM SONG_SECTION
+			FROM song_section
 			WHERE song_id = :songId
 			  AND analysis_id = :songAnalysisId
 			  AND difficulty_type <> 'NONE'

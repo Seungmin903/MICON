@@ -6,9 +6,8 @@ import com.micon.backend.recommendation.application.RecommendationCreationServic
 import com.micon.backend.recommendation.application.RecommendationDispatchResult;
 import com.micon.backend.recommendation.application.RecommendationDispatchService;
 import com.micon.backend.recommendation.domain.RecommendationMode;
-import com.micon.backend.voice.domain.VoiceAnalysis;
-import com.micon.backend.voice.domain.VoiceAnalysisRepository;
-import com.micon.backend.voice.domain.VoiceAnalysisStatus;
+import com.micon.backend.voice.domain.UserVoiceProfile;
+import com.micon.backend.voice.domain.UserVoiceProfileRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -22,16 +21,15 @@ import static org.mockito.Mockito.when;
 
 class RecommendationCreationServiceTest {
 
-    private final VoiceAnalysisRepository analyses = mock(VoiceAnalysisRepository.class);
+    private final UserVoiceProfileRepository profiles = mock(UserVoiceProfileRepository.class);
     private final RecommendationDispatchService dispatch = mock(RecommendationDispatchService.class);
-    private final RecommendationCreationService service = new RecommendationCreationService(analyses, dispatch);
+    private final RecommendationCreationService service = new RecommendationCreationService(profiles, dispatch);
 
     @Test
     void createsRecommendationFromLatestCompletedAnalysis() {
-        VoiceAnalysis analysis = mock(VoiceAnalysis.class);
-        when(analysis.getId()).thenReturn(10L);
-        when(analyses.findFirstByUserIdAndStatusOrderByCompletedAtDescIdDesc(1L, VoiceAnalysisStatus.COMPLETED))
-                .thenReturn(Optional.of(analysis));
+        UserVoiceProfile profile = mock(UserVoiceProfile.class);
+        when(profile.getId()).thenReturn(10L);
+        when(profiles.findByUserId(1L)).thenReturn(Optional.of(profile));
         RecommendationDispatchResult expected = new RecommendationDispatchResult(
                 20L, "job-1", "queued", LocalDateTime.of(2026, 9, 9, 23, 0));
         when(dispatch.dispatch(1L, 10L, RecommendationMode.OVERALL)).thenReturn(expected);
@@ -42,8 +40,7 @@ class RecommendationCreationServiceTest {
 
     @Test
     void rejectsUserWithoutCompletedAnalysis() {
-        when(analyses.findFirstByUserIdAndStatusOrderByCompletedAtDescIdDesc(1L, VoiceAnalysisStatus.COMPLETED))
-                .thenReturn(Optional.empty());
+        when(profiles.findByUserId(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.createFromLatestAnalysis(1L))
                 .isInstanceOfSatisfying(BusinessException.class,

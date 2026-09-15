@@ -2,6 +2,7 @@
 -- Reference DDL only; deployed databases use backend Flyway V1..V7.
 -- Embedding catalog additions are defined in V7__create_embedding_catalog.sql.
 -- Do not execute this reference DDL alongside Flyway on a deployed database.
+-- Preference catalog additions: see Flyway V13/V14 and docs/TASTE_SELECTION.md.
 -- Target: MySQL 8.0.16+
 -- Intended for an empty database. This script does not DROP existing objects.
 
@@ -40,13 +41,28 @@ CREATE TABLE `genre` (
     `category` ENUM('KOREAN', 'INTERNATIONAL', 'ETC') NOT NULL,
     `image_url` VARCHAR(2048) NULL,
     `source_url` VARCHAR(2048) NULL COMMENT '장르 분류 출처 페이지',
+    `preference_label` VARCHAR(100) NULL,
+    `preference_order` SMALLINT NULL,
     `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6),
 
     CONSTRAINT `pk_genre` PRIMARY KEY (`genre_id`),
     CONSTRAINT `uk_genre_normalized_name` UNIQUE (`normalized_name`),
-    INDEX `idx_genre_category` (`category`)
+    INDEX `idx_genre_category` (`category`),
+    INDEX `idx_genre_preference_order` (`preference_order`, `genre_id`)
+);
+
+-- 검토된 아티스트 사진. 별칭은 기존 singer.normalized_name과 결합한다.
+CREATE TABLE `artist_portrait` (
+    `normalized_name` VARCHAR(100) NOT NULL PRIMARY KEY,
+    `display_name` VARCHAR(100) NOT NULL,
+    `search_names` VARCHAR(500) NOT NULL,
+    `image_url` VARCHAR(2048) NOT NULL,
+    `source_url` VARCHAR(2048) NOT NULL,
+    `attribution` VARCHAR(2000) NOT NULL,
+    `license` VARCHAR(100) NOT NULL,
+    `license_url` VARCHAR(2048) NULL
 );
 
 -- 가수

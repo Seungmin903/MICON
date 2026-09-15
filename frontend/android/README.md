@@ -37,8 +37,7 @@
 
 ## 시작하기
 
-0. 클론 전에 `git lfs install` 을 한 번 실행한다. 개발용 샘플 DB `app/src/main/assets/micon_catalog.sqlite`(33 MB)가
-   Git LFS 로 관리되므로, LFS 없이 클론하면 130 바이트 포인터 파일만 받아 앱이 곡 목록을 열지 못한다.
+0. 클론 전에 `git lfs install` 을 한 번 실행한다(저장소의 `*.npy` 등 LFS 파일용). 앱에는 더 이상 LFS 자산이 없다.
    이미 클론했다면 저장소 루트에서 `git lfs install && git lfs pull`.
    예전에 `git config core.hooksPath .githooks` 를 실행했다면 `git config --unset core.hooksPath` 로 되돌린다(그대로 두면 LFS 훅이 돌지 않는다).
 1. `frontend/android/` 를 Android Studio 로 연다(저장소 루트가 아니라 이 폴더). `local.properties.example` 을 `local.properties` 로 복사하고 `sdk.dir` 을 채운다.
@@ -52,10 +51,10 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-4. 엔진(VocalScope FastAPI, 호스트 PC 8787)을 켠다. 에뮬레이터는 `http://10.0.2.2:8787/` 로 붙는다.
-   실기기는 `adb reverse tcp:8787 tcp:8787` 후 `local.properties` 의 `ENGINE_BASE_URL=http://127.0.0.1:8787/`.
+4. 백엔드를 준비한다. 곡·반주·연습 기록·음성 분석이 전부 백엔드(`API_BASE_URL`)에서 온다 — 로컬 BE(`infra/compose/mysql.local.compose.yml` + bootRun,
+   실기기는 `adb reverse tcp:8080 tcp:8080`) 또는 운영 `https://j15b110.p.ssafy.io/api/v1/`. 로컬 VocalScope 엔진(8787)은 2026-09-13 부터 앱이 쓰지 않는다.
 
-개발용 딥링크: `adb shell am start -a android.intent.action.VIEW -d "micon://app/result/<jobId>"`
+개발용 딥링크: `adb shell am start -a android.intent.action.VIEW -d "micon://app/result/<practiceId>"`
 (`song/<songId>`, `practice/<songId>` 도 가능). `micon://app/dev/seed-profile` 은 음성 프로필 예시를 채우고 리포트 탭을 연다
 (간편 분석을 실제로 끝내지 않고 "분석 결과 있을 때" 화면을 볼 때 사용).
 
@@ -71,13 +70,13 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 
 | 패키지 | 내용 | 상태 |
 |---|---|---|
-| `MiconApplication`, `AppContainer` | 수동 DI. engine / backend / songs 를 화면에 공급 | 완료 |
+| `MiconApplication`, `AppContainer` | 수동 DI. backend 클라이언트와 Repository(songs·practices·favorites·setlists·settings·voiceAnalyses·recommend)를 화면에 공급 | 완료 |
 | `MainActivity` | 단일 Activity, `MiconRoot()` 호출 | 완료 |
 | `core/auth` | `TokenManager` (EncryptedSharedPreferences) | 완료 |
 | `core/network` | `BackendClient` (인증 인터셉터, 401 토큰 갱신), `SessionEvents` | 완료, 백엔드 계약 대기 |
-| `data/engine` | `EngineApi`, `EngineClient`, `dto/` — VocalScope 엔진 REST | 완료 (프로토타입) |
-| `data/backend` | `BackendApi` + `dto/ApiResponse` — 앱 백엔드 REST | 골격만 |
-| `data/` | `SongRepository` 인터페이스 + `sqlite/` 임시 구현(assets 샘플 DB) | 완료, 백엔드 API 로 교체 예정 |
+| `data/backend/dto/SongDataDtos` | 음표(`KaraokeNote`)·비트 그리드(`BeatGrid`)·라이브 음표 변환 — 백엔드 practice-assets 가 주는 곡 데이터 형식. 엔진 패키지(`data/engine`)는 2026-09-14 완전히 제거 | 완료 |
+| `data/backend` | `BackendApi` + `dto/` — 인증·곡 카탈로그·연습 데이터·연습 기록·음성 분석·찜·세트리스트 REST | 완료 |
+| `data/` | `SongRepository` 인터페이스 + `backend/RemoteSongRepository`(백엔드 `/songs`, `/songs/{id}`, `/practice-assets`) | 완료. 곡 id = 백엔드 `song_id`(Long) |
 | `scoring/` | 순수 Kotlin. YIN 피치, 라이브 채점, 채점 상수·색 | 완료 (프로토타입, 테스트 있음) |
 | `audio/` | `PitchCapture` (AudioRecord 16 kHz + WAV 저장), `InstrumentalPlayer` (ExoPlayer) | 완료 (프로토타입) |
 | `ui/theme` | Figma 팔레트(보라 `#6C5CE7` 포인트, 연보라 `#EEEBFF`, 핑크 `#FF5C8A`), 타이포(Pretendard 자리) | 완료 |
@@ -85,14 +84,15 @@ API 25 이하용 `mipmap-*/ic_launcher.webp` 는 아직 Android 기본 이미지
 | `ui/common` | `MiconLogo`, `MiconHeader`, `BackHeader`, `MiconSearchBar`, `VinylArt`(LP 아트), `SongRow`, `KeyBadge`, 버튼·입력·카드·칩, `PlayerCard`, `DashedBox` | 완료 |
 | `ui/charts` | `RangeMapChart`, `StabilityLineChart`, `PianoRangeChart`, `BpmGaugeRow`, `PhraseSegments`, `RingProgress`, `MetricBar`, `RadarHexagon`, `KeyChangeGraph`, `PitchGauge`, `WaveformBars` | 완료 (Canvas) |
 | `ui/onboarding` | 시작(스플래시), 랜딩(로그인), 회원가입, 가수/장르 선호 조사 | UI 완료, 백엔드 인증 TODO |
-| `ui/recommend` | 추천곡(버블·캐러셀 전환), song-match-detail(적합도·음역 매칭·키/난이도·집중 구간) | UI 완료, 추천 API·적합도 공식 TODO |
+| `ui/recommend` | 추천곡(버블·캐러셀 전환), song-match-detail(적합도·음역 매칭·키/난이도·집중 구간) | 완료 (백엔드 `/recommendations`·`/songs/{id}/fit`, 서버 추천 없으면 기기 음역 계산 폴백) |
 | `ui/report` | 음성 분석 리포트(결과 없음/오버레이/결과 카드 6개), 음성 간편 분석(마이크 확인 → G3 게이지 3초 유지, 실제 마이크 사용) | UI 완료, 엔진 정밀 분석 연동 TODO |
+| `ui/singanalysis`, `data/singanalysis` | 불러서 분석하기(`report/sing`, `report/sing/{songId}`): 곡 선택 → 범위 카드(전곡·2절부터·하이라이트만) → 카운트인 → 가사만 보며 부르기(WAV 녹음, 일시정지·여기까지 마치기) → 저장 완료. 녹음은 `filesDir/sing-analysis/<id>.wav`+`.json`(`SingRecordingMeta`, take 구간 포함). 분석 요청은 `SongAnalysisSubmitter` 인터페이스(기본 로컬 저장만) | 프론트·녹음 완료, 분석 연동은 담당자가 `SongAnalysisSubmitter` 구현으로 교체 |
 | `ui/songlist`, `ui/songdetail`, `ui/practice` | 연습 탭: 곡 선택(LP 행·key 배지·찜) → 상세(플레이어·키 변화 그래프) → 연습(가사 싱크·마이크 시트·라이브 채점) | 완료, 실기기 마이크 검증 필요 |
-| `ui/evaluation` | 노래 연습 분석: 날짜 배지 + 아코디언(분석 중/미확인 빨간 점), 펼치면 상세 카드 | 완료 (엔진 performance job 기준) |
-| `ui/result` | 노래 연습 분석 상세: 음역대 지도 · 음역별 안정성 · 구간 평가(음이탈 음절 빨강) | 완료 (`comparison` 에서 계산) |
-| `ui/favorites` | 찜 목록(전체/연습 중/내 세트리스트), 세트리스트 세부 | UI 완료, 백엔드 favorites/setlists TODO |
+| `ui/evaluation` | 노래 연습 분석: 날짜 배지 + 아코디언(점수/상태, 미확인 빨간 점), 펼치면 상세 카드 | 완료 (백엔드 `GET /practices` 기준, 삭제 API 는 BE 요청) |
+| `ui/result` | 노래 연습 분석 상세: 한줄 평가 · 점수 요약 · 구간 평가 · 연습 정보 | 완료 (백엔드 `/practices/{id}` + `/report`) |
+| `ui/favorites` | 찜 목록(전체/연습 중/내 세트리스트), 세트리스트 세부(이름 변경·삭제·곡 추가/제거) | 완료 (백엔드 `/users/me/favorites`, `/setlists`) |
 | `ui/settings` | 설정(녹음·개인정보 섹션, 토글, 회원 탈퇴 핑크) + 개발자 정보 | UI 완료 |
-| `data/local/UserStore` | 찜·세트리스트·음성 프로필·선호 조사의 **임시 인메모리 저장소** | 백엔드 연동 시 삭제 |
+| `data/local/UserStore` | 음성 프로필·선호 조사의 **임시 인메모리 저장소**(찜·세트리스트·연습 기록은 백엔드로 이관) | 남은 항목 연동 시 삭제 |
 
 Pixel 7 Pro 에뮬레이터(API 37)에서 찍은 화면은 `docs/screenshots/` 에 있다(2026-09-07, Figma 대비 확인용).
 
@@ -127,7 +127,6 @@ Figma 가 아직 정하지 않은 값(적합도 공식, 추천 키, 난이도, �
 
 | 키 | 주입 위치 |
 |---|---|
-| `ENGINE_BASE_URL` | `BuildConfig.ENGINE_BASE_URL` (기본 `http://10.0.2.2:8787/`) |
 | `API_BASE_URL` | `BuildConfig.API_BASE_URL` (기본 `http://10.0.2.2:8080/api/v1/`) |
 | `GOOGLE_WEB_CLIENT_ID`, `KAKAO_NATIVE_APP_KEY`, `NAVER_CLIENT_ID/SECRET` | `@string/...`, Kakao Manifest scheme |
 | `RELEASE_*` 4개 | 모두 있을 때만 release signingConfig |
@@ -142,11 +141,11 @@ Figma 가 아직 정하지 않은 값(적합도 공식, 추천 키, 난이도, �
 
 ## 데이터 소스 (현재 → 목표)
 
-- 곡 목록·상세·음표: `assets/micon_catalog.sqlite` (MySQL `micon` 덤프와 같은 컬럼, 890곡 + 211곡 분석. 생성 절차: `vocal-scope/docs/STEM_PITCH_IMPORT.md`)
-  → 앱 백엔드(MySQL 8) REST API 가 생기면 `SongRepository` 구현만 교체하고 asset 삭제.
-  **Git LFS 로 관리한다** (루트 `.gitattributes` 의 `*.sqlite`). 파일을 갱신하면 커밋만 하면 되고, 받는 쪽은 `git lfs pull`.
-- 반주·채점: 엔진 직접 호출 (`/jobs/{id}/files/instrumental`, `/jobs/{id}/compare`). 실시간 작업이므로 백엔드가 생겨도 유지.
-- 사용자·찜·연습 기록·음성 프로필: 백엔드 예정 (`vocal-scope/docs/micon_schema.sql` 사용자 쪽 8 테이블).
+- 곡 목록·상세·음표·가사·구간: 백엔드 `GET /songs`, `GET /songs/{id}`, `GET /songs/{id}/practice-assets` (`RemoteSongRepository`).
+  곡 식별자는 백엔드 `song_id` 하나. TJ 번호·카탈로그 track_id·로컬 sqlite 는 쓰지 않는다(2026-09-10 팀 결정).
+- 반주: `practice-assets` 의 `instrumental.playbackUrl`(백엔드 발급 만료 URL)을 ExoPlayer 로 스트리밍. **백엔드 응답에 아직 없는 필드** — 추가될 때까지 연습 화면은 "반주 준비 중" 안내.
+- 정밀 채점·연습 기록: 백엔드 `/recordings` → `/practices` → `/practices/{id}/performance` 로 옮기는 중. 평가 탭은 그때까지 엔진(`ENGINE_BASE_URL`) 작업을 읽는다.
+- 찜·세트리스트·음성 프로필: `UserStore` 인메모리(임시) → 백엔드 `/users/me/favorites`, `/setlists`, 음성 분석 API 로 교체 예정.
 
 ## 프로토타입 출처
 

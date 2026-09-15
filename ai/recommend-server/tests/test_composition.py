@@ -48,6 +48,9 @@ class SongIdAndLanguageTest(unittest.TestCase):
         self.assertIsNone(allowed_languages([]))
         self.assertEqual(allowed_languages(["팝"]), {"en"})
         self.assertEqual(allowed_languages(["발라드", "팝"]), {"ko", "en"})
+        self.assertEqual(allowed_languages(["영어곡"]), {"en"})
+        self.assertEqual(allowed_languages(["일본곡"]), {"jp"})
+        self.assertEqual(allowed_languages(["발라드", "일본곡", "영어곡"]), {"ko", "jp", "en"})
 
 
 class ComposeTest(unittest.TestCase):
@@ -110,6 +113,17 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(out["language_gate"]["allowed"], ["ko"])
         self.assertEqual(out["language_gate"]["excluded_count"], 1)
         self.assertEqual(out["catalog_filter"]["excluded_without_song_id"], 1)
+
+    def test_foreign_choices_include_every_style_in_the_language(self) -> None:
+        ranked = [_item("j-rock", .9, .9, lang="jpn"), _item("j-ost", .8, .8, lang="jpn"),
+                  _item("e-jazz", .9, .9, lang="eng"), _item("e-rap", .8, .8, lang="eng"),
+                  _item("k-ballad", .9, .9, lang="kor")]
+        for item, style in zip(ranked, ["Rock", "Soundtrack", "Jazz", "Hip-Hop", "Ballad"]):
+            item["metadata"]["genres"] = [style]
+        for choice, expected in [("일본곡", {"j-rock", "j-ost"}), ("영어곡", {"e-jazz", "e-rap"})]:
+            with self.subTest(choice=choice):
+                result = compose_two_axis(ranked, top_k=5, genres=[choice], range_enabled=False, scoring_version="s")
+                self.assertEqual({r["track_id"] for r in result["recommendations"]}, expected)
 
     def test_range_filter_drops_low_scores_only_when_enabled(self) -> None:
         ranked = self.ranked + [_item("L", 0.99, 0.99, range_score=0.1)]

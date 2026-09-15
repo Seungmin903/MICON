@@ -26,6 +26,10 @@ def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",
 
 
 class HelpersTest(unittest.TestCase):
+    def test_backend_preference_labels_exclude_selected_styles_from_discovery(self) -> None:
+        self.assertEqual(selected_tags(["알앤비/소울", "락/메탈", "포크/어쿠스틱", "성인가요"]),
+                         {"K-Pop", "R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
+
     def test_rap_and_tags(self) -> None:
         self.assertTrue(is_rap({"genres": ["Hip-Hop", "K-Pop"]}))
         self.assertFalse(is_rap({"genres": ["K-Pop"]}))
@@ -100,6 +104,18 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertEqual([i["track_id"] for i in da["items"]], [i["track_id"] for i in db["items"]])
         self.assertNotIn("검정치마", {i["artist"] for i in da["items"]})            # Soundtrack 은 선택 장르(OST)
         self.assertIn("Soundtrack", da["excluded_tags"])
+
+    def test_selected_foreign_languages_are_in_taste_for_every_style(self) -> None:
+        rows = [_row("en", "English artist", timbre=.8, key=4, genres=("Jazz",)),
+                _row("jp", "Japanese artist", timbre=.8, key=4, genres=("Rock",)),
+                _row("ko", "Korean artist", timbre=.8, key=4, genres=("Soundtrack",))]
+        rows[0]["metadata"]["languages"] = "eng"
+        rows[1]["metadata"]["languages"] = "jpn"
+        for choices in (["영어곡", "일본곡", "발라드"], ["팝", "J-POP", "발라드"]):
+            with self.subTest(choices=choices):
+                shelves = build_shelves(rows, top_k=8, genres=choices, range_enabled=True, seed=1)
+                discovery = next(s for s in shelves if s["key"] == "discovery")
+                self.assertEqual([r["track_id"] for r in discovery["items"]], ["ko"])
 
 
 if __name__ == "__main__":

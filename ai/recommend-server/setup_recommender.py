@@ -119,22 +119,37 @@ def write_runtime_config(
     return destination
 
 
-def prepare(*, local_files_only: bool = False) -> dict[str, Any]:
-    catalog = CatalogIndex.load(ASSET_INDEX, verify_hashes=True)
-    RangeCatalog.load(
-        ASSET_INDEX,
-        expected_track_ids={track.track_id for track in catalog.tracks},
-        verify_hashes=True,
-    )
-    revision_path = VENDORED_SINGER_REPO / "REVISION"
+def validate_vendored_singer_source(repo_dir: Path) -> None:
+    revision_path = repo_dir / "REVISION"
     revision = revision_path.read_text(encoding="utf-8").strip()
     if revision != OFFICIAL_SINGER_BYOL_REVISION:
         raise RuntimeError(
             "vendored Singer-BYOL revision mismatch: "
             f"expected {OFFICIAL_SINGER_BYOL_REVISION}, got {revision}"
         )
-    if not (VENDORED_SINGER_REPO / "singer_identity" / "model.py").is_file():
-        raise FileNotFoundError("vendored Singer-BYOL inference source is incomplete")
+    required_files = (
+        "singer_identity/__init__.py",
+        "singer_identity/model.py",
+        "singer_identity/models/network_components.py",
+        "singer_identity/utils/__init__.py",
+        "singer_identity/utils/fetch_pretrained.py",
+    )
+    missing = [name for name in required_files if not (repo_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            "vendored Singer-BYOL inference source is incomplete; missing: "
+            + ", ".join(missing)
+        )
+
+
+def prepare(*, local_files_only: bool = False) -> dict[str, Any]:
+    validate_vendored_singer_source(VENDORED_SINGER_REPO)
+    catalog = CatalogIndex.load(ASSET_INDEX, verify_hashes=True)
+    RangeCatalog.load(
+        ASSET_INDEX,
+        expected_track_ids={track.track_id for track in catalog.tracks},
+        verify_hashes=True,
+    )
 
     ecapa_checkpoint = MODEL_ROOT / "ecapa" / "embedding_model.ckpt"
     singer_root = MODEL_ROOT / "singer-identity"

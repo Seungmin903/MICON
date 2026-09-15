@@ -14,10 +14,15 @@ import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.audio.PitchCapture
 import com.micon.app.data.SongRepository
-import com.micon.app.data.engine.EngineClient
-import com.micon.app.data.engine.dto.BeatGrid
-import com.micon.app.data.engine.dto.SemitonesRequest
-import com.micon.app.data.engine.dto.toLiveNotes
+import com.micon.app.data.UnsupportedPracticeKeyException
+import com.micon.app.data.PracticeSection
+import com.micon.app.data.backend.AuthSessionExpiredException
+import com.micon.app.data.backend.BackendRequestException
+import com.micon.app.data.practice.PracticeActiveStatus
+import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeScoreMapper
+import com.micon.app.data.backend.dto.BeatGrid
+import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.scoring.DisplayBar
 import com.micon.app.scoring.DisplayBars
 import com.micon.app.scoring.Frame
@@ -36,7 +41,12 @@ import com.micon.app.scoring.NoteNormalizer
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.scoring.Totals
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -45,15 +55,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import java.io.File
+import java.io.IOException
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * 노래 연습 화면 로직 (live-scoring.tsx 의 React 상태 부분을 ViewModel 로).
  *
- * 흐름: load → READY → start(마이크 켜기 → 반주 준비 대기 → 카운트다운 → 재생) → RUNNING(tick 30 Hz)
- *      ↔ PAUSED(이어서 부르기·탐색·구간 반복 설정) → FINISHED → 녹음 다시 듣기 / 정밀 리포트(/compare).
- * - 일시정지 중에도 마이크(WAV 녹음)는 유지해 한 파일로 /compare 에 올린다. 프레임은 RUNNING 일 때만 채점에 넣는다.
+ * 흐름: load(백엔드 practice-assets) → READY → start(마이크 켜기 → 반주 준비 대기 → 카운트다운 → 재생) → RUNNING(tick 30 Hz)
+ *      ↔ PAUSED(이어서 부르기·탐색·구간 반복 설정) → FINISHED → 녹음 다시 듣기 / 정밀 리포트(백엔드 /practices 연동 예정).
+ * - 일시정지 중에도 마이크(WAV 녹음)는 유지해 한 파일로 올린다. 프레임은 RUNNING 일 때만 채점에 넣는다.
+ * - 반주는 백엔드가 practice-assets 로 준 만료 URL 을 스트리밍한다. 곡 데이터·엔진 직접 호출은 없다.
  * - LiveScorer 는 메인 스레드에서만 만진다 (캡처 스레드는 채널로 프레임만 넘김).
  * - 구간 반복(loop): 가사 줄 하나를 골라 두면 그 끝에서 시작으로 되감고 그 구간 음표를 다시 판정한다.
  * - 구간 점프(절·하이라이트·간주 건너뛰기): 재생 중에도 가능. 앞으로 건너뛴 음표는 판정하지 않고 총점에서 뺀다.
@@ -62,14 +76,18 @@ import kotlin.math.abs
  */
 class PracticeViewModel(
     appContext: Context,
-    val songId: String,
+    val songId: Long,
     private val repo: SongRepository,
-    private val engine: EngineClient,
+    mediaHttp: OkHttpClient,
+    private val practices: PracticeRepository,
+    private val isLoggedIn: () -> Boolean,
 ) : ViewModel() {
     enum class Phase { LOADING, READY, COUNTDOWN, RUNNING, PAUSED, FINISHED, ERROR }
-    enum class ReportPhase { NONE, UPLOADING, ANALYZING, DONE, ERROR }
 
-    data class Report(val phase: ReportPhase = ReportPhase.NONE, val message: String = "", val progress: Int = 0, val jobId: String? = null)
+    /** 연습 기록 저장(백엔드 /practices). GUEST 는 비회원이라 저장하지 않는 정상 상태, ERROR 는 [retrySave] 로 다시 시도한다. */
+    enum class SavePhase { NONE, SAVING, SAVED, GUEST, ERROR }
+
+    data class Save(val phase: SavePhase = SavePhase.NONE, val message: String = "", val practiceId: Long? = null)
 
     /** 구간 반복 범위(MR 초). lineIndex 는 표시용. */
     data class Loop(val lineIndex: Int, val start: Double, val end: Double)
@@ -104,7 +122,7 @@ class PracticeViewModel(
         val interlude: Interlude? = null,      // 지금 간주 안이면 그 구간 (RUNNING 에서 "간주 건너뛰기")
         val sectionIndex: Int? = null,         // 지금 위치가 속한 구간(절)
         val takePlaying: Boolean = false,
-        val report: Report = Report(),
+        val save: Save = Save(),
         val error: String? = null,
     ) {
         val isRunning: Boolean get() = phase == Phase.RUNNING || phase == Phase.COUNTDOWN
@@ -114,7 +132,9 @@ class PracticeViewModel(
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
 
-    val player = InstrumentalPlayer(appContext, engine.okHttp)
+    val player = InstrumentalPlayer(appContext, mediaHttp)
+    /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). load 에서 채운다. */
+    private var instrumentalUrl: String? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private val capture = PitchCapture()
     private val cacheDir = appContext.cacheDir
@@ -150,6 +170,16 @@ class PracticeViewModel(
     private var takePlayer: MediaPlayer? = null
     private var pendingSeek: Double? = null     // READY 에서 사용자가 옮긴 시작 위치 (전주 건너뛰기보다 우선)
 
+    /** 백엔드 song_section (practice-assets). 구간 평가 저장에 쓴다. */
+    private var backendSections: List<PracticeSection> = emptyList()
+    /** 열려 있는 백엔드 연습 세션. [practiceOpen] 이면 아직 complete/cancel 전. */
+    private var practiceId: Long? = null
+    private var practiceOpen = false
+    private val practiceMutex = Mutex()
+    private var saveJob: Job? = null
+    /** 화면이 사라진 뒤에도 미완료 세션을 취소하기 위한 스코프(onCleared 는 suspend 불가). */
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     init {
         player.onError = { message -> _state.update { it.copy(error = "반주 재생 오류: $message", buffering = false) } }
         viewModelScope.launch { for (frame in frameChannel) onFrame(frame) }
@@ -173,24 +203,29 @@ class PracticeViewModel(
         viewModelScope.launch {
             try {
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
-                val analysis = detail.analysis ?: error("분석 데이터가 없는 곡입니다.")
-                if (!detail.hasInstrumental) error("이 곡은 반주가 준비되지 않아 연습할 수 없습니다.")
-                val karaoke = repo.karaokeNotes(songId) ?: error("음표 데이터(song_notes)가 없습니다.")
-                notes = karaoke.toLiveNotes(analysis.timeSignature)
+                // 409(준비 안 됨)는 PracticeAssetsNotReadyException 의 서버 메시지를 그대로 화면에 보인다.
+                val assets = repo.practiceAssets(songId, 0)
+                val karaoke = assets.targetNotes
+                if (karaoke.isEmpty()) error("음표 데이터(song_note)가 없습니다.")
+                notes = karaoke.toLiveNotes(assets.timeSignature)
                 if (notes.isEmpty()) error("음표가 비어 있습니다.")
-                sheet = LyricLines.build(notes, detail.lyricsSynced, detail.lyricsPlain)
+                sheet = LyricLines.build(notes, assets.lyricsSynced, assets.lyricsPlain)
                 // 가사 줄 구간 밖 음표(전주·간주의 코러스·허밍)는 그리지도 판정하지도 않는다. 근사 가사(APPROX)는 구간이 부정확해 제외.
                 val filterLines = if (sheet.timing == LyricTiming.SYNCED || sheet.timing == LyricTiming.NOTES) sheet.lines else emptyList()
                 notes.forEach { it.judgeable = DisplayBars.inLyricSpan(it, filterLines) }
                 displayBars = DisplayBars.build(notes, filterLines)
-                beatGrid = analysis.beatGrid
-                meter = NoteNormalizer.meterOf(analysis.timeSignature)
-                tempoBpm = analysis.tempoBpm?.takeIf { it in 40..240 } ?: 100
+                beatGrid = assets.beatGrid
+                backendSections = assets.sections
+                meter = NoteNormalizer.meterOf(assets.timeSignature)
+                tempoBpm = (assets.tempoBpm ?: detail.analysis?.tempoBpm)?.takeIf { it in 40..240 } ?: 100
                 sections = SongSections.build(notes, sheet.lines, barStarts())
-                player.load(engine.instrumentalUrl(songId, 0))
+                val url = assets.instrumental.playbackUrl
+                    ?: error("반주 재생 주소가 없습니다. 백엔드 practice-assets 응답에 반주 URL(playbackUrl)이 추가되어야 합니다.")
+                instrumentalUrl = url
+                player.load(url)
                 _state.update {
                     it.copy(
-                        phase = Phase.READY, title = detail.summary.title, artist = detail.summary.artist, keyName = analysis.keyName,
+                        phase = Phase.READY, title = detail.summary.title, artist = detail.summary.artist, keyName = assets.keyName ?: detail.analysis?.keyName,
                         durationSec = fallbackDuration(), lyricTiming = sheet.timing, sectionIndex = sections.sectionIndexAt(0.0),
                     )
                 }
@@ -232,7 +267,7 @@ class PracticeViewModel(
         scorer?.autoCalibrate = value
     }
 
-    /** 반주 키 변경 (READY·PAUSED·FINISHED). 0 이 아니면 엔진에 미리 렌더를 요청한 뒤 스트림 URL 을 바꾼다. */
+    /** 반주 키 변경 (READY·PAUSED·FINISHED). 백엔드가 미리 렌더한 키만 가능(없으면 422 → 안내). */
     fun changeKey(next: Int) {
         val target = next.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         val s = _state.value
@@ -241,13 +276,17 @@ class PracticeViewModel(
             _state.update { it.copy(keyBusy = true, error = null) }
             val position = player.positionSec
             try {
-                if (target != 0) engine.api.renderInstrumentalKey(songId, SemitonesRequest(target))
-                player.load(engine.instrumentalUrl(songId, target))
+                val assets = repo.practiceAssets(songId, target)
+                val url = assets.instrumental.playbackUrl ?: error("키 변경 반주의 재생 주소가 없습니다.")
+                instrumentalUrl = url
+                player.load(url)
                 if (player.awaitReady(15_000)) player.seekTo(position)
                 scorer?.keyShift = target
                 _state.update { it.copy(keyShift = target) }
+            } catch (e: UnsupportedPracticeKeyException) {
+                _state.update { it.copy(error = "이 곡은 키 ${if (target > 0) "+$target" else target} 반주가 아직 준비되지 않았어요.") }
             } catch (e: Exception) {
-                _state.update { it.copy(error = "키 변경 실패: ${engine.describe(e)}") }
+                _state.update { it.copy(error = "키 변경 실패: ${e.message ?: e.toString()}") }
             } finally {
                 _state.update { it.copy(keyBusy = false) }
             }
@@ -266,7 +305,7 @@ class PracticeViewModel(
         val newScorer = LiveScorer(notes).also { it.keyShift = s.keyShift; it.autoCalibrate = s.autoCalibrate }
         scorer = newScorer
         sync = null
-        _state.update { it.copy(totals = null, measures = emptyList(), lastJudged = null, report = Report(), error = null, loopCount = 0, calibrationMs = 0) }
+        _state.update { it.copy(totals = null, measures = emptyList(), lastJudged = null, save = Save(), error = null, loopCount = 0, calibrationMs = 0) }
         if (!capture.isRunning) {
             try {
                 wavFile = File(cacheDir, "live-take-${System.currentTimeMillis()}.wav")
@@ -276,6 +315,8 @@ class PracticeViewModel(
                 return
             }
         }
+        // 로그인 사용자: 백엔드 연습 세션(READY → IN_PROGRESS)을 미리 연다. 실패해도 연습은 진행하고 종료 때 다시 만든다.
+        if (isLoggedIn()) viewModelScope.launch { runCatching { openPractice() } }
         val startAt = pendingSeek ?: _state.value.loop?.let { maxOf(0.0, it.start - 1.0) }
             ?: if (_state.value.skipIntro) maxOf(0.0, notes.first().start - 4) else 0.0
         pendingSeek = null
@@ -294,10 +335,10 @@ class PracticeViewModel(
         countdownJob = viewModelScope.launch {
             _state.update { it.copy(phase = Phase.COUNTDOWN, countdown = 0, buffering = true) }
             if (!player.isReady) {
-                if (player.isIdle) player.load(engine.instrumentalUrl(songId, _state.value.keyShift))
+                if (player.isIdle) instrumentalUrl?.let { player.load(it) }
                 if (!player.awaitReady(8000)) {
                     val judged = scorer?.totals()?.judged ?: 0
-                    _state.update { it.copy(phase = if (judged > 0) Phase.PAUSED else Phase.READY, buffering = false, error = "반주를 불러오지 못했습니다. 엔진 연결을 확인하고 다시 시도하세요.") }
+                    _state.update { it.copy(phase = if (judged > 0) Phase.PAUSED else Phase.READY, buffering = false, error = "반주를 불러오지 못했습니다. 네트워크를 확인하고 다시 시도하세요.") }
                     return@launch
                 }
             }
@@ -350,9 +391,10 @@ class PracticeViewModel(
                 calibrationMs = ((scorer?.calibration ?: 0.0) * 1000).toInt(),
             )
         }
+        if (judged > 0) savePractice() else cancelOpenPractice()
     }
 
-    /** 처음부터: 판정·녹음을 버리고 READY 로. */
+    /** 처음부터: 판정·녹음을 버리고 READY 로. 열린 백엔드 세션은 취소한다. */
     fun restart() {
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
@@ -363,8 +405,10 @@ class PracticeViewModel(
         scorer = null
         sync = null
         pendingSeek = null
+        saveJob?.cancel()
+        cancelOpenPractice()
         player.seekTo(0.0)
-        _state.update { it.copy(phase = Phase.READY, countdown = 0, buffering = false, nowSec = 0.0, totals = null, measures = emptyList(), lastJudged = null, report = Report(), loopCount = 0, calibrationMs = 0, error = null, interlude = null, sectionIndex = sections.sectionIndexAt(0.0)) }
+        _state.update { it.copy(phase = Phase.READY, countdown = 0, buffering = false, nowSec = 0.0, totals = null, measures = emptyList(), lastJudged = null, save = Save(), loopCount = 0, calibrationMs = 0, error = null, interlude = null, sectionIndex = sections.sectionIndexAt(0.0)) }
     }
 
     /**
@@ -527,27 +571,82 @@ class PracticeViewModel(
         if (_state.value.takePlaying) _state.update { it.copy(takePlaying = false) }
     }
 
-    /** 종료 후 녹음 WAV 를 /compare 에 올려 정밀 채점. 완료되면 report.jobId 로 결과 화면을 연다. */
-    fun makePreciseReport() {
-        val file = wavFile
-        if (file == null || !file.exists() || file.length() < 20_000) {
-            _state.update { it.copy(report = Report(ReportPhase.ERROR, "녹음 데이터가 없습니다. 다시 한 번 불러주세요.")) }
+    // ------------------------------------------------------------------ 연습 기록 저장 (백엔드 /practices)
+
+    /** 백엔드 세션을 만들고 IN_PROGRESS 로 표시한다. 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용). */
+    private suspend fun openPractice(): Long = practiceMutex.withLock {
+        practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
+        val created = practices.create(songId, selectedKey = _state.value.keyShift)
+        practiceId = created.id
+        practiceOpen = true
+        practices.updateStatus(created.id, PracticeActiveStatus.IN_PROGRESS)
+        created.id
+    }
+
+    /** 열린 세션을 ABORTED 로 닫는다(처음부터·판정 0·화면 이탈). 실패해도 무시한다. */
+    private fun cancelOpenPractice() {
+        val id = practiceId?.takeIf { practiceOpen } ?: return
+        practiceOpen = false
+        practiceId = null
+        cleanupScope.launch { runCatching { practices.cancel(id) } }
+    }
+
+    /**
+     * FINISHED 뒤 기록 저장: 세션(없으면 생성) → complete → 라이브 채점 점수 PUT. 저장되면 [Save.practiceId] 로 리포트를 연다.
+     * 비회원은 서버를 부르지 않는다. 실패는 [retrySave] 로 이어 간다(완료된 단계는 건너뛴다).
+     */
+    private fun savePractice() {
+        if (!isLoggedIn()) {
+            _state.update { it.copy(save = Save(SavePhase.GUEST, "로그인하면 연습 기록이 저장돼요.")) }
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(report = Report(ReportPhase.UPLOADING, "녹음을 AI 엔진으로 전송하고 있습니다.", 2)) }
+        val scorer = scorer ?: return
+        saveJob?.cancel()
+        _state.update { it.copy(save = Save(SavePhase.SAVING, "연습 기록을 저장하고 있어요")) }
+        saveJob = viewModelScope.launch {
             try {
-                val sourceType = if (_state.value.headphones) "vocal" else "mix"
-                val perf = engine.startCompare(songId, file, sourceType = sourceType)
-                _state.update { it.copy(report = Report(ReportPhase.ANALYZING, "정밀 분석 중…", 5, perf.id)) }
-                engine.awaitComparison(perf.id) { job ->
-                    _state.update { it.copy(report = Report(ReportPhase.ANALYZING, job.message ?: "분석 중…", job.progress, perf.id)) }
+                val id = openPractice()
+                val totals = scorer.totals()
+                if (practiceOpen) {
+                    completePractice(id, judgedSpanMs())
+                    practiceOpen = false
                 }
-                _state.update { it.copy(report = Report(ReportPhase.DONE, "정밀 리포트 완성", 100, perf.id)) }
-            } catch (e: Exception) {
-                _state.update { it.copy(report = Report(ReportPhase.ERROR, engine.describe(e))) }
+                val result = PracticeScoreMapper.result(
+                    totals, notes, backendSections,
+                    keyShift = _state.value.keyShift, calibrationMs = (totals.calibration * 1000).roundToInt(),
+                )
+                practices.savePerformance(id, result)
+                _state.update { it.copy(save = Save(SavePhase.SAVED, "연습 기록을 저장했어요.", practiceId = id)) }
+            } catch (e: AuthSessionExpiredException) {
+                _state.update { it.copy(save = Save(SavePhase.GUEST, e.message ?: "로그인이 만료됐어요.")) }
+            } catch (e: BackendRequestException) {
+                _state.update { it.copy(save = Save(SavePhase.ERROR, "기록을 저장하지 못했어요: ${e.message}")) }
+            } catch (e: IOException) {
+                _state.update { it.copy(save = Save(SavePhase.ERROR, "서버에 연결할 수 없어 기록을 저장하지 못했어요.")) }
             }
         }
+    }
+
+    /** complete 는 진행 상태에서만 된다. 시작 때 상태 전환이 실패해 READY 에 남았으면 한 번 올린 뒤 다시 시도한다. */
+    private suspend fun completePractice(id: Long, durationMs: Int) {
+        try {
+            practices.complete(id, durationMs)
+        } catch (e: BackendRequestException) {
+            if (e.code != "INVALID_PRACTICE_STATE") throw e
+            practices.updateStatus(id, PracticeActiveStatus.IN_PROGRESS)
+            practices.complete(id, durationMs)
+        }
+    }
+
+    /** 판정된 첫 음표부터 마지막 음표까지(곡 시각, ms) — "부른 길이" 로 저장한다. */
+    private fun judgedSpanMs(): Int {
+        val judged = notes.filter { it.status.judged }
+        if (judged.isEmpty()) return 0
+        return ((judged.maxOf { it.end } - judged.minOf { it.start }) * 1000).roundToInt().coerceAtLeast(0)
+    }
+
+    fun retrySave() {
+        if (_state.value.phase == Phase.FINISHED && _state.value.save.phase == SavePhase.ERROR) savePractice()
     }
 
     /** 이전 세션이 남긴 녹음 파일 정리 (이 화면이 만든 live-take-*.wav 만). */
@@ -566,6 +665,8 @@ class PracticeViewModel(
         runCatching { clicks?.release() }
         frameChannel.close()
         wavFile?.delete()
+        saveJob?.cancel()
+        cancelOpenPractice()
     }
 
     companion object {

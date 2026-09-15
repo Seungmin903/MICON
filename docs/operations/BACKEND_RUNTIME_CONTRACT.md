@@ -9,7 +9,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 ### 2026-09-08 사용자 결정 (정책 확정, 구현·운영 검증 전)
 
 - 기존 BE 코드·OpenAPI 경로를 기준으로 맞춘다. 외부 기준 주소는 `https://j15b110.p.ssafy.io/api/v1/`로 유지하고 Nginx에서 `/api/v1/` 접두어만 제거해 전달한다. BE에 동일 context-path를 추가하지 않는다.
-- 토큰 갱신은 BE의 `POST /auth/tokens/refresh`를 유지한다. 앱의 상대 경로는 `auth/tokens/refresh`로 맞추는 방향이다. 이번에 FE를 수정하거나 담당자 인수·일정을 확정한 것은 아니다.
+- 2026-09-10 인증 경로 갱신: 로그인·회원가입·로그아웃·갱신을 각각 `POST /auth/login`, `POST /auth/signup`, `POST /auth/logout`, `POST /auth/refresh`로 통일했다. Android 호출부와 인증 예외 처리도 함께 반영했다. 배포 검증은 별도다.
 - DB 연결·기본 쿼리 성공은 배포 성공의 필수 조건이다. DB가 비정상이면 후보 버전으로 트래픽을 전환하지 않는다. liveness는 DB 장애로 앱 재시작을 반복시키는 용도로 사용하지 않는다.
 - 아래 상세 정책까지 인프라 결정으로 채택한다. 실제 동작과 FE 반영 등 구현 인계 항목은 별도로 추적한다.
 
@@ -33,8 +33,14 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_BASE_URL | http://localhost:8000 | BE에서 접근 가능한 AI 서비스 주소. AI 위치·네트워크는 별도 확인; 운영 localhost fallback 금지 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
+| AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
-| AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 분석용 S3 presigned GET URL 만료 Duration. 실제 다운로드 시간·보안 요구 검증 |
+| AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |
+| AI_VOICE_ANALYSIS_MAX_FILE_BYTES | 262144000 | 직접 분석 WAV의 크기 상한(바이트). multipart 및 프록시 제한도 함께 적용됨 |
+| AI_VOICE_ANALYSIS_CONNECT_TIMEOUT | 3s | 음성 분석 AI 접수 연결 제한 시간인 Spring Duration |
+| AI_VOICE_ANALYSIS_READ_TIMEOUT | 30s | 음성 분석 AI 접수 응답 제한 시간인 Spring Duration |
+| AI_VOICE_ANALYSIS_MAX_WAIT | 10m | 접수된 음성 분석의 완료 대기 상한인 Spring Duration |
+| AI_VOICE_ANALYSIS_TIMEOUT_CHECK_INTERVAL | 1m | 미완료 음성 분석의 timeout 검사 주기인 Spring Duration |
 | AI_SONG_FIT_ENABLED | true | true/false. AI 준비 상태에 따라 명시적으로 선택 |
 | AI_RECOMMENDATION_BASE_URL | http://localhost:8788 | BE에서 접근 가능한 추천 AI 서비스 주소. 운영에서는 명시적으로 주입하고 localhost fallback을 사용하지 않음 |
 | AI_RECOMMENDATION_ENABLED | false | true/false. 추천 작업 제출·조회 계약과 서비스 인증을 통합 검증한 뒤에만 true |
@@ -44,12 +50,13 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_RECOMMENDATION_POLLING_ENABLED | true | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
 | AI_RECOMMENDATION_POLL_INTERVAL | 1500ms | 추천 작업별 상태 조회가 끝난 뒤 다음 폴링까지 기다리는 양의 Spring Duration |
 | AI_RECOMMENDATION_POLL_INITIAL_DELAY | 5s | 애플리케이션 시작 후 첫 추천 폴링까지 기다리는 음수가 아닌 Spring Duration |
-| VOICE_RECORDING_MAX_SIZE | 25MB | multipart 파일 및 전체 요청 제한. 부가정보 포함 경계 크기는 시험 필요 |
+| VOICE_ANALYSIS_REQUEST_MAX_SIZE | 250MB | multipart 파일 및 전체 요청 제한. 운영 Compose 예제는 기존 의도대로 25MB를 명시하며 프록시·부가정보 크기도 함께 고려. 이전 VOICE_RECORDING_MAX_SIZE 이름은 더 이상 읽지 않음 |
 | VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정 비공개 버킷 `micon-b110-prod-apne2-20260909`. 운영 실행기에 명시 주입; 추적 예제는 빈 값 유지 |
 | VOICE_STORAGE_REGION | ap-northeast-2 | 개인 버킷과 일치하는 서울 리전 |
 | VOICE_STORAGE_PREFIX | voice-recordings | 객체 prefix. IAM의 voice-recordings/*와 함께 변경; catalog/와 분리 |
 | VOICE_STORAGE_PLAYBACK_URL_TTL | 10m | 녹음 재생 presigned GET URL 만료 Duration |
 | VOICE_STORAGE_MAX_FILE_BYTES | 26214400 | S3 업로드 전 파일 크기 상한(바이트), 프록시·multipart 제한과 함께 검증 |
+| VOICE_STORAGE_DELETION_RETRY_INTERVAL | 30s | 삭제 큐에 남은 저장 녹음의 삭제 재시도 주기인 Spring Duration |
 | CATALOG_MEDIA_ALLOWED_PREFIX | catalog/정영주/section-384-v1/vocals/ | S15P21B110-228에서 승인한 보컬 stem 경로. DB object key와 정확히 일치해야 하며 다른 catalog 경로는 서명 거부 |
 | CATALOG_MEDIA_DOWNLOAD_URL_TTL | 10m | AI 전용 보컬 stem presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
 | VOICE_DATA_POLICY_VERSION | UNCONFIRMED | 공개 음성 데이터 정책 버전. 정책 승인 전에는 `UNCONFIRMED`를 유지하고 확정 버전처럼 표시하지 않음 |
@@ -72,18 +79,18 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 
 채택한 외부 기준 주소는 `https://j15b110.p.ssafy.io/api/v1/`이다. 도메인은 기존 서버 기록에 있으나 마지막 확인된 Nginx 구성은 `/healthz` 외 요청에 의도적으로 503을 반환한다. 이 주소는 동작 확인된 API 주소가 아니다.
 
-결정: BE 내부 경로는 현 코드를 유지하고 Nginx에서 `/api/v1/` prefix만 제거해 전달한다. HTTP 메서드·쿼리·본문은 유지하며 `auth/refresh`를 `auth/tokens/refresh`로 별도 치환하는 규칙은 추가하지 않는다. BE context-path까지 동시에 추가하지 않는다.
+결정: BE 내부 경로는 현 코드를 유지하고 Nginx에서 `/api/v1/` prefix만 제거해 전달한다. HTTP 메서드·쿼리·본문은 유지하며 인증 경로를 별도로 치환하지 않는다. BE context-path까지 동시에 추가하지 않는다.
 
 | 외부 경로 계약 / 미해결 항목 | 현재 BE 내부 경로 | 상태 |
 |---|---|---|
 | /api/v1/songs | /songs | 곡 조회 코드 존재, 운영 호출 미검증 |
 | /api/v1/users/me | /users/me | 회원 조회 코드 존재, 운영 호출 미검증 |
-| /api/v1/auth/tokens/refresh | /auth/tokens/refresh | BE/OpenAPI 경로 일치; 앱의 auth/refresh와는 불일치 |
+| /api/v1/auth/refresh | /auth/refresh | POST, BE/OpenAPI/Android 경로 일치; 운영 미검증 |
 | /api/v1/recordings 및 /api/v1/recordings/{id}/content | /recordings 및 /recordings/{id}/content | 업로드·조회·삭제·재생 URL 코드 존재. content는 URL을 담은 JSON이며 S3 공개 주소/리다이렉트 계약이 아님; 운영 미검증 |
 | AI 내부 보컬 stem 조회 | /internal/catalog-media/vocal-stems/{songId} | AI 서비스 토큰 전용. DB의 검증된 object key에만 단기 URL 발급; 일반 JWT 접근 불가 |
 | /api/v1/health | 해당 앱용 컨트롤러 없음 | 앱은 ApiResponse 봉투 기대. Actuator를 그대로 연결해 해결되었다고 보지 않음 |
 
-프런트는 이번에 변경하지 않는다. 실제 FE 담당자는 BE 명세 기준으로 갱신 경로/DTO 및 인증 예외 경로 목록을 함께 맞추고 health 사용 여부를 확인해야 한다. 현재 결정에는 BE 하위 호환 alias 추가가 포함되지 않는다. AI 주소/포트는 BE와 별도 미결 계약이다.
+인증 경로 변경은 Android API 선언과 인증 예외/갱신 처리에도 반영했다. health 사용 여부는 별도로 확인해야 한다. 기존 인증 경로의 하위 호환 alias는 제공하지 않으므로 BE와 앱을 함께 전환해야 한다. 상세 요청·응답은 [인증 API 문서](../AUTH_API.md)를 참고한다. AI 주소/포트는 BE와 별도 미결 계약이다.
 
 ## 3. health/readiness (153 구현·후보 검증 완료)
 

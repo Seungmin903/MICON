@@ -127,7 +127,7 @@ fun LoginScreen(onLoggedIn: () -> Unit, onSignup: () -> Unit, onFindPassword: ()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("비밀번호 찾기", fontSize = 14.sp, color = InkSoft,
                 modifier = Modifier.clickable(enabled = !state.submitting) {
-                    notice = "비밀번호 찾기는 준비 중이에요."; onFindPassword()
+                    notice = null; onFindPassword()
                 })
             Text("회원가입", fontSize = 14.sp, color = InkSoft,
                 modifier = Modifier.clickable(enabled = !state.submitting, onClick = onSignup))

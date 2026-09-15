@@ -1,0 +1,5 @@
+ALTER TABLE practice_session
+    MODIFY COLUMN status ENUM(
+        'READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED',
+        'COMPLETED', 'ABORTED', 'FAILED'
+    ) NOT NULL DEFAULT 'READY';
