@@ -2,6 +2,8 @@
 set -eu
 
 LOOPBACK_PORT=18080
+TAILNET_PORT=18080
+SERVE_TIMEOUT_SECONDS=20
 CATALOG_PATH=/internal/embedding-catalog/active
 TOKEN_FILE=/etc/micon/secrets/ai_service_token
 
@@ -10,7 +12,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-for command_name in tailscale python3; do
+for command_name in tailscale python3 timeout; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo "missing required command: $command_name" >&2
         exit 1
@@ -25,13 +27,14 @@ temporary_dir="$(mktemp -d /tmp/micon-tailnet-catalog.XXXXXX)"
 catalog_body="$temporary_dir/catalog.json"
 serve_before="$temporary_dir/serve-before.json"
 serve_after="$temporary_dir/serve-after.json"
+serve_log="$temporary_dir/serve-enable.log"
 cleanup() {
-    rm -f "$catalog_body" "$serve_before" "$serve_after"
+    rm -f "$catalog_body" "$serve_before" "$serve_after" "$serve_log"
     rmdir "$temporary_dir"
 }
 trap cleanup EXIT HUP INT TERM
 
-tailscale status --json | python3 -c '
+timeout 10s tailscale status --json | python3 -c '
 import json, sys
 state = json.load(sys.stdin)
 if state.get("BackendState") != "Running" or not (state.get("Self") or {}).get("Online"):
@@ -72,7 +75,7 @@ for track in tracks:
         raise SystemExit("active embedding catalog contains an incomplete mapping")
 PY
 
-tailscale serve status --json > "$serve_before"
+timeout 10s tailscale serve status --json > "$serve_before"
 if python3 - "$serve_before" "$LOOPBACK_PORT" <<'PY'
 import json
 import sys
@@ -94,17 +97,26 @@ else
     exit "$result"
 fi
 
-tailscale serve --bg --yes "$LOOPBACK_PORT" >/dev/null
-tailscale serve status --json > "$serve_after"
-python3 - "$serve_after" "$LOOPBACK_PORT" <<'PY'
+set +e
+timeout --kill-after=5s "${SERVE_TIMEOUT_SECONDS}s" \
+    tailscale serve --bg --yes --http="$TAILNET_PORT" "$LOOPBACK_PORT" \
+    > "$serve_log" 2>&1
+serve_result=$?
+set -e
+timeout 10s tailscale serve status --json > "$serve_after"
+python3 - "$serve_after" "$LOOPBACK_PORT" "$TAILNET_PORT" "$serve_result" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     config = json.load(handle)
-needle = f":{sys.argv[2]}"
-if not config or needle not in json.dumps(config, sort_keys=True):
-    raise SystemExit("Tailscale Serve did not retain the catalog bridge target")
+serialized = json.dumps(config, sort_keys=True)
+target = f"127.0.0.1:{sys.argv[2]}"
+listener = f":{sys.argv[3]}"
+if not config or target not in serialized or listener not in serialized:
+    raise SystemExit(
+        f"Tailscale Serve did not retain the catalog bridge target (client result {sys.argv[4]})"
+    )
 PY
 
-echo "tailscale_catalog_serve result=active target=127.0.0.1:$LOOPBACK_PORT"
+echo "tailscale_catalog_serve result=active mode=tailnet_http port=$TAILNET_PORT target=127.0.0.1:$LOOPBACK_PORT"
