@@ -25,6 +25,13 @@ class BackendCdContractTests(unittest.TestCase):
         self.assertIn("disableConcurrentBuilds()", self.pipeline)
         self.assertNotIn("abortPrevious: true", self.pipeline)
 
+    def test_pipeline_cleans_checkout_without_deleting_gradle_cache(self):
+        clean = self.pipeline.index("deleteDir()")
+        checkout = self.pipeline.index("def checkoutMetadata = checkout scm")
+        self.assertLess(clean, checkout)
+        self.assertIn('GRADLE_USER_HOME = "${WORKSPACE}@gradle-backend"', self.pipeline)
+        self.assertNotIn('GRADLE_USER_HOME = "${WORKSPACE}/', self.pipeline)
+
     def test_pipeline_uses_managed_ssh_and_known_hosts(self):
         self.assertIn("sshUserPrivateKey", self.pipeline)
         self.assertIn("micon-server-known-hosts", self.pipeline)
