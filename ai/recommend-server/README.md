@@ -24,19 +24,20 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 ## 배포 (Docker, EC2 CPU)
 
 ```bash
-cd ai/recommend-server
-docker build -t micon-recommend .                                   # CPU torch + 의존성 + 가중치 116 MB 다운로드. 이미지 약 3 GB
-docker run -d --name micon-recommend --restart unless-stopped -p 8788:8788 \
-  -e AI_SERVICE_TOKEN=... -e MICON_BE_CALLBACK_URL=http://backend:8080/callbacks/voice-analysis-components \
-  -v micon-analysis:/app/workspace/analysis micon-recommend
+COMMIT_SHA="$(git rev-parse --short=12 HEAD)"
+export MICON_RECOMMENDATION_IMAGE="micon-recommendation:${COMMIT_SHA}"
+docker compose -f infra/compose/recommendation.compose.yml build micon-recommendation
+docker compose -f infra/compose/recommendation.compose.yml up -d --no-build micon-recommendation
 curl http://127.0.0.1:8788/health
 ```
 
-`workspace/analysis` 볼륨은 BE 음성 분석 작업의 원음(최대 24시간)과 `job.json` 이다. 볼륨을 안 붙이면 컨테이너 재시작 때 진행 중 작업이 사라진다.
+Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외부 `micon_backend` 네트워크에 붙인다. BE는 같은 이름의 8788 포트로 호출하고 AI는 `backend:8080`에서 카탈로그를 읽고 콜백을 보낸다. 서비스 토큰은 `/etc/micon/backend-secrets/ai_service_token`, 비밀 아닌 설정은 `/etc/micon/runtime/recommendation.env`에서 읽는다. 전체 절차는 [RECOMMENDATION_CONTAINER_RUNTIME.md](../../docs/operations/RECOMMENDATION_CONTAINER_RUNTIME.md)를 따른다.
+
+`workspace/analysis` 볼륨은 BE 음성 분석 작업의 원음(최대 24시간)과 `job.json`, `workspace/recommender/jobs` 볼륨은 추천 작업 상태다. 둘 다 컨테이너 재생성 뒤에도 유지된다.
 
 - 이미지에 들어가는 것: 코드, 카탈로그 인덱스(`recommender-assets/catalog-index`, Git LFS 이므로 빌드 머신에 `git lfs pull` 필요), 모델 가중치(빌드 시 Hugging Face 에서 받아 SHA-256 검증).
-- 들어가지 않는 것: 원본 음원·분리 보컬·사용자 녹음. 녹음은 요청 body 로만 들어오고 `workspace/recommender/jobs/` 에 잠시 머문다 — 컨테이너를 지우면 같이 사라진다.
-- DB·S3 를 읽지 않는다. BE 는 위 API 만 호출한다. 카탈로그를 바꾸면 인덱스를 커밋하고 이미지를 다시 빌드한다.
+- 들어가지 않는 것: 원본 음원·분리 보컬·사용자 녹음. 사용자 입력과 작업 상태는 요청 뒤 named volume에만 잠시 머물며 이미지에는 포함되지 않는다.
+- DB·S3에 직접 접근하지 않고 BE 내부 API에서 숫자 song_id 짝표만 읽는다. 임베딩 인덱스를 바꾸면 파일을 커밋하고 이미지를 다시 빌드한다.
 - 권장 사양: vCPU 2 · 메모리 4 GB 이상(t3.large 급), 디스크 여유 5 GB.
 
 ## API
@@ -51,7 +52,7 @@ curl http://127.0.0.1:8788/health
 | `POST /voice-analysis-jobs/{jobId}/cancel` | — | `{jobId, status}`. 원음 삭제 |
 | `GET /voice-analysis-jobs/{jobId}` | — | 진단용 job.json (임베딩 값 제외) |
 
-**BE 음성 분석 작업** (`analysis_jobs.py`): `TIMBRE`는 `ECAPA` + `SINGER_BYOL`, `RANGE`는 저장소의 `ai/vocal-scope/model-server/be_range_worker.py`를 별도 프로세스로 실행한다. 기존 Docker build context에는 RANGE worker가 없으므로 이 문서의 노트북 실행 경로를 사용한다.
+**BE 음성 분석 작업** (`analysis_jobs.py`): `TIMBRE`는 `ECAPA` + `SINGER_BYOL`, `RANGE`는 이미지에 포함된 `ai/vocal-scope/model-server/be_range_worker.py`를 별도 프로세스로 실행한다.
 접수 후 백그라운드에서 임베딩을 만들고 컴포넌트마다 `MICON_BE_CALLBACK_URL` 로 콜백 1건을 보낸다.
 
 ```json
@@ -67,7 +68,7 @@ curl http://127.0.0.1:8788/health
 상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(쓸 만한 4초 구간 5개 미만). 한 전송 회차에서 5xx·연결 오류를 3회 재시도한다. 미수신 콜백은 디스크에 남아 서버 재시작 후에도 최대 60초 간격으로 재전송하며 원음 강제 만료 시 함께 삭제한다.
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
 
-환경변수: `AI_SERVICE_TOKEN`(비우면 검사 안 함; 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
+환경변수: `AI_SERVICE_TOKEN`(컨테이너에서는 secret 파일에서 필수 로드; 로컬에서 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_BASE_URL`(카탈로그 조회) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
 `RECOMMEND_CONCURRENCY=1` · `MICON_RANGE_MODEL_PYTHON`(선택) · `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)

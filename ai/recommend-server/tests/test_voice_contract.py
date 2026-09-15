@@ -171,7 +171,9 @@ class VoiceContractTest(unittest.TestCase):
 
     def test_catalog_refresh_uses_direct_backend_path_and_service_token(self):
         previous = dict(catalog_link._CACHE)
+        previous_attempt = catalog_link._LAST_ATTEMPT_MONOTONIC
         self.addCleanup(catalog_link._CACHE.update, previous)
+        self.addCleanup(setattr, catalog_link, "_LAST_ATTEMPT_MONOTONIC", previous_attempt)
         with (mock.patch.dict(os.environ, MICON_BE_BASE_URL="http://backend:8080/", AI_SERVICE_TOKEN="test-token"),
               mock.patch.object(catalog_link, "_get", return_value={"data": {
                   "revision": "r1", "batch_id": "batch-1",
@@ -244,11 +246,12 @@ class VoiceContractTest(unittest.TestCase):
 
     def test_operational_recommendation_requires_explicit_db_id_mapping(self):
         with (mock.patch.object(recommendations, "_configuration_status", return_value=({}, [])),
-              mock.patch.object(catalog_link, "song_ids", return_value={})):
+              mock.patch.object(catalog_link, "ensure", return_value={"mappedTracks": 0}) as ensure):
             with self.assertRaises(HTTPException) as caught:
                 recommendations._create_from_json({"userEmbedding": embeddings(), "mode": "timbre",
                     "profileId": 10, "topK": 10}, BackgroundTasks())
         self.assertEqual(caught.exception.status_code, 503)
+        ensure.assert_called_once_with()
 
     def test_numeric_catalog_id_is_not_inferred_from_a_tj_number(self):
         self.assertEqual(song_id_of({"song_id": 412, "tj_id": "TJ-00281"}), 412)

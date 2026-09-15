@@ -12,6 +12,22 @@ import recommendation_api
 
 
 class RecommendationApiTestCase(unittest.TestCase):
+    def test_operational_readiness_requires_backend_catalog_mapping(self) -> None:
+        catalog = SimpleNamespace(tracks=[])
+        with (
+            mock.patch.object(recommendation_api, "_configuration_status",
+                              return_value=({"index_dir": "index"}, [])),
+            mock.patch.object(recommendation_api.CatalogIndex, "load", return_value=catalog),
+            mock.patch.object(recommendation_api.RangeCatalog, "load"),
+            mock.patch.object(recommendation_api.catalog_link, "ensure",
+                              return_value={"mappedTracks": 0, "revision": None,
+                                            "batchId": None, "error": "backend starting"}),
+        ):
+            status = recommendation_api.recommendation_status()
+        self.assertTrue(status["engineReady"])
+        self.assertFalse(status["ready"])
+        self.assertEqual(status["catalogLink"]["mappedTracks"], 0)
+
     def test_auto_device_resolves_to_cuda_when_available(self) -> None:
         with mock.patch("torch.cuda.is_available", return_value=True):
             self.assertEqual(recommendation_api._resolved_device("auto"), "cuda")
