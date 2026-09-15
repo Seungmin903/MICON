@@ -34,11 +34,11 @@ if [ -e "$destination" ] || [ -L "$destination" ]; then
         "$release_root"/[0-9a-f]*) ;;
         *) echo "unsafe existing release destination" >&2; exit 1 ;;
     esac
-    install -d -m 0700 "$superseded_root"
+    sudo install -d -o root -g root -m 0700 "$superseded_root"
     timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-    superseded_destination="$(mktemp -d "$superseded_root/$release_sha-$timestamp.XXXXXX")"
-    rmdir "$superseded_destination"
-    mv -T "$destination" "$superseded_destination"
+    superseded_destination="$(sudo mktemp -d "$superseded_root/$release_sha-$timestamp.XXXXXX")"
+    sudo rmdir "$superseded_destination"
+    sudo mv -T "$destination" "$superseded_destination"
     echo "previous same-SHA release preserved for a clean retry"
 fi
 

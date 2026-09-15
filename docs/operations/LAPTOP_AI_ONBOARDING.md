@@ -48,7 +48,7 @@ git lfs pull --include="ai/recommend-server/recommender-assets/catalog-index/*"
 
 ```powershell
 $env:AI_SERVICE_TOKEN = '<BE와 공유하는 서비스 토큰>'
-$env:MICON_BE_BASE_URL = 'http://<AI에서 접근 가능한 BE 내부 호스트>:8080'
+$env:MICON_BE_BASE_URL = 'https://<BE의 Tailscale DNS 이름>'
 $env:MICON_BE_CALLBACK_URL = 'https://<BE 호스트>/api/v1/callbacks/voice-analysis-components'
 $env:RECOMMEND_CONCURRENCY = '1'
 # RANGE를 다른 가상환경에서 실행할 때만 지정
@@ -59,7 +59,7 @@ $env:RECOMMEND_CONCURRENCY = '1'
 BE 설정:
 
 ```text
-AI_RECOMMENDATION_BASE_URL=http://<BE에서 접근 가능한 노트북 주소>:8788
+AI_RECOMMENDATION_BASE_URL=http://<노트북의 Tailscale DNS 이름>:8788
 AI_SERVICE_TOKEN=<동일한 토큰>
 AI_VOICE_ANALYSIS_ENABLED=true
 AI_VOICE_ANALYSIS_MAX_WAIT=10m
@@ -70,13 +70,21 @@ AI_RECOMMENDATION_POLLING_MAX_WAIT=10m
 
 `MICON_BE_BASE_URL`은 `/api/v1` 없이 BE 내부 주소를 지정한다. AI는 여기에 `/internal/embedding-catalog/active`를 붙인다. 공개 Nginx는 `/internal/`과 `/api/v1/internal/`을 모두 404로 차단하므로 노트북에서 BE 내부망 또는 터널로 접근할 수 있어야 한다. 위 콜백 예시는 공개 API 주소이며, 콜백도 내부 BE로 보낼 때는 `/callbacks/voice-analysis-components`를 사용한다.
 
+노트북 경로를 선택하면 BE 릴리스 배포 후 서버에서 아래 스크립트를 한 번 실행한다. 스크립트는 공개 443 설정을 바꾸지 않고, Nginx의 `127.0.0.1:18080` 단일 카탈로그 경로를 Tailscale Serve의 tailnet 전용 HTTPS 주소에 연결한다. 기존에 관계없는 Serve 구성이 있으면 덮어쓰지 않고 실패한다.
+
+```sh
+sudo <활성 릴리스>/infra/tailscale/enable_backend_catalog_serve.sh
+```
+
+AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <token>`을 사용한다. `X-API-Key`는 현재 서버 계약이 아니다. Tailscale Serve 주소에는 `/api/v1`을 붙이지 않는다. Funnel은 사용하지 않는다.
+
 동시에 여러 uvicorn worker를 실행하지 않는다. 현재 멱등 요청 조회·동시 실행 제한은 단일 프로세스를 전제로 한다.
 
 ## 준비 상태 확인
 
 1. `GET /health` 200으로 프로세스 생존을 확인한다. 모델 준비 완료 판정은 아니다.
-2. 서비스 토큰을 넣은 `GET /recommendations/status`로 모델·인덱스 누락과 카탈로그 연결 상태를 확인한다.
-3. BE 내부 주소의 `GET /internal/embedding-catalog/active`에서 `catalog_track_id ↔ song_id` 짝표를 받는다. 짝표가 없으면 운영 JSON 추천은 503으로 거절한다. 조회 실패 뒤에는 추천 접수 또는 상태 확인 시 최대 30초에 한 번 재조회한다.
+2. 서비스 토큰을 Bearer 헤더에 넣은 `GET /recommendations/status`로 모델·인덱스 누락과 카탈로그 연결 상태를 확인한다.
+3. BE의 Tailscale Serve 주소에서 `GET /internal/embedding-catalog/active`의 `catalog_track_id ↔ song_id` 짝표를 받는다. `/recommendations/status`의 최종 게이트는 `ready`만 보지 말고 `catalogLink.mappedTracks > 0`과 `catalogLink.error` 없음까지 확인한다. 짝표가 없으면 운영 JSON 추천은 503으로 거절한다. 조회 실패 뒤에는 추천 접수 또는 상태 확인 시 최대 30초에 한 번 재조회한다.
 4. 추천의 파일 인덱스에는 음색 임베딩뿐 아니라 RangeCatalog가 읽는 곡 음역 프로파일도 있어야 한다. embedding_catalog 어댑터만 실행하면 곡 음역 프로파일이 새로 생성되는 것은 아니다.
 5. BE → 노트북 접수와 노트북 → BE 콜백을 모두 실제 주소에서 확인한다.
 
@@ -133,6 +141,9 @@ TIMBRE 콜백은 두 모델의 차원·버전·유한한 비영벡터를 검증�
 | embedding_catalog loader + 실제 추천기 adapter | 13 통과, S3는 로컬 mock 사용 |
 | Windows / Python 3.11 requirements 해석 | uv pip compile 성공 |
 | 실제 uvicorn 프로세스 로컬 기동 | health 200, 토큰 없는 보호 경로 401, 확인 후 종료 |
+| BE 운영 호스트 → 노트북 Tailscale | 추천 8788·분석 8789 health 200, 필수 OpenAPI 경로 존재 |
+| 운영 인증 계약 | BE 서비스 토큰의 Bearer는 200, 같은 값의 `X-API-Key`는 401 |
+| 노트북 추천 준비 상태 | 로컬 카탈로그 374곡, BE 짝표 0곡과 catalog link 오류를 확인해 기능 플래그 유지 |
 
 추가 검증은 BE 실제 HTTP multipart, FastAPI multipart 수신, Android 접수 실패 후 새 gateway 인스턴스 재시도, 공통 RANGE fixture의 실제 Python 스키마 검증, 콜백 디스크 복원·삭제, 추천 실패 종료를 포함한다. 모델 추론을 대신하는 mock을 사용하는 계약 테스트가 포함되어 있다.
 
