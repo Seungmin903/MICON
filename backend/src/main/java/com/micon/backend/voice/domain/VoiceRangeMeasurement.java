@@ -32,6 +32,7 @@ public class VoiceRangeMeasurement {
     }
     public BigDecimal getFullLowMidi() { return fullLowMidi; }
     public BigDecimal getFullHighMidi() { return fullHighMidi; }
+    public String getMeasurementUid() { return measurementUid; }
     public String getNoteResults() { return noteResults; }
     public String getMeasurementStatus() { return measurementStatus; }
     public String getQualityStatus() { return qualityStatus; }
