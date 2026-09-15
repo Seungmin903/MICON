@@ -10,6 +10,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
@@ -73,10 +74,17 @@ public class VoiceSessionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND));
         VoiceRangeMeasurement existing = ranges.findBySessionId(sessionId).orElse(null);
         if (existing == null) {
+            if (ranges.findByMeasurementUid(request.measurementId()).isPresent()) {
+                throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
+                        "이미 다른 세션에 저장된 음역 측정 결과입니다.");
+            }
             ranges.save(new VoiceRangeMeasurement(session, request.measurementId(), request.protocolVersion(),
                     request.lowMidi(), request.highMidi(), write(request.noteResults()),
                     request.measurementStatus(), request.qualityStatus(), request.measuredAt()));
             session.acceptRange(request.measurementStatus());
+        } else if (!Objects.equals(existing.getMeasurementUid(), request.measurementId())) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
+                    "이미 다른 음역 측정 결과가 저장된 세션입니다.");
         }
         return member(session, ranges.findBySessionId(sessionId).orElse(null));
     }
@@ -85,18 +93,22 @@ public class VoiceSessionService {
             VoiceSessionRequest.DeviceRangeResult request) {
         GuestSession guest = guest(sessionId, token);
         if (guest.range == null) {
+            guest.rangeMeasurementId = request.measurementId();
             guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
                     request.measurementStatus(), request.qualityStatus());
             guest.rangeStatus = request.measurementStatus();
             guest.status = "AVAILABLE".equals(request.measurementStatus()) ? "RANGE_IN_PROGRESS" : request.measurementStatus();
             guest.version++;
+        } else if (!Objects.equals(guest.rangeMeasurementId, request.measurementId())) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
+                    "이미 다른 음역 측정 결과가 저장된 세션입니다.");
         }
         return guest.response(false);
     }
 
     private String write(Object value) {
         try { return json.writeValueAsString(value); }
-        catch (Exception exception) { throw new BusinessException(ErrorCode.INVALID_REQUEST); }
+        catch (JacksonException exception) { throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR); }
     }
 
     public synchronized VoiceAnalysisJobResponse prepareGuestRange(long sessionId, String guestToken,
@@ -304,7 +316,8 @@ public class VoiceSessionService {
 
     private static final class GuestSession {
         final long id; final String token; final LocalDateTime expiresAt;
-        long version; String status="CREATED", rangeStatus="PENDING"; VoiceSessionResponse.Range range;
+        long version; String status="CREATED", rangeStatus="PENDING"; String rangeMeasurementId;
+        VoiceSessionResponse.Range range;
         GuestSession(long id, String token, LocalDateTime expiresAt) { this.id=id; this.token=token; this.expiresAt=expiresAt; }
         void accept(VoiceAnalysisComponentCallbackRequest r) {
             if (range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);

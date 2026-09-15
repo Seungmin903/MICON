@@ -54,6 +54,28 @@ class VoiceSessionApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"));
 
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isOk());
+
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(range.replace("device-range-member", "different-measurement")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
+
+        String anotherCreated = mvc.perform(post("/voice-analysis-sessions")
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString()))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long anotherSessionId = json.readTree(anotherCreated).get("data").get("sessionId").asLong();
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", anotherSessionId)
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
+
         mvc.perform(get("/voice-analysis-sessions/{sessionId}/result", sessionId)
                         .with(jwt().jwt(token -> token.subject(user.getId().toString()))))
                 .andExpect(status().isOk())
@@ -114,6 +136,33 @@ class VoiceSessionApiIntegrationTest {
                         .header("X-Guest-Session-Token", data.get("guestSessionToken").asText()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void guestRangeSubmissionIsIdempotentOnlyForTheSameMeasurement() throws Exception {
+        JsonNode data = json.readTree(mvc.perform(post("/voice-analysis-sessions"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("data");
+        long sessionId = data.get("sessionId").asLong();
+        String token = data.get("guestSessionToken").asText();
+        String range = """
+                {"measurementId":"guest-measurement","measuredAt":"2026-09-14T00:00:00",
+                 "protocolVersion":"guided-range-v7","lowMidi":48,"highMidi":72,
+                 "noteResults":[{"midi":48,"status":"passed"}],
+                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID"}
+                """;
+
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                            .header("X-Guest-Session-Token", token)
+                            .contentType(MediaType.APPLICATION_JSON).content(range))
+                    .andExpect(status().isOk());
+        }
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .header("X-Guest-Session-Token", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(range.replace("guest-measurement", "different-measurement")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
     }
 
     private MockMultipartFile meta(String protocol) {
