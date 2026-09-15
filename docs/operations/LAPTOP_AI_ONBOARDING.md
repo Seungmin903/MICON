@@ -48,7 +48,7 @@ git lfs pull --include="ai/recommend-server/recommender-assets/catalog-index/*"
 
 ```powershell
 $env:AI_SERVICE_TOKEN = '<BE와 공유하는 서비스 토큰>'
-$env:MICON_BE_BASE_URL = 'https://<BE의 Tailscale DNS 이름>'
+$env:MICON_BE_BASE_URL = 'http://<BE의 Tailscale DNS 이름>:18080'
 $env:MICON_BE_CALLBACK_URL = 'https://<BE 호스트>/api/v1/callbacks/voice-analysis-components'
 $env:RECOMMEND_CONCURRENCY = '1'
 # RANGE를 다른 가상환경에서 실행할 때만 지정
@@ -70,13 +70,13 @@ AI_RECOMMENDATION_POLLING_MAX_WAIT=10m
 
 `MICON_BE_BASE_URL`은 `/api/v1` 없이 BE 내부 주소를 지정한다. AI는 여기에 `/internal/embedding-catalog/active`를 붙인다. 공개 Nginx는 `/internal/`과 `/api/v1/internal/`을 모두 404로 차단하므로 노트북에서 BE 내부망 또는 터널로 접근할 수 있어야 한다. 위 콜백 예시는 공개 API 주소이며, 콜백도 내부 BE로 보낼 때는 `/callbacks/voice-analysis-components`를 사용한다.
 
-노트북 경로를 선택하면 BE 릴리스 배포 후 서버에서 아래 스크립트를 한 번 실행한다. 스크립트는 공개 443 설정을 바꾸지 않고, Nginx의 `127.0.0.1:18080` 단일 카탈로그 경로를 Tailscale Serve의 tailnet 전용 HTTPS 주소에 연결한다. 기존에 관계없는 Serve 구성이 있으면 덮어쓰지 않고 실패한다.
+노트북 경로를 선택하면 BE 릴리스 배포 후 서버에서 아래 스크립트를 한 번 실행한다. 스크립트는 공개 443 설정을 바꾸지 않고, Nginx의 `127.0.0.1:18080` 단일 카탈로그 경로를 Tailscale Serve의 tailnet 전용 HTTP 18080 포트에 연결한다. 전송 구간은 Tailscale의 WireGuard 터널로 암호화되며 tailnet 밖에는 공개되지 않는다. 이 방식은 tailnet HTTPS 인증서 활성화를 기다리지 않는다. 기존에 관계없는 Serve 구성이 있으면 덮어쓰지 않고 실패하며, CLI가 반환되지 않아도 20초 뒤 실제 등록 상태를 검증하고 종료한다.
 
 ```sh
 sudo <활성 릴리스>/infra/tailscale/enable_backend_catalog_serve.sh
 ```
 
-AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <token>`을 사용한다. `X-API-Key`는 현재 서버 계약이 아니다. Tailscale Serve 주소에는 `/api/v1`을 붙이지 않는다. Funnel은 사용하지 않는다.
+AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <token>`을 사용한다. `X-API-Key`는 현재 서버 계약이 아니다. Tailscale Serve 주소는 `http://<BE Tailscale DNS>:18080`이며 `/api/v1`을 붙이지 않는다. Funnel은 사용하지 않는다.
 
 동시에 여러 uvicorn worker를 실행하지 않는다. 현재 멱등 요청 조회·동시 실행 제한은 단일 프로세스를 전제로 한다.
 
@@ -129,7 +129,7 @@ TIMBRE 콜백은 두 모델의 차원·버전·유한한 비영벡터를 검증�
 - 실제 Android 마이크의 샘플레이트 협상, BLE/이어폰 입력, 노트북 네트워크, 실제 ECAPA/Singer-BYOL/CREPE 추론 결과·소요 시간. 합성 계약 테스트와 실사용 음질 검증은 별개다.
 - AAC/M4A 압축 품질 비교. 현재 온보딩 접수는 WAV만 지원한다. 압축 형식 전환을 완료했다고 볼 수 없다.
 - 온보딩 밖의 일반 `BackendSongAnalysisSubmitter`는 여전히 `/recordings → /voice-analyses` 리포트 경로를 사용한다. 최신 BE에서 해당 분석 API와 맞지 않으며, 일반 노래 평가 리포트까지 이 변경으로 완료됐다고 볼 수 없다. 본 변경은 사용자가 확인한 두 온보딩 경로에 적용된다.
-- 노트북 상시 가동·배포·외부 접속 설정은 실행하지 않았다.
+- 노트북 FastAPI 프로세스의 상시 가동은 노트북 운영자가 관리한다. 2026-09-15에 BE의 tailnet HTTP 18080 카탈로그 Serve는 활성화했으며, 노트북 프로세스가 아래 `MICON_BE_BASE_URL`을 적용해 재시작하기 전까지 BE의 AI 기능 플래그는 비활성 상태로 유지한다.
 
 ## 검증 기록 (2026-09-15)
 
@@ -143,7 +143,8 @@ TIMBRE 콜백은 두 모델의 차원·버전·유한한 비영벡터를 검증�
 | 실제 uvicorn 프로세스 로컬 기동 | health 200, 토큰 없는 보호 경로 401, 확인 후 종료 |
 | BE 운영 호스트 → 노트북 Tailscale | 추천 8788·분석 8789 health 200, 필수 OpenAPI 경로 존재 |
 | 운영 인증 계약 | BE 서비스 토큰의 Bearer는 200, 같은 값의 `X-API-Key`는 401 |
-| 노트북 추천 준비 상태 | 로컬 카탈로그 374곡, BE 짝표 0곡과 catalog link 오류를 확인해 기능 플래그 유지 |
+| BE tailnet 카탈로그 Serve | `http://<BE Tailscale DNS>:18080/internal/embedding-catalog/active`가 Bearer 인증으로 200, 383곡과 완전한 ID 매핑 반환 |
+| 노트북 추천 준비 상태 | 로컬 카탈로그 374곡. 노트북 프로세스가 새 `MICON_BE_BASE_URL`로 재시작하기 전에는 BE 짝표 0곡과 catalog link 오류이므로 기능 플래그 유지 |
 
 추가 검증은 BE 실제 HTTP multipart, FastAPI multipart 수신, Android 접수 실패 후 새 gateway 인스턴스 재시도, 공통 RANGE fixture의 실제 Python 스키마 검증, 콜백 디스크 복원·삭제, 추천 실패 종료를 포함한다. 모델 추론을 대신하는 mock을 사용하는 계약 테스트가 포함되어 있다.
 

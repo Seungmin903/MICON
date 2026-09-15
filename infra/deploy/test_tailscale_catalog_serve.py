@@ -28,7 +28,12 @@ class TailscaleCatalogServeTests(unittest.TestCase):
 
     def test_existing_unrelated_serve_configuration_is_not_replaced(self):
         self.assertIn("refusing to replace an unrelated Tailscale Serve configuration", self.script)
-        self.assertIn('tailscale serve --bg --yes "$LOOPBACK_PORT"', self.script)
+        self.assertIn(
+            'tailscale serve --bg --yes --http="$TAILNET_PORT" "$LOOPBACK_PORT"',
+            self.script,
+        )
+        self.assertIn('timeout --kill-after=5s "${SERVE_TIMEOUT_SECONDS}s"', self.script)
+        self.assertIn('timeout 10s tailscale serve status --json', self.script)
         self.assertIn("Tailscale Serve did not retain the catalog bridge target", self.script)
 
 
