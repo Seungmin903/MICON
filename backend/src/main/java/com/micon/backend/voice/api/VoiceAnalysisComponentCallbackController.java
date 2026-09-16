@@ -1,6 +1,7 @@
 package com.micon.backend.voice.api;
 
 import com.micon.backend.common.api.ApiResponse;
+import com.micon.backend.common.observability.AccessLog;
 import com.micon.backend.voice.application.AiServiceTokenValidator;
 import com.micon.backend.voice.application.VoiceAnalysisComponentCallbackService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +33,10 @@ public class VoiceAnalysisComponentCallbackController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody VoiceAnalysisComponentCallbackRequest request) {
         tokenValidator.validate(authorization);
-        return ApiResponse.success(service.accept(request));
+        var result = service.accept(request);
+        AccessLog.event("ai_callback", false, "analysis_id", result.analysisId(),
+                "job_ref", AccessLog.fingerprint(request.jobId()), "component_status", request.status(),
+                "attempt", request.attemptNo(), "duplicate", result.duplicate());
+        return ApiResponse.success(result);
     }
 }

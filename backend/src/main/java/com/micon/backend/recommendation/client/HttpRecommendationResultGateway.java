@@ -1,5 +1,7 @@
 package com.micon.backend.recommendation.client;
 
+import com.micon.backend.common.observability.ObservedAiRequestFactory;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
@@ -21,7 +23,8 @@ public class HttpRecommendationResultGateway implements RecommendationResultGate
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.connectTimeout());
         requestFactory.setReadTimeout(properties.readTimeout());
-        RestClient.Builder builder = RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(requestFactory);
+        RestClient.Builder builder = RestClient.builder().baseUrl(properties.baseUrl())
+                .requestFactory(new ObservedAiRequestFactory(requestFactory));
         if (!properties.serviceToken().isBlank()) {
             builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.serviceToken());
         }

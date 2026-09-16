@@ -1,5 +1,7 @@
 package com.micon.backend.voice.client;
 
+import com.micon.backend.common.observability.ObservedAiRequestFactory;
+
 import java.net.http.HttpClient;
 import java.net.URI;
 import java.time.Duration;
@@ -36,7 +38,7 @@ public class HttpArtistSearchJobGateway implements ArtistSearchJobGateway {
         requestFactory.setReadTimeout(readTimeout);
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl(baseUrl)
-                .requestFactory(requestFactory);
+                .requestFactory(new ObservedAiRequestFactory(requestFactory));
         if (serviceToken != null && !serviceToken.isBlank()) {
             builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken);
         }

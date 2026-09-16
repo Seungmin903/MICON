@@ -1,5 +1,8 @@
 package com.micon.backend.voice.client;
 
+import com.micon.backend.common.observability.ObservedAiRequestFactory;
+import com.micon.backend.common.observability.AccessLog;
+
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +30,8 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                 .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
-        RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory);
+        RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl)
+                .requestFactory(new ObservedAiRequestFactory(requestFactory));
         if (serviceToken != null && !serviceToken.isBlank()) {
             builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken);
         }
@@ -49,6 +53,7 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
             throw new VoiceAnalysisJobGateway.Rejected(
                     "AI must return 202 after persisting WAV and requestId");
         }
+        accepted(command.analysisId(), response.getBody());
         return response.getBody();
     }
 
@@ -71,7 +76,14 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                 || response.getBody().audioExpiresAt() == null) {
             throw new VoiceAnalysisJobGateway.Rejected("AI must acknowledge durable range audio with 202");
         }
+        accepted(command.analysisId(), response.getBody());
         return response.getBody();
+    }
+
+    private void accepted(long analysisId, Result result) {
+        AccessLog.event("ai_job_accepted", false, "analysis_id", analysisId,
+                "job_ref", result.jobId() == null ? "-" : AccessLog.fingerprint(result.jobId()),
+                "status", "accepted");
     }
 
     private void addFile(MultipartBodyBuilder body, MultipartFile file) {
