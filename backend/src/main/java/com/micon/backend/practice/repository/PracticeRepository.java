@@ -184,7 +184,7 @@ public class PracticeRepository {
 				    duration_ms = :durationMs,
 				    recording_id = COALESCE(:recordingId, recording_id)
 				WHERE practice_id = :practiceId AND user_id = :userId
-				  AND status IN ('RECORDING', 'IN_PROGRESS', 'PAUSED')
+				  AND status IN ('READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
 		return jdbcTemplate.update(sql, new MapSqlParameterSource()
 			.addValue("practiceId", practiceId)
