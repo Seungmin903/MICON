@@ -160,7 +160,7 @@ def verify_catalog_media(base_url, song_id, bucket, region, allowed_prefix,
         or media.get("mimeType") != "audio/ogg"
         or not isinstance(object_key, str)
         or not object_key.startswith(allowed_prefix)
-        or not object_key.removeprefix(allowed_prefix)
+        or len(object_key) == len(allowed_prefix)
         or "\\" in object_key
         or any(part in ("", ".", "..") for part in object_key.split("/"))
         or not isinstance(expected_bytes, int)
