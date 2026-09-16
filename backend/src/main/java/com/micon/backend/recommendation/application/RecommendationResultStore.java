@@ -15,6 +15,7 @@ import com.micon.backend.song.repository.SongQueryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,6 +26,8 @@ import java.util.Set;
 @Service
 public class RecommendationResultStore {
     private static final int MAX_ITEMS_PER_SHELF = 50;
+    private static final short MIN_RECOMMENDED_KEY = -6;
+    private static final short MAX_RECOMMENDED_KEY = 5;
 
     private final RecommendationRepository recommendations;
     private final RecommendationShelfRepository shelves;
@@ -185,6 +188,26 @@ public class RecommendationResultStore {
                 || (item.scoringVersion() != null && item.scoringVersion().length() > 50)
                 || (item.compositionVersion() != null && item.compositionVersion().length() > 50)) {
             throw invalid("item text exceeds storage limit for songId: " + item.songId());
+        }
+        validateRangeFit(item);
+    }
+
+    private void validateRangeFit(RecommendationResultGateway.Item item) {
+        boolean hasRangeFit = item.rangeFit() != null && !item.rangeFit().isNull();
+        boolean hasRecommendedKey = item.recommendedKey() != null;
+        if (hasRangeFit != hasRecommendedKey) {
+            throw invalid("rangeFit and recommendedKey must both be null or both be present for songId: "
+                    + item.songId());
+        }
+        if (!hasRangeFit) return;
+        if (item.recommendedKey() < MIN_RECOMMENDED_KEY || item.recommendedKey() > MAX_RECOMMENDED_KEY) {
+            throw invalid("recommendedKey must be between -6 and 5 for songId: " + item.songId());
+        }
+        JsonNode keyShift = item.rangeFit().get("keyShift");
+        if (keyShift == null || !keyShift.isIntegralNumber()
+                || !keyShift.bigIntegerValue().equals(BigInteger.valueOf(item.recommendedKey()))) {
+            throw invalid("rangeFit.keyShift must be an integer matching recommendedKey for songId: "
+                    + item.songId());
         }
     }
 

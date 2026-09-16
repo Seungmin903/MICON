@@ -22,7 +22,12 @@ from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION
 from recommendation_api import MODEL_DIMENSIONS, _configuration_status, user_embedding_matrices
 from timbre_recommender.catalog import CatalogIndex
 from timbre_recommender.contracts import SCORING_VERSION
-from timbre_recommender.pitch_range import RangeCatalog, score_range_fit
+from timbre_recommender.pitch_range import (
+    KEY_SHIFT_MAX,
+    KEY_SHIFT_MIN,
+    RangeCatalog,
+    score_range_fit,
+)
 from timbre_recommender.scoring import RankerConfig, _absolute_similarity, _model_track_score
 
 
@@ -61,9 +66,23 @@ def _track_of(song_id: Any, catalog: CatalogIndex) -> str | None:
     return None
 
 
-def _unavailable(payload: Mapping[str, Any], reason: str) -> dict[str, Any]:
+def _selected_key_offset(payload: Mapping[str, Any]) -> int:
+    value = payload.get("selectedKeyOffset")
+    if value is None:
+        return 0
+    if type(value) is not int or not KEY_SHIFT_MIN <= value <= KEY_SHIFT_MAX:
+        raise HTTPException(
+            422,
+            f"selectedKeyOffset는 {KEY_SHIFT_MIN}부터 {KEY_SHIFT_MAX} 사이의 정수여야 합니다.",
+        )
+    return value
+
+
+def _unavailable(
+    payload: Mapping[str, Any], reason: str, selected_key_offset: int
+) -> dict[str, Any]:
     return {"songId": payload.get("songId"), "analysisId": payload.get("analysisId"),
-            "selectedKeyOffset": int(payload.get("selectedKeyOffset") or 0),
+            "selectedKeyOffset": selected_key_offset,
             "evaluationStatus": "UNAVAILABLE", "originalKeyFit": None, "selectedKeyFit": None,
             "recommendedKeyOffset": None, "recommendationScores": payload.get("recommendationScores"),
             "reason": None, "burdenSections": list(payload.get("burdenSections") or []),
@@ -97,13 +116,14 @@ def _reason(shift: int, best: Mapping[str, Any]) -> str:
 def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, Mapping):
         raise HTTPException(422, "요청 본문은 객체여야 합니다.")
+    selected = _selected_key_offset(payload)
     user_low = _decimal(payload.get("userStableLowMidi"))
     user_high = _decimal(payload.get("userStableHighMidi"))
     if user_low is None or user_high is None:
-        return _unavailable(payload, "USER_STABLE_RANGE_UNAVAILABLE")
+        return _unavailable(payload, "USER_STABLE_RANGE_UNAVAILABLE", selected)
     user = _flat_profile(user_low, user_high, kind="guided_range_measurement")
     if user is None:
-        return _unavailable(payload, "USER_STABLE_RANGE_UNAVAILABLE")
+        return _unavailable(payload, "USER_STABLE_RANGE_UNAVAILABLE", selected)
 
     config, missing = _configuration_status()
     song: dict[str, Any] | None = None
@@ -118,13 +138,12 @@ def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
     if song is None:
         song_low, song_high = _decimal(payload.get("songLowMidi")), _decimal(payload.get("songHighMidi"))
         if song_low is None or song_high is None:
-            return _unavailable(payload, "SONG_RANGE_UNAVAILABLE")
+            return _unavailable(payload, "SONG_RANGE_UNAVAILABLE", selected)
         song = _flat_profile(song_low, song_high, kind="song_range")
         if song is None:
-            return _unavailable(payload, "SONG_RANGE_UNAVAILABLE")
+            return _unavailable(payload, "SONG_RANGE_UNAVAILABLE", selected)
 
     best = score_range_fit(user, song)
-    selected = int(payload.get("selectedKeyOffset") or 0)
     recommended = int(best["keyShift"])
     return {
         "songId": payload.get("songId"), "analysisId": payload.get("analysisId"),

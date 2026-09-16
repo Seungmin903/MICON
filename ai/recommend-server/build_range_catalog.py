@@ -14,7 +14,11 @@ from typing import Any, Mapping
 
 from pitch_engine import extract_vocal_melody
 from pitch_profile import PITCH_EXTRACTION_VERSION, summarize_pitch_profile
-from timbre_recommender.pitch_range import RANGE_SCORING_VERSION, canonical_json_sha256
+from timbre_recommender.pitch_range import (
+    KEY_SHIFT_BOUNDS,
+    RANGE_SCORING_VERSION,
+    canonical_json_sha256,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -80,7 +84,7 @@ def write_range_catalog(
         "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
-        "keyShiftRange": [-6, 5],
+        "keyShiftRange": list(KEY_SHIFT_BOUNDS),
         "generationRuntime": _runtime_versions(),
         "source": {
             "indexFile": index_path.name,

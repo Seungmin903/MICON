@@ -118,7 +118,7 @@ class RecommendationQueryApiIntegrationTest {
     }
 
     private void complete(Recommendation recommendation, long... songIds) throws Exception {
-        var rangeFit = json.readTree("{\"score\":0.91}");
+        var rangeFit = json.readTree("{\"score\":0.91,\"keyShift\":-1}");
         List<RecommendationResultGateway.Item> items = java.util.stream.IntStream.range(0, songIds.length)
                 .mapToObj(index -> new RecommendationResultGateway.Item(
                         index + 1, songIds[index], "CONSENSUS", "추천 사유", new BigDecimal("0.80"),

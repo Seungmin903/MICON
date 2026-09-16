@@ -30,8 +30,8 @@ public class PracticeAssetController {
 	@GetMapping("/{songId}/practice-assets")
 	public ApiResponse<PracticeAssetResponse.Detail> getPracticeAssets(
 		@PathVariable("songId") @Min(1) Long songId,
-		@Parameter(description = "원키 기준 반음 조절값(-12~12)")
-		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-12) @Max(12) int selectedKey
+		@Parameter(description = "원키 기준 반음 조절값(-6~+5)")
+		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-6) @Max(5) int selectedKey
 	) {
 		return ApiResponse.success(service.get(songId, selectedKey));
 	}
@@ -40,8 +40,8 @@ public class PracticeAssetController {
 	@GetMapping("/{songId}/practice-guide")
 	public ApiResponse<PracticeAssetResponse.Guide> getPracticeGuide(
 		@PathVariable("songId") @Min(1) Long songId,
-		@Parameter(description = "원키 기준 반음 조절값(-12~12)")
-		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-12) @Max(12) int selectedKey
+		@Parameter(description = "원키 기준 반음 조절값(-6~+5)")
+		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-6) @Max(5) int selectedKey
 	) {
 		return ApiResponse.success(service.getGuide(songId, selectedKey));
 	}

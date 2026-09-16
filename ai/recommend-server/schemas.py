@@ -11,7 +11,9 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from timbre_recommender.pitch_range import KEY_SHIFT_MAX, KEY_SHIFT_MIN
 
 
 class AxisScores(BaseModel):
@@ -33,7 +35,7 @@ class RangeFit(BaseModel):
     centerScore: float = Field(ge=0, le=1)
     spanFit: float = Field(ge=0, le=1)
     softFit: float = Field(ge=0, le=1)
-    keyShift: int
+    keyShift: int = Field(ge=KEY_SHIFT_MIN, le=KEY_SHIFT_MAX)
     songCoreLowMidi: int
     songCoreHighMidi: int
     catalogProfileReliable: bool
@@ -64,11 +66,27 @@ class Recommendation(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1, description="해당 축의 query 구간 일치율. 로그·진단용")
     timbre_score: float = Field(ge=0, le=1)
     range_fit: RangeFit | None = Field(description="사용자 음역 프로파일이 없거나 신뢰도가 낮으면 null")
-    recommended_key: int | None = Field(description="반음. range_fit 이 null 이면 null")
+    recommended_key: int | None = Field(
+        ge=KEY_SHIFT_MIN,
+        le=KEY_SHIFT_MAX,
+        description="반음. range_fit 이 null 이면 null",
+    )
     final_score: float = Field(ge=0, le=1, description="서버 최종 점수. 클라이언트 계산 금지")
     metrics: dict[str, Any] = Field(default_factory=dict, description="섹션별 표시 지표 (coverage0, center0, artist_similarity, high_ratio0 …)")
     scoring_version: str
     composition_version: str
+
+    @model_validator(mode="after")
+    def validate_recommended_key_matches_range_fit(self) -> "Recommendation":
+        if self.range_fit is None:
+            if self.recommended_key is not None:
+                raise ValueError("recommended_key must be null when range_fit is null")
+            return self
+        if self.recommended_key is None:
+            raise ValueError("recommended_key is required when range_fit is present")
+        if self.recommended_key != self.range_fit.keyShift:
+            raise ValueError("recommended_key must match range_fit.keyShift")
+        return self
 
 
 class Shelf(BaseModel):

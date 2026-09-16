@@ -21,6 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 public class SongFitService {
 
 	private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
+	private static final int MIN_RECOMMENDED_KEY_OFFSET = -6;
+	private static final int MAX_RECOMMENDED_KEY_OFFSET = 5;
 
 	private final SongFitQueryRepository songFitQueryRepository;
 	private final SongFitGateway songFitGateway;
@@ -75,6 +77,12 @@ public class SongFitService {
 					scores, recommendation == null ? null : recommendation.reasonText(), burdenSections
 				));
 				if (response == null || !songId.equals(response.songId()) || !analysisId.equals(response.analysisId())) {
+					throw new SongFitEvaluationFailedException();
+				}
+				Integer recommendedKeyOffset = response.recommendedKeyOffset();
+				if (recommendedKeyOffset != null
+					&& (recommendedKeyOffset < MIN_RECOMMENDED_KEY_OFFSET
+						|| recommendedKeyOffset > MAX_RECOMMENDED_KEY_OFFSET)) {
 					throw new SongFitEvaluationFailedException();
 				}
 				return response;

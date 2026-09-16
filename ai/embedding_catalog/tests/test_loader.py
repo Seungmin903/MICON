@@ -1,10 +1,17 @@
 import copy
+import json
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from ai.embedding_catalog.contract import digest, json_bytes
-from ai.embedding_catalog.loader import CatalogCache, fetch_snapshot
+from ai.embedding_catalog.loader import (
+    CatalogCache,
+    LoadedCatalog,
+    _write_range_catalog,
+    fetch_snapshot,
+)
 from ai.embedding_catalog.prepare import upload
 from conftest import synthetic_snapshot
 
@@ -21,6 +28,28 @@ def test_load_and_offline_restart(package_factory, store, models, tmp_path, monk
     monkeypatch.setattr(store, "get", lambda *args: (_ for _ in ()).throw(OSError("S3 offline")))
     restored = CatalogCache(store, tmp_path / "cache", models).restore()
     np.testing.assert_array_equal(restored.embeddings(1, "ecapa"), loaded.embeddings(1, "ecapa"))
+
+
+def test_range_catalog_writer_uses_playable_key_bounds(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "recommend-server"))
+    snapshot = {
+        "batch_id": "test-v1",
+        "tracks": [
+            {
+                "catalog_track_id": "catalog-1",
+                "range_profile": {"schemaVersion": 1},
+            }
+        ],
+    }
+    catalog = LoadedCatalog(snapshot=snapshot, manifest={}, root=tmp_path, arrays={})
+    index_path = tmp_path / "index.json"
+    index_path.write_text('{"schema_version":1,"tracks":[]}', encoding="utf-8")
+
+    _write_range_catalog(catalog, tmp_path, index_path, {"catalog-1": 1})
+
+    payload = json.loads((tmp_path / "range_profiles.json").read_text(encoding="utf-8"))
+    assert payload["keyShiftRange"] == [-6, 5]
+    assert set(payload["profiles"]) == {"1"}
 
 
 def test_bad_new_batch_preserves_previous_memory_and_pointer(package_factory, store, models, tmp_path):

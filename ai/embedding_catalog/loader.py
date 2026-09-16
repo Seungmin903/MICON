@@ -252,8 +252,8 @@ def _write_range_catalog(catalog: LoadedCatalog, destination: Path, index_path: 
     출처는 스냅샷 track 의 range_profile 이다. BE 가 아직 싣지 않으면
     MICON_RANGE_PROFILES 가 가리키는 파일에서 읽는다(catalog_track_id 키).
     """
-    from timbre_recommender.pitch_range import (RANGE_CATALOG_FILENAME, RANGE_SCORING_VERSION,
-                                                canonical_json_sha256)
+    from timbre_recommender.pitch_range import (KEY_SHIFT_BOUNDS, RANGE_CATALOG_FILENAME,
+                                                RANGE_SCORING_VERSION, canonical_json_sha256)
     from pitch_profile import PITCH_EXTRACTION_VERSION
 
     fallback = {}
@@ -282,7 +282,7 @@ def _write_range_catalog(catalog: LoadedCatalog, destination: Path, index_path: 
         "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
-        "keyShiftRange": [-6, 5],
+        "keyShiftRange": list(KEY_SHIFT_BOUNDS),
         "source": {"indexFile": index_path.name,
                    "indexCanonicalSha256": canonical_json_sha256(index_path),
                    "batchId": catalog.snapshot["batch_id"]},
