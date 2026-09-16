@@ -9,14 +9,12 @@ import com.micon.app.data.backend.dto.PracticeDetailDto
 import com.micon.app.data.backend.dto.PracticeNoteDto
 import com.micon.app.data.backend.dto.PracticeReportDto
 import com.micon.app.data.backend.dto.PracticeResultSaveRequest
-import com.micon.app.data.backend.dto.PracticeStatusRequest
 import com.micon.app.data.backend.dto.PracticeSummaryDto
 import com.micon.app.data.backend.dto.RetrySectionDto
 import com.micon.app.data.backend.dto.SectionEvaluationDto
 import com.micon.app.data.backend.unwrapData
 
 /** 백엔드 `PracticeRequest.ActiveStatus` — `PATCH /practices/{id}/status` 로 바꿀 수 있는 진행 상태. */
-enum class PracticeActiveStatus { RECORDING, IN_PROGRESS, PAUSED }
 
 /** 연습 세션 한 건(`PracticeResponse.Detail`). [status] 는 READY·RECORDING·IN_PROGRESS·PAUSED·COMPLETED·ABORTED·FAILED. */
 data class PracticeRecord(
@@ -113,25 +111,30 @@ data class PracticeReport(
     val curve: PitchCurve? = null,
 ) {
     val hasDetail: Boolean get() = notes.isNotEmpty() || (curve != null && !curve.isEmpty)
+
+    /** 결과 화면이 쓰는 세션 정보. 세션 상세 API 가 없어져 리포트 응답으로 대신 만든다(시각은 analyzedAt 로 대체). */
+    fun toRecord(): PracticeRecord = PracticeRecord(
+        id = practiceId, songId = songId, songTitle = songTitle, sectionId = sectionId, recordingId = null, voiceAnalysisId = null,
+        selectedKey = selectedKey, playbackSpeed = null, practiceScope = practiceScope, status = status ?: "COMPLETED",
+        startedAt = analyzedAt, endedAt = analyzedAt, durationMs = durationMs, createdAt = analyzedAt,
+    )
 }
 
 /**
  * 연습 기록. 백엔드 `PracticeController`(`/practices`)만 본다 — 로컬 엔진 job 은 더 쓰지 않는다.
  * `GET …/analysis`·`POST …/analysis/retry` 는 쓰지 않는다: 서버 analysis 는 앱이 저장한 결과 행의 상태를 돌려주고, retry 는 그 점수를 지운다.
  *
- * 세션 흐름(서버 규칙): [create] → READY. [complete] 는 RECORDING·IN_PROGRESS·PAUSED 에서만 되므로 시작 때 [updateStatus] 로
- * IN_PROGRESS 를 한 번 보낸다(같은 상태로 다시 보내면 409 INVALID_PRACTICE_STATE). [cancel] 은 READY~PAUSED → ABORTED.
+ * 세션 흐름(서버 규칙): [create](POST /practices/session) → READY → [complete]. 상태변경(PATCH status)·세션 상세(GET /practices/{practiceId})는
+ * BE 2026-09-16 명세 정리로 제거됐다 — 세션 정보는 리포트 상세(GET /practices/report/{practiceId})에서 읽는다. [cancel] 은 READY~PAUSED → ABORTED.
  * [savePerformance] 는 COMPLETED 세션에만 된다. 모두 로그인 필요(비회원 401).
  */
 interface PracticeRepository {
     suspend fun create(songId: Long, selectedKey: Int, practiceScope: String = "FULL_SONG"): PracticeRecord
-    suspend fun updateStatus(practiceId: Long, status: PracticeActiveStatus): PracticeRecord
     suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord
     suspend fun cancel(practiceId: Long): PracticeRecord
     suspend fun savePerformance(practiceId: Long, result: PracticeResultInput): PracticeReport
-    suspend fun get(practiceId: Long): PracticeRecord
-    /** 최신순 목록. size 최대 100. */
-    suspend fun history(page: Int = 0, size: Int = 50): PracticePage
+    /** 최신순 목록. size 최대 100. [date](yyyy-MM-dd) 를 주면 그 날짜만. */
+    suspend fun history(page: Int = 0, size: Int = 50, date: String? = null): PracticePage
     /** 저장된 결과. 없으면(404 PRACTICE_RESULT_NOT_FOUND) null. */
     suspend fun report(practiceId: Long): PracticeReport?
     /** 연습 기록(세션+결과) 삭제. 녹음·음성 분석 데이터는 남는다(BE 정책). 없거나 타인 것이면 404. */
@@ -141,9 +144,6 @@ interface PracticeRepository {
 class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository {
     override suspend fun create(songId: Long, selectedKey: Int, practiceScope: String): PracticeRecord =
         api.createPractice(PracticeCreateRequest(songId = songId, selectedKey = selectedKey, practiceScope = practiceScope)).unwrapData().toModel()
-
-    override suspend fun updateStatus(practiceId: Long, status: PracticeActiveStatus): PracticeRecord =
-        api.updatePracticeStatus(practiceId, PracticeStatusRequest(status.name)).unwrapData().toModel()
 
     override suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord =
         api.completePractice(practiceId, PracticeCompleteRequest(durationMs.coerceAtLeast(0))).unwrapData().toModel()
@@ -169,10 +169,8 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
             ),
         ).unwrapData().toModel()
 
-    override suspend fun get(practiceId: Long): PracticeRecord = api.practice(practiceId).unwrapData().toModel()
-
-    override suspend fun history(page: Int, size: Int): PracticePage {
-        val dto = api.practices(page, size.coerceIn(1, 100)).unwrapData()
+    override suspend fun history(page: Int, size: Int, date: String?): PracticePage {
+        val dto = api.practices(page, size.coerceIn(1, 100), date).unwrapData()
         return PracticePage(dto.content.map { it.toModel() }, dto.page, dto.size, dto.totalElements, dto.totalPages)
     }
 

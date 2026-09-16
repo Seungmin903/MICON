@@ -42,7 +42,7 @@ class RemotePracticeRepositoryTest {
         val record = repo.create(songId = 7, selectedKey = -2)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
-        assertEquals("/api/v1/practices", request.path)
+        assertEquals("/api/v1/practices/session", request.path)
         assertEquals("Bearer access", request.getHeader("Authorization"))
         val sent = request.body.readUtf8()
         assertTrue(sent.contains("\"songId\":7"))
@@ -55,16 +55,10 @@ class RemotePracticeRepositoryTest {
         assertFalse(record.isCompleted)
     }
 
-    @Test fun `status complete and cancel hit the lifecycle endpoints`() = runBlocking {
-        server.enqueue(ok(detail.replace("\"READY\"", "\"IN_PROGRESS\"")))
-        assertEquals("IN_PROGRESS", repo.updateStatus(31, PracticeActiveStatus.IN_PROGRESS).status)
-        var request = server.takeRequest()
-        assertEquals("PATCH", request.method); assertEquals("/api/v1/practices/31/status", request.path)
-        assertTrue(request.body.readUtf8().contains("\"status\":\"IN_PROGRESS\""))
-
+    @Test fun `complete and cancel hit the lifecycle endpoints`() = runBlocking {
         server.enqueue(ok(detail.replace("\"READY\"", "\"COMPLETED\"").replace("\"durationMs\":null", "\"durationMs\":183000")))
         val completed = repo.complete(31, 183_000)
-        request = server.takeRequest()
+        var request = server.takeRequest()
         assertEquals("/api/v1/practices/31/complete", request.path)
         assertTrue(request.body.readUtf8().contains("\"durationMs\":183000"))
         assertTrue(completed.isCompleted); assertEquals(183_000, completed.durationMs)
@@ -88,7 +82,7 @@ class RemotePracticeRepositoryTest {
             ),
         )
         val request = server.takeRequest()
-        assertEquals("PUT", request.method); assertEquals("/api/v1/practices/31/performance", request.path)
+        assertEquals("PUT", request.method); assertEquals("/api/v1/practices/report/31", request.path)
         val sent = request.body.readUtf8()
         assertTrue(sent.contains("\"status\":\"COMPLETED\""))
         assertTrue(sent.contains("\"overallScore\":81.23"))
@@ -111,7 +105,7 @@ class RemotePracticeRepositoryTest {
             "status":"ABORTED","startedAt":"2026-09-12T10:00:00","durationMs":null,"resultStatus":null,"overallScore":null}],
             "page":0,"size":50,"totalElements":2,"totalPages":1}"""))
         val page = repo.history(page = 0, size = 50)
-        assertEquals("/api/v1/practices?page=0&size=50", server.takeRequest().path)
+        assertEquals("/api/v1/practices/report?page=0&size=50", server.takeRequest().path)
         assertEquals(2L, page.totalElements)
         assertEquals(31L, page.items[0].id); assertEquals(81.23, page.items[0].overallScore!!, 1e-9)
         assertEquals("ABORTED", page.items[1].status); assertNull(page.items[1].overallScore)
@@ -120,7 +114,7 @@ class RemotePracticeRepositoryTest {
     @Test fun `report returns null when no result and rethrows other errors`() = runBlocking {
         server.enqueue(json(404, """{"code":"PRACTICE_RESULT_NOT_FOUND","message":"연습 결과를 찾을 수 없습니다.","data":null}"""))
         assertNull(repo.report(31))
-        assertEquals("/api/v1/practices/31/report", server.takeRequest().path)
+        assertEquals("/api/v1/practices/report/31", server.takeRequest().path)
         server.enqueue(json(404, """{"code":"PRACTICE_NOT_FOUND","message":"연습 기록을 찾을 수 없습니다.","data":null}"""))
         try {
             repo.report(99)

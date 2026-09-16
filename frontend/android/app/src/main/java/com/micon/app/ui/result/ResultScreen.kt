@@ -85,9 +85,10 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
         viewModelScope.launch {
             _state.value = State.Loading
             _state.value = try {
-                val practice = practices.get(practiceId)
-                val report = practices.report(practiceId)
-                State.Ready(practice, report, detail = report?.let { buildDetail(practice, it) })
+                // 세션 상세(GET /practices/{practiceId})는 BE 명세에서 제거됨 — 리포트 상세가 곡·키·범위·시간을 함께 준다.
+                val report = practices.report(practiceId) ?: throw NoSuchElementException("저장된 연습 결과가 없어요.")
+                val practice = report.toRecord()
+                State.Ready(practice, report, detail = buildDetail(practice, report))
             } catch (e: Exception) {
                 State.Error(describeBackendError(e, "연습 기록을 불러오지 못했어요."))
             }
