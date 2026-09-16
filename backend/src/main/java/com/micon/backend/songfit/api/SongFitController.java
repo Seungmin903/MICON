@@ -2,6 +2,7 @@ package com.micon.backend.songfit.api;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.songfit.service.SongFitService;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.security.Principal;
 import org.springframework.validation.annotation.Validated;
@@ -26,7 +27,7 @@ public class SongFitController {
 	public ApiResponse<SongFitResponse> getSongFit(
 		@PathVariable @Min(1) Long songId,
 		@RequestParam @Min(1) Long analysisId,
-		@RequestParam(defaultValue = "0") int keyOffset,
+		@RequestParam(defaultValue = "0") @Min(-6) @Max(5) int keyOffset,
 		Principal principal
 	) {
 		Long userId = Long.valueOf(principal.getName());

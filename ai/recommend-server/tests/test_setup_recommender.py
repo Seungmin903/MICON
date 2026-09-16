@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from timbre_recommender.catalog import CatalogIndex
 from timbre_recommender.embedding import OFFICIAL_SINGER_BYOL_REVISION, _git_revision
-from timbre_recommender.pitch_range import RangeCatalog
+from timbre_recommender.pitch_range import KEY_SHIFT_BOUNDS, RangeCatalog
 
 import setup_recommender
 
@@ -26,6 +26,7 @@ class RecommenderSetupTestCase(unittest.TestCase):
             verify_hashes=True,
         )
         self.assertEqual(len(ranges.profiles), len(catalog.tracks))
+        self.assertEqual(ranges.metadata["keyShiftRange"], list(KEY_SHIFT_BOUNDS))
         self.assertEqual(
             _git_revision(setup_recommender.VENDORED_SINGER_REPO),
             OFFICIAL_SINGER_BYOL_REVISION,

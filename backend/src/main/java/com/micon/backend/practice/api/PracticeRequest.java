@@ -17,7 +17,7 @@ public final class PracticeRequest {
 		@NotNull @Min(1) Long songId,
 		@Min(1) Long recordingId,
 		Long sectionId,
-		@Min(-12) @Max(12) Integer selectedKey,
+		@Min(-6) @Max(5) Integer selectedKey,
 		@DecimalMin("0.50") @DecimalMax("2.00") BigDecimal playbackSpeed,
 		PracticeScope practiceScope,
 		@PositiveOrZero Integer customStartMs,

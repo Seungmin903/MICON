@@ -68,20 +68,76 @@ class RecommendationResultStoreIntegrationTest {
     void marksInvalidDuplicateSongResultAsFailedWithoutPartialRows() {
         Recommendation recommendation = recommendation("result-invalid@micon.com", "job-invalid");
         long songId = insertCatalogSong("중복 곡");
-        RecommendationResultGateway.Item item = item(1, songId, null, null);
+        RecommendationResultGateway.Item item = item(1, songId, null, null, null);
 
         RecommendationResultStore.Outcome outcome = store.apply("job-invalid", new RecommendationResultGateway.Job(
                 "job-invalid", RecommendationResultGateway.Status.COMPLETE, 100, "done",
-                new RecommendationResultGateway.Result(null, List.of(
-                        new RecommendationResultGateway.Shelf("voice", "음색", null, List.of(item)),
-                        new RecommendationResultGateway.Shelf("range", "음역", null, List.of(item)))), null));
+                new RecommendationResultGateway.Result(
+                        new RecommendationResultGateway.Algorithm("score-v2", "shelves-v1"), List.of(
+                                new RecommendationResultGateway.Shelf("voice", "음색", null, List.of(item)),
+                                new RecommendationResultGateway.Shelf("range", "음역", null, List.of(item)))), null));
 
         entityManager.flush();
         assertThat(outcome).isEqualTo(RecommendationResultStore.Outcome.FAILED);
         assertThat(recommendation.getStatus()).isEqualTo(RecommendationStatus.FAILED);
         assertThat(recommendation.getFailureCode()).isEqualTo("AI_RESULT_INVALID");
+        assertThat(recommendation.getFailureReason()).contains("duplicate songId");
         assertThat(shelves.findByRecommendationIdOrderByOrder(recommendation.getId())).isEmpty();
         assertThat(songs.findByRecommendationIdOrderByOverallRank(recommendation.getId())).isEmpty();
+    }
+
+    @Test
+    void storesRecommendedKeysAtAvailableInstrumentalRangeBoundaries() throws Exception {
+        Recommendation recommendation = recommendation("result-boundaries@micon.com", "job-boundaries");
+        long lowSong = insertCatalogSong("최저 키 곡");
+        long highSong = insertCatalogSong("최고 키 곡");
+
+        RecommendationResultStore.Outcome outcome = store.apply("job-boundaries",
+                new RecommendationResultGateway.Job(
+                        "job-boundaries", RecommendationResultGateway.Status.COMPLETE, 100, "done",
+                        new RecommendationResultGateway.Result(
+                                new RecommendationResultGateway.Algorithm("score-v2", "shelves-v1"),
+                                List.of(new RecommendationResultGateway.Shelf("range", "내 음역", "음역 적합도",
+                                        List.of(
+                                                item(1, lowSong, json.readTree("{\"keyShift\":-6}"),
+                                                        (short) -6, null),
+                                                item(2, highSong, json.readTree("{\"keyShift\":5}"),
+                                                        (short) 5, null))))), null));
+
+        entityManager.flush();
+        entityManager.clear();
+        Recommendation saved = recommendations.findById(recommendation.getId()).orElseThrow();
+        assertThat(outcome).isEqualTo(RecommendationResultStore.Outcome.COMPLETED);
+        assertThat(saved.getStatus()).isEqualTo(RecommendationStatus.COMPLETED);
+        assertThat(songs.findByRecommendationIdOrderByOverallRank(saved.getId()))
+                .extracting(RecommendationSong::getRecommendedKey)
+                .containsExactly((short) -6, (short) 5);
+    }
+
+    @Test
+    void rejectsRecommendedKeyOutsideAvailableInstrumentalRange() throws Exception {
+        assertInvalidRangeResult("key-plus-six", json.readTree("{\"score\":0.91,\"keyShift\":6}"), (short) 6);
+    }
+
+    @Test
+    void rejectsRangeFitKeyShiftThatDiffersFromRecommendedKey() throws Exception {
+        assertInvalidRangeResult("key-mismatch", json.readTree("{\"score\":0.91,\"keyShift\":-1}"), (short) -2);
+    }
+
+    @Test
+    void rejectsNonIntegralRangeFitKeyShift() throws Exception {
+        assertInvalidRangeResult("non-integral-key", json.readTree("{\"score\":0.91,\"keyShift\":-2.0}"),
+                (short) -2);
+    }
+
+    @Test
+    void rejectsRangeFitWithoutRecommendedKey() throws Exception {
+        assertInvalidRangeResult("missing-key", json.readTree("{\"score\":0.91,\"keyShift\":-2}"), null);
+    }
+
+    @Test
+    void rejectsRecommendedKeyWithoutRangeFit() {
+        assertInvalidRangeResult("missing-range-fit", null, (short) -2);
     }
 
     @Test
@@ -98,9 +154,36 @@ class RecommendationResultStoreIntegrationTest {
     private RecommendationResultGateway.Item item(int position, long songId,
                                                    tools.jackson.databind.JsonNode rangeFit,
                                                    tools.jackson.databind.JsonNode metrics) {
+        return item(position, songId, rangeFit, (short) -2, metrics);
+    }
+
+    private RecommendationResultGateway.Item item(int position, long songId,
+                                                   tools.jackson.databind.JsonNode rangeFit,
+                                                   Short recommendedKey,
+                                                   tools.jackson.databind.JsonNode metrics) {
         return new RecommendationResultGateway.Item(position, songId, "CONSENSUS", "두 축 모두 가까움",
-                new BigDecimal("0.81"), rangeFit, (short) -2, new BigDecimal("0.88"), metrics,
+                new BigDecimal("0.81"), rangeFit, recommendedKey, new BigDecimal("0.88"), metrics,
                 "score-v2", "shelves-v1");
+    }
+
+    private void assertInvalidRangeResult(String suffix, tools.jackson.databind.JsonNode rangeFit,
+                                          Short recommendedKey) {
+        Recommendation recommendation = recommendation("result-" + suffix + "@micon.com", "job-" + suffix);
+        long songId = insertCatalogSong("잘못된 음역 결과 " + suffix);
+        RecommendationResultStore.Outcome outcome = store.apply(recommendation.getJobId(),
+                new RecommendationResultGateway.Job(
+                        recommendation.getJobId(), RecommendationResultGateway.Status.COMPLETE, 100, "done",
+                        new RecommendationResultGateway.Result(
+                                new RecommendationResultGateway.Algorithm("score-v2", "shelves-v1"),
+                                List.of(new RecommendationResultGateway.Shelf("range", "내 음역", "음역 적합도",
+                                        List.of(item(1, songId, rangeFit, recommendedKey, null))))), null));
+
+        entityManager.flush();
+        assertThat(outcome).isEqualTo(RecommendationResultStore.Outcome.FAILED);
+        assertThat(recommendation.getStatus()).isEqualTo(RecommendationStatus.FAILED);
+        assertThat(recommendation.getFailureCode()).isEqualTo("AI_RESULT_INVALID");
+        assertThat(shelves.findByRecommendationIdOrderByOrder(recommendation.getId())).isEmpty();
+        assertThat(songs.findByRecommendationIdOrderByOverallRank(recommendation.getId())).isEmpty();
     }
 
     private Recommendation recommendation(String email, String jobId) {

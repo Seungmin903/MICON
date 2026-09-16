@@ -23,7 +23,7 @@ from timbre_recommender.bulk_catalog import (
     validate_checkpoint,
 )
 from timbre_recommender.catalog import CatalogIndex, sha256_file
-from timbre_recommender.pitch_range import RangeCatalog
+from timbre_recommender.pitch_range import KEY_SHIFT_BOUNDS, RangeCatalog
 
 
 class BulkCatalogTestCase(unittest.TestCase):
@@ -181,7 +181,8 @@ class BulkCatalogTestCase(unittest.TestCase):
         catalog = CatalogIndex.load(release, verify_hashes=True)
         self.assertEqual(catalog.tracks[0].metadata["genres"], ["Pop"])
         self.assertNotIn("lyrics", catalog.tracks[0].metadata)
-        RangeCatalog.load(release, expected_track_ids={"tj-1"}, verify_hashes=True)
+        ranges = RangeCatalog.load(release, expected_track_ids={"tj-1"}, verify_hashes=True)
+        self.assertEqual(ranges.metadata["keyShiftRange"], list(KEY_SHIFT_BOUNDS))
 
         published_dir = self.root / "published"
         published = publish_catalog(release_dir=release, destination_dir=published_dir)

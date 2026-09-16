@@ -6,7 +6,7 @@
   "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
   "keyShiftRange": [
     -6,
-    6
+    5
   ],
   "generationRuntime": {
     "torch": "2.13.0+cu130",

@@ -150,6 +150,31 @@ class SongFitServiceTest {
 	}
 
 	@Test
+	void acceptsMaximumPlayableAiRecommendedKey() {
+		service = new SongFitService(repository, gateway, true);
+		stubAvailableSongFitInputs();
+		SongFitResponse aiResponse = new SongFitResponse(
+			10L, 20L, 0, "AVAILABLE", null, null, 5, null, "AI 계산", List.of(), null
+		);
+		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenReturn(aiResponse);
+
+		assertThat(service.getSongFit(7L, 10L, 20L, 0)).isSameAs(aiResponse);
+	}
+
+	@Test
+	void rejectsAiRecommendedKeyAbovePlayableRange() {
+		service = new SongFitService(repository, gateway, true);
+		stubAvailableSongFitInputs();
+		SongFitResponse aiResponse = new SongFitResponse(
+			10L, 20L, 0, "AVAILABLE", null, null, 6, null, "AI 계산", List.of(), null
+		);
+		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenReturn(aiResponse);
+
+		assertThatThrownBy(() -> service.getSongFit(7L, 10L, 20L, 0))
+			.isInstanceOf(SongFitEvaluationFailedException.class);
+	}
+
+	@Test
 	void distinguishesAiEvaluationFailure() {
 		service = new SongFitService(repository, gateway, true);
 		when(repository.songExists(10L)).thenReturn(true);
@@ -165,6 +190,18 @@ class SongFitServiceTest {
 
 		assertThatThrownBy(() -> service.getSongFit(7L, 10L, 20L, 0))
 			.isInstanceOf(SongFitEvaluationFailedException.class);
+	}
+
+	private void stubAvailableSongFitInputs() {
+		when(repository.songExists(10L)).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange(10L)).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("50"), decimal("70"))
+		));
+		when(repository.findRecommendation(7L, 20L, 10L)).thenReturn(Optional.empty());
+		when(repository.findBurdenSections(10L, 30L)).thenReturn(List.of());
 	}
 
 	private static BigDecimal decimal(String value) {

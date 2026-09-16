@@ -17,6 +17,10 @@ from pitch_profile import (
 )
 from timbre_recommender.catalog import CatalogIndex, build_catalog_index
 from timbre_recommender.pitch_range import (
+    KEY_SHIFT_BOUNDS,
+    KEY_SHIFT_MAX,
+    KEY_SHIFT_MIN,
+    KEY_SHIFTS,
     RANGE_CATALOG_FILENAME,
     RANGE_SCORING_VERSION,
     RangeCatalog,
@@ -68,6 +72,14 @@ def _manual_profile(
 
 
 class PitchProfileTestCase(unittest.TestCase):
+    def test_key_shift_contract_matches_playable_accompaniment_range(self) -> None:
+        self.assertEqual(KEY_SHIFT_MIN, -6)
+        self.assertEqual(KEY_SHIFT_MAX, 5)
+        self.assertEqual(KEY_SHIFT_BOUNDS, (-6, 5))
+        self.assertEqual(KEY_SHIFTS, tuple(range(-6, 6)))
+        self.assertEqual(len(KEY_SHIFTS), 12)
+        self.assertNotIn(6, KEY_SHIFTS)
+
     def test_summary_uses_duration_weighted_core_range_and_normalized_histogram(self) -> None:
         notes = [
             {"midi": 48, "duration": 0.1, "confidence": 0.9},
@@ -88,6 +100,15 @@ class PitchProfileTestCase(unittest.TestCase):
         self.assertEqual(match["keyShift"], -5)
         self.assertGreater(match["coverage"], 0.99)
         self.assertGreater(match["softFit"], 0.98)
+
+    def test_ideal_positive_six_shift_is_limited_to_positive_five(self) -> None:
+        query = _manual_profile({66: 1.0}, core_low=66, median=66, core_high=66)
+        candidate = _manual_profile({60: 1.0}, core_low=60, median=60, core_high=60)
+
+        match = score_range_fit(query, candidate)
+
+        self.assertEqual(match["keyShift"], 5)
+        self.assertNotEqual(match["keyShift"], 6)
 
     def test_low_cross_model_agreement_marks_profile_unreliable(self) -> None:
         profile = summarize_pitch_profile(
@@ -169,6 +190,7 @@ class PitchProfileTestCase(unittest.TestCase):
                 "schemaVersion": 1,
                 "scoringVersion": RANGE_SCORING_VERSION,
                 "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
+                "keyShiftRange": list(KEY_SHIFT_BOUNDS),
                 "profiles": {"one": _profile([60, 62, 64])},
             }
             (root / RANGE_CATALOG_FILENAME).write_text(
@@ -188,6 +210,7 @@ class PitchProfileTestCase(unittest.TestCase):
                 "schemaVersion": 1,
                 "scoringVersion": RANGE_SCORING_VERSION,
                 "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
+                "keyShiftRange": list(KEY_SHIFT_BOUNDS),
                 "source": {
                     "indexFile": index.name,
                     "indexCanonicalSha256": source_hash,
@@ -206,6 +229,24 @@ class PitchProfileTestCase(unittest.TestCase):
                 verify_hashes=True,
             )
             self.assertEqual(set(loaded.profiles), {"one"})
+            self.assertEqual(loaded.metadata["keyShiftRange"], list(KEY_SHIFT_BOUNDS))
+
+    def test_range_catalog_rejects_stale_positive_six_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = {
+                "schemaVersion": 1,
+                "scoringVersion": RANGE_SCORING_VERSION,
+                "pitchExtractionVersion": PITCH_EXTRACTION_VERSION,
+                "keyShiftRange": [-6, 6],
+                "profiles": {"one": _profile([60, 62, 64])},
+            }
+            (root / RANGE_CATALOG_FILENAME).write_text(
+                json.dumps(payload), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "key shift range"):
+                RangeCatalog.load(root)
 
 
 class RangeAwareRankingTestCase(unittest.TestCase):
@@ -340,6 +381,10 @@ class RangeAwareRankingTestCase(unittest.TestCase):
                 config=RankerConfig(candidate_k_per_model=1, top_k=1),
             )
             self.assertEqual(result["candidate_union_count"], 2)
+            self.assertEqual(
+                result["algorithm"]["range_scoring"]["key_shift_semitones"],
+                list(KEY_SHIFT_BOUNDS),
+            )
             self.assertEqual(result["algorithm"]["range_scoring"]["coverage_sigmoid_center"], 0.80)
             del catalog
             gc.collect()
