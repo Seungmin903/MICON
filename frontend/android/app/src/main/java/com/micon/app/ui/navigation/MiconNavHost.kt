@@ -212,7 +212,8 @@ private fun MiconNavHost(
         composable(Routes.RECOMMEND) {
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
-            else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
+                onAnalyze = { nav.navigate(Routes.VOICE_ONBOARDING) })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
             if (isGuest || !accessGranted) return@composable

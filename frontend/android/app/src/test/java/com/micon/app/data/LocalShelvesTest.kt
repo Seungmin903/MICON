@@ -75,10 +75,11 @@ class LocalShelvesTest {
     }
 
     @Test
-    fun `no profile falls back to one non-personalized section`() = runBlocking {
+    fun `no profile means no recommendation and an analysis-required note`() = runBlocking {
         UserStore.setProfile(null)
         val r = repo.shelves(limit = 10)
         assertEquals(false, r.personalized)
-        assertEquals(1, r.shelves.size)
+        assertTrue("분석 전에는 기본 추천을 보이지 않는다", r.shelves.isEmpty())
+        assertEquals(RecommendShelves.NOTE_ANALYSIS_REQUIRED, r.note)
     }
 }
