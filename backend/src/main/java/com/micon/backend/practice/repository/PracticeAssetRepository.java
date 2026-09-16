@@ -7,18 +7,40 @@ import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/** 곡의 최신 분석·미디어·가사·목표 음정·연습 구간 데이터를 JDBC로 조회한다. */
 @Repository
 public class PracticeAssetRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
+	// 기능: 필요한 의존성과 초기값을 받아 PracticeAssetRepository 객체를 생성한다.
 	public PracticeAssetRepository(NamedParameterJdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	// 기능: findSong 조건으로 데이터베이스를 조회한다.
 	public Optional<SongAssetRow> findSong(Long songId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.practice_ready,
+				SELECT s.song_id, s.title,
+				       CASE
+				           WHEN sa.analysis_id IS NOT NULL
+				            AND sm.lyrics_synced IS NOT NULL
+				            AND EXISTS (
+				                SELECT 1
+				                FROM song_note ready_note
+				                WHERE ready_note.analysis_id = sa.analysis_id
+				                  AND ready_note.karaoke_notes IS NOT NULL
+				            )
+				            AND EXISTS (
+				                SELECT 1
+				                FROM song_media ready_media
+				                WHERE ready_media.song_id = s.song_id
+				                  AND ready_media.generation_status = 'READY'
+				                  AND ready_media.semitones = 0
+				                  AND ready_media.kind IN ('INSTRUMENTAL', 'INSTRUMENTAL_KEY')
+				            )
+				           THEN TRUE ELSE FALSE
+				       END AS practice_ready,
 				       sm.lyrics_plain, sm.lyrics_synced,
 				       sa.analysis_id, sa.analysis_version, sa.key_name,
 				       sa.tempo_bpm, sa.time_signature, sa.beat_grid
@@ -49,6 +71,7 @@ public class PracticeAssetRepository {
 		)).stream().findFirst();
 	}
 
+	// 기능: findInstrumental 조건으로 데이터베이스를 조회한다.
 	public Optional<MediaRow> findInstrumental(Long songId, int selectedKey) {
 		String sql = """
 				SELECT media_id, file_path, mime_type, file_bytes, sha256
@@ -71,6 +94,7 @@ public class PracticeAssetRepository {
 			)).stream().findFirst();
 	}
 
+	// 기능: findNotes 조건으로 데이터베이스를 조회한다.
 	public Optional<NoteRow> findNotes(Long analysisId) {
 		String sql = """
 				SELECT karaoke_notes, karaoke_version
@@ -85,6 +109,7 @@ public class PracticeAssetRepository {
 		)).stream().findFirst();
 	}
 
+	// 기능: findSections 조건으로 데이터베이스를 조회한다.
 	public List<PracticeAssetResponse.Section> findSections(Long songId, Long analysisId) {
 		String sql = """
 				SELECT section_id, section_type, section_name, start_ms, end_ms, sequence_no,

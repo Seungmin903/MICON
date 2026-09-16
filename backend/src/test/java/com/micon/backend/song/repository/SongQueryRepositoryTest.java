@@ -58,6 +58,7 @@ class SongQueryRepositoryTest {
 
 		assertThat(detail.originalKey()).isEqualTo("A♭ Major");
 		assertThat(detail.bpm()).isEqualByComparingTo("128.500");
+		assertThat(detail.practiceReady()).isTrue();
 		assertThat(repository.findArtists(1L)).containsExactly("아이유");
 		assertThat(repository.findGenres(1L)).containsExactly("K-POP", "발라드");
 		assertThat(repository.isFavorite(1L, 30L)).isTrue();
@@ -78,7 +79,7 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_METADATA (
 			  song_id BIGINT PRIMARY KEY, tj_number VARCHAR(20), album_name VARCHAR(255),
-			  display_image_url VARCHAR(2048), release_date DATE
+			  display_image_url VARCHAR(2048), release_date DATE, lyrics_synced CLOB
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -108,15 +109,26 @@ class SongQueryRepositoryTest {
 			  highest_midi DECIMAL(6,2), analyzed_at TIMESTAMP
 			)
 			""");
+		jdbcTemplate.execute("""
+			CREATE TABLE SONG_NOTE (
+			  song_note_id BIGINT PRIMARY KEY, analysis_id BIGINT, karaoke_notes CLOB
+			)
+			""");
+		jdbcTemplate.execute("""
+			CREATE TABLE SONG_MEDIA (
+			  media_id BIGINT PRIMARY KEY, song_id BIGINT, kind VARCHAR(30),
+			  generation_status VARCHAR(20), semitones INT
+			)
+			""");
 		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id BIGINT, prefer_key BIGINT)");
 	}
 
 	private void insertFixtures() {
-		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000, TRUE)");
+		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000, FALSE)");
 		jdbcTemplate.update("INSERT INTO SONG VALUES (2, '밤편지', 253000, FALSE)");
 		jdbcTemplate.update("""
-			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, display_image_url, release_date)
-			VALUES (1, '33791', 'REAL', 'https://example.com/good-day.jpg', DATE '2010-12-09')
+			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, display_image_url, release_date, lyrics_synced)
+			VALUES (1, '33791', 'REAL', 'https://example.com/good-day.jpg', DATE '2010-12-09', '[00:01.00]첫 소절')
 			""");
 		jdbcTemplate.update("INSERT INTO SONG_METADATA(song_id, tj_number) VALUES (2, '49818')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (10, '아이유')");
@@ -132,6 +144,8 @@ class SongQueryRepositoryTest {
 			(100, 1, 'COMPLETED', 'A♭ Major', 128.500, 56.00, 81.00, TIMESTAMP '2026-09-01 10:00:00'),
 			(101, 1, 'FAILED', 'C Major', 100.000, 50.00, 70.00, TIMESTAMP '2026-09-02 10:00:00')
 			""");
+		jdbcTemplate.update("INSERT INTO SONG_NOTE VALUES (200, 100, '[{\"startMs\":1000}]')");
+		jdbcTemplate.update("INSERT INTO SONG_MEDIA VALUES (300, 1, 'INSTRUMENTAL', 'READY', 0)");
 		jdbcTemplate.update("INSERT INTO FAVORITE_SONG VALUES (30, 1, 0)");
 	}
 }
