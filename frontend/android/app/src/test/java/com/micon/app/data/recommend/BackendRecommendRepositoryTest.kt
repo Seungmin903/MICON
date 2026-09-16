@@ -3,9 +3,7 @@ package com.micon.app.data.recommend
 import com.micon.app.core.auth.MemoryTokenStore
 import com.micon.app.core.network.BackendClient
 import com.micon.app.data.PracticeAssets
-import com.micon.app.data.RecommendMode
 import com.micon.app.data.RecommendRepository
-import com.micon.app.data.RecommendResult
 import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
@@ -56,8 +54,7 @@ class BackendRecommendRepositoryTest {
     /** 로컬 폴백 표식: 섹션 key "local", fit 은 null */
     private object FakeLocal : RecommendRepository {
         override suspend fun fit(songId: Long): SongFit? = null
-        override suspend fun recommend(mode: RecommendMode, limit: Int) = RecommendResult(mode, false, emptyList())
-        override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, listOf(RecommendShelf("local", "기본 추천", null, emptyList<RecommendedSong>())))
+        override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(true, listOf(RecommendShelf("local", "내 음역에 맞는 곡", null, emptyList<RecommendedSong>())))
     }
 
     private lateinit var server: MockWebServer
@@ -116,7 +113,9 @@ class BackendRecommendRepositoryTest {
     @Test fun `input not ready and ai disabled fall back with explanatory notes`() = runBlocking {
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"없음","data":null}"""))
         server.enqueue(json(409, """{"code":"RECOMMENDATION_INPUT_NOT_READY","message":"완료된 음성 분석과 사용자 임베딩이 필요합니다.","data":null}"""))
-        assertTrue(repo.shelves().note!!.contains("목소리 분석을 완료하면"))
+        val notReady = repo.shelves()
+        assertTrue(notReady.note!!.startsWith(RecommendShelves.NOTE_ANALYSIS_REQUIRED))
+        assertTrue("기기 계산 추천이 있으면 그 사실을 덧붙인다", notReady.note!!.contains("이 기기의 음역 계산 추천"))
         server.takeRequest(); server.takeRequest()
 
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"없음","data":null}"""))
@@ -134,9 +133,11 @@ class BackendRecommendRepositoryTest {
         assertTrue(failed.note!!.contains("임베딩 없음"))
     }
 
-    @Test fun `guest uses local without touching the server`() = runBlocking {
+    @Test fun `guest gets no recommendation and a login note without touching the server`() = runBlocking {
         loggedIn = false
-        assertEquals("local", repo.shelves().shelves.single().key)
+        val r = repo.shelves()
+        assertTrue(r.shelves.isEmpty())
+        assertEquals(RecommendShelves.NOTE_LOGIN_REQUIRED, r.note)
         assertNull(repo.fit(7))
         assertEquals(0, server.requestCount)
     }

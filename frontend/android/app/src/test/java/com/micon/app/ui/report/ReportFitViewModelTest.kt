@@ -1,9 +1,7 @@
 package com.micon.app.ui.report
 
 import com.micon.app.data.PracticeAssets
-import com.micon.app.data.RecommendMode
 import com.micon.app.data.RecommendRepository
-import com.micon.app.data.RecommendResult
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongFit
@@ -57,7 +55,6 @@ class ReportFitViewModelTest {
 
     private class FakeRecommend(val fits: Map<Long, SongFit?>) : RecommendRepository {
         override suspend fun fit(songId: Long): SongFit? = fits[songId]
-        override suspend fun recommend(mode: RecommendMode, limit: Int) = RecommendResult(mode, false, emptyList())
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
     }
 

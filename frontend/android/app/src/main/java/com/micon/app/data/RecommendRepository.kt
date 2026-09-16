@@ -15,30 +15,29 @@ interface RecommendRepository {
     suspend fun fit(songId: Long): SongFit?
 
     /**
-     * 추천 목록. **순서·비율은 구현(서버)이 정한 그대로** 돌려주고 화면은 재정렬하지 않는다(REC-001).
-     * 프로필이 없거나 [mode] 를 지원할 데이터가 없으면 개인화하지 않은 기본 추천을 돌려준다(REC-004).
-     */
-    suspend fun recommend(mode: RecommendMode, limit: Int = 10): RecommendResult
-
-    /**
-     * 추천 섹션 목록(shelves-v1) — 추천 탭이 좌우로 넘기는 페이지 하나가 섹션 하나. 순서·곡은 구현(서버)이 정한 그대로.
+     * 추천 섹션 목록(shelves-v1) — 추천 탭이 좌우로 넘기는 페이지 하나가 섹션 하나. 순서·곡은 구현(서버)이 정한 그대로(REC-001).
      * 고음 도전(`challenge`)은 화면에서 쓰지 않으므로 구현이 빼고 준다.
+     * 추천할 근거(로그인·목소리 분석)가 없으면 **빈 목록** 과 그 이유([RecommendShelves.note])를 돌려준다 — 기본 추천은 없다.
      *
      * [reshuffle] 은 "새로운 발견" 다시 뽑기 횟수. 이 섹션만 무작위(하루 단위)라 값이 바뀌면 다른 순서가 나온다.
      */
     suspend fun shelves(limit: Int = 10, reshuffle: Int = 0): RecommendShelves
 }
 
-/** 이전 모드 기반 API 용. 추천 탭은 [RecommendRepository.shelves] 를 쓴다. */
-enum class RecommendMode { RANGE, TIMBRE, GENRE, POPULAR }
-
 data class RecommendShelves(
-    /** false 면 "기본 추천"으로 표시하고 개인화 문구를 쓰지 않는다(REC-004). */
+    /** false 면 개인화 문구(이름·"내 음색")를 쓰지 않는다. */
     val personalized: Boolean,
     val shelves: List<RecommendShelf>,
-    /** 서버 추천 대신 기기 계산을 보여 주는 이유(생성 중·미준비·분석 없음 등). null 이면 안내 없음. 화면이 그대로 보인다. */
+    /** 서버 추천 대신 기기 계산을 보여 주는 이유(생성 중·미준비 등), 또는 [shelves] 가 빈 이유. null 이면 안내 없음. 화면이 그대로 보인다. */
     val note: String? = null,
-)
+) {
+    companion object {
+        const val NOTE_LOGIN_REQUIRED = "로그인하면 내 목소리에 맞춘 추천을 받을 수 있어요."
+        const val NOTE_ANALYSIS_REQUIRED = "목소리 분석을 마쳐야 추천을 받을 수 있어요."
+
+        fun empty(note: String) = RecommendShelves(personalized = false, shelves = emptyList(), note = note)
+    }
+}
 
 /** 섹션 하나. [key] 는 서버 문자열 그대로([ShelfKeys]). 제목·설명(metric)도 서버 문구를 그대로 보인다. */
 data class RecommendShelf(
@@ -56,21 +55,12 @@ object ShelfKeys {
     const val DISCOVERY = "discovery"
 }
 
-data class RecommendResult(
-    val mode: RecommendMode,
-    /** false 면 화면에 "기본 추천"으로 표시하고 개인화 문구를 쓰지 않는다(REC-004). */
-    val personalized: Boolean,
-    val items: List<RecommendedSong>,
-    /** 서버 `algorithm.language_gate.allowed` (ko/jp/en). 참고 표시용 — 클라이언트에서 다시 필터하지 않는다. 로컬은 null */
-    val languageGateAllowed: List<String>? = null,
-)
-
 data class RecommendedSong(
     /** 1부터 */
     val rank: Int,
     val song: SongSummary,
-    /** 기본 추천이면 null */
+    /** 검색 결과처럼 적합도가 없으면 null */
     val fit: SongFit?,
-    /** 추천 사유. 개인화면 fit.reasons 와 같고, 기본 추천이면 "선호 장르: 발라드" 식. 최소 1개(REC-002) */
+    /** 추천 사유. 개인화면 fit.reasons 와 같다. 최소 1개(REC-002) */
     val reasons: List<String>,
 )

@@ -7,7 +7,6 @@ import com.micon.app.scoring.RangeFitCalculator
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -50,14 +49,9 @@ class LocalRecommendRepositoryTest {
     @After fun reset() = UserStore.setProfile(null)
 
     @Test
-    fun `no profile means not evaluable and default recommendation`() = runBlocking {
+    fun `no profile means not evaluable`() = runBlocking {
         UserStore.setProfile(null)
         assertNull(repo.fit(14260L))
-        val r = repo.recommend(RecommendMode.RANGE, 5)
-        assertFalse(r.personalized)
-        assertEquals(2, r.items.size)                   // 백엔드 목록은 연습 가능 여부로 걸러 주지 않는다 → 기본 추천은 목록 전체
-        assertNull(r.items[0].fit)
-        assertTrue(r.items[0].reasons.isNotEmpty())
     }
 
     @Test
@@ -72,10 +66,10 @@ class LocalRecommendRepositoryTest {
         assertNull(fit.timbre)
         assertNotNull(fit.strainSections)
 
-        val r = repo.recommend(RecommendMode.RANGE, 5)
+        val r = repo.shelves(limit = 5)
         assertTrue(r.personalized)
-        assertEquals(1, r.items[0].rank)
-        assertSame(fit, r.items[0].fit)                 // 목록과 상세가 같은 객체(REC-005)
+        val listed = r.shelves.flatMap { it.items }.first { it.song.id == 14260L }
+        assertSame(fit, listed.fit)                     // 목록과 상세가 같은 객체(REC-005)
     }
 
     @Test

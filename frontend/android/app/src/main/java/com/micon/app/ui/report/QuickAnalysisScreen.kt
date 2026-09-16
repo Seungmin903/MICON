@@ -283,15 +283,17 @@ class QuickAnalysisViewModel(appContext: Context, private val submitter: ScaleAn
         piano.stop()
         val confirmed = _state.value.confirmed
         // 화면에는 확인된 5음으로 만든 임시 프로필을 먼저 보여 주고, 서버 SCALE 분석 결과가 오면 리포트 탭이 덮는다.
-        val profile = if (confirmed.isEmpty()) UserStore.VoiceProfile() else {
+        // 확인된 음이 하나도 없으면 프로필을 만들지 않는다 — 예시값으로 추천이 생기면 안 된다.
+        if (confirmed.isNotEmpty()) {
             val low = confirmed.min(); val high = confirmed.max()
-            UserStore.VoiceProfile(
-                lowMidi = low - 4, highMidi = high + 4,
-                comfortLow = low, comfortHigh = high,
-                recommendLow = low + 1, recommendHigh = high - 1,
+            UserStore.setProfile(
+                UserStore.VoiceProfile(
+                    lowMidi = low - 4, highMidi = high + 4,
+                    comfortLow = low, comfortHigh = high,
+                    recommendLow = low + 1, recommendHigh = high - 1,
+                ),
             )
         }
-        UserStore.setProfile(profile)
         _state.update { it.copy(step = Step.DONE, micRunning = false, justConfirmed = false) }
         if (wav != null && confirmed.isNotEmpty()) submitToServer(wav)
     }
