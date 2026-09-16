@@ -2,7 +2,10 @@ package com.micon.backend.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.springframework.http.MediaType;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,5 +31,16 @@ class GuestCatalogSecurityIntegrationTests {
         mockMvc.perform(get("/songs/1/practice-assets"))
                 .andExpect(result -> org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getStatus()).isNotEqualTo(401));
+    }
+
+    @Test
+    void guestCanBrowseSongHomepage() throws Exception {
+        mockMvc.perform(get("/homepage"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+
+		mockMvc.perform(get("/v1/homepage"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
     }
 }
