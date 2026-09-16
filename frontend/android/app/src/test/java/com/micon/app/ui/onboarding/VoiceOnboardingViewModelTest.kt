@@ -10,6 +10,7 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import androidx.lifecycle.ViewModelStore
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VoiceOnboardingViewModelTest {
@@ -34,19 +35,20 @@ class VoiceOnboardingViewModelTest {
     private inner class Store : VoiceOnboardingPersistence {
         var data = VoiceOnboardingDraft("local-draft", recordingId = "recording")
         var audio: SavedRecording? = recording()
+        var report: RangeReport? = this@VoiceOnboardingViewModelTest.range()
         var profile: SavedVoiceOnboardingProfile? = null
         var failCache = false
         var clears = 0
         override fun draft() = data
         override fun write(draft: VoiceOnboardingDraft) { data = draft }
-        override fun range() = this@VoiceOnboardingViewModelTest.range()
+        override fun range() = report
         override fun recording(id: String?) = audio?.takeIf { it.id == id }
         override fun deleteRecording(id: String?) { if (audio?.id == id) audio = null }
         override fun saveProfile(profile: SavedVoiceOnboardingProfile) {
             if (failCache) error("disk failure")
             this.profile = profile
         }
-        override fun clearDraft() { clears++; audio = null }
+        override fun clearDraft() { clears++; audio = null; report = null }
     }
 
     private inner class Gateway : VoiceOnboardingGateway {
@@ -61,7 +63,11 @@ class VoiceOnboardingViewModelTest {
         var saveFailure = false
         var saveWait: CompletableDeferred<Unit>? = null
         var recovered: VoiceAnalysisProgress? = null
+        val recoveredSessions = mutableListOf<Long>()
+        var recoveryWait: CompletableDeferred<Unit>? = null
+        var recoveryUpdate: ((VoiceAnalysisProgress) -> Unit)? = null
         var cancels = 0
+        var cancelWait: CompletableDeferred<Unit>? = null
         override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
             onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
             analyses++; this.request = request; this.retry = retry; update = onProgress
@@ -72,16 +78,122 @@ class VoiceOnboardingViewModelTest {
             if (saveFailure) error("offline")
             return ProfileSaveReceipt(result.sessionId, result.version, "profile")
         }
-        override suspend fun recover(ownerId: Long) = recovered
-        override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) { cancels++ }
+        override suspend fun recover(ownerId: Long, sessionId: Long,
+            onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress? {
+            recoveredSessions += sessionId
+            recoveryUpdate = onProgress
+            withContext(NonCancellable) { recoveryWait?.await() }
+            recovered?.let(onProgress)
+            return recovered
+        }
+        override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {
+            cancels++
+            withContext(NonCancellable) { cancelWait?.await() }
+        }
     }
 
     @Test fun restoresActiveServerSessionForSignedInOwner() = runTest {
-        val gateway = Gateway().apply { recovered = ready().copy(analysisId = 77) }
-        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        val gateway = Gateway().apply { recovered = ready().copy(sessionId = "7", analysisId = 77) }
+        val store = Store().apply { data = data.copy(serverSessionId = 7) }
+        val model = VoiceOnboardingViewModel(1, store, gateway)
         advanceUntilIdle()
-        assertEquals("server-session", model.state.value.progress?.sessionId)
+        assertEquals("7", model.state.value.progress?.sessionId)
         assertEquals(77L, model.state.value.progress?.analysisId)
+        assertEquals(listOf(7L), gateway.recoveredSessions)
+        assertFalse(model.state.value.recovering)
+    }
+
+    @Test fun freshDraftNeverRecoversAnUnrelatedServerSession() = runTest {
+        val gateway = Gateway().apply { recovered = ready() }
+        val store = Store().apply { report = null; audio = null; data = VoiceOnboardingDraft("fresh") }
+        val model = VoiceOnboardingViewModel(1, store, gateway)
+        advanceUntilIdle()
+        assertTrue(gateway.recoveredSessions.isEmpty())
+        assertNull(model.state.value.range)
+        assertNull(model.state.value.progress)
+    }
+
+    @Test fun legacyRangePinsRecoveryWithoutDependingOnLatestActiveSession() = runTest {
+        val gateway = Gateway().apply { recovered = ready().copy(sessionId = "7") }
+        val store = Store().apply { report = range()!!.copy(backendSessionId = 7) }
+        VoiceOnboardingViewModel(1, store, gateway)
+        advanceUntilIdle()
+        assertEquals(listOf(7L), gateway.recoveredSessions)
+        assertEquals(7L, store.data.serverSessionId)
+    }
+
+    @Test fun restartRejectsLateRecoveryAndStaysFreshAfterProcessRecreation() = runTest {
+        val gateway = Gateway().apply {
+            recovered = ready().copy(sessionId = "7")
+            recoveryWait = CompletableDeferred()
+        }
+        val store = Store().apply { data = data.copy(serverSessionId = 7) }
+        val model = VoiceOnboardingViewModel(1, store, gateway)
+        runCurrent()
+        model.restart()
+        val newDraft = store.data.draftId
+        gateway.recoveryWait!!.complete(Unit)
+        advanceUntilIdle()
+        assertNotEquals("local-draft", newDraft)
+        assertNull(model.state.value.progress)
+        assertNull(store.data.serverSessionId)
+        assertFalse(model.state.value.recovering)
+        val recreated = VoiceOnboardingViewModel(1, store, gateway)
+        advanceUntilIdle()
+        assertEquals(newDraft, recreated.state.value.draftId)
+        assertNull(recreated.state.value.range)
+        assertNull(recreated.state.value.recording)
+        assertEquals(listOf(7L), gateway.recoveredSessions)
+    }
+
+    @Test fun recoveryFromWrongSessionOrChangedOwnerCannotReplaceTheDraft() = runTest {
+        var currentOwner = true
+        val gateway = Gateway().apply { recovered = ready().copy(sessionId = "8") }
+        val store = Store().apply { data = data.copy(serverSessionId = 7) }
+        val model = VoiceOnboardingViewModel(1, store, gateway, isCurrentOwner = { currentOwner })
+        advanceUntilIdle()
+        assertNull(model.state.value.progress)
+        currentOwner = false
+        gateway.recoveryUpdate!!(ready().copy(sessionId = "7"))
+        model.restart()
+        assertNull(model.state.value.progress)
+        assertEquals(0, store.clears)
+    }
+
+    @Test fun newRecordingRejectsLateRecoveryFromPreviousRecording() = runTest {
+        val gateway = Gateway().apply { recoveryWait = CompletableDeferred(); recovered = ready().copy(sessionId = "7") }
+        val model = VoiceOnboardingViewModel(1, Store().apply { data = data.copy(serverSessionId = 7) }, gateway)
+        runCurrent()
+        model.newRecording()
+        gateway.recoveryWait!!.complete(Unit)
+        advanceUntilIdle()
+        assertNull(model.state.value.progress)
+        assertNull(model.state.value.recording)
+    }
+
+    @Test fun leavingOnboardingRejectsLateAnalysisBeforeNewEntry() = runTest {
+        val gateway = Gateway()
+        val store = Store()
+        val model = VoiceOnboardingViewModel(1, store, gateway)
+        val models = ViewModelStore().apply { put("onboarding", model) }
+        model.analyze(); advanceUntilIdle()
+        models.clear()
+        val fresh = store.startNewDraft()
+        gateway.update!!(ready().copy(version = 43))
+        assertEquals(fresh, store.data)
+    }
+
+    @Test fun leavingDuringCancellationCannotRewriteTheNextDraft() = runTest {
+        val gateway = Gateway().apply { result = ready().copy(analysisId = 77); cancelWait = CompletableDeferred() }
+        val store = Store()
+        val model = VoiceOnboardingViewModel(1, store, gateway)
+        val models = ViewModelStore().apply { put("onboarding", model) }
+        model.analyze(); advanceUntilIdle()
+        model.cancelAnalysis(); runCurrent()
+        models.clear()
+        val fresh = store.startNewDraft()
+        gateway.cancelWait!!.complete(Unit); advanceUntilIdle()
+        assertEquals(fresh, store.data)
     }
 
     @Test fun cancelStopsRemoteAnalysisWhenServerJobIsKnown() = runTest {
