@@ -35,6 +35,11 @@ services:
       dockerfile: backend/Dockerfile
     container_name: micon-backend-${MICON_BACKEND_SLOT:-candidate}
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     depends_on:
       migrate:
         condition: service_completed_successfully

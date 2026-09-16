@@ -2,6 +2,7 @@ package com.micon.backend.practice.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
+import com.micon.backend.common.observability.AccessLog;
 import com.micon.backend.practice.api.PracticeAssetResponse;
 import com.micon.backend.practice.repository.PracticeAssetRepository;
 import com.micon.backend.practice.repository.PracticeAssetRepository.MediaRow;
@@ -42,17 +43,19 @@ public class PracticeAssetService {
 		SongAssetRow song = repository.findSong(songId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 		if (!song.practiceReady() || song.analysisId() == null) {
+			AccessLog.event("practice_asset_blocked", true, "song_id", songId, "selected_key", selectedKey,
+				"reason", "song_not_ready", "practice_ready", song.practiceReady(),
+				"analysis_present", song.analysisId() != null);
 			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);
 		}
 
 		MediaRow media = repository.findInstrumental(songId, selectedKey)
-			.orElseThrow(() -> new BusinessException(selectedKey == 0
-				? ErrorCode.PRACTICE_ASSET_NOT_READY
-				: ErrorCode.UNSUPPORTED_PRACTICE_KEY));
+			.orElseThrow(() -> blocked(songId, selectedKey, "instrumental_missing", selectedKey == 0
+				? ErrorCode.PRACTICE_ASSET_NOT_READY : ErrorCode.UNSUPPORTED_PRACTICE_KEY));
 		NoteRow note = repository.findNotes(song.analysisId())
-			.orElseThrow(() -> new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY));
+			.orElseThrow(() -> blocked(songId, selectedKey, "notes_missing", ErrorCode.PRACTICE_ASSET_NOT_READY));
 		if (song.lyricsSynced() == null || song.lyricsSynced().isBlank()) {
-			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);
+			throw blocked(songId, selectedKey, "synced_lyrics_missing", ErrorCode.PRACTICE_ASSET_NOT_READY);
 		}
 		String playbackUrl = storage.createDownloadUrl(media.filePath(), mediaProperties.downloadUrlTtl()).toString();
 		Instant playbackUrlExpiresAt = clock.instant().plus(mediaProperties.downloadUrlTtl());
@@ -89,10 +92,16 @@ public class PracticeAssetService {
 		);
 	}
 
+	private BusinessException blocked(Long songId, int key, String reason, ErrorCode code) {
+		AccessLog.event("practice_asset_blocked", true, "song_id", songId, "selected_key", key, "reason", reason);
+		return new BusinessException(code);
+	}
+
 	private JsonNode readJson(String value) {
 		try {
 			return objectMapper.readTree(value);
 		} catch (Exception exception) {
+			AccessLog.event("practice_asset_blocked", true, "reason", "invalid_asset_json");
 			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);
 		}
 	}

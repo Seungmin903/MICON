@@ -1,5 +1,7 @@
 package com.micon.backend.recommendation.client;
 
+import com.micon.backend.common.observability.ObservedAiRequestFactory;
+
 import com.micon.backend.recommendation.application.RecommendationInput;
 import com.micon.backend.recommendation.config.RecommendationAiProperties;
 import com.micon.backend.recommendation.domain.RecommendationMode;
@@ -77,7 +79,7 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
         requestFactory.setReadTimeout(properties.readTimeout());
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl(properties.baseUrl())
-                .requestFactory(requestFactory);
+                .requestFactory(new ObservedAiRequestFactory(requestFactory));
         if (!properties.serviceToken().isBlank()) {
             builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.serviceToken());
         }

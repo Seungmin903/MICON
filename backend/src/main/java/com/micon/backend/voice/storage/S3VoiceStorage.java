@@ -1,5 +1,7 @@
 package com.micon.backend.voice.storage;
 
+import com.micon.backend.common.observability.S3AccessLog;
+
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -34,24 +36,31 @@ public class S3VoiceStorage implements VoiceStorage {
                 .bucket(properties.bucket()).key(objectKey).build();
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
                 .signatureDuration(validity).getObjectRequest(objectRequest).build();
-        return URI.create(presigner.presignGetObject(presignRequest).url().toString());
+        return S3AccessLog.call("presign_get", properties.bucket(), objectKey,
+                () -> URI.create(presigner.presignGetObject(presignRequest).url().toString()), ignored -> 0);
     }
 
     @Override
     public StoredObject download(String objectKey) {
-        ResponseBytes<GetObjectResponse> object = s3.getObjectAsBytes(GetObjectRequest.builder()
-                .bucket(properties.bucket()).key(objectKey).build());
+        ResponseBytes<GetObjectResponse> object = S3AccessLog.call("get", properties.bucket(), objectKey,
+                () -> s3.getObjectAsBytes(GetObjectRequest.builder()
+                        .bucket(properties.bucket()).key(objectKey).build()),
+                result -> result.response().sdkHttpResponse().statusCode());
         return new StoredObject(object.asByteArray(), object.response().contentType());
     }
 
     @Override
     public void upload(String objectKey, InputStream content, long contentLength, String contentType) {
-        s3.putObject(PutObjectRequest.builder().bucket(properties.bucket()).key(objectKey)
-                .contentType(contentType).build(), RequestBody.fromInputStream(content, contentLength));
+        S3AccessLog.call("put", properties.bucket(), objectKey,
+                () -> s3.putObject(PutObjectRequest.builder().bucket(properties.bucket()).key(objectKey)
+                        .contentType(contentType).build(), RequestBody.fromInputStream(content, contentLength)),
+                result -> result.sdkHttpResponse().statusCode());
     }
 
     @Override
     public void delete(String objectKey) {
-        s3.deleteObject(DeleteObjectRequest.builder().bucket(properties.bucket()).key(objectKey).build());
+        S3AccessLog.call("delete", properties.bucket(), objectKey,
+                () -> s3.deleteObject(DeleteObjectRequest.builder().bucket(properties.bucket()).key(objectKey).build()),
+                result -> result.sdkHttpResponse().statusCode());
     }
 }

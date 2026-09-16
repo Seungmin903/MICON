@@ -1,5 +1,8 @@
 package com.micon.backend.songfit.client;
 
+import com.micon.backend.common.observability.ObservedAiRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+
 import com.micon.backend.songfit.api.SongFitResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -15,7 +18,8 @@ public class HttpSongFitGateway implements SongFitGateway {
 		@Value("${ai.recommendation.base-url:http://localhost:8788}") String baseUrl,
 		@Value("${ai.service-token:}") String serviceToken
 	) {
-		RestClient.Builder configured = RestClient.builder().baseUrl(baseUrl);
+		RestClient.Builder configured = RestClient.builder().baseUrl(baseUrl)
+			.requestFactory(new ObservedAiRequestFactory(new JdkClientHttpRequestFactory()));
 		if (serviceToken != null && !serviceToken.isBlank()) {
 			configured.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken);
 		}
