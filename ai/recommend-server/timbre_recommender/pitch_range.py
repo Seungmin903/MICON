@@ -25,7 +25,10 @@ MODE_WEIGHTS = {
     "timbre": {"timbre": 0.75, "range": 0.25},
     "range": {"timbre": 0.30, "range": 0.70},
 }
-KEY_SHIFTS = tuple(range(-6, 7))
+KEY_SHIFT_MIN = -6
+KEY_SHIFT_MAX = 5
+KEY_SHIFT_BOUNDS = (KEY_SHIFT_MIN, KEY_SHIFT_MAX)
+KEY_SHIFTS = tuple(range(KEY_SHIFT_MIN, KEY_SHIFT_MAX + 1))
 COMFORT_PADDING_SEMITONES = 2
 COVERAGE_CENTER = 0.80
 COVERAGE_SIGMOID_SCALE = 0.05
@@ -95,6 +98,11 @@ class RangeCatalog:
             raise ValueError("unsupported range catalog scoring version")
         if payload.get("pitchExtractionVersion") != PITCH_EXTRACTION_VERSION:
             raise ValueError("unsupported range catalog pitch extraction version")
+        if payload.get("keyShiftRange") != list(KEY_SHIFT_BOUNDS):
+            raise ValueError(
+                "unsupported range catalog key shift range: "
+                f"expected {list(KEY_SHIFT_BOUNDS)}"
+            )
         profiles = {
             str(track_id): _validated_profile(profile, label=str(track_id))
             for track_id, profile in payload.get("profiles", {}).items()
@@ -183,7 +191,7 @@ def _score_at_shift(
 def score_range_fit(
     query_profile: Mapping[str, Any], candidate_profile: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """Choose the best integer song transposition from -6 through +6 semitones."""
+    """Choose the best integer song transposition from -6 through +5 semitones."""
 
     query = _validated_profile(query_profile, label="query")
     candidate = _validated_profile(candidate_profile, label="candidate")

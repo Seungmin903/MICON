@@ -171,6 +171,8 @@
           "type": "number"
         },
         "keyShift": {
+          "maximum": 5,
+          "minimum": -6,
           "title": "Keyshift",
           "type": "integer"
         },
@@ -279,13 +281,16 @@
         "song_id": {
           "anyOf": [
             {
+              "type": "integer"
+            },
+            {
               "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "description": "앱 songs.song_id (tj-번호). tj_id 로부터 유도",
+          "description": "BE 응답은 숫자 DB song_id. 문자열은 로컬 데모에서만 허용",
           "title": "Song Id"
         },
         "title": {
@@ -392,6 +397,8 @@
         "recommended_key": {
           "anyOf": [
             {
+              "maximum": 5,
+              "minimum": -6,
               "type": "integer"
             },
             {

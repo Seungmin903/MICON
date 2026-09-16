@@ -3,6 +3,7 @@ package com.micon.app.scoring
 import com.micon.app.data.SongDataFixture
 import com.micon.app.data.backend.dto.KaraokeNote
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,6 +47,23 @@ class RangeFitTest {
     fun `low song for a high voice is shifted up`() {
         val user = PitchProfile.ofStableRange(song.coreLow + 4, song.coreHigh + 4)
         assertTrue(RangeFitCalculator.best(user, song).keyShift > 0)
+    }
+
+    @Test
+    fun `key shift contract contains twelve keys from minus six through plus five`() {
+        assertEquals(-6, RangeFitCalculator.KEY_SHIFTS.first)
+        assertEquals(5, RangeFitCalculator.KEY_SHIFTS.last)
+        assertEquals(12, RangeFitCalculator.KEY_SHIFTS.count())
+        assertFalse(6 in RangeFitCalculator.KEY_SHIFTS)
+    }
+
+    @Test
+    fun `ideal plus six match is capped at plus five`() {
+        val songHistogram = DoubleArray(PitchProfile.BINS).also { it[60 - PitchProfile.MIDI_MIN] = 1.0 }
+        val songAtSixty = PitchProfile(songHistogram, 60, 60, 60)
+        val userAtSixtySix = PitchProfile.ofStableRange(66, 66)
+
+        assertEquals(5, RangeFitCalculator.best(userAtSixtySix, songAtSixty).keyShift)
     }
 
     @Test

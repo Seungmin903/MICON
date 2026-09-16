@@ -107,7 +107,7 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 | `shelf`, `metrics` | 소속 섹션 key 와 그 섹션의 표시 지표(`coverage0`·`center0`·`artist_similarity`·`high_ratio0`·`genre` …) |
 | `axis`, `label` | `voice` 섹션에서만. 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안). 다른 섹션은 null |
 | `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |
-| `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(반음). 사용자 음역 프로파일이 없으면 null |
+| `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(`-6..+5`반음). 둘은 함께 null이거나 같은 키여야 한다 |
 | `final_score` | 최종 점수. 클라이언트 계산 금지 |
 | `scoring_version`, `composition_version` | 이벤트 로그에 함께 기록 |
 

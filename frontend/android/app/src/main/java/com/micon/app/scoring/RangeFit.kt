@@ -89,7 +89,7 @@ object RangeFitCalculator {
     private const val W_BASE = 0.70
     private const val W_SOFT = 0.30
 
-    /** 서버는 −6…+6 이지만 반주 키 변경 렌더가 −6…+5 까지라(ScoringConstants) 앱은 그 범위만 탐색한다. */
+    /** 추천 키 계약은 서버와 앱 모두 −6…+5다. 수동 연습 자산 조회 범위와는 별도다. */
     val KEY_SHIFTS: IntRange = ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX
 
     data class Result(val keyShift: Int, val fit: RangeFit)

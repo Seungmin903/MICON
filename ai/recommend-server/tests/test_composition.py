@@ -5,7 +5,9 @@ from pathlib import Path
 import unittest
 from unittest import mock
 
-from schemas import Job, Recommendation
+from pydantic import ValidationError
+
+from schemas import Job, RangeFit, Recommendation
 import timbre_recommender.composition as composition
 from timbre_recommender.composition import (
     allowed_languages,
@@ -84,6 +86,36 @@ class ComposeTest(unittest.TestCase):
         for r in recs:
             Recommendation.model_validate(r)
 
+    def test_response_schema_rejects_unplayable_positive_six_key(self) -> None:
+        fit = dict(self.ranked[0]["range_fit"])
+        fit["keyShift"] = 6
+        with self.assertRaises(ValidationError):
+            RangeFit.model_validate(fit)
+
+        recommendation = compose_two_axis(
+            self.ranked, top_k=1, range_enabled=True, scoring_version="s"
+        )["recommendations"][0]
+        recommendation["recommended_key"] = 6
+        with self.assertRaises(ValidationError):
+            Recommendation.model_validate(recommendation)
+
+    def test_response_schema_requires_range_fit_and_recommended_key_to_match(self) -> None:
+        recommendation = compose_two_axis(
+            self.ranked, top_k=1, range_enabled=True, scoring_version="s"
+        )["recommendations"][0]
+        cases = (
+            (None, recommendation["recommended_key"]),
+            (recommendation["range_fit"], None),
+            (recommendation["range_fit"], recommendation["recommended_key"] + 1),
+        )
+        for range_fit, recommended_key in cases:
+            with self.subTest(range_fit=range_fit, recommended_key=recommended_key):
+                invalid = dict(recommendation)
+                invalid["range_fit"] = range_fit
+                invalid["recommended_key"] = recommended_key
+                with self.assertRaises(ValidationError):
+                    Recommendation.model_validate(invalid)
+
     def test_consensus_requires_top_n_in_both_axes(self) -> None:
         with mock.patch.object(composition, "CONSENSUS_TOP_N", 1):
             out = compose_two_axis(self.ranked, top_k=5, range_enabled=True, scoring_version="s")
@@ -143,6 +175,14 @@ class ComposeTest(unittest.TestCase):
         recs = job.result.recommendations
         self.assertTrue(recs and all(r.song_id for r in recs))
         self.assertEqual([r.final_score for r in recs], sorted((r.final_score for r in recs), reverse=True))
+
+    def test_documented_response_schema_matches_generated_schema(self) -> None:
+        documented = json.loads(
+            (Path(__file__).resolve().parents[1] / "docs" / "response-schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(documented, Job.model_json_schema())
 
 
 if __name__ == "__main__":
