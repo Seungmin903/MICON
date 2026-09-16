@@ -62,7 +62,7 @@ public class EmbeddingCatalogService {
                 ORDER BY catalog_track_id, model_key
                 """, Map.of("batchId", result.get("batch_id")), row -> {
             String id = row.getString("catalog_track_id");
-            long songId = row.getLong("song_id");
+            String songId = row.getString("song_id");
             Map<String, Object> track = tracks.computeIfAbsent(id, key -> {
                 Map<String, Object> entry = new LinkedHashMap<>();
                 entry.put("song_id", songId);

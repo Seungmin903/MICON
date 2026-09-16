@@ -12,7 +12,7 @@ public final class SongResponse {
 	}
 
 	public record Summary(
-		Long songId,
+		String songId,
 		String title,
 		List<String> artists,
 		String imageUrl,
@@ -21,7 +21,7 @@ public final class SongResponse {
 	}
 
 	public record Detail(
-		Long songId,
+		String songId,
 		String title,
 		List<String> artists,
 		String albumName,

@@ -16,6 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,10 +35,10 @@ class RecommendationResultStoreIntegrationTest {
     @Autowired EntityManager entityManager;
 
     @Test
-    void atomicallyStoresCompletedShelvesAndNumericSongs() throws Exception {
+    void atomicallyStoresCompletedShelvesAndStringSongs() throws Exception {
         Recommendation recommendation = recommendation("result-complete@micon.com", "job-complete");
-        long firstSong = insertCatalogSong("첫 곡");
-        long secondSong = insertCatalogSong("둘째 곡");
+        String firstSong = insertCatalogSong("첫 곡");
+        String secondSong = insertCatalogSong("둘째 곡");
         var rangeFit = json.readTree("{\"score\":0.91,\"keyShift\":-2}");
         var metrics = json.readTree("{\"coverage\":0.95}");
 
@@ -67,7 +68,7 @@ class RecommendationResultStoreIntegrationTest {
     @Test
     void marksInvalidDuplicateSongResultAsFailedWithoutPartialRows() {
         Recommendation recommendation = recommendation("result-invalid@micon.com", "job-invalid");
-        long songId = insertCatalogSong("중복 곡");
+        String songId = insertCatalogSong("중복 곡");
         RecommendationResultGateway.Item item = item(1, songId, null, null, null);
 
         RecommendationResultStore.Outcome outcome = store.apply("job-invalid", new RecommendationResultGateway.Job(
@@ -89,8 +90,8 @@ class RecommendationResultStoreIntegrationTest {
     @Test
     void storesRecommendedKeysAtAvailableInstrumentalRangeBoundaries() throws Exception {
         Recommendation recommendation = recommendation("result-boundaries@micon.com", "job-boundaries");
-        long lowSong = insertCatalogSong("최저 키 곡");
-        long highSong = insertCatalogSong("최고 키 곡");
+        String lowSong = insertCatalogSong("최저 키 곡");
+        String highSong = insertCatalogSong("최고 키 곡");
 
         RecommendationResultStore.Outcome outcome = store.apply("job-boundaries",
                 new RecommendationResultGateway.Job(
@@ -151,13 +152,13 @@ class RecommendationResultStoreIntegrationTest {
         assertThat(recommendation.getProgress()).isEqualTo((short) 70);
     }
 
-    private RecommendationResultGateway.Item item(int position, long songId,
+    private RecommendationResultGateway.Item item(int position, String songId,
                                                    tools.jackson.databind.JsonNode rangeFit,
                                                    tools.jackson.databind.JsonNode metrics) {
         return item(position, songId, rangeFit, (short) -2, metrics);
     }
 
-    private RecommendationResultGateway.Item item(int position, long songId,
+    private RecommendationResultGateway.Item item(int position, String songId,
                                                    tools.jackson.databind.JsonNode rangeFit,
                                                    Short recommendedKey,
                                                    tools.jackson.databind.JsonNode metrics) {
@@ -169,7 +170,7 @@ class RecommendationResultStoreIntegrationTest {
     private void assertInvalidRangeResult(String suffix, tools.jackson.databind.JsonNode rangeFit,
                                           Short recommendedKey) {
         Recommendation recommendation = recommendation("result-" + suffix + "@micon.com", "job-" + suffix);
-        long songId = insertCatalogSong("잘못된 음역 결과 " + suffix);
+        String songId = insertCatalogSong("잘못된 음역 결과 " + suffix);
         RecommendationResultStore.Outcome outcome = store.apply(recommendation.getJobId(),
                 new RecommendationResultGateway.Job(
                         recommendation.getJobId(), RecommendationResultGateway.Status.COMPLETE, 100, "done",
@@ -196,8 +197,10 @@ class RecommendationResultStoreIntegrationTest {
         return recommendations.saveAndFlush(recommendation);
     }
 
-    private long insertCatalogSong(String title) {
-        jdbc.update("INSERT INTO song (title, status, practice_ready) VALUES (?, 'ACTIVE', TRUE)", title);
-        return jdbc.queryForObject("SELECT MAX(song_id) FROM song", Long.class);
+    private String insertCatalogSong(String title) {
+        String songId = "result-" + UUID.randomUUID();
+        jdbc.update("INSERT INTO song (song_id, title, status, practice_ready) VALUES (?, ?, 'ACTIVE', TRUE)",
+                songId, title);
+        return songId;
     }
 }

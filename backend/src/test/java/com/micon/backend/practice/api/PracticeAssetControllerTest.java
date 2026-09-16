@@ -31,7 +31,7 @@ class PracticeAssetControllerTest {
 		mockMvc.perform(get("/songs/3/practice-guide").param("selectedKey", "-2"))
 			.andExpect(status().isOk());
 
-		verify(service).getGuide(3L, -2);
+		verify(service).getGuide("3", -2);
 	}
 
 	@Test
@@ -39,6 +39,6 @@ class PracticeAssetControllerTest {
 		mockMvc.perform(get("/songs/3/mr").param("selectedKey", "-2"))
 			.andExpect(status().isOk());
 
-		verify(service).getMr(3L, -2);
+		verify(service).getMr("3", -2);
 	}
 }

@@ -29,7 +29,7 @@ public class SongService {
 	}
 
 	// 기능: getDetail 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
-	public SongResponse.Detail getDetail(Long songId, Long userId) {
+	public SongResponse.Detail getDetail(String songId, Long userId) {
 		SongDetailRow song = songQueryRepository.findDetail(songId)
 				.orElseThrow(() -> new SongNotFoundException(songId));
 		return new SongResponse.Detail(

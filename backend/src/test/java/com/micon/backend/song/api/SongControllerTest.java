@@ -35,7 +35,7 @@ class SongControllerTest {
 	@Test
 	void returnsSongSearchResponseEnvelope() throws Exception {
 		SongResponse.Summary song = new SongResponse.Summary(
-			1L,
+			"1",
 			"좋은 날",
 			List.of("아이유"),
 			"https://example.com/good-day.jpg",
@@ -46,14 +46,14 @@ class SongControllerTest {
 		mockMvc.perform(get("/songs").param("query", "좋은"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.code").value("SUCCESS"))
-				.andExpect(jsonPath("$.data.content[0].songId").value(1))
+				.andExpect(jsonPath("$.data.content[0].songId").value("1"))
 				.andExpect(jsonPath("$.data.content[0].artists[0]").value("아이유"))
 				.andExpect(jsonPath("$.data.totalElements").value(1));
 	}
 
 	@Test
 	void returnsNotFoundEnvelopeWhenSongDoesNotExist() throws Exception {
-		when(songService.getDetail(999L, null)).thenThrow(new SongNotFoundException(999L));
+		when(songService.getDetail("999", null)).thenThrow(new SongNotFoundException("999"));
 
 		mockMvc.perform(get("/songs/999"))
 				.andExpect(status().isNotFound())
@@ -64,13 +64,14 @@ class SongControllerTest {
 	@Test
 	void usesJwtSubjectAsUserIdForFavoriteLookup() throws Exception {
 		SongResponse.Detail song = new SongResponse.Detail(
-			1L, "좋은 날", List.of("아이유"), null, null, null, null, null, null,
+			"tj-00281", "좋은 날", List.of("아이유"), null, null, null, null, null, null,
 			List.of(), null, null, true, true
 		);
-		when(songService.getDetail(1L, 7L)).thenReturn(song);
+		when(songService.getDetail("tj-00281", 7L)).thenReturn(song);
 
-		mockMvc.perform(get("/songs/1").principal(() -> "7"))
+		mockMvc.perform(get("/songs/tj-00281").principal(() -> "7"))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.songId").value("tj-00281"))
 				.andExpect(jsonPath("$.data.favorite").value(true));
 	}
 }

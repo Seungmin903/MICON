@@ -62,7 +62,7 @@ public class SetlistService {
 
 	@Transactional
 	// 기능: addSong 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
-	public SetlistResponse.Detail addSong(long userId, Long setlistId, Long songId) {
+	public SetlistResponse.Detail addSong(long userId, Long setlistId, String songId) {
 		SetlistRow setlist = requireOwnedForUpdate(userId, setlistId);
 		if (!setlistRepository.songExists(songId)) {
 			throw new SongNotFoundException(songId);
@@ -76,7 +76,7 @@ public class SetlistService {
 
 	@Transactional
 	// 기능: removeSong 권한과 상태를 확인한 뒤 대상을 삭제하거나 취소한다.
-	public SetlistResponse.Detail removeSong(long userId, Long setlistId, Long songId) {
+	public SetlistResponse.Detail removeSong(long userId, Long setlistId, String songId) {
 		requireOwnedForUpdate(userId, setlistId);
 		setlistRepository.removeSong(setlistId, songId);
 		return detail(setlistRepository.findOwned(setlistId, userId).orElseThrow());
@@ -87,14 +87,14 @@ public class SetlistService {
 	public SetlistResponse.Detail reorderSongs(
 		long userId,
 		Long setlistId,
-		List<Long> songIds,
+		List<String> songIds,
 		LocalDateTime expectedUpdatedAt
 	) {
 		SetlistRow setlist = requireOwnedForUpdate(userId, setlistId);
 		if (expectedUpdatedAt != null && !expectedUpdatedAt.equals(setlist.updatedAt())) {
 			throw new BusinessException(ErrorCode.SETLIST_CONFLICT);
 		}
-		List<Long> currentSongIds = setlistRepository.findSongIds(setlistId);
+		List<String> currentSongIds = setlistRepository.findSongIds(setlistId);
 		if (songIds.size() != currentSongIds.size()
 			|| new HashSet<>(songIds).size() != songIds.size()
 			|| !new HashSet<>(songIds).equals(new HashSet<>(currentSongIds))) {

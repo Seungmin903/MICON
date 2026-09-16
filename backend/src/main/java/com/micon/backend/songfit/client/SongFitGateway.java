@@ -12,7 +12,7 @@ public interface SongFitGateway {
 
 	record Command(
 		Long userId,
-		Long songId,
+		String songId,
 		Long analysisId,
 		Long songAnalysisId,
 		int selectedKeyOffset,

@@ -29,7 +29,7 @@ class SongFitQueryRepositoryTest {
 
 	@Test
 	void readsFitInputsOnlyForTheAnalysisOwner() {
-		assertThat(repository.songExists(10L)).isTrue();
+		assertThat(repository.songExists("10")).isTrue();
 		assertThat(repository.findUserRange(7L, 20L)).get().satisfies(range -> {
 			assertThat(range.status()).isEqualTo("SAVED");
 			assertThat(range.stableLowMidi()).isEqualByComparingTo("55");
@@ -40,24 +40,24 @@ class SongFitQueryRepositoryTest {
 
 	@Test
 	void readsLatestSongAnalysisRecommendationAndBurdenSections() {
-		SongFitQueryRepository.SongRangeRow songRange = repository.findLatestSongRange(10L).orElseThrow();
+		SongFitQueryRepository.SongRangeRow songRange = repository.findLatestSongRange("10").orElseThrow();
 		assertThat(songRange.analysisId()).isEqualTo(31L);
 		assertThat(songRange.lowestMidi()).isEqualByComparingTo("51");
 
-		assertThat(repository.findRecommendation(7L, 20L, 10L)).get().satisfies(recommendation -> {
+		assertThat(repository.findRecommendation(7L, 20L, "10")).get().satisfies(recommendation -> {
 			assertThat(recommendation.recommendedKey()).isEqualTo(-2);
 			assertThat(recommendation.overallScore()).isEqualByComparingTo("88");
 			assertThat(recommendation.algorithmVersion()).isEqualTo("fit-v1");
 		});
 
-		assertThat(repository.findBurdenSections(10L, 31L)).singleElement().satisfies(section -> {
+		assertThat(repository.findBurdenSections("10", 31L)).singleElement().satisfies(section -> {
 			assertThat(section.sectionName()).isEqualTo("후렴");
 			assertThat(section.difficultyType()).isEqualTo("HIGH_NOTE");
 		});
 	}
 
 	private void createTables() {
-		jdbcTemplate.execute("CREATE TABLE SONG (song_id BIGINT PRIMARY KEY, title VARCHAR(100))");
+		jdbcTemplate.execute("CREATE TABLE SONG (song_id VARCHAR(64) PRIMARY KEY, title VARCHAR(100))");
 		jdbcTemplate.execute("""
 			CREATE TABLE VOICE_ANALYSIS_SESSION (
 			  session_id BIGINT PRIMARY KEY, user_id BIGINT, status VARCHAR(30)
@@ -76,7 +76,7 @@ class SongFitQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_ANALYSIS (
-			  analysis_id BIGINT PRIMARY KEY, song_id BIGINT, status VARCHAR(20),
+			  analysis_id BIGINT PRIMARY KEY, song_id VARCHAR(64), status VARCHAR(20),
 			  lowest_midi DECIMAL(6,2), highest_midi DECIMAL(6,2), analyzed_at TIMESTAMP
 			)
 			""");
@@ -88,14 +88,14 @@ class SongFitQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE RECOMMENDATION_SONG (
-			  recommendation_id BIGINT, song_id BIGINT, recommended_key SMALLINT,
+			  recommendation_id BIGINT, song_id VARCHAR(64), recommended_key SMALLINT,
 			  overall_score DECIMAL(5,2), range_fit_score DECIMAL(5,2),
 			  timbre_fit_score DECIMAL(5,2), rhythm_fit_score DECIMAL(5,2), reason_text VARCHAR(1000)
 			)
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_SECTION (
-			  section_id BIGINT PRIMARY KEY, song_id BIGINT, analysis_id BIGINT,
+			  section_id BIGINT PRIMARY KEY, song_id VARCHAR(64), analysis_id BIGINT,
 			  section_type VARCHAR(20), section_name VARCHAR(100), start_ms INT, end_ms INT,
 			  sequence_no SMALLINT, difficulty_type VARCHAR(20), difficulty_score DECIMAL(5,2),
 			  description VARCHAR(500)

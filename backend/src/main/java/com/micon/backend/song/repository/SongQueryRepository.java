@@ -56,7 +56,7 @@ public class SongQueryRepository {
 				.addValue("size", size)
 				.addValue("offset", offset);
 		List<SongRow> songs = jdbcTemplate.query(sql, params, SONG_ROW_MAPPER);
-		Map<Long, List<String>> artists = findArtists(songs.stream().map(SongRow::songId).toList());
+		Map<String, List<String>> artists = findArtists(songs.stream().map(SongRow::songId).toList());
 		return songs.stream()
 				.map(song -> new SongResponse.Summary(
 					song.songId(),
@@ -80,7 +80,7 @@ public class SongQueryRepository {
 	}
 
 	// 기능: findDetail 조건으로 데이터베이스를 조회한다.
-	public Optional<SongDetailRow> findDetail(Long songId) {
+	public Optional<SongDetailRow> findDetail(String songId) {
 		String sql = """
 				SELECT s.song_id, s.title, s.duration_ms,
 				       CASE
@@ -128,21 +128,21 @@ public class SongQueryRepository {
 	}
 
 	// 기능: findExistingIds 조건으로 데이터베이스를 조회한다.
-	public Set<Long> findExistingIds(Set<Long> songIds) {
+	public Set<String> findExistingIds(Set<String> songIds) {
 		if (songIds.isEmpty()) {
 			return Set.of();
 		}
 		String sql = "SELECT song_id FROM song WHERE song_id IN (:songIds)";
-		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), Long.class));
+		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), String.class));
 	}
 
 	// 기능: findArtists 조건으로 데이터베이스를 조회한다.
-	public List<String> findArtists(Long songId) {
+	public List<String> findArtists(String songId) {
 		return findArtists(List.of(songId)).getOrDefault(songId, List.of());
 	}
 
 	// 기능: findGenres 조건으로 데이터베이스를 조회한다.
-	public List<String> findGenres(Long songId) {
+	public List<String> findGenres(String songId) {
 		String sql = """
 				SELECT g.name
 				FROM song_genre sg
@@ -154,7 +154,7 @@ public class SongQueryRepository {
 	}
 
 	// 기능: isFavorite 조건으로 데이터베이스를 조회한다.
-	public boolean isFavorite(Long songId, Long userId) {
+	public boolean isFavorite(String songId, Long userId) {
 		if (userId == null) {
 			return false;
 		}
@@ -172,7 +172,7 @@ public class SongQueryRepository {
 	}
 
 	// 기능: findArtists 조건으로 데이터베이스를 조회한다.
-	private Map<Long, List<String>> findArtists(List<Long> songIds) {
+	private Map<String, List<String>> findArtists(List<String> songIds) {
 		if (songIds.isEmpty()) {
 			return Collections.emptyMap();
 		}
@@ -183,9 +183,9 @@ public class SongQueryRepository {
 				WHERE ss.song_id IN (:songIds)
 				ORDER BY ss.song_id, ss.`display_order`, si.singer_id
 				""";
-		Map<Long, List<String>> artists = new LinkedHashMap<>();
+		Map<String, List<String>> artists = new LinkedHashMap<>();
 		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {
-			artists.computeIfAbsent(resultSet.getLong("song_id"), ignored -> new ArrayList<>())
+			artists.computeIfAbsent(resultSet.getString("song_id"), ignored -> new ArrayList<>())
 					.add(resultSet.getString("name"));
 		});
 		return artists;
@@ -200,14 +200,14 @@ public class SongQueryRepository {
 	}
 
 	private static final RowMapper<SongRow> SONG_ROW_MAPPER = (resultSet, rowNumber) -> new SongRow(
-		resultSet.getLong("song_id"),
+		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
 		resultSet.getString("display_image_url")
 	);
 
 	private static final RowMapper<SongDetailRow> SONG_DETAIL_ROW_MAPPER = (resultSet, rowNumber) -> new SongDetailRow(
-		resultSet.getLong("song_id"),
+		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
 		getNullableBoolean(resultSet, "practice_ready"),
@@ -232,11 +232,11 @@ public class SongQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	private record SongRow(Long songId, String title, Long durationMs, String imageUrl) {
+	private record SongRow(String songId, String title, Long durationMs, String imageUrl) {
 	}
 
 	public record SongDetailRow(
-		Long songId,
+		String songId,
 		String title,
 		Long durationMs,
 		Boolean practiceReady,

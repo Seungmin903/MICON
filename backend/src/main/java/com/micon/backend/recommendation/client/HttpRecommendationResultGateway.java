@@ -64,7 +64,7 @@ public class HttpRecommendationResultGateway implements RecommendationResultGate
     private record AiAlgorithm(String scoringVersion, String shelvesVersion) {}
     private record AiShelf(String key, String title, String metric, List<AiItem> items) {}
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    private record AiItem(int position, Long songId, String axis, String label, BigDecimal timbreScore,
+    private record AiItem(int position, String songId, String axis, String label, BigDecimal timbreScore,
                           JsonNode rangeFit, Short recommendedKey, BigDecimal finalScore, JsonNode metrics,
                           String scoringVersion, String compositionVersion) {}
 }

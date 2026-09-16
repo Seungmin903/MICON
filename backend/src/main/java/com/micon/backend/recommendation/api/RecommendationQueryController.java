@@ -36,7 +36,7 @@ public class RecommendationQueryController {
     public ResponseEntity<ApiResponse<RecommendationResponse.Song>> song(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable long recommendationId,
-            @PathVariable long songId) {
+            @PathVariable String songId) {
         return ResponseEntity.ok(ApiResponse.success(service.song(userId(jwt), recommendationId, songId)));
     }
 
