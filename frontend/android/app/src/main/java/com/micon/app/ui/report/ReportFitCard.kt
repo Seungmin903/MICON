@@ -42,6 +42,9 @@ import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.favorites.FavoriteRepository
 import com.micon.app.data.local.UserStore
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.onboarding.ProfileSaveReceipt
+import com.micon.app.data.recommend.SavedProfileSongFit
 import com.micon.app.ui.charts.MetricBar
 import com.micon.app.ui.charts.RingProgress
 import com.micon.app.ui.common.CardTitle
@@ -73,6 +76,7 @@ class ReportFitViewModel(
     private val favorites: FavoriteRepository,
     private val recommend: RecommendRepository,
     private val loggedIn: Boolean,
+    private val savedProfileFit: (suspend (Long) -> SongFit?)? = null,
 ) : ViewModel() {
     data class State(
         val selected: SongSummary? = null,
@@ -128,7 +132,9 @@ class ReportFitViewModel(
     fun select(song: SongSummary) {
         _state.update { it.copy(selected = song, pickerOpen = false, fit = null, fitNote = null, fitLoading = true) }
         viewModelScope.launch {
-            val fit = runCatching { recommend.fit(song.id) }.getOrNull()
+            val fit = runCatching {
+                if (savedProfileFit != null) savedProfileFit.invoke(song.id) else recommend.fit(song.id)
+            }.getOrNull()
             _state.update { s ->
                 if (s.selected?.id != song.id) s
                 else s.copy(fit = fit, fitLoading = false, fitNote = if (fit != null) null else noteForMissingFit())
@@ -138,7 +144,8 @@ class ReportFitViewModel(
 
     /** 적합도가 없는 이유: 내 음성 프로필이 없거나, 곡에 음역 정보가 없다(FIT-002·003: 0점과 평가 불가를 구분). */
     private fun noteForMissingFit(): String =
-        if (UserStore.profile.value == null) "목소리를 먼저 분석하면 이 곡과의 적합도를 볼 수 있어요."
+        if (savedProfileFit != null) "저장한 프로필의 곡 적합도 결과를 아직 받을 수 없어요. 잠시 후 다시 확인해 주세요."
+        else if (UserStore.profile.value == null) "목소리를 먼저 분석하면 이 곡과의 적합도를 볼 수 있어요."
         else "이 곡은 음역 정보가 아직 없어 적합도를 계산할 수 없어요."
 
     private companion object { const val PAGE = 30 }
@@ -146,11 +153,14 @@ class ReportFitViewModel(
 
 /** Figma "곡 적합도": 분석할 노래 선택 + 종합 링 + 음역·음색·박자 막대 + 추천 키. 값이 없는 항목은 0 이 아닌 "평가 불가"로 표시한다. */
 @Composable
-fun ReportFitCard(loggedIn: Boolean) {
+fun ReportFitCard(loggedIn: Boolean, savedProfile: ProfileSaveReceipt? = null) {
     val container = rememberAppContainer()
     val vm: ReportFitViewModel = viewModel(
-        key = "report-fit-$loggedIn",
-        factory = viewModelFactory { initializer { ReportFitViewModel(container.songs, container.favorites, container.recommend, loggedIn) } },
+        key = "report-fit-$loggedIn-${TokenManager.getUserId()}-${savedProfile?.sessionId}-${savedProfile?.version}",
+        factory = viewModelFactory { initializer {
+            val savedFit = savedProfile?.let { SavedProfileSongFit(container.backend.api, it.profileId) }
+            ReportFitViewModel(container.songs, container.favorites, container.recommend, loggedIn, savedFit?.let { it::fit })
+        } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
 

@@ -34,6 +34,7 @@ import com.micon.app.ui.theme.*
 @Composable
 fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean = false, onRestart: () -> Unit = onDone,
     repository: com.micon.app.range.RangeRepository? = null,
+    onTimbreMeasurement: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val vm: GuidedRangeViewModel = viewModel(factory = viewModelFactory {
@@ -84,7 +85,11 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                 }?.let { Text(it, color = Grey) }
                 val report = state.report
                 if (report != null) {
-                    if (repository?.deviceOnly == true) com.micon.app.ui.onboarding.VoiceRangeSummary(report)
+                    if (onTimbreMeasurement != null) {
+                        RangeMeasurementReport(report, onTimbreMeasurement,
+                            enabled = !state.uploading && !state.hasPending)
+                    }
+                    else if (repository?.deviceOnly == true) com.micon.app.ui.onboarding.VoiceRangeSummary(report)
                     else RangeReportCards(report)
                 }
                 else if (!state.uploading) Text("분석 대기 중", color = Grey)
@@ -97,10 +102,12 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                 } else {
                     TextButton(onClick = onRestart) { Text("새로 측정하기") }
                 }
-                if (repository?.deviceOnly == true) {
-                    PrimaryButton("다음 · 부를 곡 고르기", onDone, Modifier.fillMaxWidth(),
-                        enabled = state.report?.availability == "available" && !state.uploading)
-                } else OutlinePurpleButton("저장한 결과 보기", onDone, Modifier.fillMaxWidth())
+                if (onTimbreMeasurement == null) {
+                    if (repository?.deviceOnly == true) {
+                        PrimaryButton("다음 · 부를 곡 고르기", onDone, Modifier.fillMaxWidth(),
+                            enabled = state.report?.availability == "available" && !state.uploading)
+                    } else OutlinePurpleButton("저장한 결과 보기", onDone, Modifier.fillMaxWidth())
+                }
             } else {
                 Text("마이크로 목소리를 듣고 편하게 낼 수 있는 음역을 측정해요. 기준음을 따라 불러 주세요.", color = Grey)
                 PrimaryButton("측정 시작", { start() }, Modifier.fillMaxWidth(), enabled = state.soundReady && !state.previewPlaying)

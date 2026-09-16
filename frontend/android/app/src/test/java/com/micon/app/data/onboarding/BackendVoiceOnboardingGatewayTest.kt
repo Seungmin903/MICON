@@ -4,6 +4,7 @@ import com.micon.app.core.auth.MemoryTokenStore
 import com.micon.app.core.network.BackendClient
 import com.micon.app.data.singanalysis.*
 import com.micon.app.range.*
+import com.micon.app.ui.report.hasTimbreReport
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -30,6 +31,7 @@ class BackendVoiceOnboardingGatewayTest {
             assertEquals(72, saved.range.highMidi)
             assertEquals(7L, saved.range.backendSessionId)
             assertEquals(VoiceSessionStatus.SAVED, saved.progress.sessionStatus)
+            assertTrue(saved.progress.hasTimbreReport(saved.range))
             assertEquals(listOf(
                 "/api/v1/users/me/voice-profile",
                 "/api/v1/voice-analysis-sessions/7/result"),
