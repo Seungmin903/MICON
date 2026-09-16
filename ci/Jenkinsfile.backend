@@ -11,20 +11,24 @@ pipeline {
 
     environment {
         MICON_SERVER_HOST = 'j15b110.p.ssafy.io'
-        GRADLE_USER_HOME = "${WORKSPACE}/.gradle-backend"
+        GRADLE_USER_HOME = "${WORKSPACE}@gradle-backend"
     }
 
     stages {
         stage('Checkout reviewed main') {
             steps {
-                checkout scm
                 script {
+                    deleteDir()
+                    def checkoutMetadata = checkout scm
                     def candidates = [
                         env.BRANCH_NAME,
-                        env.GIT_BRANCH?.replaceFirst('^(origin/|refs/remotes/origin/)', ''),
+                        checkoutMetadata.GIT_BRANCH,
+                        checkoutMetadata.GIT_LOCAL_BRANCH,
                         env.gitlabBranch
-                    ]
-                    if (!candidates.contains('main')) {
+                    ].findAll { it }.collect {
+                        it.replaceFirst('^(origin/|refs/remotes/origin/)', '')
+                    }
+                    if (candidates && !candidates.contains('main')) {
                         error('Backend deployment is restricted to the main branch')
                     }
                     env.RELEASE_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
