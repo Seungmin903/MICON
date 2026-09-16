@@ -1,11 +1,10 @@
-"""Verify one protected catalog-media URL and its S3 object without logging secrets."""
+"""Verify one public practice MR URL and its S3 object without logging secrets."""
 
 import argparse
 import hashlib
 import ipaddress
 import json
 import re
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
@@ -80,42 +79,15 @@ def validate_storage_url(url, bucket, region, object_key):
     return url
 
 
-def read_token(token_file):
-    try:
-        token = Path(token_file).read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeError):
-        raise ValueError("Token file is unreadable") from None
-    if not token or len(token.encode("utf-8")) > 4096 or "\n" in token or "\r" in token:
-        raise ValueError("Token file must contain one non-empty token")
-    return token
-
-
 def candidate_endpoint(base_url, song_id):
     if not isinstance(song_id, int) or isinstance(song_id, bool) or song_id < 1:
         raise ValueError("Song ID must be a positive integer")
-    return f"{validate_candidate_base(base_url)}/internal/catalog-media/vocal-stems/{song_id}"
+    return f"{validate_candidate_base(base_url)}/songs/{song_id}/mr?selectedKey=0"
 
 
-def check_unauthorized(endpoint, timeout):
+def request_candidate(endpoint, timeout):
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    try:
-        with opener.open(Request(endpoint, headers={"Accept": "application/json"}), timeout=timeout):
-            raise CheckFailure("catalog_auth_not_enforced")
-    except HTTPError as error:
-        status = error.code
-        error.close()
-        if status != 401:
-            raise CheckFailure("unexpected_unauthorized_status") from None
-    except (URLError, OSError, TimeoutError):
-        raise CheckFailure("candidate_connection_or_timeout") from None
-
-
-def request_candidate(endpoint, token, timeout):
-    opener = build_opener(ProxyHandler({}), NoRedirect())
-    request = Request(endpoint, headers={
-        "Accept": "application/json",
-        "Authorization": f"Bearer {token}",
-    })
+    request = Request(endpoint, headers={"Accept": "application/json"})
     try:
         with opener.open(request, timeout=timeout) as response:
             if response.status != 200:
@@ -139,7 +111,7 @@ def request_candidate(endpoint, token, timeout):
 
 def download_and_hash(url, expected_bytes, timeout):
     opener = build_opener(ProxyHandler({}), NoRedirect())
-    request = Request(url, headers={"Accept": "audio/wav"})
+    request = Request(url, headers={"Accept": "*/*"})
     digest = hashlib.sha256()
     total = 0
     try:
@@ -162,36 +134,35 @@ def download_and_hash(url, expected_bytes, timeout):
     return total, digest.hexdigest()
 
 
-def verify_catalog_media(base_url, song_id, token_file, bucket, region, allowed_prefix,
-                         timeout=30, *, unauthorized_check=check_unauthorized,
-                         candidate_request=request_candidate, downloader=download_and_hash,
-                         report=print):
+def verify_catalog_media(base_url, song_id, bucket, region, allowed_prefix,
+                         timeout=30, *, candidate_request=request_candidate,
+                         downloader=download_and_hash, report=print):
     if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not 0 < timeout <= 300:
         raise ValueError("Timeout must be between 0 and 300 seconds")
     allowed_prefix = validate_prefix(allowed_prefix)
     endpoint = candidate_endpoint(base_url, song_id)
-    token = read_token(token_file)
-
-    unauthorized_check(endpoint, timeout)
-    payload = candidate_request(endpoint, token, timeout)
+    payload = candidate_request(endpoint, timeout)
     if not isinstance(payload, dict) or payload.get("code") != "SUCCESS":
         raise CheckFailure("candidate_contract")
     data = payload.get("data")
     if not isinstance(data, dict):
         raise CheckFailure("candidate_contract")
 
-    catalog_track_id = data.get("catalogTrackId")
-    object_key = data.get("objectKey")
-    expected_bytes = data.get("fileBytes")
-    expected_sha = data.get("sha256")
+    media = data.get("instrumental")
+    if not isinstance(media, dict):
+        raise CheckFailure("candidate_contract")
+    object_key = media.get("filePath")
+    expected_bytes = media.get("fileBytes")
+    expected_sha = media.get("sha256")
     if (
         data.get("songId") != song_id
-        or data.get("mediaType") != "VOCAL_STEM"
-        or data.get("contentType") != "audio/wav"
-        or not isinstance(catalog_track_id, str)
-        or not catalog_track_id
-        or "/" in catalog_track_id
-        or object_key != f"{allowed_prefix}{catalog_track_id}/vocals.wav"
+        or data.get("selectedKey") != 0
+        or media.get("mimeType") != "audio/ogg"
+        or not isinstance(object_key, str)
+        or not object_key.startswith(allowed_prefix)
+        or not object_key.removeprefix(allowed_prefix)
+        or "\\" in object_key
+        or any(part in ("", ".", "..") for part in object_key.split("/"))
         or not isinstance(expected_bytes, int)
         or isinstance(expected_bytes, bool)
         or not 0 < expected_bytes <= MAX_MEDIA_BYTES
@@ -200,15 +171,15 @@ def verify_catalog_media(base_url, song_id, token_file, bucket, region, allowed_
     ):
         raise CheckFailure("candidate_contract")
 
-    storage_url = validate_storage_url(data.get("contentUrl"), bucket, region, object_key)
+    storage_url = validate_storage_url(media.get("playbackUrl"), bucket, region, object_key)
     actual_bytes, actual_sha = downloader(storage_url, expected_bytes, timeout)
     if actual_bytes != expected_bytes:
         raise CheckFailure("storage_size_mismatch")
     if actual_sha != expected_sha:
         raise CheckFailure("storage_sha256_mismatch")
     report(
-        f"catalog_media result=ready song_id={song_id} bytes={actual_bytes} "
-        "sha256_match=true auth_enforced=true"
+        f"catalog_media result=ready media=instrumental song_id={song_id} bytes={actual_bytes} "
+        "sha256_match=true"
     )
     return True
 
@@ -217,7 +188,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--song-id", required=True, type=int)
-    parser.add_argument("--token-file", required=True)
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--region", required=True)
     parser.add_argument("--allowed-prefix", required=True)
@@ -227,7 +197,6 @@ def main():
         verify_catalog_media(
             args.base_url,
             args.song_id,
-            args.token_file,
             args.bucket,
             args.region,
             args.allowed_prefix,

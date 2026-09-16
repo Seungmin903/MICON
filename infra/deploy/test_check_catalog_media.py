@@ -2,16 +2,13 @@
 
 import hashlib
 import json
-import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
 
 from check_catalog_media import (
     CheckFailure,
     candidate_endpoint,
-    check_unauthorized,
     request_candidate,
     validate_candidate_base,
     validate_prefix,
@@ -20,35 +17,33 @@ from check_catalog_media import (
 )
 
 
-OBJECT = b"RIFF-local-test-wave"
+OBJECT = b"OggS-local-test-opus"
 OBJECT_SHA = hashlib.sha256(OBJECT).hexdigest()
-OBJECT_KEY = "catalog/team/batch/track-1/vocals.wav"
+OBJECT_KEY = "catalog/team/batch/1.opus"
 STORAGE_URL = (
     "https://bucket.s3.ap-northeast-2.amazonaws.com/"
-    "catalog/team/batch/track-1/vocals.wav?X-Amz-Expires=600&X-Amz-Signature=test"
+    "catalog/team/batch/1.opus?X-Amz-Expires=600&X-Amz-Signature=test"
 )
 
 
 class CandidateHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.headers.get("Authorization") != "Bearer local-token":
-            self.send_response(401)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            return
         body = json.dumps({
             "code": "SUCCESS",
             "message": "ok",
             "data": {
-                "mediaId": 1,
                 "songId": 1,
-                "catalogTrackId": "track-1",
-                "mediaType": "VOCAL_STEM",
-                "objectKey": OBJECT_KEY,
-                "contentType": "audio/wav",
-                "fileBytes": len(OBJECT),
-                "sha256": OBJECT_SHA,
-                "contentUrl": STORAGE_URL,
+                "selectedKey": 0,
+                "instrumental": {
+                    "mediaId": 1,
+                    "filePath": OBJECT_KEY,
+                    "mimeType": "audio/ogg",
+                    "fileBytes": len(OBJECT),
+                    "sha256": OBJECT_SHA,
+                    "playbackUrl": STORAGE_URL,
+                    "playbackUrlExpiresAt": "2026-09-16T00:10:00Z",
+                },
+                "lyricsSynced": "[00:00.00] test",
             },
         }).encode()
         self.send_response(200)
@@ -76,18 +71,10 @@ class CatalogMediaTests(unittest.TestCase):
         cls.server.server_close()
         cls.worker.join()
 
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.token_file = Path(self.temp.name) / "token"
-        self.token_file.write_text("local-token\n", encoding="utf-8")
-
-    def tearDown(self):
-        self.temp.cleanup()
-
-    def test_candidate_auth_and_json_contract(self):
+    def test_candidate_public_mr_contract(self):
         endpoint = candidate_endpoint(self.base_url, 1)
-        check_unauthorized(endpoint, 1)
-        payload = request_candidate(endpoint, "local-token", 1)
+        self.assertTrue(endpoint.endswith("/songs/1/mr?selectedKey=0"))
+        payload = request_candidate(endpoint, 1)
         self.assertEqual(payload["data"]["songId"], 1)
 
     def test_success_does_not_report_url_or_hash(self):
@@ -95,7 +82,6 @@ class CatalogMediaTests(unittest.TestCase):
         self.assertTrue(verify_catalog_media(
             self.base_url,
             1,
-            self.token_file,
             "bucket",
             "ap-northeast-2",
             "catalog/team/batch/",
@@ -111,7 +97,6 @@ class CatalogMediaTests(unittest.TestCase):
             verify_catalog_media(
                 self.base_url,
                 1,
-                self.token_file,
                 "bucket",
                 "ap-northeast-2",
                 "catalog/team/batch/",
@@ -144,7 +129,7 @@ class CatalogMediaTests(unittest.TestCase):
         for url in (
             STORAGE_URL.replace("bucket.s3", "other.s3"),
             STORAGE_URL.replace("ap-northeast-2", "us-east-1"),
-            STORAGE_URL.replace("track-1", "track-2"),
+            STORAGE_URL.replace("1.opus", "2.opus"),
             STORAGE_URL.split("?")[0],
             STORAGE_URL.replace("https://", "http://"),
         ):

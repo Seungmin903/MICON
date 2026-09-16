@@ -127,7 +127,6 @@ python3 "$REPOSITORY_ROOT/infra/deploy/check_health.py" \
 python3 "$REPOSITORY_ROOT/infra/deploy/check_catalog_media.py" \
     --base-url "http://127.0.0.1:$candidate_port" \
     --song-id "$MICON_CATALOG_SMOKE_SONG_ID" \
-    --token-file /etc/micon/secrets/ai_service_token \
     --bucket "$MICON_CATALOG_BUCKET" \
     --region "$MICON_CATALOG_REGION" \
     --allowed-prefix "$MICON_CATALOG_ALLOWED_PREFIX" \

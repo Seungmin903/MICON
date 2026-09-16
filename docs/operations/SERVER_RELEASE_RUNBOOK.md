@@ -46,7 +46,7 @@ python3 infra/deploy/check_health.py \
 
 ## 구현된 카탈로그 S3 실제 GET gate
 
-토큰·presigned URL·SHA-256 원문을 출력하지 않는다. 후보 API의 무인증 401, 인증 응답 계약, 정확한 버킷·리전·object key를 가진 HTTPS S3 URL, 다운로드 바이트와 SHA-256을 모두 확인한다.
+presigned URL·SHA-256 원문을 출력하지 않는다. 실제 앱이 사용하는 공개 원키 MR API 응답 계약과 정확한 버킷·리전·object key를 가진 HTTPS S3 URL, 다운로드 바이트와 SHA-256을 모두 확인한다. 사용하지 않는 `VOCAL_STEM`의 존재 여부를 배포 조건으로 삼지 않는다.
 
 ```sh
 set +x
@@ -54,14 +54,13 @@ set +x
 sudo python3 infra/deploy/check_catalog_media.py \
   --base-url "http://127.0.0.1:${CANDIDATE_PORT}" \
   --song-id 1 \
-  --token-file /etc/micon/secrets/ai_service_token \
   --bucket micon-b110-prod-apne2-20260909 \
   --region ap-northeast-2 \
-  --allowed-prefix 'catalog/정영주/section-384-v1/vocals/' \
+  --allowed-prefix 'catalog/정영주/mr-384-20260915-v1/instrumental/replacement-50-v1/' \
   --timeout 30
 ```
 
-- 종료 코드 0: 인증 강제와 다운로드 바이트·SHA-256 일치. 1: 계약·HTTP·해시 실패. 2: 안전하지 않거나 잘못된 입력.
+- 종료 코드 0: 원키 MR 응답 계약과 다운로드 바이트·SHA-256 일치. 1: 계약·HTTP·해시 실패. 2: 안전하지 않거나 잘못된 입력.
 - 후보 base URL은 명시적 loopback 포트만 허용한다. S3 URL은 지정한 AWS host와 object key를 벗어나거나 서명 query가 없으면 다운로드하지 않는다.
 - 이 검사는 기존 read-only 카탈로그 객체를 읽기만 한다. 사용자 녹음 `voice-recordings/`의 Put/Delete 검사를 대신하지 않는다.
 

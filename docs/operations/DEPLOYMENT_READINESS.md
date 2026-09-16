@@ -1,5 +1,7 @@
 # 서버 연동과 APK 실기기 QA 준비
 
+> 2026-09-16 운영 갱신: 현재 연습·재생 경로는 `song_media.INSTRUMENTAL`과 `GET /songs/{songId}/mr`을 사용한다. 배포 S3 gate도 이 실제 제품 경로의 presigned GET·바이트·SHA-256을 확인하며, 과거 384곡 분석용 `VOCAL_STEM`은 배포 필수 조건이 아니다.
+
 ## 2026-09-10 운영 구조 갱신
 
 **SSAFY 서버의 BE·MySQL + 개인 AWS 계정의 비공개 S3**를 사용한다. [S3 운영 계약](S3_VOICE_STORAGE.md)을 버킷·리전·권한·팀원 업로드의 기준으로 삼는다.
