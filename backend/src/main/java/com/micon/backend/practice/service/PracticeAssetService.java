@@ -121,6 +121,12 @@ public class PracticeAssetService {
 		);
 	}
 
+	private BusinessException blocked(Long songId, int selectedKey, String reason, ErrorCode errorCode) {
+		AccessLog.event("practice_asset_blocked", true, "song_id", songId, "selected_key", selectedKey,
+			"reason", reason);
+		return new BusinessException(errorCode);
+	}
+
 	// 기능: readJson 비즈니스 로직을 수행한다.
 	private JsonNode readJson(String value) {
 		try {
