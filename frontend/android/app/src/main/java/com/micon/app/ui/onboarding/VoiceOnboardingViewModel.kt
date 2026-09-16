@@ -34,17 +34,22 @@ class VoiceOnboardingViewModel(
 ) : ViewModel() {
     private val restored = persistence.draft()
     private var expiresAtMillis = restored.expiresAtMillis
-    private val expired = expiresAtMillis?.let { it <= now() } == true
-    private val mutableState = MutableStateFlow(VoiceOnboardingState(
-        restored.draftId, restored.revision,
-        range = if (expired) null else persistence.range(),
-        recording = if (expired) null else persistence.recording(restored.recordingId),
-        expired = expired, serviceAvailable = gateway.available,
-        error = if (expired) "이전 분석이 만료됐어요. 음역부터 새로 측정해 주세요." else null))
+    /** 만료된 이전 초안은 안내 화면 없이 조용히 버리고 새 초안으로 시작한다 — 사용자는 바로 측정 화면을 본다. */
+    private val startedFresh = expiresAtMillis?.let { it <= now() } == true
+    private val mutableState = MutableStateFlow(
+        if (startedFresh) {
+            persistence.clearDraft()
+            expiresAtMillis = null
+            VoiceOnboardingState(UUID.randomUUID().toString(), serviceAvailable = gateway.available)
+        } else VoiceOnboardingState(
+            restored.draftId, restored.revision,
+            range = persistence.range(), recording = persistence.recording(restored.recordingId),
+            serviceAvailable = gateway.available),
+    )
     val state = mutableState.asStateFlow()
     private var job: Job? = null
     init {
-        if (expired) persistence.clearDraft()
+        if (startedFresh) persist()
         else if (ownerId != null) viewModelScope.launch {
             runCatching { gateway.recover(ownerId) }.getOrNull()?.let { recovered ->
                 if (isCurrentOwner() && state.value.progress == null) {

@@ -273,7 +273,9 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
     var searchOpen by remember { mutableStateOf(false) }
     var openFilter by remember { mutableStateOf<String?>(null) }     // "era" | "genre" — 열려 있는 드롭다운
 
-    Column(Modifier.fillMaxSize().background(RecommendBackground)) {
+    // 추천이 없을 때(분석 전 등)는 리포트 탭처럼 흰 배경. 보라 그라데이션은 LP 가 있을 때만.
+    val empty = !state.loading && state.query.isBlank() && state.shelves.isEmpty()
+    Column(Modifier.fillMaxSize().then(if (empty) Modifier.background(Color.White) else Modifier.background(RecommendBackground))) {
         MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (searchOpen) {
@@ -303,8 +305,8 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
             Text(state.note!!, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(10.dp))
-        // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게. 걸러 볼 곡이 없으면 감춘다.
+        if (!empty) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PillChip("성별", selected = false, onClick = {}, chevron = true, fontSize = 14.sp, modifier = Modifier.alpha(0.45f))
             FilterChip(
                 state.era ?: "시대", Icons.Outlined.CalendarMonth, selected = state.era != null, expanded = openFilter == "era",
@@ -334,14 +336,14 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
             state.error != null && state.shelves.isEmpty() -> RetryBlock(state.error!!, vm::load)
             // 추천 없음: 분석 전이면 분석하러, 그 외(생성 중·서버 불가 등)는 다시 불러오기
             state.note == RecommendShelves.NOTE_ANALYSIS_REQUIRED ->
-                EmptyRecommend(searching = false, onAction = onAnalyze, actionLabel = "목소리 분석하러 가기", text = state.note!!)
+                EmptyRecommend(searching = false, onAction = onAnalyze, actionLabel = "목소리 분석하러 가기", text = state.note!!, modifier = Modifier.weight(1f))
             state.shelves.isEmpty() ->
-                EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기", text = state.note ?: "조건에 맞는 추천곡이 없어요")
+                EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기", text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
             else -> HorizontalPager(pagerState, Modifier.weight(1f)) { page ->
                 val items = state.pageItems(page, BUBBLE_WEIGHTS.size)
                 if (items.isEmpty()) {
                     val filtering = state.era != null || state.genre != null
-                    EmptyRecommend(searching = false, onAction = { vm.setEra(null); vm.setGenre(null) }, actionLabel = if (filtering) "필터 해제" else null)
+                    EmptyRecommend(searching = false, onAction = { vm.setEra(null); vm.setGenre(null) }, actionLabel = if (filtering) "필터 해제" else null, modifier = Modifier.fillMaxSize())
                 } else {
                     BubbleCluster(items.map { it.song }, ::openId, Modifier.fillMaxSize())
                 }
@@ -368,17 +370,21 @@ private fun FilterChip(
     }
 }
 
-/** 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기·분석하러 가기 등). [text] 로 이유를 바꿔 보일 수 있다 */
+/**
+ * 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기·분석하러 가기 등). [text] 로 이유를 바꿔 보일 수 있다.
+ * 남은 영역 가운데에 놓이고, 버튼은 리포트 탭의 "목소리 분석하러 가기"와 같은 크기(66dp, 좌우 28dp).
+ */
 @Composable
 private fun EmptyRecommend(
     searching: Boolean, onAction: () -> Unit, actionLabel: String? = null,
     text: String = if (searching) "검색 결과가 없어요" else "조건에 맞는 추천곡이 없어요",
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
-    Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.padding(horizontal = 28.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(text, fontSize = 16.sp, color = InkSoft, lineHeight = 22.sp)
         if (actionLabel != null) {
-            Spacer(Modifier.height(12.dp))
-            PrimaryButton(actionLabel, onAction, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(20.dp))
+            PrimaryButton(actionLabel, onAction, Modifier.fillMaxWidth(), height = 66.dp)
         }
     }
 }

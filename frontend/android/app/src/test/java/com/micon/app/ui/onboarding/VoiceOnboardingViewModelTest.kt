@@ -233,13 +233,18 @@ class VoiceOnboardingViewModelTest {
         assertEquals(42L, model.state.value.progress?.version)
     }
 
-    @Test fun onlyExplicitExpiryInvalidatesRestoredDraft() = runTest {
+    @Test fun expiredRestoredDraftSilentlyStartsFresh() = runTest {
         val store = Store().apply { data = data.copy(expiresAtMillis = 10) }
         val model = VoiceOnboardingViewModel(1, store, Gateway(), now = { 11 })
-        assertTrue(model.state.value.expired)
-        assertFalse(model.rangeReady())
+        // 만료 안내 화면 없이 새 초안으로 — 바로 측정 화면부터
+        assertFalse(model.state.value.expired)
+        assertNull(model.state.value.error)
         assertNull(model.state.value.range)
+        assertNull(model.state.value.recording)
+        assertTrue(model.state.value.draftId != "local-draft")
         assertEquals(1, store.clears)
+        assertEquals(model.state.value.draftId, store.data.draftId)          // 새 초안이 저장됐다
+        assertNull(store.data.expiresAtMillis)
         assertFalse(VoiceOnboardingViewModel(1, Store(), Gateway(), now = { Long.MAX_VALUE }).state.value.expired)
     }
 

@@ -50,22 +50,11 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
     key(state.draftId) {
         val nav = rememberNavController()
         val initial = remember { when {
-            state.expired -> "expired"
             state.recording != null -> "result"
             state.range != null -> "pick"
             else -> "measure"
         } }
         NavHost(navController = nav, startDestination = initial) {
-            composable("expired") {
-                BackHandler { leave() }
-                Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-                    Text("이전 분석이 만료됐어요", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("음역부터 새로 측정해 주세요.", color = Grey)
-                    Spacer(Modifier.height(24.dp))
-                    PrimaryButton("새로 측정하기", vm::restart, Modifier.fillMaxWidth())
-                    TextButton(onClick = ::leave) { Text("나가기") }
-                }
-            }
             composable("measure") {
                 BackHandler { leave() }
                 GuidedRangeScreen(onBack = ::leave, onDone = {
