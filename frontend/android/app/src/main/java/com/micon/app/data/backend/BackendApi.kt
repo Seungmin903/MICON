@@ -201,6 +201,10 @@ interface BackendApi {
     @GET("practices/{practiceId}/report")
     suspend fun practiceReport(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeReportDto>>
 
+    /** 연습 기록 삭제(세션+결과). 녹음·음성 분석은 지우지 않는다. 타인 기록은 404 PRACTICE_NOT_FOUND. (BE 2026-09-15, S15P21B110-250) */
+    @DELETE("practices/{practiceId}")
+    suspend fun deletePractice(@Path("practiceId") practiceId: Long): Response<ApiResponse<Any>>
+
     // ---- 음성 녹음·분석 (RecordingController · VoiceAnalysisController) ----
 
     /** 녹음 업로드. `file` 은 audio/wav·x-wav·mpeg·mp4, 기본 25MB 까지. `keepOriginal` 은 서버 기본(원본 보관 정책)을 따르려면 생략. 201 → recordingId. */

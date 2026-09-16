@@ -172,6 +172,8 @@ class PracticeViewModel(
 
     /** 백엔드 song_section (practice-assets). 구간 평가 저장에 쓴다. */
     private var backendSections: List<PracticeSection> = emptyList()
+    /** practice-assets 의 dataVersion — 기록 저장 시 노트 인덱스 기준으로 함께 보낸다. */
+    private var assetsDataVersion: String? = null
     /** 열려 있는 백엔드 연습 세션. [practiceOpen] 이면 아직 complete/cancel 전. */
     private var practiceId: Long? = null
     private var practiceOpen = false
@@ -216,6 +218,7 @@ class PracticeViewModel(
                 displayBars = DisplayBars.build(notes, filterLines)
                 beatGrid = assets.beatGrid
                 backendSections = assets.sections
+                assetsDataVersion = assets.dataVersion
                 meter = NoteNormalizer.meterOf(assets.timeSignature)
                 tempoBpm = (assets.tempoBpm ?: detail.analysis?.tempoBpm)?.takeIf { it in 40..240 } ?: 100
                 sections = SongSections.build(notes, sheet.lines, barStarts())
@@ -614,6 +617,7 @@ class PracticeViewModel(
                 val result = PracticeScoreMapper.result(
                     totals, notes, backendSections,
                     keyShift = _state.value.keyShift, calibrationMs = (totals.calibration * 1000).roundToInt(),
+                    frames = scorer.frames.toList(), dataVersion = assetsDataVersion,
                 )
                 practices.savePerformance(id, result)
                 _state.update { it.copy(save = Save(SavePhase.SAVED, "연습 기록을 저장했어요.", practiceId = id)) }
