@@ -19,15 +19,15 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import coil.compose.AsyncImage
 import com.micon.app.appContainer
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.onboarding.*
 import com.micon.app.range.RangeReport
-import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.*
 import com.micon.app.ui.report.GuidedRangeScreen
-import com.micon.app.ui.report.RangeStabilityCard
+import com.micon.app.ui.report.RangeResultCards
+import com.micon.app.ui.report.VoiceReportContent
+import com.micon.app.ui.report.ReportFitCard
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
 import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.theme.*
@@ -68,9 +68,10 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             }
             composable("measure") {
                 BackHandler { leave() }
-                GuidedRangeScreen(onBack = ::leave, onDone = {
+                val continueToTimbre = {
                     if (vm.rangeReady()) nav.navigate("pick") { popUpTo("measure") { inclusive = true } }
-                }, onRestart = {
+                }
+                GuidedRangeScreen(onBack = ::leave, onDone = continueToTimbre, onTimbreMeasurement = continueToTimbre, onRestart = {
                     store.rangeRepository.clear()
                     nav.navigate("measure") { popUpTo("measure") { inclusive = true } }
                 }, repository = store.rangeRepository)
@@ -125,42 +126,20 @@ fun VoiceOnboardingResultScreen(
         BackHeader("목소리 분석 결과", onBack = { if (!state.saving) onExit() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(if (state.serviceAvailable) "내 목소리를 알아가는 중" else "내 목소리 측정 결과",
+            Text(if (state.saved) "내 목소리 분석 결과" else if (state.serviceAvailable) "내 목소리를 알아가는 중" else "내 목소리 측정 결과",
                 fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Ink)
             Text(if (state.serviceAvailable) "준비된 결과부터 확인할 수 있어요."
                 else "음색 분석과 프로필 저장 기능을 준비 중이에요. 지금은 측정한 음역을 확인할 수 있어요.",
                 color = Grey, modifier = Modifier.testTag("onboarding_service_notice"))
-            state.range?.let { VoiceRangeSummary(it) }
             val progress = state.progress
-            MiconCard {
-                Text("음색 분석", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                ComponentRow("닮은 목소리 분석", progress?.ecapa,
-                    enabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering, onRetry = { onRetry(AnalysisComponent.ECAPA) })
-                ComponentRow("노래 음색 분석", progress?.byol,
-                    enabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering, onRetry = { onRetry(AnalysisComponent.SINGER_BYOL) })
-            }
-            MiconCard {
-                Text("나와 닮은 가수", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                val artists = progress?.visibleArtists.orEmpty()
-                var expanded by remember(progress?.version) { mutableStateOf(false) }
-                if (progress?.artistSearch == ComponentStatus.COMPLETED && artists.isEmpty()) {
-                    Text("지금은 닮은 가수를 찾지 못했어요.", color = Grey)
-                } else if (artists.isNotEmpty()) {
-                    artists.take(if (expanded) 5 else 3).forEachIndexed { index, artist ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("${index + 1}", color = Purple, fontWeight = FontWeight.Bold)
-                            AsyncImage(artist.imageUrl, contentDescription = null, modifier = Modifier.size(40.dp))
-                            Text(artist.name, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                    if (artists.size > 3) TextButton(onClick = { expanded = !expanded }) {
-                        Text(if (expanded) "접기" else "더 보기")
-                    }
-                }
-                if (progress?.artistSearch != ComponentStatus.COMPLETED) ComponentRow("가수 찾기",
-                    progress?.artistSearch, state.serviceAvailable && !state.busy && !state.saving && !state.recovering,
-                    onRetry = { onRetry(AnalysisComponent.ARTIST_SEARCH) })
+            state.range?.let { range ->
+                VoiceReportContent(range, progress,
+                    retryEnabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering && !state.saved,
+                    onRetry = onRetry,
+                    // Fit uses the explicitly saved server profile, so do not show the previous profile's fit.
+                    songFit = if (state.saved && !isGuest && state.savedReceipt != null) {
+                        { ReportFitCard(true, state.savedReceipt) }
+                    } else null)
             }
             progress?.message?.let { Text(it, color = Grey) }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
@@ -190,31 +169,5 @@ fun VoiceOnboardingResultScreen(
 
 @Composable
 fun VoiceRangeSummary(range: RangeReport) {
-    MiconCard {
-        Text("이번에 측정한 음역", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        Text(if (range.lowMidi != null && range.highMidi != null)
-            "${ScoringMath.midiName(range.lowMidi)} ~ ${ScoringMath.midiName(range.highMidi)}" else "확인된 음역이 없어요",
-            fontSize = 28.sp, color = Purple, fontWeight = FontWeight.Bold)
-        Text("측정된 최저음부터 최고음까지의 범위예요.", color = Grey)
-    }
-    RangeStabilityCard(range)
-}
-
-@Composable
-private fun ComponentRow(label: String, status: ComponentStatus?, enabled: Boolean, onRetry: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label)
-        Text(when (status) {
-            null -> "준비 중"
-            ComponentStatus.PENDING -> "접수 준비 중"
-            ComponentStatus.QUEUED -> "순서 대기 중"
-            ComponentStatus.RUNNING -> "분석 중"
-            ComponentStatus.COMPLETED -> "완료"
-            ComponentStatus.FAILED -> "다시 시도 필요"
-            ComponentStatus.INSUFFICIENT_DATA -> "목소리 부족 · 다시 녹음"
-            ComponentStatus.CANCELED -> "취소됨"
-        }, color = if (status == ComponentStatus.COMPLETED) Purple else Grey)
-    }
-    if (status == ComponentStatus.FAILED) TextButton(onClick = onRetry, enabled = enabled) { Text("다시 시도") }
+    RangeResultCards(range)
 }

@@ -61,8 +61,7 @@ class BackendRangeAnalysisGateway(private val api: BackendApi, private val owner
                 return RangeReport(submission.protocolVersion, notes, range.lowMidi?.toInt(), range.highMidi?.toInt(),
                     emptyList(), submission.stopReason, submission.lowerBoundaryStatus, submission.upperBoundaryStatus,
                     "available", analysisId = checkNotNull(link.analysisId).toString(), verification = "model_verified",
-                    backendSessionId = link.sessionId, sampling = submission.sampling,
-                    rangeMap = RangeMap(overall = range.lowMidi?.let { lo -> range.highMidi?.let { hi -> listOf(lo.toInt(), hi.toInt()) } }))
+                    backendSessionId = link.sessionId, sampling = submission.sampling)
             }
             if (result.rangeStatus in setOf("FAILED", "INSUFFICIENT_DATA") ||
                 result.components.any { it.component == "RANGE" && it.status in setOf("FAILED", "INSUFFICIENT_DATA", "CANCELED") }) {

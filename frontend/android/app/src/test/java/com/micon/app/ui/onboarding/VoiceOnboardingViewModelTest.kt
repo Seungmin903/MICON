@@ -248,6 +248,7 @@ class VoiceOnboardingViewModelTest {
         assertTrue(model.state.value.saved)
         assertEquals("server-session", store.profile?.receipt?.sessionId)
         assertEquals(42L, store.profile?.receipt?.version)
+        assertEquals(store.profile?.receipt, model.state.value.savedReceipt)
     }
 
     @Test fun guestCannotSaveEvenWhenAllResultsSucceed() = runTest {

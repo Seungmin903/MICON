@@ -19,6 +19,7 @@ data class VoiceOnboardingState(
     val saving: Boolean = false, val saved: Boolean = false, val expired: Boolean = false,
     val error: String? = null, val serviceAvailable: Boolean = false,
     val recovering: Boolean = false,
+    val savedReceipt: ProfileSaveReceipt? = null,
 ) {
     val canSave get() = serviceAvailable && range?.availability == "available" && recording != null &&
         progress?.canSave == true && !busy && !saving && !saved && !expired && !recovering
@@ -92,7 +93,7 @@ class VoiceOnboardingViewModel(
         stopRecovery()
         job?.cancel()
         mutableState.update { it.copy(recording = recording, revision = it.revision + 1,
-            progress = null, busy = false, saving = false, saved = false, error = null) }
+            progress = null, busy = false, saving = false, saved = false, savedReceipt = null, error = null) }
         persist()
     }
 
@@ -173,7 +174,7 @@ class VoiceOnboardingViewModel(
                 // Remote success is authoritative even if refreshing the local cache fails.
                 val cached = runCatching { persistence.saveProfile(SavedVoiceOnboardingProfile(receipt, request.range, result)) }.isSuccess
                 runCatching { persistence.clearDraft() }
-                mutableState.update { it.copy(saved = true, saving = false,
+                mutableState.update { it.copy(saved = true, saving = false, savedReceipt = receipt,
                     error = if (cached) null else "서버에 저장됐지만 기기의 결과를 갱신하지 못했어요.") }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -190,7 +191,7 @@ class VoiceOnboardingViewModel(
         stopRecovery()
         job?.cancel()
         persistence.deleteRecording(state.value.recording?.id)
-        mutableState.update { it.copy(recording = null, progress = null, busy = false, saved = false,
+        mutableState.update { it.copy(recording = null, progress = null, busy = false, saved = false, savedReceipt = null,
             revision = it.revision + 1, error = null) }
         persist()
     }

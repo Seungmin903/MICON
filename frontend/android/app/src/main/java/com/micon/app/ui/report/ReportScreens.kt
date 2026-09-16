@@ -125,9 +125,8 @@ fun VoiceReportScreen(
             Spacer(Modifier.height(16.dp))
             val current = saved
             if (current != null) {
-                com.micon.app.ui.onboarding.VoiceRangeSummary(current.range)
-                // Preserve develop's server-backed song fit card for a confirmed saved profile.
-                ReportFitCard(owner != null)
+                VoiceReportContent(current.range, current.progress,
+                    songFit = { ReportFitCard(owner != null, current.receipt) })
             } else if (owner != null && previousAnalysis != null) {
                 Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(12.dp))

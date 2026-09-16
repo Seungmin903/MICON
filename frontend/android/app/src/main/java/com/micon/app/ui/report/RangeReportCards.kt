@@ -47,6 +47,16 @@ private fun noteStatus(status: String) = when (status) {
 @Composable
 fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        RangeResultCards(report)
+        AdditionalVoiceReportCards(report)
+        if (onExtend != null && report.availability == "available" && report.lowMidi != null && report.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) OutlinePurpleButton("빈 음·경계 더 확인하기", onExtend, Modifier.fillMaxWidth())
+    }
+}
+
+/** The same measured range is shown before and after timbre analysis. */
+@Composable
+fun RangeResultCards(report: RangeReport) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
             Text("이번에 확인한 음역", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             report.sampling?.let { s ->
@@ -82,6 +92,12 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
             else GuidedRangeMapChart(rows, axisLow = 36, axisHigh = 84, ticks = listOf(36, 48, 60, 72, 84), labelWidth = 108.dp, noteCells = true)
         }
         RangeStabilityCard(report)
+    }
+}
+
+@Composable
+fun AdditionalVoiceReportCards(report: RangeReport, songFit: (@Composable () -> Unit)? = null) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
             Text("내 목소리에 맞는 음악", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
@@ -97,8 +113,9 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
             Spacer(Modifier.height(18.dp))
             Text("추천 장르 / 분위기 · 미측정", color = Grey, fontSize = 13.sp)
         }
-        MiconCard {
+        if (songFit != null) songFit() else MiconCard {
             Text("곡 적합도", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("프로필을 저장한 뒤 곡 적합도를 확인할 수 있어요.", color = Grey, fontSize = 13.sp)
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth().background(GreyLight.copy(alpha = .35f), RoundedCornerShape(12.dp)).padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -131,7 +148,6 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
             }
             Text("미측정", color = Grey, fontSize = 12.sp)
         }
-        if (onExtend != null && report.availability == "available" && report.lowMidi != null && report.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) OutlinePurpleButton("빈 음·경계 더 확인하기", onExtend, Modifier.fillMaxWidth())
     }
 }
 

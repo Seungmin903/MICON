@@ -113,4 +113,15 @@ class ReportFitViewModelTest {
         vm.select(catalog[0]); advanceUntilIdle()
         assertTrue(vm.state.value.fitNote!!.contains("음역 정보가 아직 없어"))
     }
+
+    @Test fun `saved profile does not fall back to another profiles fit`() = runTest {
+        var requested: Long? = null
+        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked),
+            FakeRecommend(mapOf(7L to fit(7))), loggedIn = true,
+            savedProfileFit = { requested = it; null })
+        vm.select(liked[0]); advanceUntilIdle()
+        assertEquals(7L, requested)
+        assertNull(vm.state.value.fit)
+        assertTrue(vm.state.value.fitNote!!.contains("저장한 프로필"))
+    }
 }
