@@ -90,7 +90,9 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             composable("result") {
                 BackHandler(enabled = !state.saving) { leave() }
                 BackHandler(enabled = state.saving) { }
-                LaunchedEffect(Unit) { if (state.serviceAvailable && state.progress == null && !state.saved) vm.analyze() }
+                LaunchedEffect(state.draftId, state.recovering) {
+                    if (!state.recovering && state.serviceAvailable && state.progress == null && !state.saved) vm.analyze()
+                }
                 VoiceOnboardingResultScreen(state, isGuest,
                     onExit = ::leave,
                     onLogin = { vm.discard(); onLogin() },
@@ -133,9 +135,9 @@ fun VoiceOnboardingResultScreen(
             MiconCard {
                 Text("음색 분석", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 ComponentRow("닮은 목소리 분석", progress?.ecapa,
-                    enabled = state.serviceAvailable && !state.busy && !state.saving, onRetry = { onRetry(AnalysisComponent.ECAPA) })
+                    enabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering, onRetry = { onRetry(AnalysisComponent.ECAPA) })
                 ComponentRow("노래 음색 분석", progress?.byol,
-                    enabled = state.serviceAvailable && !state.busy && !state.saving, onRetry = { onRetry(AnalysisComponent.SINGER_BYOL) })
+                    enabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering, onRetry = { onRetry(AnalysisComponent.SINGER_BYOL) })
             }
             MiconCard {
                 Text("나와 닮은 가수", fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -157,12 +159,12 @@ fun VoiceOnboardingResultScreen(
                     }
                 }
                 if (progress?.artistSearch != ComponentStatus.COMPLETED) ComponentRow("가수 찾기",
-                    progress?.artistSearch, state.serviceAvailable && !state.busy && !state.saving,
+                    progress?.artistSearch, state.serviceAvailable && !state.busy && !state.saving && !state.recovering,
                     onRetry = { onRetry(AnalysisComponent.ARTIST_SEARCH) })
             }
             progress?.message?.let { Text(it, color = Grey) }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
-            if (state.busy) {
+            if (state.busy || state.recovering) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 TextButton(onClick = onCancel) { Text("분석 확인 중단") }
             } else if (state.serviceAvailable && !state.saved && !state.expired && progress?.canSave != true) {

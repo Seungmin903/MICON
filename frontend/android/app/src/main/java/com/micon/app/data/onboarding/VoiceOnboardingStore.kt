@@ -11,7 +11,8 @@ import java.io.File
 import java.util.UUID
 
 data class VoiceOnboardingDraft(val draftId: String, val revision: Long = 0,
-    val recordingId: String? = null, val expiresAtMillis: Long? = null)
+    val recordingId: String? = null, val expiresAtMillis: Long? = null,
+    val serverSessionId: Long? = null)
 data class SavedVoiceOnboardingProfile(val receipt: ProfileSaveReceipt, val range: RangeReport,
     val progress: VoiceAnalysisProgress)
 
@@ -23,6 +24,18 @@ interface VoiceOnboardingPersistence {
     fun deleteRecording(id: String?)
     fun saveProfile(profile: SavedVoiceOnboardingProfile)
     fun clearDraft()
+    fun hasPendingRange(): Boolean = false
+}
+
+fun VoiceOnboardingPersistence.hasResumableDraft(now: Long): Boolean {
+    val draft = draft()
+    if (draft.expiresAtMillis?.let { it <= now } == true) return false
+    return range() != null || hasPendingRange() || recording(draft.recordingId) != null
+}
+
+fun VoiceOnboardingPersistence.startNewDraft(): VoiceOnboardingDraft {
+    clearDraft()
+    return VoiceOnboardingDraft(UUID.randomUUID().toString()).also(::write)
 }
 
 /** One member draft per account; guests get an isolated directory, never a member database/profile. */
@@ -48,6 +61,7 @@ class VoiceOnboardingStore(context: Context, val ownerId: Long?,
 
     override fun write(draft: VoiceOnboardingDraft) = atomicWrite(draftFile, draftAdapter.toJson(draft))
     override fun range(): RangeReport? = rangeRepository.lastSessionReport()?.takeIf { it.availability == "available" }
+    override fun hasPendingRange(): Boolean = rangeRepository.pending() != null
     override fun recording(id: String?): SavedRecording? = recordings.list().find { it.id == id }
     override fun deleteRecording(id: String?) { if (id != null) recordings.delete(id) }
 
