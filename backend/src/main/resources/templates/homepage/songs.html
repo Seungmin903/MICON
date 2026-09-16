@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MICON 곡 카탈로그</title>
+    <style>
+        :root { color-scheme: light; font-family: Pretendard, "Noto Sans KR", sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #f5f6f8; color: #1f2937; }
+        main { width: min(1480px, calc(100% - 32px)); margin: 48px auto; }
+        header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 24px; }
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .summary { margin: 0; color: #667085; }
+        form { display: flex; gap: 8px; }
+        input { width: min(320px, 55vw); padding: 11px 14px; border: 1px solid #d0d5dd; border-radius: 10px; font-size: 15px; }
+        button, .page-link { border: 0; border-radius: 10px; padding: 11px 16px; background: #6941c6; color: #fff; text-decoration: none; font-weight: 700; cursor: pointer; }
+        .catalog { overflow-x: auto; background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; box-shadow: 0 8px 24px rgba(16, 24, 40, .06); }
+        table { width: 100%; min-width: 1260px; border-collapse: collapse; }
+        th, td { padding: 14px 16px; border-bottom: 1px solid #eaecf0; text-align: left; vertical-align: middle; }
+        th { background: #fafafa; color: #475467; font-size: 13px; }
+        tbody tr:last-child td { border-bottom: 0; }
+        .cover { width: 52px; height: 52px; border-radius: 9px; object-fit: cover; background: #eaecf0; display: block; }
+        .cover-empty { display: grid; place-items: center; color: #98a2b3; font-size: 11px; }
+        .title { font-weight: 700; }
+        .muted { color: #667085; }
+        .state { display: inline-flex; min-width: 44px; justify-content: center; padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+        .state.ready { color: #067647; background: #ecfdf3; }
+        .state.missing { color: #b42318; background: #fef3f2; }
+        .empty { padding: 56px 16px; text-align: center; color: #667085; }
+        nav { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 22px; }
+        .page-link.disabled { background: #e4e7ec; color: #98a2b3; pointer-events: none; }
+        .page-status { min-width: 100px; text-align: center; color: #475467; font-weight: 700; }
+        @media (max-width: 720px) {
+            main { margin-top: 28px; }
+            header { align-items: stretch; flex-direction: column; }
+            form, input { width: 100%; }
+            th:nth-child(1), td:nth-child(1), th:nth-child(5), td:nth-child(5), th:nth-child(7), td:nth-child(7) { display: none; }
+            th, td { padding: 12px 10px; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <div>
+            <h1>MICON 곡 카탈로그</h1>
+            <p class="summary">현재 서버에 등록된 곡 <strong th:text="${totalElements}">0</strong>곡</p>
+        </div>
+        <form method="get">
+            <input name="query" type="search" th:value="${query}" placeholder="곡명, 가수, TJ 번호 검색" aria-label="곡 검색어">
+            <input name="size" type="hidden" th:value="${size}">
+            <button type="submit">검색</button>
+        </form>
+    </header>
+
+    <section class="catalog" aria-label="곡 목록">
+        <table th:if="${!songs.isEmpty()}">
+            <thead>
+            <tr>
+                <th>이미지</th>
+                <th>ID</th>
+                <th>곡명</th>
+                <th>가수</th>
+                <th>재생 시간</th>
+                <th>practiceReady</th>
+                <th>DB 플래그</th>
+                <th>일반 가사</th>
+                <th>싱크 가사</th>
+                <th>분석</th>
+                <th>목표 음정</th>
+                <th>원키 MR</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="song : ${songs}">
+                <td>
+                    <img class="cover" th:if="${song.imageUrl() != null && !song.imageUrl().isBlank()}"
+                         th:src="${song.imageUrl()}" alt="" loading="lazy">
+                    <span class="cover cover-empty" th:unless="${song.imageUrl() != null && !song.imageUrl().isBlank()}">NO IMAGE</span>
+                </td>
+                <td class="muted" th:text="${song.songId()}">1</td>
+                <td class="title" th:text="${song.title()}">곡명</td>
+                <td th:text="${song.artists()}">가수</td>
+                <td class="muted" th:text="${song.duration()}">3:30</td>
+                <td><span class="state" th:classappend="${song.practiceReady()} ? ' ready' : ' missing'" th:text="${song.practiceReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.storedPracticeReady()} ? ' ready' : ' missing'" th:text="${song.storedPracticeReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.lyricsPlainReady()} ? ' ready' : ' missing'" th:text="${song.lyricsPlainReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.lyricsSyncedReady()} ? ' ready' : ' missing'" th:text="${song.lyricsSyncedReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.analysisReady()} ? ' ready' : ' missing'" th:text="${song.analysisReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.targetNotesReady()} ? ' ready' : ' missing'" th:text="${song.targetNotesReady()} ? 'YES' : 'NO'">YES</span></td>
+                <td><span class="state" th:classappend="${song.originalInstrumentalReady()} ? ' ready' : ' missing'" th:text="${song.originalInstrumentalReady()} ? 'YES' : 'NO'">YES</span></td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="empty" th:if="${songs.isEmpty()}">조건에 맞는 곡이 없습니다.</div>
+    </section>
+
+    <nav aria-label="페이지 이동" th:if="${totalPages > 0}">
+        <a class="page-link" th:classappend="${!hasPrevious} ? ' disabled'"
+           th:href="@{''(query=${query},page=${previousPage},size=${size})}">이전</a>
+        <span class="page-status"><span th:text="${page + 1}">1</span> / <span th:text="${totalPages}">1</span></span>
+        <a class="page-link" th:classappend="${!hasNext} ? ' disabled'"
+           th:href="@{''(query=${query},page=${nextPage},size=${size})}">다음</a>
+    </nav>
+</main>
+</body>
+</html>

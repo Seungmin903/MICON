@@ -5,8 +5,10 @@ import java.time.Instant;
 import java.util.List;
 import tools.jackson.databind.JsonNode;
 
+/** 연습용 미디어·가사·목표 음정·구간·난관 데이터를 반환하는 응답 DTO를 모아 둔다. */
 public final class PracticeAssetResponse {
 
+	// 기능: DTO 타입만 사용하도록 외부 객체 생성을 막는다.
 	private PracticeAssetResponse() {
 	}
 
@@ -35,6 +37,14 @@ public final class PracticeAssetResponse {
 		String sha256,
 		String playbackUrl,
 		Instant playbackUrlExpiresAt
+	) {
+	}
+
+	public record Instrumental(
+		Long songId,
+		int selectedKey,
+		Media instrumental,
+		String lyricsSynced
 	) {
 	}
 

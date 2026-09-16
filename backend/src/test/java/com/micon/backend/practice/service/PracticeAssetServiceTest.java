@@ -100,6 +100,27 @@ class PracticeAssetServiceTest {
 	}
 
 	@Test
+	void returnsMrBySongIdWithoutRequiringAnalysisAssets() {
+		when(repository.findSong(10L)).thenReturn(Optional.of(
+			new SongAssetRow(10L, "연습곡", false, null, "\"[00:00.00] 가사\"", null, null,
+				null, null, null, null)
+		));
+		when(repository.findInstrumental(10L, 0)).thenReturn(Optional.of(
+			new MediaRow(30L, "/songs/10/original.mp3", "audio/mpeg", 1234L, "hash")
+		));
+
+		var response = service.getMr(10L, 0);
+
+		assertThat(response.songId()).isEqualTo(10L);
+		assertThat(response.selectedKey()).isZero();
+		assertThat(response.instrumental().mediaId()).isEqualTo(30L);
+		assertThat(response.instrumental().playbackUrl()).isEqualTo("https://storage.test/instrumental");
+		assertThat(response.instrumental().playbackUrlExpiresAt())
+			.isEqualTo(Instant.parse("2026-09-10T12:10:00Z"));
+		assertThat(response.lyricsSynced()).isEqualTo("[00:00.00] 가사");
+	}
+
+	@Test
 	void rejectsSongWithoutCompletedPracticeData() {
 		when(repository.findSong(10L)).thenReturn(Optional.of(
 			new SongAssetRow(10L, "연습곡", false, null, null, null, null, null, null, null, null)

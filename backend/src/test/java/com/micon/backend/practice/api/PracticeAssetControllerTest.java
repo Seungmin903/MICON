@@ -33,4 +33,12 @@ class PracticeAssetControllerTest {
 
 		verify(service).getGuide(3L, -2);
 	}
+
+	@Test
+	void mapsMrWithSongIdAndSelectedKey() throws Exception {
+		mockMvc.perform(get("/songs/3/mr").param("selectedKey", "-2"))
+			.andExpect(status().isOk());
+
+		verify(service).getMr(3L, -2);
+	}
 }

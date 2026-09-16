@@ -6,6 +6,7 @@ import com.micon.app.data.backend.dto.*
 import com.micon.app.range.RangeProtocol
 import com.micon.app.range.RangeReport
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -66,14 +67,15 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
     }
 
     private suspend fun awaitResult(sessionId: Long, analysisId: Long?, access: VoiceSessionAccess,
-        linkFile: File, link: TimbreSubmissionLink?, onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
+        linkFile: File?, link: TimbreSubmissionLink?, onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
         repeat(300) {
             val result = try { api.voiceOnboardingResult(sessionId, access).data().toProgress(analysisId) }
+            catch (e: CancellationException) { throw e }
             catch (_: Exception) { delay(2_000); return@repeat }
             onProgress(result)
             if (!result.analyzing && result.sessionStatus !in setOf(VoiceSessionStatus.CREATED,
                     VoiceSessionStatus.RANGE_IN_PROGRESS, VoiceSessionStatus.UPLOADING)) {
-                if (!result.canSave && link != null) stateStore.write(linkFile,
+                if (!result.canSave && link != null && linkFile != null) stateStore.write(linkFile,
                     Json.moshi.adapter(TimbreSubmissionLink::class.java).toJson(link.copy(terminalFailure = true)))
                 return result
             }
@@ -91,13 +93,20 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         return ProfileSaveReceipt(saved.sessionId.toString(), result.version, saved.profileId.toString())
     }
 
-    override suspend fun recover(ownerId: Long): VoiceAnalysisProgress? {
+    override suspend fun recover(ownerId: Long, sessionId: Long,
+        onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress? {
         val access = VoiceSessionAccess(ownerId)
-        val response = api.activeVoiceSession(access)
+        // Resume only the session attached to this draft, never the account's latest session.
+        val response = api.voiceOnboardingResult(sessionId, access)
         if (response.code() == 404) return null
-        val active = response.data()
-        val job = runCatching { api.timbreStatus(active.sessionId, access).data() }.getOrNull()
-        return api.voiceOnboardingResult(active.sessionId, access).data().toProgress(job?.analysisId)
+        val result = response.data()
+        val job = try { api.timbreStatus(sessionId, access).data() }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { null }
+        val progress = result.toProgress(job?.analysisId)
+        onProgress(progress)
+        return if (progress.analyzing) awaitResult(sessionId, job?.analysisId, access, null, null, onProgress)
+            else progress
     }
 
     override suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? {

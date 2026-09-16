@@ -8,8 +8,10 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
 
+/** 전체 및 구간별 연습 평가를 저장할 때 사용하는 요청 DTO와 점수 검증 규칙을 정의한다. */
 public final class PracticeResultRequest {
 
+	// 기능: DTO 타입만 사용하도록 외부 객체 생성을 막는다.
 	private PracticeResultRequest() {
 	}
 

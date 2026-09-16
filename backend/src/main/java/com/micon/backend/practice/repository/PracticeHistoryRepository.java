@@ -8,15 +8,18 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/** 연습 세션과 최신 평가 결과를 결합하여 회원의 연습 기록 페이지를 조회한다. */
 @Repository
 public class PracticeHistoryRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
+	// 기능: 필요한 의존성과 초기값을 받아 PracticeHistoryRepository 객체를 생성한다.
 	public PracticeHistoryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	// 기능: findPage 조건으로 데이터베이스를 조회한다.
 	public List<PracticeHistoryResponse.Summary> findPage(
 		Long userId,
 		LocalDate date,
@@ -61,6 +64,7 @@ public class PracticeHistoryRepository {
 		));
 	}
 
+	// 기능: count 조건으로 데이터베이스를 조회한다.
 	public long count(Long userId, LocalDate date) {
 		String sql = """
 				SELECT COUNT(*)
@@ -71,10 +75,12 @@ public class PracticeHistoryRepository {
 		return count == null ? 0 : count;
 	}
 
+	// 기능: dateCondition에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	private String dateCondition(LocalDate date) {
 		return date == null ? "" : " AND ps.created_at >= :fromAt AND ps.created_at < :toAt\n";
 	}
 
+	// 기능: parameters에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	private MapSqlParameterSource parameters(Long userId, LocalDate date) {
 		MapSqlParameterSource params = new MapSqlParameterSource("userId", userId);
 		if (date != null) {
