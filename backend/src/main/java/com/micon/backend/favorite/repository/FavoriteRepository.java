@@ -10,15 +10,18 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/** favorite_song 테이블을 중심으로 회원의 찜 데이터와 곡 요약 정보를 조회·변경한다. */
 @Repository
 public class FavoriteRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
+	// 기능: 필요한 의존성과 초기값을 받아 FavoriteRepository 객체를 생성한다.
 	public FavoriteRepository(NamedParameterJdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	// 기능: songExists에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	public boolean songExists(Long songId) {
 		Long count = jdbcTemplate.queryForObject(
 			"SELECT COUNT(*) FROM song WHERE song_id = :songId",
@@ -28,6 +31,7 @@ public class FavoriteRepository {
 		return count != null && count > 0;
 	}
 
+	// 기능: add 데이터를 데이터베이스에 저장한다.
 	public void add(long userId, Long songId) {
 		try {
 			jdbcTemplate.update(
@@ -39,6 +43,7 @@ public class FavoriteRepository {
 		}
 	}
 
+	// 기능: remove 대상 데이터를 데이터베이스에서 삭제한다.
 	public void remove(long userId, Long songId) {
 		jdbcTemplate.update(
 			"DELETE FROM favorite_song WHERE user_id = :userId AND song_id = :songId",
@@ -46,6 +51,7 @@ public class FavoriteRepository {
 		);
 	}
 
+	// 기능: findAll 조건으로 데이터베이스를 조회한다.
 	public List<SongResponse.Summary> findAll(long userId) {
 		String sql = """
 			SELECT s.song_id, s.title, s.duration_ms, sm.display_image_url
@@ -72,6 +78,7 @@ public class FavoriteRepository {
 			.toList();
 	}
 
+	// 기능: findArtists 조건으로 데이터베이스를 조회한다.
 	private Map<Long, List<String>> findArtists(List<Long> songIds) {
 		if (songIds.isEmpty()) {
 			return Collections.emptyMap();

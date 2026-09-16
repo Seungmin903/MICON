@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+/** 기기에서 계산한 연습 평가를 저장하고 연습 리포트 및 취약 구간 재연습 정보를 구성한다. */
 @Service
 public class PracticeResultService {
 
@@ -25,6 +26,7 @@ public class PracticeResultService {
 	private final PracticeResultRepository resultRepository;
 	private final ObjectMapper objectMapper;
 
+	// 기능: 필요한 의존성과 초기값을 받아 PracticeResultService 객체를 생성한다.
 	public PracticeResultService(
 		PracticeRepository practiceRepository,
 		PracticeResultRepository resultRepository,
@@ -36,6 +38,7 @@ public class PracticeResultService {
 	}
 
 	@Transactional
+	// 기능: save 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
 	public PracticeResultResponse.Report save(
 		Long userId,
 		Long practiceId,
@@ -61,6 +64,7 @@ public class PracticeResultService {
 	}
 
 	@Transactional(readOnly = true)
+	// 기능: report 비즈니스 로직을 수행한다.
 	public PracticeResultResponse.Report report(Long userId, Long practiceId) {
 		PracticeResponse.Detail practice = ownedPractice(userId, practiceId);
 		ResultRow result = resultRepository.findLatest(practiceId)
@@ -82,6 +86,7 @@ public class PracticeResultService {
 	}
 
 	@Transactional(readOnly = true)
+	// 기능: analysis 비즈니스 로직을 수행한다.
 	public PracticeResultResponse.Analysis analysis(Long userId, Long practiceId) {
 		PracticeResponse.Detail practice = ownedPractice(userId, practiceId);
 		if (!"COMPLETED".equals(practice.status())) {
@@ -95,6 +100,7 @@ public class PracticeResultService {
 	}
 
 	@Transactional
+	// 기능: retry 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
 	public PracticeResultResponse.Analysis retry(Long userId, Long practiceId) {
 		ownedPractice(userId, practiceId);
 		ResultRow result = resultRepository.findLatest(practiceId)
@@ -105,11 +111,13 @@ public class PracticeResultService {
 		return new PracticeResultResponse.Analysis(practiceId, "ANALYZING", false);
 	}
 
+	// 기능: ownedPractice 비즈니스 로직을 수행한다.
 	private PracticeResponse.Detail ownedPractice(Long userId, Long practiceId) {
 		return practiceRepository.findOwned(practiceId, userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRACTICE_NOT_FOUND));
 	}
 
+	// 기능: validateCompletedScores 처리에 필요한 업무 조건을 검증한다.
 	private void validateCompletedScores(PracticeResultRequest.Save request) {
 		if (request.status() == PracticeResultRequest.ResultStatus.COMPLETED
 			&& (request.overallScore() == null || request.pitchScore() == null
@@ -118,6 +126,7 @@ public class PracticeResultService {
 		}
 	}
 
+	// 기능: writeSummary 비즈니스 로직을 수행한다.
 	private String writeSummary(SummaryPayload payload) {
 		try {
 			String json = objectMapper.writeValueAsString(payload);
@@ -132,6 +141,7 @@ public class PracticeResultService {
 		}
 	}
 
+	// 기능: readSummary 비즈니스 로직을 수행한다.
 	private SummaryPayload readSummary(String summaryJson) {
 		if (summaryJson == null || summaryJson.isBlank()) {
 			return new SummaryPayload(null, List.of());
@@ -146,6 +156,7 @@ public class PracticeResultService {
 		}
 	}
 
+	// 기능: nextIdentifier 저장에 사용할 새 식별자를 생성한다.
 	private Long nextIdentifier() {
 		Long identifier;
 		do {

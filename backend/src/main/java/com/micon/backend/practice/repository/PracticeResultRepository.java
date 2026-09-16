@@ -8,15 +8,18 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+/** 연습 평가 결과와 구간별 평가를 저장하고 가장 최근 결과를 조회한다. */
 @Repository
 public class PracticeResultRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
+	// 기능: 필요한 의존성과 초기값을 받아 PracticeResultRepository 객체를 생성한다.
 	public PracticeResultRepository(NamedParameterJdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	// 기능: findLatest 조건으로 데이터베이스를 조회한다.
 	public Optional<ResultRow> findLatest(Long practiceId) {
 		String sql = """
 				SELECT practice_result_id, practice_id, status, overall_score, pitch_score,
@@ -40,6 +43,7 @@ public class PracticeResultRepository {
 		)).stream().findFirst();
 	}
 
+	// 기능: save 데이터를 데이터베이스에 저장한다.
 	public void save(
 		Long resultId,
 		Long practiceId,
@@ -69,6 +73,7 @@ public class PracticeResultRepository {
 		));
 	}
 
+	// 기능: retry에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	public int retry(Long resultId) {
 		String sql = """
 				UPDATE practice_result
@@ -79,6 +84,7 @@ public class PracticeResultRepository {
 		return jdbcTemplate.update(sql, Map.of("resultId", resultId));
 	}
 
+	// 기능: identifierExists에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	public boolean identifierExists(Long resultId) {
 		Long count = jdbcTemplate.queryForObject(
 			"SELECT COUNT(*) FROM practice_result WHERE practice_result_id = :resultId",
@@ -86,6 +92,7 @@ public class PracticeResultRepository {
 		return count != null && count > 0;
 	}
 
+	// 기능: update 대상 데이터를 데이터베이스에서 변경한다.
 	private void update(
 		Long resultId,
 		String status,
@@ -107,6 +114,7 @@ public class PracticeResultRepository {
 		));
 	}
 
+	// 기능: parameters에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	private MapSqlParameterSource parameters(
 		Long resultId,
 		Long practiceId,
