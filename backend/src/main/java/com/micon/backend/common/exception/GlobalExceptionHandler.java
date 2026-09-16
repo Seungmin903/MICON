@@ -1,6 +1,7 @@
 package com.micon.backend.common.exception;
 
 import com.micon.backend.common.api.ApiResponse;
+import com.micon.backend.common.observability.AccessLog;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +15,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
         ErrorCode errorCode = exception.getErrorCode();
+        AccessLog.event("api_error", true, "code", errorCode.getCode(),
+                "status", errorCode.getStatus().value(), "error", exception.getClass().getSimpleName());
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.error(errorCode.getCode(), exception.getMessage()));
     }
@@ -38,6 +41,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
+        AccessLog.event("api_error", true, "code", errorCode.getCode(), "status", 500,
+                "error", AccessLog.errorType(exception), "sql_state", AccessLog.sqlState(exception));
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
