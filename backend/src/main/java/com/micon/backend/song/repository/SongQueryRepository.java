@@ -7,12 +7,12 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.HashSet;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -45,7 +45,7 @@ public class SongQueryRepository {
 	// 기능: findPage 조건으로 데이터베이스를 조회한다.
 	public List<SongResponse.Summary> findPage(String query, int size, long offset) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms, sm.display_image_url
+				SELECT s.song_id, s.title, s.duration_ms, sm.display_image_url, sm.source_url
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 				""" + SEARCH_CONDITION + """
@@ -63,6 +63,7 @@ public class SongQueryRepository {
 					song.title(),
 					artists.getOrDefault(song.songId(), List.of()),
 					song.imageUrl(),
+					song.imageSourceUrl(),
 					song.durationMs()
 				))
 				.toList();
@@ -102,7 +103,7 @@ public class SongQueryRepository {
 				            )
 				           THEN TRUE ELSE FALSE
 				       END AS practice_ready,
-				       sm.album_name, sm.display_image_url, sm.release_date,
+				       sm.album_name, sm.display_image_url, sm.source_url, sm.release_date,
 				       sa.key_name, sa.tempo_bpm, sa.lowest_midi, sa.highest_midi
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
@@ -203,7 +204,8 @@ public class SongQueryRepository {
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
-		resultSet.getString("display_image_url")
+		resultSet.getString("display_image_url"),
+		resultSet.getString("source_url")
 	);
 
 	private static final RowMapper<SongDetailRow> SONG_DETAIL_ROW_MAPPER = (resultSet, rowNumber) -> new SongDetailRow(
@@ -213,6 +215,7 @@ public class SongQueryRepository {
 		getNullableBoolean(resultSet, "practice_ready"),
 		resultSet.getString("album_name"),
 		resultSet.getString("display_image_url"),
+		resultSet.getString("source_url"),
 		resultSet.getObject("release_date", LocalDate.class),
 		resultSet.getString("key_name"),
 		resultSet.getBigDecimal("tempo_bpm"),
@@ -232,7 +235,13 @@ public class SongQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	private record SongRow(String songId, String title, Long durationMs, String imageUrl) {
+	private record SongRow(
+		String songId,
+		String title,
+		Long durationMs,
+		String imageUrl,
+		String imageSourceUrl
+	) {
 	}
 
 	public record SongDetailRow(
@@ -242,6 +251,7 @@ public class SongQueryRepository {
 		Boolean practiceReady,
 		String albumName,
 		String imageUrl,
+		String imageSourceUrl,
 		LocalDate releaseDate,
 		String originalKey,
 		BigDecimal bpm,

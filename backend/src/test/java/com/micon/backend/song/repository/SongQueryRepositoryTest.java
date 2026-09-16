@@ -79,7 +79,8 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_METADATA (
 			  song_id VARCHAR(64) PRIMARY KEY, tj_number VARCHAR(20), album_name VARCHAR(255),
-			  display_image_url VARCHAR(2048), release_date DATE, lyrics_synced CLOB
+			  display_image_url VARCHAR(2048), image_type VARCHAR(30), source_url VARCHAR(2048),
+			  release_date DATE, lyrics_synced CLOB
 			)
 			""");
 		jdbcTemplate.execute("""

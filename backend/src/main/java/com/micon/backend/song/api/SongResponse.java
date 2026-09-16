@@ -16,8 +16,12 @@ public final class SongResponse {
 		String title,
 		List<String> artists,
 		String imageUrl,
+		String imageSourceUrl,
 		Long durationMs
 	) {
+		public Summary(String songId, String title, List<String> artists, String imageUrl, Long durationMs) {
+			this(songId, title, artists, imageUrl, null, durationMs);
+		}
 	}
 
 	public record Detail(
@@ -26,6 +30,7 @@ public final class SongResponse {
 		List<String> artists,
 		String albumName,
 		String imageUrl,
+		String imageSourceUrl,
 		LocalDate releaseDate,
 		Long durationMs,
 		String originalKey,
@@ -36,5 +41,24 @@ public final class SongResponse {
 		boolean favorite,
 		boolean practiceReady
 	) {
+		public Detail(
+			String songId,
+			String title,
+			List<String> artists,
+			String albumName,
+			String imageUrl,
+			LocalDate releaseDate,
+			Long durationMs,
+			String originalKey,
+			BigDecimal bpm,
+			List<String> genres,
+			BigDecimal lowestMidi,
+			BigDecimal highestMidi,
+			boolean favorite,
+			boolean practiceReady
+		) {
+			this(songId, title, artists, albumName, imageUrl, null, releaseDate, durationMs,
+				originalKey, bpm, genres, lowestMidi, highestMidi, favorite, practiceReady);
+		}
 	}
 }
