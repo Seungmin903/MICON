@@ -1,10 +1,12 @@
 package com.micon.app.data.practice
 
 import com.micon.app.data.PracticeSection
+import com.micon.app.scoring.Frame
 import com.micon.app.scoring.LiveNote
 import com.micon.app.scoring.LiveStatus
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.Totals
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
@@ -16,7 +18,17 @@ import kotlin.math.roundToInt
  *   판정 음표만 센다. 구간이 20개를 넘으면 순서 앞 20개만(서버 한도).
  */
 object PracticeScoreMapper {
-    fun result(totals: Totals, notes: List<LiveNote>, sections: List<PracticeSection>, keyShift: Int, calibrationMs: Int): PracticeResultInput =
+    /** 음정 곡선 샘플 간격(ms). 캡처 20ms 프레임을 이 간격으로 묶어 중앙값을 낸다. */
+    const val CURVE_HOP_MS = 100
+
+    /**
+     * @param frames 라이브 채점기가 모은 마이크 프레임(곡 시각 초, MIDI 또는 무성 null). 비어 있으면 곡선을 보내지 않는다.
+     * @param dataVersion practice-assets 의 dataVersion — 서버가 notes 인덱스의 기준 음표 배열을 알 수 있게 함께 보낸다.
+     */
+    fun result(
+        totals: Totals, notes: List<LiveNote>, sections: List<PracticeSection>, keyShift: Int, calibrationMs: Int,
+        frames: List<Frame> = emptyList(), dataVersion: String? = null,
+    ): PracticeResultInput =
         PracticeResultInput(
             status = if (totals.judged > 0) "COMPLETED" else "INSUFFICIENT_DATA",
             overallScore = totals.overall,
@@ -25,7 +37,57 @@ object PracticeScoreMapper {
             sustainScore = null,
             summaryText = summaryText(totals, keyShift, calibrationMs),
             sections = sectionEvaluations(notes, sections),
+            dataVersion = dataVersion,
+            notes = judgedNotes(notes),
+            curve = pitchCurve(frames),
         )
+
+    /**
+     * 절충안: 판정된 음표(GOOD·SHARP·FLAT·WRONG·MISSED)만 인덱스·상태·오차로 보낸다. UPCOMING/ACTIVE(미판정)와 판정 제외 음표는 뺀다.
+     * SKIPPED(너무 짧아 판정 안 함)도 화면에서 "판정 없음" 으로 구분할 수 있게 포함한다. 서버 한도(600)를 넘으면 앞에서부터 자른다 —
+     * 곡 뒷부분이 잘리는 것을 피하려면 한도 안에서는 그대로 두고, 넘을 때만 MISSED 부터 덜어낸다.
+     */
+    fun judgedNotes(notes: List<LiveNote>, limit: Int = RemotePracticeRepository.MAX_NOTES): List<JudgedNote> {
+        val judged = notes.asSequence()
+            .filter { it.judgeable && (it.status.judged || it.status == LiveStatus.SKIPPED) }
+            .map { n ->
+                val withMetrics = n.status != LiveStatus.MISSED && n.status != LiveStatus.SKIPPED
+                JudgedNote(n.index, n.status.name, cents = if (withMetrics) n.cents else null, deviation = if (withMetrics) n.deviation else null)
+            }
+            .toList()
+        if (judged.size <= limit) return judged
+        val trimmed = judged.filter { it.status != LiveStatus.MISSED.name && it.status != LiveStatus.SKIPPED.name }
+        return (if (trimmed.size <= limit) trimmed else trimmed.take(limit)).sortedBy { it.index }
+    }
+
+    /**
+     * 20ms 프레임 → [CURVE_HOP_MS] 간격 곡선. 각 칸의 값은 유성 프레임 MIDI 의 중앙값, 유성 프레임이 없으면 null.
+     * 프레임이 없거나 유성 프레임이 하나도 없으면 null(곡선 없음). 되감기·구간 반복으로 시각이 뒤섞일 수 있어 t 로 칸을 정한다.
+     */
+    fun pitchCurve(frames: List<Frame>, hopMs: Int = CURVE_HOP_MS, maxPoints: Int = RemotePracticeRepository.MAX_CURVE_POINTS): PitchCurve? {
+        if (frames.isEmpty()) return null
+        val valid = frames.filter { it.t.isFinite() && it.t >= 0 }
+        if (valid.isEmpty()) return null
+        val startMs = floor(valid.minOf { it.t } * 1000 / hopMs).toInt() * hopMs
+        val lastMs = (valid.maxOf { it.t } * 1000).toInt()
+        val bins = ((lastMs - startMs) / hopMs + 1).coerceAtMost(maxPoints)
+        if (bins <= 0) return null
+        val buckets = Array(bins) { ArrayList<Double>(6) }
+        for (f in valid) {
+            val midi = f.midi ?: continue
+            val bin = ((f.t * 1000 - startMs) / hopMs).toInt()
+            if (bin in 0 until bins) buckets[bin].add(midi)
+        }
+        val user = buckets.map { b -> if (b.isEmpty()) null else median(b) }
+        if (user.all { it == null }) return null
+        return PitchCurve(hopMs, startMs, user)
+    }
+
+    private fun median(values: MutableList<Double>): Double {
+        values.sort()
+        val mid = values.size / 2
+        return if (values.size % 2 == 1) values[mid] else (values[mid - 1] + values[mid]) / 2
+    }
 
     fun summaryText(totals: Totals, keyShift: Int, calibrationMs: Int): String {
         val counts = buildList {
