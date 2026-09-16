@@ -5,7 +5,7 @@ import json
 import tempfile
 import threading
 import unittest
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 from check_catalog_media import (
@@ -65,7 +65,7 @@ class CandidateHandler(BaseHTTPRequestHandler):
 class CatalogMediaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), CandidateHandler)
+        cls.server = HTTPServer(("127.0.0.1", 0), CandidateHandler)
         cls.worker = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.worker.start()
         cls.base_url = f"http://127.0.0.1:{cls.server.server_port}"

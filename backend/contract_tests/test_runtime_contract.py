@@ -16,6 +16,7 @@ class RuntimeContractTests(unittest.TestCase):
         cls.properties = (ROOT / 'backend/src/main/resources/application.properties').read_text(encoding='utf-8')
         cls.example = (ROOT / 'backend/.env.example').read_text(encoding='utf-8')
         cls.document = (ROOT / 'docs/operations/BACKEND_RUNTIME_CONTRACT.md').read_text(encoding='utf-8')
+        cls.gradle_settings = (ROOT / 'backend/settings.gradle').read_text(encoding='utf-8')
         cls.entries = [line.split('=', 1) for line in cls.example.splitlines()
                        if line.strip() and not line.lstrip().startswith('#')]
 
@@ -61,6 +62,10 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn('150의 범위는 계약 문서화', self.document)
         self.assertIn('SQL 및 본인 프런트 구현 보류를 유지', self.document)
         self.assertIn('GitLab Runner 설치를 의미하지 않는다', self.document)
+
+    def test_java_21_toolchain_can_be_provisioned_on_clean_ci_agents(self):
+        self.assertIn("org.gradle.toolchains.foojay-resolver-convention", self.gradle_settings)
+        self.assertIn("version '1.0.0'", self.gradle_settings)
 
 
 if __name__ == '__main__':

@@ -21,7 +21,10 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
             @Value("${ai.service-token:}") String serviceToken,
             @Value("${ai.voice-analysis-connect-timeout:3s}") Duration connectTimeout,
             @Value("${ai.voice-analysis-read-timeout:30s}") Duration readTimeout) {
-        HttpClient httpClient = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
+        HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(connectTimeout)
+                .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
         RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory);
