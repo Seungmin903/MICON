@@ -34,7 +34,23 @@ data class PracticeResultSaveRequest(
     val rhythmScore: Double?,
     val summaryText: String?,
     val sections: List<SectionEvaluationDto>,
+    // ---- 절충안 확장(2026-09-15): 기기 판정을 그대로 저장한다. 서버가 아직 받지 않으면 무시된다(Spring 은 모르는 필드를 버림). ----
+    /** practice-assets 의 dataVersion — notes[].i 가 어느 음표 배열 기준인지 */
+    val dataVersion: String? = null,
+    /** 노트별 판정(판정된 음표만, 최대 600개) */
+    val notes: List<PracticeNoteDto>? = null,
+    /** 사용자 음정 곡선(100ms 간격) */
+    val curve: PitchCurveDto? = null,
 )
+
+/**
+ * 노트별 판정 한 개. [i] 는 practice-assets `targetNotes` 를 sourceStart 순으로 정렬한 인덱스(`NoteNormalizer.toLiveNotes` 와 같은 순서).
+ * [s] GOOD | SHARP | FLAT | WRONG | MISSED | SKIPPED, [c] 음정 오차(cent), [d] 온셋 편차(초, +늦음). MISSED/SKIPPED 는 c·d 생략.
+ */
+data class PracticeNoteDto(val i: Int = 0, val s: String = "MISSED", val c: Int? = null, val d: Double? = null)
+
+/** 사용자 음정 곡선. [user] 는 MIDI(소수) 또는 무성 null, [hopMs] 간격으로 [startMs] 부터. */
+data class PitchCurveDto(val hopMs: Int = 100, val startMs: Int = 0, val user: List<Double?> = emptyList())
 
 /** PracticeResultRequest.SectionEvaluation — sectionId 는 해당 곡의 song_section 이어야 한다. summary ≤ 120자 */
 data class SectionEvaluationDto(
@@ -100,6 +116,10 @@ data class PracticeReportDto(
     val sections: List<SectionEvaluationDto> = emptyList(),
     val weakSection: RetrySectionDto? = null,
     val analyzedAt: String? = null,
+    /** 절충안 확장 — 서버가 아직 돌려주지 않으면 null */
+    val dataVersion: String? = null,
+    val notes: List<PracticeNoteDto>? = null,
+    val curve: PitchCurveDto? = null,
 )
 
 /** PracticeResultResponse.RetrySection */

@@ -4,6 +4,7 @@ import com.micon.app.core.auth.MemoryTokenStore
 import com.micon.app.core.network.BackendClient
 import com.micon.app.data.singanalysis.*
 import com.micon.app.range.*
+import com.micon.app.ui.report.hasTimbreReport
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -30,6 +31,7 @@ class BackendVoiceOnboardingGatewayTest {
             assertEquals(72, saved.range.highMidi)
             assertEquals(7L, saved.range.backendSessionId)
             assertEquals(VoiceSessionStatus.SAVED, saved.progress.sessionStatus)
+            assertTrue(saved.progress.hasTimbreReport(saved.range))
             assertEquals(listOf(
                 "/api/v1/users/me/voice-profile",
                 "/api/v1/voice-analysis-sessions/7/result"),
@@ -43,13 +45,48 @@ class BackendVoiceOnboardingGatewayTest {
         val gateway = BackendVoiceOnboardingGateway(
             BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
         try {
-            server.enqueue(ok(200, """{"sessionId":7,"status":"PARTIAL_READY","rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","resultVersion":3,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-15T00:00:00"}"""))
-            server.enqueue(ok(200, """{"analysisId":9,"sessionId":7,"status":"COMPLETED","components":[]}"""))
             server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2026-09-15T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+            server.enqueue(ok(200, """{"analysisId":9,"sessionId":7,"status":"COMPLETED","components":[]}"""))
 
-            val progress = checkNotNull(gateway.recover(42))
+            val progress = checkNotNull(gateway.recover(42, 7))
 
             assertEquals(ComponentStatus.COMPLETED, progress.artistSearch)
+            assertEquals(listOf("/api/v1/voice-analysis-sessions/7/result", "/api/v1/voice-analysis-sessions/7/analysis"),
+                (1..2).map { server.takeRequest().path })
+        } finally { server.shutdown() }
+    }
+
+    @Test fun `resumed running analysis polls the pinned session without uploading again`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        try {
+            server.enqueue(ok(200, """{"sessionId":7,"status":"ANALYZING","resultVersion":2,"rangeStatus":"AVAILABLE","timbreStatus":"ANALYZING","saveAllowed":false,"savedProfileExists":false,"expiresAt":"2099-09-16T00:00:00","components":[{"component":"ECAPA","status":"RUNNING"},{"component":"SINGER_BYOL","status":"RUNNING"}],"artists":[]}"""))
+            server.enqueue(ok(200, """{"analysisId":9,"sessionId":7,"status":"RUNNING","components":[]}"""))
+            server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"NO_RESULT","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2099-09-16T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+            val updates = mutableListOf<VoiceAnalysisProgress>()
+            val result = gateway.recover(42, 7, updates::add)
+            assertTrue(result!!.canSave)
+            assertEquals(listOf(VoiceSessionStatus.ANALYZING, VoiceSessionStatus.READY_TO_SAVE), updates.map { it.sessionStatus })
+            assertEquals(9L, result.analysisId)
+            val requests = (1..3).map { server.takeRequest() }
+            assertTrue(requests.all { it.method == "GET" })
+            assertEquals(listOf("/api/v1/voice-analysis-sessions/7/result", "/api/v1/voice-analysis-sessions/7/analysis",
+                "/api/v1/voice-analysis-sessions/7/result"), requests.map { it.path })
+        } finally { server.shutdown() }
+    }
+
+    @Test fun `missing pinned session never falls back to another active session`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        try {
+            server.enqueue(MockResponse().setResponseCode(404))
+            assertNull(gateway.recover(42, 7))
+            assertEquals(1, server.requestCount)
+            assertEquals("/api/v1/voice-analysis-sessions/7/result", server.takeRequest().path)
         } finally { server.shutdown() }
     }
 

@@ -1,9 +1,7 @@
 package com.micon.app.ui.report
 
 import com.micon.app.data.PracticeAssets
-import com.micon.app.data.RecommendMode
 import com.micon.app.data.RecommendRepository
-import com.micon.app.data.RecommendResult
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongFit
@@ -57,7 +55,6 @@ class ReportFitViewModelTest {
 
     private class FakeRecommend(val fits: Map<Long, SongFit?>) : RecommendRepository {
         override suspend fun fit(songId: Long): SongFit? = fits[songId]
-        override suspend fun recommend(mode: RecommendMode, limit: Int) = RecommendResult(mode, false, emptyList())
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
     }
 
@@ -112,5 +109,16 @@ class ReportFitViewModelTest {
         UserStore.setProfile(UserStore.VoiceProfile())
         vm.select(catalog[0]); advanceUntilIdle()
         assertTrue(vm.state.value.fitNote!!.contains("음역 정보가 아직 없어"))
+    }
+
+    @Test fun `saved profile does not fall back to another profiles fit`() = runTest {
+        var requested: Long? = null
+        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked),
+            FakeRecommend(mapOf(7L to fit(7))), loggedIn = true,
+            savedProfileFit = { requested = it; null })
+        vm.select(liked[0]); advanceUntilIdle()
+        assertEquals(7L, requested)
+        assertNull(vm.state.value.fit)
+        assertTrue(vm.state.value.fitNote!!.contains("저장한 프로필"))
     }
 }

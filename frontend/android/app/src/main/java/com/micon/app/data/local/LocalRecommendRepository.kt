@@ -1,9 +1,7 @@
 package com.micon.app.data.local
 
 import com.micon.app.data.RangeFit
-import com.micon.app.data.RecommendMode
 import com.micon.app.data.RecommendRepository
-import com.micon.app.data.RecommendResult
 import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
@@ -66,41 +64,13 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
         )
     }
 
-    override suspend fun recommend(mode: RecommendMode, limit: Int): RecommendResult {
-        val profile = UserStore.profile.value
-        val pool = songs.search("", size = POOL_SIZE).items
-        if (mode == RecommendMode.RANGE && profile != null) {
-            val ranked = pool.mapNotNull { s -> fit(s.id)?.let { s to it } }
-                .sortedWith(compareByDescending<Pair<SongSummary, SongFit>> { it.second.overallFit }.thenBy { it.first.id })
-                .take(limit)
-            return RecommendResult(mode, personalized = true, items = ranked.mapIndexed { i, (s, f) -> RecommendedSong(i + 1, s, f, f.reasons) })
-        }
-        // 기본 추천 (REC-004): 프로필이 없거나, 로컬에 데이터가 없는 모드(음색). 개인화 문구를 쓰지 않는다.
-        val preferred = UserStore.preferredGenres
-        fun preferredGenre(s: SongSummary) = s.genre?.let(preferred::contains) == true
-        val sorted = when (mode) {
-            RecommendMode.POPULAR -> pool.sortedByDescending { it.releaseDate ?: "" }   // 인기 데이터 없음 → 최근 발매 순
-            else -> pool.sortedWith(compareByDescending<SongSummary> { preferredGenre(it) }.thenByDescending { it.releaseDate ?: "" })
-        }
-        val items = sorted.take(limit).mapIndexed { i, s ->
-            val reason = when {
-                mode == RecommendMode.TIMBRE -> "음색 추천은 목소리 분석 후 제공돼요"
-                preferredGenre(s) -> "선호 장르 ${s.genre}"
-                s.releaseDate != null -> "${s.releaseDate.take(4)}년 발매"
-                else -> "많이 연습하는 곡"
-            }
-            RecommendedSong(i + 1, s, fit = null, reasons = listOf(reason))
-        }
-        return RecommendResult(mode, personalized = false, items = items)
-    }
-
     /**
      * 서버 shelves-v1 의 오프라인 근사. 음색이 없어 voice 는 음역 적합도 순, favorite_artists 는 선호 가수 본인 곡만(가수 유사도 없음).
-     * 한 곡은 한 섹션에만(우선순위 voice → original_key → favorite_artists → discovery). 프로필이 없으면 기본 추천 한 섹션(REC-004).
+     * 한 곡은 한 섹션에만(우선순위 voice → original_key → favorite_artists → discovery).
+     * 프로필(측정된 음역)이 없으면 추천할 근거가 없으므로 빈 목록 — 목소리 분석을 마쳐야 추천이 생긴다.
      */
     override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
-        val profile = UserStore.profile.value
-            ?: return RecommendShelves(personalized = false, shelves = listOf(RecommendShelf(ShelfKeys.VOICE, "기본 추천", null, recommend(RecommendMode.GENRE, limit).items)))
+        val profile = UserStore.profile.value ?: return RecommendShelves.empty(RecommendShelves.NOTE_ANALYSIS_REQUIRED)
         val pool = songs.search("", size = POOL_SIZE).items
         val fits = pool.mapNotNull { s -> fit(s.id)?.let { s to it } }
         val used = HashSet<Long>()

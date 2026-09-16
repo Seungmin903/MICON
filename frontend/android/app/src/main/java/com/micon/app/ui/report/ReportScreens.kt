@@ -77,6 +77,10 @@ import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.Orange
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.PurpleMid
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.onboarding.VoiceOnboardingStore
+import com.micon.app.ui.onboarding.VoiceOnboardingEntry
+import com.micon.app.ui.onboarding.VoiceOnboardingEntryViewModel
 
 /** Unified onboarding entry; latest analysis is not an explicitly saved profile. */
 @Composable
@@ -89,6 +93,21 @@ fun VoiceReportScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val container = rememberAppContainer()
     val owner = if (onLogin == null) com.micon.app.core.auth.TokenManager.getUserId().takeIf { it > 0 } else null
+    val entry: VoiceOnboardingEntryViewModel = viewModel(key = "voice-entry-$owner", factory = viewModelFactory {
+        initializer {
+            VoiceOnboardingEntryViewModel(
+                persistence = owner?.let { VoiceOnboardingStore(context.applicationContext, it, container.backend.api) },
+                isCurrentOwner = { if (owner == null) !TokenManager.isLoggedIn() else TokenManager.getUserId() == owner },
+            )
+        }
+    })
+    val entryState by entry.state.collectAsStateWithLifecycle()
+    LaunchedEffect(entryState.navigate) {
+        if (entryState.navigate) {
+            if (if (owner == null) !TokenManager.isLoggedIn() else TokenManager.getUserId() == owner) onQuickAnalysis()
+            entry.navigationHandled()
+        }
+    }
     val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
         value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val store = com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner)
@@ -99,16 +118,15 @@ fun VoiceReportScreen(
     Column(Modifier.fillMaxSize().background(Color.White)) {
         if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
-            PrimaryButton("목소리 분석하러 가기", onQuickAnalysis, Modifier.fillMaxWidth(), height = 66.dp)
+            VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
             Spacer(Modifier.height(16.dp))
             Text("저장한 목소리 프로필이 있으면 음역과 분석 결과를 여기서 다시 확인할 수 있어요.",
                 color = Grey, fontSize = 13.sp)
             Spacer(Modifier.height(16.dp))
             val current = saved
             if (current != null) {
-                com.micon.app.ui.onboarding.VoiceRangeSummary(current.range)
-                // Preserve develop's server-backed song fit card for a confirmed saved profile.
-                ReportFitCard(owner != null)
+                VoiceReportContent(current.range, current.progress,
+                    songFit = { ReportFitCard(owner != null, current.receipt) })
             } else if (owner != null && previousAnalysis != null) {
                 Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(12.dp))

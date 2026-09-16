@@ -1,9 +1,7 @@
 package com.micon.app.data.recommend
 
 import com.micon.app.data.RangeFit
-import com.micon.app.data.RecommendMode
 import com.micon.app.data.RecommendRepository
-import com.micon.app.data.RecommendResult
 import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
@@ -34,7 +32,8 @@ import kotlin.math.roundToInt
  * 추천·적합도의 백엔드 구현. 앱은 추천 서버(8788)를 직접 부르지 않고 백엔드 `RecommendationController`·`SongFitController` 만 본다.
  *
  * - [shelves]: `GET /recommendations/latest` 가 COMPLETED 면 그 섹션을 곡 카탈로그로 채워 돌려준다. 추천이 없으면 `POST /recommendations` 로
- *   생성을 요청하고, 생성 중·실패·미준비(AI 연동 꺼짐)·비회원이면 앱 안 계산([local])을 [RecommendShelves.note] 와 함께 돌려준다.
+ *   생성을 요청하고, 생성 중·실패·미준비(AI 연동 꺼짐)면 앱 안 계산([local])을 [RecommendShelves.note] 와 함께 돌려준다.
+ *   비회원이거나 목소리 분석이 없으면 빈 목록 + 이유(로그인·분석 필요) — 기본 추천은 없다.
  * - [fit]: 최근 COMPLETED 음성 분석이 있으면 `GET /songs/{id}/fit?analysisId` 를 쓰고, UNAVAILABLE·오류·비회원이면 [local] 로 내려간다.
  * - 서버 점수는 0~100 도 0~1 도 올 수 있어 [unit] 으로 0~1 에 맞춘다. 화면은 재정렬하지 않는다(REC-001).
  */
@@ -53,25 +52,36 @@ class BackendRecommendRepository(
 
     private class ServerState(val recommendation: RecommendationDto?, val note: String?)
 
-    override suspend fun recommend(mode: RecommendMode, limit: Int): RecommendResult = local.recommend(mode, limit)
-
     override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
-        if (!isLoggedIn()) return local.shelves(limit, reshuffle)
+        if (!isLoggedIn()) return RecommendShelves.empty(RecommendShelves.NOTE_LOGIN_REQUIRED)
         val server = try {
             fetchOrCreate()
         } catch (e: AuthSessionExpiredException) {
-            return local.shelves(limit, reshuffle)
+            return RecommendShelves.empty(RecommendShelves.NOTE_LOGIN_REQUIRED)
         } catch (e: IOException) {
-            return local.shelves(limit, reshuffle).copy(note = "서버에 연결할 수 없어 이 기기에서 계산한 추천을 보여 드려요.")
+            return fallback(limit, reshuffle, "서버에 연결할 수 없어요.")
         } catch (e: BackendRequestException) {
-            return local.shelves(limit, reshuffle).copy(note = e.message)
+            return fallback(limit, reshuffle, e.message)
         }
         val rec = server.recommendation
         if (rec != null && rec.status == "COMPLETED") {
             val mapped = mapShelves(rec, limit)
             if (mapped.isNotEmpty()) return RecommendShelves(personalized = true, shelves = mapped)
         }
-        return local.shelves(limit, reshuffle).copy(note = server.note ?: noteFor(rec))
+        return fallback(limit, reshuffle, server.note ?: noteFor(rec))
+    }
+
+    /**
+     * 서버 추천이 없을 때 앱 안 음역 계산으로 내려간다. 기기에 측정된 음역이 있으면 그 추천에 [reason] 을 붙여 보여 주고,
+     * 없으면(분석 전) 빈 목록 — 이때는 서버가 준 이유가 더 정확하므로 그것을 우선 보인다.
+     */
+    private suspend fun fallback(limit: Int, reshuffle: Int, reason: String?): RecommendShelves {
+        val shelves = local.shelves(limit, reshuffle)
+        return when {
+            reason == null -> shelves
+            shelves.shelves.isEmpty() -> shelves.copy(note = reason)
+            else -> shelves.copy(note = "$reason $NOTE_LOCAL_TAIL")
+        }
     }
 
     /** 최근 추천을 읽고, 없으면 생성을 요청한다. 생성 요청의 거절 사유는 안내 문구로 바꾼다. */
@@ -89,9 +99,9 @@ class BackendRecommendRepository(
             ServerState(
                 null,
                 when (e.code) {
-                    "RECOMMENDATION_INPUT_NOT_READY" -> "목소리 분석을 완료하면 서버가 음색까지 맞춘 추천을 만들어요. 지금은 이 기기의 음역 계산 추천이에요."
+                    "RECOMMENDATION_INPUT_NOT_READY" -> RecommendShelves.NOTE_ANALYSIS_REQUIRED
                     "RECOMMENDATION_ALREADY_GENERATING" -> NOTE_GENERATING
-                    "RECOMMENDATION_DISPATCH_FAILED" -> "추천 서버가 아직 준비되지 않았어요. 지금은 이 기기의 음역 계산 추천이에요."
+                    "RECOMMENDATION_DISPATCH_FAILED" -> "추천 서버가 아직 준비되지 않았어요."
                     else -> e.message
                 },
             )
@@ -101,9 +111,9 @@ class BackendRecommendRepository(
     private fun noteFor(rec: RecommendationDto?): String? = when (rec?.status) {
         null -> null
         "GENERATING" -> NOTE_GENERATING
-        "FAILED" -> "서버 추천 생성에 실패했어요" + (rec.failureReason?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") + ". 지금은 이 기기의 음역 계산 추천이에요."
-        "EMPTY" -> "서버 추천 결과가 비어 있어 이 기기의 음역 계산 추천을 보여 드려요."
-        else -> "서버 추천을 아직 쓸 수 없어 이 기기의 음역 계산 추천을 보여 드려요."
+        "FAILED" -> "서버 추천 생성에 실패했어요" + (rec.failureReason?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") + "."
+        "EMPTY" -> "서버 추천 결과가 비어 있어요."
+        else -> "서버 추천을 아직 쓸 수 없어요."
     }
 
     // ------------------------------------------------------------------ 추천 섹션 매핑
@@ -188,7 +198,9 @@ class BackendRecommendRepository(
         private const val CATALOG_PAGE = 100
         private const val MAX_CATALOG_PAGES = 5
         private const val ANALYSIS_CACHE_MS = 60_000L
-        private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 새로고침하면 바뀌어요. 지금은 이 기기의 음역 계산 추천이에요."
+        private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 다시 불러오면 바뀌어요."
+        /** 기기 계산 추천을 대신 보여 줄 때 이유 뒤에 붙이는 꼬리 */
+        private const val NOTE_LOCAL_TAIL = "지금은 이 기기의 음역 계산 추천이에요."
 
         /** 서버 점수(0~100 또는 0~1) → 0~1 */
         fun unit(value: Double?): Float? = value?.let { (if (it > 1.0) it / 100.0 else it).coerceIn(0.0, 1.0).toFloat() }

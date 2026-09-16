@@ -32,7 +32,6 @@ import com.micon.app.data.backend.dto.PracticeCreateRequest
 import com.micon.app.data.backend.dto.PracticeDetailDto
 import com.micon.app.data.backend.dto.PracticeReportDto
 import com.micon.app.data.backend.dto.PracticeResultSaveRequest
-import com.micon.app.data.backend.dto.PracticeStatusRequest
 import com.micon.app.data.backend.dto.PracticeSummaryDto
 import com.micon.app.data.backend.dto.VoiceAnalysisCreateRequest
 import com.micon.app.data.backend.dto.VoiceAnalysisDto
@@ -171,19 +170,14 @@ interface BackendApi {
     // ---- 연습 기록 (PracticeController) ----
 
     /** 내 연습 목록, 최신순. size 1~100. */
-    @GET("practices")
-    suspend fun practices(@Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
+    /** 연습 리포트 목록. `date`(yyyy-MM-dd) 를 주면 그 날짜만, 없으면 전체 최신순. (BE 2026-09-16 경로 정리) */
+    @GET("practices/report")
+    suspend fun practices(@Query("page") page: Int, @Query("size") size: Int, @Query("date") date: String? = null): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
 
     /** 세션 생성(READY). 곡·반주(선택 키)가 준비돼야 한다: 409 PRACTICE_ASSET_NOT_READY, 422 UNSUPPORTED_PRACTICE_KEY. */
-    @POST("practices")
+    @POST("practices/session")
     suspend fun createPractice(@Body body: PracticeCreateRequest): Response<ApiResponse<PracticeDetailDto>>
 
-    @GET("practices/{practiceId}")
-    suspend fun practice(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeDetailDto>>
-
-    /** READY→IN_PROGRESS 등 진행 상태 전환. 허용되지 않는 전환(같은 상태 포함)은 409 INVALID_PRACTICE_STATE. */
-    @PATCH("practices/{practiceId}/status")
-    suspend fun updatePracticeStatus(@Path("practiceId") practiceId: Long, @Body body: PracticeStatusRequest): Response<ApiResponse<PracticeDetailDto>>
 
     /** 진행 상태(RECORDING·IN_PROGRESS·PAUSED)에서만 COMPLETED 로. */
     @POST("practices/{practiceId}/complete")
@@ -194,12 +188,16 @@ interface BackendApi {
     suspend fun cancelPractice(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeDetailDto>>
 
     /** COMPLETED 세션에 라이브 채점 점수 저장(재시도 시 새 결과 행). */
-    @PUT("practices/{practiceId}/performance")
+    @PUT("practices/report/{practiceId}")
     suspend fun savePracticePerformance(@Path("practiceId") practiceId: Long, @Body body: PracticeResultSaveRequest): Response<ApiResponse<PracticeReportDto>>
 
     /** 저장된 결과. 없으면 404 PRACTICE_RESULT_NOT_FOUND. */
-    @GET("practices/{practiceId}/report")
+    @GET("practices/report/{practiceId}")
     suspend fun practiceReport(@Path("practiceId") practiceId: Long): Response<ApiResponse<PracticeReportDto>>
+
+    /** 연습 기록 삭제(세션+결과). 녹음·음성 분석은 지우지 않는다. 타인 기록은 404 PRACTICE_NOT_FOUND. (BE 2026-09-15, S15P21B110-250) */
+    @DELETE("practices/report/{practiceId}")
+    suspend fun deletePractice(@Path("practiceId") practiceId: Long): Response<ApiResponse<Any>>
 
     // ---- 음성 녹음·분석 (RecordingController · VoiceAnalysisController) ----
 

@@ -46,8 +46,11 @@ public class SecurityConfig {
                                 "/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/policies").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/homepage", "/homepage/**",
+                                "/v1/homepage", "/v1/homepage/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/songs", "/songs/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide").permitAll()
+					.requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide",
+						"/songs/*/mr").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses",
                                 "/callbacks/voice-analysis-components").permitAll()
                         .requestMatchers("/voice-analysis-sessions", "/voice-analysis-sessions/**").permitAll()

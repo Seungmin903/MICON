@@ -18,7 +18,6 @@ import com.micon.app.data.UnsupportedPracticeKeyException
 import com.micon.app.data.PracticeSection
 import com.micon.app.data.backend.AuthSessionExpiredException
 import com.micon.app.data.backend.BackendRequestException
-import com.micon.app.data.practice.PracticeActiveStatus
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeScoreMapper
 import com.micon.app.data.backend.dto.BeatGrid
@@ -172,6 +171,8 @@ class PracticeViewModel(
 
     /** 백엔드 song_section (practice-assets). 구간 평가 저장에 쓴다. */
     private var backendSections: List<PracticeSection> = emptyList()
+    /** practice-assets 의 dataVersion — 기록 저장 시 노트 인덱스 기준으로 함께 보낸다. */
+    private var assetsDataVersion: String? = null
     /** 열려 있는 백엔드 연습 세션. [practiceOpen] 이면 아직 complete/cancel 전. */
     private var practiceId: Long? = null
     private var practiceOpen = false
@@ -216,6 +217,7 @@ class PracticeViewModel(
                 displayBars = DisplayBars.build(notes, filterLines)
                 beatGrid = assets.beatGrid
                 backendSections = assets.sections
+                assetsDataVersion = assets.dataVersion
                 meter = NoteNormalizer.meterOf(assets.timeSignature)
                 tempoBpm = (assets.tempoBpm ?: detail.analysis?.tempoBpm)?.takeIf { it in 40..240 } ?: 100
                 sections = SongSections.build(notes, sheet.lines, barStarts())
@@ -573,13 +575,12 @@ class PracticeViewModel(
 
     // ------------------------------------------------------------------ 연습 기록 저장 (백엔드 /practices)
 
-    /** 백엔드 세션을 만들고 IN_PROGRESS 로 표시한다. 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용). */
+    /** 백엔드 세션을 만든다(READY). 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용). */
     private suspend fun openPractice(): Long = practiceMutex.withLock {
         practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
         val created = practices.create(songId, selectedKey = _state.value.keyShift)
         practiceId = created.id
         practiceOpen = true
-        practices.updateStatus(created.id, PracticeActiveStatus.IN_PROGRESS)
         created.id
     }
 
@@ -614,6 +615,7 @@ class PracticeViewModel(
                 val result = PracticeScoreMapper.result(
                     totals, notes, backendSections,
                     keyShift = _state.value.keyShift, calibrationMs = (totals.calibration * 1000).roundToInt(),
+                    frames = scorer.frames.toList(), dataVersion = assetsDataVersion,
                 )
                 practices.savePerformance(id, result)
                 _state.update { it.copy(save = Save(SavePhase.SAVED, "연습 기록을 저장했어요.", practiceId = id)) }
@@ -627,15 +629,12 @@ class PracticeViewModel(
         }
     }
 
-    /** complete 는 진행 상태에서만 된다. 시작 때 상태 전환이 실패해 READY 에 남았으면 한 번 올린 뒤 다시 시도한다. */
+    /**
+     * 연습 완료. 상태변경 API(PATCH status)가 BE 명세에서 제거되어 세션은 READY 그대로 complete 로 간다.
+     * BE 가 READY→COMPLETED 를 허용해야 하며(2026-09-16 요청), 아니면 409 INVALID_PRACTICE_STATE 가 그대로 올라온다.
+     */
     private suspend fun completePractice(id: Long, durationMs: Int) {
-        try {
-            practices.complete(id, durationMs)
-        } catch (e: BackendRequestException) {
-            if (e.code != "INVALID_PRACTICE_STATE") throw e
-            practices.updateStatus(id, PracticeActiveStatus.IN_PROGRESS)
-            practices.complete(id, durationMs)
-        }
+        practices.complete(id, durationMs)
     }
 
     /** 판정된 첫 음표부터 마지막 음표까지(곡 시각, ms) — "부른 길이" 로 저장한다. */

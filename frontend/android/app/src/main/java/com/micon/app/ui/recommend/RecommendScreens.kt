@@ -43,10 +43,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -74,6 +76,7 @@ import com.micon.app.data.RecommendEvent
 import com.micon.app.data.RecommendEventLog
 import com.micon.app.data.RecommendRepository
 import com.micon.app.data.RecommendShelf
+import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
 import com.micon.app.data.ShelfKeys
 import com.micon.app.data.SongDetail
@@ -81,6 +84,7 @@ import com.micon.app.data.SongFit
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.onboarding.VoiceOnboardingStore
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.CardTitle
@@ -94,6 +98,8 @@ import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.common.VinylArt
+import com.micon.app.ui.onboarding.VoiceOnboardingEntry
+import com.micon.app.ui.onboarding.VoiceOnboardingEntryViewModel
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
@@ -130,9 +136,9 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         val searchItems: List<RecommendedSong> = emptyList(),
         /** 추천 섹션(페이지). 저장소가 정한 순서·곡 그대로, 화면은 재정렬하지 않는다(REC-001) */
         val shelves: List<RecommendShelf> = emptyList(),
-        /** false = 기본 추천(프로필 없음 등). 개인화 문구를 쓰지 않는다(REC-004) */
+        /** false = 개인화 문구(이름·"내 음색")를 쓰지 않는다 */
         val personalized: Boolean = false,
-        /** 서버 추천 대신 기기 계산을 보여 주는 이유(저장소가 준 문구). null 이면 없음 */
+        /** 서버 추천 대신 기기 계산을 보여 주는 이유, 또는 shelves 가 빈 이유(로그인·분석 필요). null 이면 없음 */
         val note: String? = null,
         val loading: Boolean = true,
         val error: String? = null,
@@ -245,12 +251,33 @@ fun eraOf(releaseDate: String?): String? {
 /**
  * 추천 탭(시안). 페이지 하나 = 추천 섹션 하나(내 목소리와 닮은 곡 · 키 안 바꾸고 바로 부를 곡 · 선호 가수 · 새로운 발견), 좌우 스와이프로 이동.
  * 제목은 현재 섹션 제목. 칩은 **필터 바**(성별·시대·장르·인기) — 추천받은 곡을 걸러 보인다. 상태 4종(로딩·성공·결과 없음·실패).
+ * 목소리 분석 전에는 추천이 없고 안내 + "목소리 분석하러 가기"(리포트 탭과 같은 [VoiceOnboardingEntry] — 진행 중 초안이 있으면
+ * 이어하기/새로 측정을 묻고, 만료된 초안은 새 초안으로 바꾼 뒤 [onAnalyze] 로 온보딩에 들어간다)만 보인다.
  */
 @Composable
-fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin: (() -> Unit)? = null) {
+fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnalyze: () -> Unit, onLogin: (() -> Unit)? = null) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
+
+    // 온보딩 진입(리포트 탭 VoiceReportScreen 과 같은 배선). 추천 탭은 로그인 사용자만 오므로 owner 가 null 이면 진입하지 않는다.
+    val context = LocalContext.current
+    val owner = TokenManager.getUserId().takeIf { it > 0 }
+    val entry: VoiceOnboardingEntryViewModel = viewModel(key = "voice-entry-$owner", factory = viewModelFactory {
+        initializer {
+            VoiceOnboardingEntryViewModel(
+                persistence = owner?.let { VoiceOnboardingStore(context.applicationContext, it, container.backend.api) },
+                isCurrentOwner = { owner != null && TokenManager.getUserId() == owner },
+            )
+        }
+    })
+    val entryState by entry.state.collectAsStateWithLifecycle()
+    LaunchedEffect(entryState.navigate) {
+        if (entryState.navigate) {
+            if (owner != null && TokenManager.getUserId() == owner) onAnalyze()
+            entry.navigationHandled()
+        }
+    }
     val pagerState = rememberPagerState { state.shelves.size.coerceAtLeast(1) }
     val shelf = state.shelves.getOrNull(pagerState.currentPage)
 
@@ -271,7 +298,9 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin
     var searchOpen by remember { mutableStateOf(false) }
     var openFilter by remember { mutableStateOf<String?>(null) }     // "era" | "genre" — 열려 있는 드롭다운
 
-    Column(Modifier.fillMaxSize().background(RecommendBackground)) {
+    // 추천이 없을 때(분석 전 등)는 리포트 탭처럼 흰 배경. 보라 그라데이션은 LP 가 있을 때만.
+    val empty = !state.loading && state.query.isBlank() && state.shelves.isEmpty()
+    Column(Modifier.fillMaxSize().then(if (empty) Modifier.background(Color.White) else Modifier.background(RecommendBackground))) {
         MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Row(Modifier.padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (searchOpen) {
@@ -280,7 +309,7 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin
                 // 제목 + (새로운 발견일 때만) 다시 뽑기 아이콘을 한 덩어리로 — 아이콘이 제목 **바로 옆**에 붙는다
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        if (state.personalized && shelf != null) shelfTitle(shelf, state.userName) else "기본 추천",
+                        if (state.personalized && shelf != null) shelfTitle(shelf, state.userName) else "추천곡",
                         fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink,
                         modifier = Modifier.weight(1f, fill = false).padding(start = 4.dp),
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -296,13 +325,13 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin
                 Icon(if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search, if (searchOpen) "검색 닫기" else "검색", tint = Ink)
             }
         }
-        if (!state.loading && state.query.isBlank()) {
-            val notice = state.note ?: if (!state.personalized) "목소리를 분석하면 내 음역에 맞춘 추천으로 바뀌어요" else null
-            if (notice != null) Text(notice, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
+        // 추천이 있을 때만 위에 한 줄 안내. 비었을 때의 이유는 아래 EmptyRecommend 가 크게 보인다.
+        if (!state.loading && state.query.isBlank() && state.shelves.isNotEmpty() && state.note != null) {
+            Text(state.note!!, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
         }
         Spacer(Modifier.height(10.dp))
-        // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게. 걸러 볼 곡이 없으면 감춘다.
+        if (!empty) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PillChip("성별", selected = false, onClick = {}, chevron = true, fontSize = 14.sp, modifier = Modifier.alpha(0.45f))
             FilterChip(
                 state.era ?: "시대", Icons.Outlined.CalendarMonth, selected = state.era != null, expanded = openFilter == "era",
@@ -330,12 +359,18 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onLogin
             }
             state.loading && state.shelves.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             state.error != null && state.shelves.isEmpty() -> RetryBlock(state.error!!, vm::load)
-            state.shelves.isEmpty() -> EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기")
+            // 추천 없음: 분석 전이면 분석하러, 그 외(생성 중·서버 불가 등)는 다시 불러오기
+            state.note == RecommendShelves.NOTE_ANALYSIS_REQUIRED ->
+                EmptyRecommend(searching = false, text = state.note!!, modifier = Modifier.weight(1f)) {
+                    VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
+                }
+            state.shelves.isEmpty() ->
+                EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기", text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
             else -> HorizontalPager(pagerState, Modifier.weight(1f)) { page ->
                 val items = state.pageItems(page, BUBBLE_WEIGHTS.size)
                 if (items.isEmpty()) {
                     val filtering = state.era != null || state.genre != null
-                    EmptyRecommend(searching = false, onAction = { vm.setEra(null); vm.setGenre(null) }, actionLabel = if (filtering) "필터 해제" else null)
+                    EmptyRecommend(searching = false, onAction = { vm.setEra(null); vm.setGenre(null) }, actionLabel = if (filtering) "필터 해제" else null, modifier = Modifier.fillMaxSize())
                 } else {
                     BubbleCluster(items.map { it.song }, ::openId, Modifier.fillMaxSize())
                 }
@@ -362,14 +397,22 @@ private fun FilterChip(
     }
 }
 
-/** 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기 등) */
+/**
+ * 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기 등), [action] 을 주면 그 컴포저블(온보딩 진입 버튼 등)을 대신 놓는다.
+ * [text] 로 이유를 바꿔 보일 수 있다. 남은 영역 가운데에 놓이고, 버튼은 리포트 탭의 "목소리 분석하러 가기"와 같은 크기(66dp, 좌우 28dp).
+ */
 @Composable
-private fun EmptyRecommend(searching: Boolean, onAction: () -> Unit, actionLabel: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(if (searching) "검색 결과가 없어요" else "조건에 맞는 추천곡이 없어요", fontSize = 16.sp, color = InkSoft)
-        if (actionLabel != null) {
-            Spacer(Modifier.height(12.dp))
-            PrimaryButton(actionLabel, onAction, Modifier.fillMaxWidth())
+private fun EmptyRecommend(
+    searching: Boolean, onAction: () -> Unit = {}, actionLabel: String? = null,
+    text: String = if (searching) "검색 결과가 없어요" else "조건에 맞는 추천곡이 없어요",
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    action: (@Composable () -> Unit)? = actionLabel?.let { { PrimaryButton(it, onAction, Modifier.fillMaxWidth(), height = 66.dp) } },
+) {
+    Column(modifier.padding(horizontal = 28.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text(text, fontSize = 16.sp, color = InkSoft, lineHeight = 22.sp)
+        if (action != null) {
+            Spacer(Modifier.height(20.dp))
+            action()
         }
     }
 }

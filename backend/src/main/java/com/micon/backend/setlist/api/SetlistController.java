@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 인증된 회원의 세트리스트와 포함 곡을 관리하는 HTTP API 진입점이다. */
 @Validated
 @RestController
 @RequestMapping("/setlists")
@@ -29,11 +30,13 @@ public class SetlistController {
 
 	private final SetlistService setlistService;
 
+	// 기능: 필요한 의존성과 초기값을 받아 SetlistController 객체를 생성한다.
 	public SetlistController(SetlistService setlistService) {
 		this.setlistService = setlistService;
 	}
 
 	@PostMapping
+	// 기능: create 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Summary>> create(
 		@Valid @RequestBody SetlistRequest.Create request,
 		@AuthenticationPrincipal Jwt jwt
@@ -43,6 +46,7 @@ public class SetlistController {
 	}
 
 	@GetMapping
+	// 기능: getSetlists 조회 요청을 검증하고 서비스 결과를 HTTP 응답으로 반환한다.
 	public ResponseEntity<ApiResponse<List<SetlistResponse.Summary>>> getSetlists(
 		@AuthenticationPrincipal Jwt jwt
 	) {
@@ -50,6 +54,7 @@ public class SetlistController {
 	}
 
 	@GetMapping("/{setlistId}")
+	// 기능: getSetlist 조회 요청을 검증하고 서비스 결과를 HTTP 응답으로 반환한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> getSetlist(
 		@PathVariable @Min(1) Long setlistId,
 		@AuthenticationPrincipal Jwt jwt
@@ -58,6 +63,7 @@ public class SetlistController {
 	}
 
 	@PatchMapping("/{setlistId}")
+	// 기능: rename 변경 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Summary>> rename(
 		@PathVariable @Min(1) Long setlistId,
 		@Valid @RequestBody SetlistRequest.Rename request,
@@ -69,6 +75,7 @@ public class SetlistController {
 	}
 
 	@DeleteMapping("/{setlistId}")
+	// 기능: delete 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<Void>> delete(
 		@PathVariable @Min(1) Long setlistId,
 		@AuthenticationPrincipal Jwt jwt
@@ -78,6 +85,7 @@ public class SetlistController {
 	}
 
 	@PutMapping("/{setlistId}/songs/{songId}")
+	// 기능: addSong 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> addSong(
 		@PathVariable @Min(1) Long setlistId,
 		@PathVariable @Min(1) Long songId,
@@ -89,6 +97,7 @@ public class SetlistController {
 	}
 
 	@DeleteMapping("/{setlistId}/songs/{songId}")
+	// 기능: removeSong 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> removeSong(
 		@PathVariable @Min(1) Long setlistId,
 		@PathVariable @Min(1) Long songId,
@@ -100,6 +109,7 @@ public class SetlistController {
 	}
 
 	@PutMapping("/{setlistId}/song-order")
+	// 기능: reorderSongs 변경 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> reorderSongs(
 		@PathVariable @Min(1) Long setlistId,
 		@Valid @RequestBody SetlistRequest.Reorder request,
@@ -110,6 +120,7 @@ public class SetlistController {
 		));
 	}
 
+	// 기능: 인증 토큰에서 현재 사용자 ID를 추출하고 유효성을 확인한다.
 	private long userId(Jwt jwt) {
 		if (jwt == null) {
 			throw new BusinessException(ErrorCode.UNAUTHENTICATED);

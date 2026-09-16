@@ -33,6 +33,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.data.SongRepository
 import com.micon.app.data.practice.PracticeRecord
 import com.micon.app.data.practice.PracticeReport
 import com.micon.app.data.practice.PracticeRepository
@@ -63,12 +64,16 @@ import kotlin.math.roundToInt
  * 연습 기록 상세. 데이터: 백엔드 `GET /practices/{id}`(세션) + `GET /practices/{id}/report`(연습 화면이 저장한 라이브 채점).
  * 로컬 엔진 job 은 더 쓰지 않는다. 결과가 없는 세션(중단·저장 실패)은 상태만 보여 준다.
  */
-class ResultViewModel(private val practices: PracticeRepository, private val practiceId: Long) : ViewModel() {
+class ResultViewModel(private val practices: PracticeRepository, private val songs: SongRepository?, private val practiceId: Long) : ViewModel() {
     sealed interface State {
         data object Loading : State
         data class Error(val message: String) : State
-        /** [report] 가 null 이면 세션은 있지만 저장된 점수가 없다. */
-        data class Ready(val practice: PracticeRecord, val report: PracticeReport?) : State
+        /**
+         * [report] 가 null 이면 세션은 있지만 저장된 점수가 없다.
+         * [detail] 은 절충안 확장(노트 판정·음정 곡선)을 practice-assets 와 결합한 것 — 서버가 아직 확장 필드를 돌려주지 않거나
+         * 곡 자산 조회에 실패하면 null 이고 화면은 해당 카드를 숨긴다.
+         */
+        data class Ready(val practice: PracticeRecord, val report: PracticeReport?, val detail: ReportDetail? = null) : State
     }
 
     private val _state = MutableStateFlow<State>(State.Loading)
@@ -80,12 +85,21 @@ class ResultViewModel(private val practices: PracticeRepository, private val pra
         viewModelScope.launch {
             _state.value = State.Loading
             _state.value = try {
-                val practice = practices.get(practiceId)
-                State.Ready(practice, practices.report(practiceId))
+                // 세션 상세(GET /practices/{practiceId})는 BE 명세에서 제거됨 — 리포트 상세가 곡·키·범위·시간을 함께 준다.
+                val report = practices.report(practiceId) ?: throw NoSuchElementException("저장된 연습 결과가 없어요.")
+                val practice = report.toRecord()
+                State.Ready(practice, report, detail = buildDetail(practice, report))
             } catch (e: Exception) {
                 State.Error(describeBackendError(e, "연습 기록을 불러오지 못했어요."))
             }
         }
+    }
+
+    /** 곡 자산 조회 실패(409·네트워크)는 상세만 포기하고 점수 화면은 그대로 보여 준다. */
+    private suspend fun buildDetail(practice: PracticeRecord, report: PracticeReport): ReportDetail? {
+        val repo = songs ?: return null
+        if (!report.hasDetail) return null
+        return runCatching { ReportDetailBuilder.build(repo.practiceAssets(practice.songId, practice.selectedKey), report) }.getOrNull()
     }
 }
 
@@ -146,7 +160,7 @@ private fun Caption(text: String) {
 @Composable
 fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boolean = false, onHome: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
     val container = rememberAppContainer()
-    val vm: ResultViewModel = viewModel(key = "result-$practiceId", factory = viewModelFactory { initializer { ResultViewModel(container.practices, practiceId) } })
+    val vm: ResultViewModel = viewModel(key = "result-$practiceId", factory = viewModelFactory { initializer { ResultViewModel(container.practices, container.songs, practiceId) } })
     val state by vm.state.collectAsStateWithLifecycle()
 
     when (val s = state) {
@@ -155,6 +169,7 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
         is ResultViewModel.State.Ready -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val practice = s.practice
             val report = s.report
+            val detail = s.detail
             val summaryLines = report?.summaryText?.lines()?.filter { it.isNotBlank() } ?: emptyList()
 
             // 한줄 평가: 숫자 대신 말로 먼저(연습 화면이 저장한 summaryText 첫 줄), 둘째 줄부터는 판정 개수
@@ -198,8 +213,17 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
                         BigStat("종합", report.overallScore, report.overallScore?.let(ScoringMath::gradeOf))
                         BigStat("음정", report.pitchScore, null)
                         BigStat("박자", report.rhythmScore, null)
-                        report.sustainScore?.let { BigStat("유지", it, null) }
+                        BigStat("유지", report.sustainScore, if (report.sustainScore == null) "미측정" else null)
                     }
+                    if (report.sustainScore == null) {
+                        Caption("음 유지(길게 끄는 음의 안정도)와 호흡은 실시간 채점에서 측정하지 않아 미측정으로 표시돼요.")
+                    }
+                }
+
+                // 절충안 확장: 서버가 노트 판정·음정 곡선을 돌려줄 때만(hasDetail) 두 카드를 그린다.
+                if (detail != null) {
+                    SyllableJudgementCard(detail)
+                    PitchCurveCard(detail)
                 }
 
                 MiconCard {

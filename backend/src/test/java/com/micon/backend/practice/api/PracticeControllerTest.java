@@ -37,7 +37,7 @@ class PracticeControllerTest {
 
 	@Test
 	void deletesOneOwnedPracticeReport() throws Exception {
-		mockMvc.perform(delete("/practices/50").principal(() -> "7"))
+		mockMvc.perform(delete("/practices/report/50").principal(() -> "7"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value("SUCCESS"))
 			.andExpect(jsonPath("$.data").doesNotExist());

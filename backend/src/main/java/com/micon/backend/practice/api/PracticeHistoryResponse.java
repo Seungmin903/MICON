@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** 연습 기록 목록의 페이지 정보와 각 연습 요약 항목을 정의한다. */
 public final class PracticeHistoryResponse {
 
+	// 기능: DTO 타입만 사용하도록 외부 객체 생성을 막는다.
 	private PracticeHistoryResponse() {
 	}
 

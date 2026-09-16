@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 인증된 회원의 찜 목록 조회와 곡 찜·해제 HTTP 요청을 처리한다. */
 @Validated
 @RestController
 @RequestMapping("/users/me/favorites")
@@ -23,11 +24,13 @@ public class FavoriteController {
 
 	private final FavoriteService favoriteService;
 
+	// 기능: 필요한 의존성과 초기값을 받아 FavoriteController 객체를 생성한다.
 	public FavoriteController(FavoriteService favoriteService) {
 		this.favoriteService = favoriteService;
 	}
 
 	@PutMapping("/{songId}")
+	// 기능: addFavorite 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<Void>> addFavorite(
 		@PathVariable @Min(1) Long songId,
 		@AuthenticationPrincipal Jwt jwt
@@ -37,6 +40,7 @@ public class FavoriteController {
 	}
 
 	@DeleteMapping("/{songId}")
+	// 기능: removeFavorite 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<Void>> removeFavorite(
 		@PathVariable @Min(1) Long songId,
 		@AuthenticationPrincipal Jwt jwt
@@ -46,10 +50,12 @@ public class FavoriteController {
 	}
 
 	@GetMapping
+	// 기능: getFavorites 조회 요청을 검증하고 서비스 결과를 HTTP 응답으로 반환한다.
 	public ResponseEntity<ApiResponse<FavoriteResponse>> getFavorites(@AuthenticationPrincipal Jwt jwt) {
 		return ResponseEntity.ok(ApiResponse.success(favoriteService.getFavorites(userId(jwt))));
 	}
 
+	// 기능: 인증 토큰에서 현재 사용자 ID를 추출하고 유효성을 확인한다.
 	private long userId(Jwt jwt) {
 		if (jwt == null) {
 			throw new BusinessException(ErrorCode.UNAUTHENTICATED);

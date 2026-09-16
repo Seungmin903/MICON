@@ -2,7 +2,6 @@ package com.micon.backend.practice.api;
 
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,7 +40,7 @@ class PracticeApiContractTest {
 
 	@Test
 	void mapsPracticeHistoryContract() throws Exception {
-		mockMvc.perform(get("/practices")
+		mockMvc.perform(get("/practices/report")
 				.principal(() -> "7")
 				.param("date", "2026-09-15")
 				.param("page", "1")
@@ -53,19 +52,11 @@ class PracticeApiContractTest {
 
 	@Test
 	void mapsPracticeSessionLifecycleContract() throws Exception {
-		mockMvc.perform(post("/practices")
+		mockMvc.perform(post("/practices/session")
 				.principal(() -> "7")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{"songId": 3}
-					"""))
-			.andExpect(status().isOk());
-
-		mockMvc.perform(patch("/practices/11/status")
-				.principal(() -> "7")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{"status": "PAUSED"}
 					"""))
 			.andExpect(status().isOk());
 
@@ -83,7 +74,7 @@ class PracticeApiContractTest {
 
 	@Test
 	void mapsPracticeReportContract() throws Exception {
-		mockMvc.perform(put("/practices/11/performance")
+		mockMvc.perform(put("/practices/report/11")
 				.principal(() -> "7")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -91,10 +82,7 @@ class PracticeApiContractTest {
 					"""))
 			.andExpect(status().isOk());
 
-		mockMvc.perform(get("/practices/11/report").principal(() -> "7"))
-			.andExpect(status().isOk());
-
-		mockMvc.perform(post("/practices/11/analysis/retry").principal(() -> "7"))
+		mockMvc.perform(get("/practices/report/11").principal(() -> "7"))
 			.andExpect(status().isOk());
 	}
 }
