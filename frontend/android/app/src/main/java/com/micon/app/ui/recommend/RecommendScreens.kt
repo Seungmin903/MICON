@@ -43,10 +43,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -82,6 +84,7 @@ import com.micon.app.data.SongFit
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.onboarding.VoiceOnboardingStore
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.CardTitle
@@ -95,6 +98,8 @@ import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.common.VinylArt
+import com.micon.app.ui.onboarding.VoiceOnboardingEntry
+import com.micon.app.ui.onboarding.VoiceOnboardingEntryViewModel
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
@@ -246,13 +251,33 @@ fun eraOf(releaseDate: String?): String? {
 /**
  * 추천 탭(시안). 페이지 하나 = 추천 섹션 하나(내 목소리와 닮은 곡 · 키 안 바꾸고 바로 부를 곡 · 선호 가수 · 새로운 발견), 좌우 스와이프로 이동.
  * 제목은 현재 섹션 제목. 칩은 **필터 바**(성별·시대·장르·인기) — 추천받은 곡을 걸러 보인다. 상태 4종(로딩·성공·결과 없음·실패).
- * 목소리 분석 전에는 추천이 없고 안내 + [onAnalyze](분석하러 가기) 버튼만 보인다.
+ * 목소리 분석 전에는 추천이 없고 안내 + "목소리 분석하러 가기"(리포트 탭과 같은 [VoiceOnboardingEntry] — 진행 중 초안이 있으면
+ * 이어하기/새로 측정을 묻고, 만료된 초안은 새 초안으로 바꾼 뒤 [onAnalyze] 로 온보딩에 들어간다)만 보인다.
  */
 @Composable
 fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnalyze: () -> Unit, onLogin: (() -> Unit)? = null) {
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
+
+    // 온보딩 진입(리포트 탭 VoiceReportScreen 과 같은 배선). 추천 탭은 로그인 사용자만 오므로 owner 가 null 이면 진입하지 않는다.
+    val context = LocalContext.current
+    val owner = TokenManager.getUserId().takeIf { it > 0 }
+    val entry: VoiceOnboardingEntryViewModel = viewModel(key = "voice-entry-$owner", factory = viewModelFactory {
+        initializer {
+            VoiceOnboardingEntryViewModel(
+                persistence = owner?.let { VoiceOnboardingStore(context.applicationContext, it, container.backend.api) },
+                isCurrentOwner = { owner != null && TokenManager.getUserId() == owner },
+            )
+        }
+    })
+    val entryState by entry.state.collectAsStateWithLifecycle()
+    LaunchedEffect(entryState.navigate) {
+        if (entryState.navigate) {
+            if (owner != null && TokenManager.getUserId() == owner) onAnalyze()
+            entry.navigationHandled()
+        }
+    }
     val pagerState = rememberPagerState { state.shelves.size.coerceAtLeast(1) }
     val shelf = state.shelves.getOrNull(pagerState.currentPage)
 
@@ -336,7 +361,9 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
             state.error != null && state.shelves.isEmpty() -> RetryBlock(state.error!!, vm::load)
             // 추천 없음: 분석 전이면 분석하러, 그 외(생성 중·서버 불가 등)는 다시 불러오기
             state.note == RecommendShelves.NOTE_ANALYSIS_REQUIRED ->
-                EmptyRecommend(searching = false, onAction = onAnalyze, actionLabel = "목소리 분석하러 가기", text = state.note!!, modifier = Modifier.weight(1f))
+                EmptyRecommend(searching = false, text = state.note!!, modifier = Modifier.weight(1f)) {
+                    VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
+                }
             state.shelves.isEmpty() ->
                 EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기", text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
             else -> HorizontalPager(pagerState, Modifier.weight(1f)) { page ->
@@ -371,20 +398,21 @@ private fun FilterChip(
 }
 
 /**
- * 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기·분석하러 가기 등). [text] 로 이유를 바꿔 보일 수 있다.
- * 남은 영역 가운데에 놓이고, 버튼은 리포트 탭의 "목소리 분석하러 가기"와 같은 크기(66dp, 좌우 28dp).
+ * 결과 없음 (ERR-005). actionLabel 이 있으면 버튼(필터 해제·다시 불러오기 등), [action] 을 주면 그 컴포저블(온보딩 진입 버튼 등)을 대신 놓는다.
+ * [text] 로 이유를 바꿔 보일 수 있다. 남은 영역 가운데에 놓이고, 버튼은 리포트 탭의 "목소리 분석하러 가기"와 같은 크기(66dp, 좌우 28dp).
  */
 @Composable
 private fun EmptyRecommend(
-    searching: Boolean, onAction: () -> Unit, actionLabel: String? = null,
+    searching: Boolean, onAction: () -> Unit = {}, actionLabel: String? = null,
     text: String = if (searching) "검색 결과가 없어요" else "조건에 맞는 추천곡이 없어요",
     modifier: Modifier = Modifier.fillMaxWidth(),
+    action: (@Composable () -> Unit)? = actionLabel?.let { { PrimaryButton(it, onAction, Modifier.fillMaxWidth(), height = 66.dp) } },
 ) {
     Column(modifier.padding(horizontal = 28.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(text, fontSize = 16.sp, color = InkSoft, lineHeight = 22.sp)
-        if (actionLabel != null) {
+        if (action != null) {
             Spacer(Modifier.height(20.dp))
-            PrimaryButton(actionLabel, onAction, Modifier.fillMaxWidth(), height = 66.dp)
+            action()
         }
     }
 }
