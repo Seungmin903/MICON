@@ -14,28 +14,28 @@ workflow:
     - if: '$CI_COMMIT_BRANCH == "develop"'
     - when: never
 
-runtime-contract-tests:
+.runtime-contract-tests:
   stage: verify
-  tags:
-    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   script:
     - python --version
     - python -m unittest discover -s backend/contract_tests -v
     - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
     - cd ai/recommend-server && python -m unittest tests.test_catalog_link -v
+runtime-contract-tests:
+  extends: .runtime-contract-tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+runtime-contract-tests-mr:
+  extends: .runtime-contract-tests
+  tags:
+    - micon-notify
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-notify
-    - if: '$CI_COMMIT_BRANCH == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-protected
 
-mysql-song-import:
+.mysql-song-import:
   stage: verify
-  tags:
-    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   image: eclipse-temurin:21-jdk-jammy@sha256:d48e921b83506f58910295b35fd02978c7f4c57fef41bceee6a460d7d97bc251
   services:
@@ -53,18 +53,20 @@ mysql-song-import:
   script:
     - sh infra/mysql/verify-song-import.sh
     - cd backend && sh ./gradlew --no-daemon --max-workers=1 --console=plain test --tests '*EmbeddingCatalog*'
+mysql-song-import:
+  extends: .mysql-song-import
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+mysql-song-import-mr:
+  extends: .mysql-song-import
+  tags:
+    - micon-notify
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-notify
-    - if: '$CI_COMMIT_BRANCH == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-protected
 
-embedding-catalog-tests:
+.embedding-catalog-tests:
   stage: verify
-  tags:
-    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   services:
     - name: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
@@ -78,13 +80,17 @@ embedding-catalog-tests:
   script:
     - 'pip install --disable-pip-version-check --only-binary=:all: -r ai/embedding_catalog/requirements-test.txt'
     - python -m pytest ai/embedding_catalog/tests ai/catalog_media/tests -v
+embedding-catalog-tests:
+  extends: .embedding-catalog-tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+
+embedding-catalog-tests-mr:
+  extends: .embedding-catalog-tests
+  tags:
+    - micon-notify
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-notify
-    - if: '$CI_COMMIT_BRANCH == "develop"'
-      variables:
-        VERIFY_RUNNER_TAG: micon-protected
 
 notify_mm_mr:
   stage: notify
