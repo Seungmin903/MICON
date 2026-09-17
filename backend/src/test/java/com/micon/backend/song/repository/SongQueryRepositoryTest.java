@@ -38,7 +38,8 @@ class SongQueryRepositoryTest {
 			assertThat(song.songId()).isEqualTo("tj-00281");
 			assertThat(song.title()).isEqualTo("좋은 날");
 			assertThat(song.artists()).containsExactly("아이유");
-			assertThat(song.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
+			assertThat(song.imageUrl()).isNull();
+			assertThat(song.imageSourceUrl()).isNull();
 			assertThat(song.durationMs()).isEqualTo(233_000L);
 		});
 	}
