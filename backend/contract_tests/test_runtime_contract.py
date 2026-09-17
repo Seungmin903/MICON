@@ -72,6 +72,9 @@ class RuntimeContractTests(unittest.TestCase):
         rule = ('- if: \'$CI_PIPELINE_SOURCE == "merge_request_event" && '
                 '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"\'')
         self.assertEqual(3, self.gitlab_ci.count(rule))
+        self.assertEqual(3, self.gitlab_ci.count('- $VERIFY_RUNNER_TAG'))
+        self.assertEqual(3, self.gitlab_ci.count('VERIFY_RUNNER_TAG: micon-notify'))
+        self.assertEqual(3, self.gitlab_ci.count('VERIFY_RUNNER_TAG: micon-protected'))
 
 
 if __name__ == '__main__':

@@ -16,6 +16,8 @@ workflow:
 
 runtime-contract-tests:
   stage: verify
+  tags:
+    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   script:
     - python --version
@@ -24,10 +26,16 @@ runtime-contract-tests:
     - cd ai/recommend-server && python -m unittest tests.test_catalog_link -v
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-notify
     - if: '$CI_COMMIT_BRANCH == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-protected
 
 mysql-song-import:
   stage: verify
+  tags:
+    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   image: eclipse-temurin:21-jdk-jammy@sha256:d48e921b83506f58910295b35fd02978c7f4c57fef41bceee6a460d7d97bc251
   services:
@@ -47,10 +55,16 @@ mysql-song-import:
     - cd backend && sh ./gradlew --no-daemon --max-workers=1 --console=plain test --tests '*EmbeddingCatalog*'
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-notify
     - if: '$CI_COMMIT_BRANCH == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-protected
 
 embedding-catalog-tests:
   stage: verify
+  tags:
+    - $VERIFY_RUNNER_TAG
   timeout: 10 minutes
   services:
     - name: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
@@ -66,7 +80,11 @@ embedding-catalog-tests:
     - python -m pytest ai/embedding_catalog/tests ai/catalog_media/tests -v
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-notify
     - if: '$CI_COMMIT_BRANCH == "develop"'
+      variables:
+        VERIFY_RUNNER_TAG: micon-protected
 
 notify_mm_mr:
   stage: notify
