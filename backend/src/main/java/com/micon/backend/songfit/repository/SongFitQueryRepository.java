@@ -35,7 +35,8 @@ public class SongFitQueryRepository {
 
 	public Optional<UserRangeRow> findUserRange(Long userId, Long analysisId) {
 		String sql = """
-			SELECT vas.status, vrm.full_low_midi AS stable_low_midi,
+			SELECT vas.status AS session_status, vrm.measurement_status,
+			       vrm.full_low_midi AS stable_low_midi,
 			       vrm.full_high_midi AS stable_high_midi
 			FROM user_voice_profile uvp
 			JOIN voice_analysis_session vas ON vas.session_id = uvp.session_id
@@ -46,7 +47,8 @@ public class SongFitQueryRepository {
 			sql,
 			Map.of("analysisId", analysisId, "userId", userId),
 			(resultSet, rowNumber) -> new UserRangeRow(
-				resultSet.getString("status"),
+				resultSet.getString("session_status"),
+				resultSet.getString("measurement_status"),
 				resultSet.getBigDecimal("stable_low_midi"),
 				resultSet.getBigDecimal("stable_high_midi")
 			)
@@ -151,7 +153,12 @@ public class SongFitQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	public record UserRangeRow(String status, BigDecimal stableLowMidi, BigDecimal stableHighMidi) {
+	public record UserRangeRow(
+		String sessionStatus,
+		String measurementStatus,
+		BigDecimal stableLowMidi,
+		BigDecimal stableHighMidi
+	) {
 	}
 
 	public record SongRangeRow(Long analysisId, BigDecimal lowestMidi, BigDecimal highestMidi) {
