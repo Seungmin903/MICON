@@ -97,6 +97,8 @@ def prepare_record(raw: dict[str, object], line_number: int) -> dict[str, object
     extraction = raw.get("sectionExtraction") or {}
     if not isinstance(track_id, str) or not track_id:
         raise ValueError(f"line {line_number}: trackId is missing")
+    if len(track_id) > 64:
+        raise ValueError(f"line {line_number}: trackId exceeds SONG.song_id")
     if not isinstance(source_folder, str):
         raise ValueError(f"line {line_number}: sourceFolder is missing")
     if not isinstance(analysis, dict) or not isinstance(analysis.get("segments"), list):
@@ -237,10 +239,14 @@ def render_record(record: dict[str, object]) -> list[str]:
         "           ))",
         f"    ORDER BY (`sm`.`catalog_track_id` = {track}) DESC LIMIT 1",
         ");",
-        "INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)",
-        f"SELECT {title}, {normalized_title}, {record['duration_ms']}, 'ACTIVE', FALSE",
+        "SET @song_id = COALESCE(@song_id, (",
+        "    SELECT `s`.`song_id` FROM `song` AS `s`",
+        f"    WHERE `s`.`song_id` = {track} LIMIT 1",
+        "));",
+        "INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)",
+        f"SELECT {track}, {title}, {normalized_title}, {record['duration_ms']}, 'ACTIVE', FALSE",
         "WHERE @song_id IS NULL;",
-        "SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());",
+        f"SET @song_id = COALESCE(@song_id, {track});",
         "UPDATE `song`",
         f"SET `title` = {title}, `title_normalized` = {normalized_title},",
         f"    `duration_ms` = {record['duration_ms']}, `status` = 'ACTIVE'",

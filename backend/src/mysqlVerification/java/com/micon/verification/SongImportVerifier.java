@@ -126,6 +126,8 @@ public final class SongImportVerifier {
         }
         requireEqual("unique catalog IDs", 384, scalar(db,
                 "SELECT COUNT(DISTINCT catalog_track_id) FROM song_metadata"));
+        requireEqual("new catalog songs use stable string IDs", 0, scalar(db,
+                "SELECT COUNT(*) FROM song_metadata WHERE song_id<>catalog_track_id"));
         requireEqual("pending metadata", 211, scalar(db,
                 "SELECT COUNT(*) FROM song_metadata WHERE metadata_review_status='PENDING'"));
         requireEqual("metadata needing review", 173, scalar(db,
