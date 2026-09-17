@@ -32,8 +32,8 @@ class CatalogMediaApiIntegrationTests {
 
     @Test
     void authorizedAiWorkerGetsUncachedDownloadReference() throws Exception {
-        when(media.vocalStem(212L)).thenReturn(new CatalogMediaResponse(
-                10L, 212L, "0156ac758f1192ee", "VOCAL_STEM",
+        when(media.vocalStem("212")).thenReturn(new CatalogMediaResponse(
+                10L, "212", "0156ac758f1192ee", "VOCAL_STEM",
                 "catalog/정영주/section-384-v1/vocals/0156ac758f1192ee/vocals.wav",
                 "audio/wav", 37_875_760L, "a".repeat(64),
                 "https://signed.example/vocal", Instant.parse("2026-09-10T00:10:00Z")));

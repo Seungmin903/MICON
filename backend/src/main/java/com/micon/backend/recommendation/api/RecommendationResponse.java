@@ -25,7 +25,7 @@ public record RecommendationResponse(
     public record Shelf(String key, String title, String metric, int order, List<Song> items) {}
 
     public record Song(
-            Long songId,
+            String songId,
             int overallRank,
             int position,
             String axis,

@@ -16,7 +16,7 @@ public class HomepageSongRepository {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
-	public Map<Long, HomepageSongStatus> findStatuses(List<Long> songIds) {
+	public Map<String, HomepageSongStatus> findStatuses(List<String> songIds) {
 		if (songIds.isEmpty()) {
 			return Map.of();
 		}
@@ -68,10 +68,10 @@ public class HomepageSongRepository {
 			)
 			WHERE s.song_id IN (:songIds)
 			""";
-		Map<Long, HomepageSongStatus> statuses = new HashMap<>();
+		Map<String, HomepageSongStatus> statuses = new HashMap<>();
 		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {
 			HomepageSongStatus status = new HomepageSongStatus(
-				resultSet.getLong("song_id"),
+				resultSet.getString("song_id"),
 				resultSet.getBoolean("stored_practice_ready"),
 				resultSet.getBoolean("practice_ready"),
 				resultSet.getBoolean("lyrics_plain_ready"),

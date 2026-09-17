@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public record CatalogMediaResponse(
         long mediaId,
-        long songId,
+        String songId,
         String catalogTrackId,
         String mediaType,
         String objectKey,

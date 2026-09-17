@@ -38,7 +38,7 @@ public class SongFitService {
 		this.aiEnabled = aiEnabled;
 	}
 
-	public SongFitResponse getSongFit(Long userId, Long songId, Long analysisId, int keyOffset) {
+	public SongFitResponse getSongFit(Long userId, String songId, Long analysisId, int keyOffset) {
 		if (!songFitQueryRepository.songExists(songId)) {
 			throw new SongNotFoundException(songId);
 		}

@@ -2,7 +2,6 @@ package com.micon.backend.setlist.api;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +24,7 @@ public final class SetlistRequest {
 	}
 
 	public record Reorder(
-		@NotNull List<@NotNull @Positive Long> songIds,
+		@NotNull List<@NotBlank @Size(max = 64) String> songIds,
 		LocalDateTime updatedAt
 	) {
 	}

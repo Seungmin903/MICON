@@ -49,7 +49,7 @@ public class RecommendationSong {
     protected RecommendationSong() {
     }
 
-    public RecommendationSong(Recommendation recommendation, RecommendationShelf shelf, Long songId,
+    public RecommendationSong(Recommendation recommendation, RecommendationShelf shelf, String songId,
                               int overallRank, int shelfPosition) {
         if (recommendation == null || recommendation.getId() == null || shelf == null || shelf.getId() == null) {
             throw new IllegalArgumentException("persisted recommendation and shelf are required");
@@ -57,8 +57,8 @@ public class RecommendationSong {
         if (!recommendation.getId().equals(shelf.getRecommendation().getId())) {
             throw new IllegalArgumentException("shelf must belong to recommendation");
         }
-        if (songId == null || songId <= 0) {
-            throw new IllegalArgumentException("songId must be positive");
+        if (songId == null || songId.isBlank() || songId.length() > 64) {
+            throw new IllegalArgumentException("songId must be a non-blank string of at most 64 characters");
         }
         if (overallRank < 1 || overallRank > Short.MAX_VALUE) {
             throw new IllegalArgumentException("overallRank must be positive");

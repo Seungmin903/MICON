@@ -51,7 +51,7 @@ public class RecommendationQueryService {
     }
 
     @Transactional(readOnly = true)
-    public RecommendationResponse.Song song(long userId, long recommendationId, long songId) {
+    public RecommendationResponse.Song song(long userId, long recommendationId, String songId) {
         recommendations.findByIdAndUserId(recommendationId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         return songs.findByRecommendationIdAndIdSongId(recommendationId, songId)

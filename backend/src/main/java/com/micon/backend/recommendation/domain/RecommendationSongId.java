@@ -13,18 +13,18 @@ public class RecommendationSongId implements Serializable {
     private Long recommendationId;
 
     @Column(name = "song_id")
-    private Long songId;
+    private String songId;
 
     protected RecommendationSongId() {
     }
 
-    public RecommendationSongId(Long recommendationId, Long songId) {
+    public RecommendationSongId(Long recommendationId, String songId) {
         this.recommendationId = recommendationId;
         this.songId = songId;
     }
 
     public Long getRecommendationId() { return recommendationId; }
-    public Long getSongId() { return songId; }
+    public String getSongId() { return songId; }
 
     @Override
     public boolean equals(Object object) {

@@ -93,9 +93,9 @@ public class RecommendationResultStore {
             return Outcome.EMPTY;
         }
 
-        Set<Long> existingIds = songCatalog.findExistingIds(validated.songIds());
+        Set<String> existingIds = songCatalog.findExistingIds(validated.songIds());
         if (!existingIds.equals(validated.songIds())) {
-            Set<Long> missing = new HashSet<>(validated.songIds());
+            Set<String> missing = new HashSet<>(validated.songIds());
             missing.removeAll(existingIds);
             throw invalid("unknown songId: " + missing);
         }
@@ -126,7 +126,7 @@ public class RecommendationResultStore {
 
     private ValidatedResult validateResult(RecommendationResultGateway.Result result) {
         Set<String> shelfKeys = new HashSet<>();
-        Set<Long> songIds = new HashSet<>();
+        Set<String> songIds = new HashSet<>();
         List<ValidatedShelf> validatedShelves = new ArrayList<>();
         List<RecommendationResultGateway.Item> allItems = new ArrayList<>();
         int order = 1;
@@ -177,8 +177,8 @@ public class RecommendationResultStore {
     }
 
     private void validateItem(RecommendationResultGateway.Item item, String shelfKey) {
-        if (item == null || item.songId() == null || item.songId() <= 0) {
-            throw invalid("positive numeric songId is required in shelf: " + shelfKey);
+        if (item == null || item.songId() == null || item.songId().isBlank() || item.songId().length() > 64) {
+            throw invalid("non-blank string songId of at most 64 characters is required in shelf: " + shelfKey);
         }
         if (item.position() < 1 || item.position() > MAX_ITEMS_PER_SHELF) {
             throw invalid("position must be between 1 and 50 in shelf: " + shelfKey);
@@ -250,7 +250,7 @@ public class RecommendationResultStore {
     private record ValidatedShelf(RecommendationResultGateway.Shelf source, int order,
                                   List<RecommendationResultGateway.Item> items) {}
     private record ValidatedResult(List<ValidatedShelf> shelves,
-                                   List<RecommendationResultGateway.Item> items, Set<Long> songIds) {}
+                                   List<RecommendationResultGateway.Item> items, Set<String> songIds) {}
     private static final class InvalidRecommendationResultException extends RuntimeException {
         private InvalidRecommendationResultException(String message) { super(message); }
     }

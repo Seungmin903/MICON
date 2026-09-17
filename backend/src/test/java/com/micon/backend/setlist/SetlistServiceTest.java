@@ -38,15 +38,15 @@ class SetlistServiceTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SETLIST_ITEM (
-			  setlist_item_id BIGINT PRIMARY KEY, setlist_id BIGINT NOT NULL, song_id BIGINT NOT NULL,
+			  setlist_item_id BIGINT PRIMARY KEY, setlist_id BIGINT NOT NULL, song_id VARCHAR(64) NOT NULL,
 			  position_no INT NOT NULL, added_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) NOT NULL
 			)
 			""");
-		jdbcTemplate.execute("CREATE TABLE SONG (song_id BIGINT PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
-		jdbcTemplate.execute("CREATE TABLE SONG_METADATA (song_id BIGINT PRIMARY KEY, display_image_url VARCHAR(2048))");
+		jdbcTemplate.execute("CREATE TABLE SONG (song_id VARCHAR(64) PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
+		jdbcTemplate.execute("CREATE TABLE SONG_METADATA (song_id VARCHAR(64) PRIMARY KEY, display_image_url VARCHAR(2048))");
 		jdbcTemplate.execute("CREATE TABLE SINGER (singer_id BIGINT PRIMARY KEY, name VARCHAR(100))");
-		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id BIGINT, display_order INT)");
-		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id BIGINT, prefer_key BIGINT, PRIMARY KEY(user_id, song_id))");
+		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id VARCHAR(64), display_order INT)");
+		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id VARCHAR(64), prefer_key BIGINT, PRIMARY KEY(user_id, song_id))");
 		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000), (2, '밤편지', 253000)");
 		jdbcTemplate.update("INSERT INTO SONG_METADATA VALUES (1, 'one.jpg'), (2, 'two.jpg')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (10, '아이유')");
@@ -63,20 +63,20 @@ class SetlistServiceTest {
 			assertThat(setlist.songCount()).isZero();
 		});
 
-		service.addSong(7L, created.setlistId(), 1L);
-		var withSongs = service.addSong(7L, created.setlistId(), 2L);
-		service.addSong(7L, created.setlistId(), 2L);
+		service.addSong(7L, created.setlistId(), "1");
+		var withSongs = service.addSong(7L, created.setlistId(), "2");
+		service.addSong(7L, created.setlistId(), "2");
 		assertThat(service.getSetlist(7L, created.setlistId()).songs()).hasSize(2);
 
 		var reordered = service.reorderSongs(
-			7L, created.setlistId(), List.of(2L, 1L), withSongs.updatedAt()
+			7L, created.setlistId(), List.of("2", "1"), withSongs.updatedAt()
 		);
-		assertThat(reordered.songs()).extracting(song -> song.songId()).containsExactly(2L, 1L);
+		assertThat(reordered.songs()).extracting(song -> song.songId()).containsExactly("2", "1");
 		assertThat(reordered.songs()).extracting(song -> song.position()).containsExactly(1, 2);
 
-		service.removeSong(7L, created.setlistId(), 2L);
+		service.removeSong(7L, created.setlistId(), "2");
 		assertThat(service.getSetlist(7L, created.setlistId()).songs()).singleElement()
-			.extracting(song -> song.songId()).isEqualTo(1L);
+			.extracting(song -> song.songId()).isEqualTo("1");
 		assertThat(jdbcTemplate.queryForObject(
 			"SELECT COUNT(*) FROM FAVORITE_SONG WHERE user_id = 7", Integer.class
 		)).isEqualTo(2);
@@ -92,12 +92,12 @@ class SetlistServiceTest {
 		var created = service.create(7L, "연습곡");
 		jdbcTemplate.update("DELETE FROM FAVORITE_SONG WHERE user_id = 7 AND song_id = 2");
 
-		assertThatThrownBy(() -> service.addSong(7L, created.setlistId(), 2L))
+		assertThatThrownBy(() -> service.addSong(7L, created.setlistId(), "2"))
 			.isInstanceOfSatisfying(BusinessException.class, exception ->
 				assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.SONG_NOT_FAVORITED));
 
-		service.addSong(7L, created.setlistId(), 1L);
-		assertThatThrownBy(() -> service.reorderSongs(7L, created.setlistId(), List.of(1L, 1L), null))
+		service.addSong(7L, created.setlistId(), "1");
+		assertThatThrownBy(() -> service.reorderSongs(7L, created.setlistId(), List.of("1", "1"), null))
 			.isInstanceOfSatisfying(BusinessException.class, exception ->
 				assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_SETLIST_ORDER));
 	}
