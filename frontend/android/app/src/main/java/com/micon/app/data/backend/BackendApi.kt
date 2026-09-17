@@ -134,14 +134,14 @@ interface BackendApi {
 
     // ---- 찜·세트리스트 (FavoriteController · SetlistController) ----
 
-    @GET("users/me/favorites")
+    @GET("favorites")
     suspend fun favorites(): Response<ApiResponse<FavoriteResponseDto>>
 
     /** 멱등. 없는 곡은 404 SONG_NOT_FOUND. */
-    @PUT("users/me/favorites/{songId}")
+    @PUT("favorites/{songId}")
     suspend fun addFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
 
-    @DELETE("users/me/favorites/{songId}")
+    @DELETE("favorites/{songId}")
     suspend fun removeFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
 
     @GET("setlists")
