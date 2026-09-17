@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -70,9 +71,11 @@ fun GuidedRangeMapChart(
     labelOf: (Int) -> String = { ScoringMath.midiName(it) },
 ) {
     val measurer = rememberTextMeasurer()
+    val axisLabelHeight = with(LocalDensity.current) { 18.sp.toDp() }
+    val rowHeight = with(LocalDensity.current) { 18.sp.toDp() + 12.dp }
     val grouped = rows.groupBy { it.label }
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().height(18.dp)) {
+        Row(Modifier.fillMaxWidth().height(axisLabelHeight)) {
             Spacer(Modifier.width(labelWidth))
             Canvas(Modifier.weight(1f).fillMaxSize()) {
                 val span = (axisHigh - axisLow + if (noteCells) 1 else 0).toFloat()
@@ -85,8 +88,9 @@ fun GuidedRangeMapChart(
         }
         Spacer(Modifier.height(4.dp))
         grouped.forEach { (label, segs) ->
-            Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, fontSize = 13.sp, color = Ink, modifier = Modifier.width(labelWidth - 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            Row(Modifier.fillMaxWidth().height(rowHeight), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, fontSize = 13.sp, lineHeight = 18.sp, color = Ink,
+                    modifier = Modifier.width(labelWidth - 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
                 Spacer(Modifier.width(10.dp))
                 Canvas(Modifier.weight(1f).fillMaxSize()) {
                     val span = (axisHigh - axisLow + if (noteCells) 1 else 0).toFloat()

@@ -56,23 +56,24 @@ class RangeStabilityChartTest {
             click(Offset(44 * density + (center.x * 2 - 60 * density) * (midi - 47) / 26, center.y))
         }
         select(60)
-        compose.onNodeWithText("C4 · 통과").assertIsDisplayed()
+        compose.onNodeWithText("4옥타브 도 · 통과").assertIsDisplayed()
         compose.onNodeWithText("목표음 유지율 100%").assertIsDisplayed()
         val screenshot = File(context.getExternalFilesDir(null), "range-stability-sample.png")
         screenshot.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
         select(57)
-        compose.onNodeWithText("A3 · 미측정").assertIsDisplayed()
+        compose.onNodeWithText("3옥타브 라 · 미측정").assertIsDisplayed()
         compose.onNodeWithText("미측정").assertIsDisplayed()
         compose.onAllNodesWithText("목표음 유지율 100%").assertCountEquals(0)
         select(66)
-        compose.onNodeWithText("F♯4 · 재측정 필요").assertIsDisplayed()
+        compose.onNodeWithText("4옥타브 파♯ · 재측정 필요").assertIsDisplayed()
         compose.onNodeWithText("재측정 필요").assertIsDisplayed()
         compose.onAllNodesWithText("목표음 유지율 100%").assertCountEquals(0)
-        compose.onNodeWithText("전체 C2~C6 보기").performScrollTo().performClick()
+        listOf("음별 지도 펼치기", "음별 지도 접기", "전체 C2~C6 보기", "측정 주변만 보기",
+            "✓ 통과  ·  ◎ 반복 확인  ·  △ 미통과/재측정  ·  – 미측정").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
+        }
         compose.onNodeWithTag("range-stability-chart").performScrollTo().performTouchInput { click(Offset(44 * density, center.y)) }
-        compose.onNodeWithText("C2 · 미측정").assertIsDisplayed()
-        compose.onNodeWithText("측정 주변만 보기").performScrollTo().performClick()
-        compose.onNodeWithText("C3 · 미통과").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("2옥타브 시 · 미측정").assertIsDisplayed()
     }
 
     @Test fun noEvidenceShowsEmptyGraph() {

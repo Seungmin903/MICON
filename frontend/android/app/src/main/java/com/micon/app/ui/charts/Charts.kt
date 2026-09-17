@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -77,9 +78,11 @@ fun RangeMapChart(
     labelOf: (Int) -> String = { ScoringMath.midiName(it) },
 ) {
     val measurer = rememberTextMeasurer()
+    val axisLabelHeight = with(LocalDensity.current) { 18.sp.toDp() }
+    val rowHeight = with(LocalDensity.current) { 18.sp.toDp() + 12.dp }
     val grouped = rows.groupBy { it.label }
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().height(18.dp)) {
+        Row(Modifier.fillMaxWidth().height(axisLabelHeight)) {
             Spacer(Modifier.width(labelWidth))
             Canvas(Modifier.weight(1f).fillMaxSize()) {
                 val span = (axisHigh - axisLow).toFloat()
@@ -92,8 +95,9 @@ fun RangeMapChart(
         }
         Spacer(Modifier.height(4.dp))
         grouped.forEach { (label, segs) ->
-            Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, fontSize = 13.sp, color = Ink, modifier = Modifier.width(labelWidth - 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            Row(Modifier.fillMaxWidth().height(rowHeight), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, fontSize = 13.sp, lineHeight = 18.sp, color = Ink,
+                    modifier = Modifier.width(labelWidth - 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
                 Spacer(Modifier.width(10.dp))
                 Canvas(Modifier.weight(1f).fillMaxSize()) {
                     val span = (axisHigh - axisLow).toFloat()
@@ -140,9 +144,12 @@ fun StabilityLineChart(values: List<Float>, xLabels: List<String>, modifier: Mod
             values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
             drawPath(path, PurpleMid, style = Stroke(2.5f))
             values.forEachIndexed { i, v -> drawCircle(Purple, radius = 4f, center = Offset(x(i), y(v))) }
+            val ticks = if (fontScale > 1.3f) setOf(0, (n - 1) / 2, n - 1)
+                else if (n <= 4) xLabels.indices.toSet() else setOf(0, (n - 1) / 3, 2 * (n - 1) / 3, n - 1)
             xLabels.forEachIndexed { i, label ->
+                if (i !in ticks) return@forEachIndexed
                 val layout = measurer.measure(label, TextStyle(fontSize = 11.sp, color = Grey))
-                drawText(layout, topLeft = Offset(x(i) - layout.size.width / 2f, chartH + 6.dp.toPx()))
+                drawText(layout, topLeft = Offset((x(i) - layout.size.width / 2f).coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)), chartH + 6.dp.toPx()))
             }
         }
     }
@@ -156,12 +163,13 @@ private fun isBlackKey(midi: Int) = when (midi % 12) { 1, 3, 6, 8, 10 -> true; e
 
 /** C3~C5 건반. [hlLow, hlHigh] 구간은 연보라(흰 건반)/보라(검은 건반)로 강조. */
 @Composable
-fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowMidi: Int = 48, highMidi: Int = 72, caption: String? = null) {
+fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowMidi: Int = 48, highMidi: Int = 72, caption: String? = null,
+                    labelOf: (Int) -> String = ScoringMath::midiName) {
     val measurer = rememberTextMeasurer()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(Modifier.fillMaxWidth().height(96.dp)) {
             val whites = (lowMidi..highMidi).filter { !isBlackKey(it) }
-            val labelH = 16.dp.toPx()
+            val labelH = 14.sp.toPx().coerceAtLeast(16.dp.toPx())
             val keyTop = labelH + 4.dp.toPx()
             val keyH = size.height - keyTop
             val w = size.width / whites.size
@@ -179,11 +187,12 @@ fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowM
                 val inRange = m in hlLow..hlHigh
                 drawRect(if (inRange) Color(0xFF7B6CF0) else Color(0xFF1B1B25), Offset(left + w - bw / 2, keyTop), Size(bw, keyH * 0.62f))
             }
-            listOf(lowMidi, 55, 60, 67, highMidi).distinct().forEach { m ->
+            (if (fontScale > 1.3f) listOf(lowMidi, 60, highMidi)
+                else listOf(lowMidi, 55, 60, 67, highMidi)).distinct().forEach { m ->
                 val x = xOf[m] ?: return@forEach
                 val hl = m == hlLow || m == hlHigh
-                val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = 10.sp, color = if (hl) Ink else Grey, fontWeight = if (hl) FontWeight.Bold else FontWeight.Normal))
-                drawText(layout, topLeft = Offset(x + w / 2 - layout.size.width / 2f, 0f))
+                val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 10.sp, color = if (hl) Ink else Grey, fontWeight = if (hl) FontWeight.Bold else FontWeight.Normal))
+                drawText(layout, topLeft = Offset((x + w / 2 - layout.size.width / 2f).coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)), 0f))
                 if (hl) drawCircle(Purple, 3.dp.toPx(), Offset(x + w / 2, labelH + 1.dp.toPx()))
             }
         }

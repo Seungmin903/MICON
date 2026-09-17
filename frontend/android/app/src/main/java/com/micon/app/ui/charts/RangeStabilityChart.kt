@@ -21,15 +21,16 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.range.RangeStabilityPlot
-import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.common.RangeNoteNames
+import com.micon.app.ui.common.ReportNoteNames
 import com.micon.app.ui.theme.*
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** A semitone axis with gaps for unmeasured or uncertain notes. Never interpolates evidence. */
+/** Measured points only; the report overview connects them without creating missing values. */
 @Composable
 fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (Int) -> Unit,
-                        modifier: Modifier = Modifier) {
+                        modifier: Modifier = Modifier, overview: Boolean = false) {
     val measurer = rememberTextMeasurer()
     val points = plot.points
     if (points.isEmpty()) return
@@ -37,28 +38,31 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
     val span = (points.last().note.midi - low).coerceAtLeast(1)
     val measure = if (plot.scoreBased) "안정성 점수" else "목표음 유지율"
     val unit = if (plot.scoreBased) "점" else "퍼센트"
-    val label = "음역별 안정성 그래프. 세로축 $measure 0에서 100$unit, 가로축 ${ScoringMath.midiName(low)}부터 ${ScoringMath.midiName(low + span)}. 빈 음은 연결하지 않습니다."
+    val noteName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::full
+    val axisName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::short
+    val label = "음역별 안정성 그래프. 세로축 $measure 0에서 100$unit, 가로축 ${noteName(low)}부터 ${noteName(low + span)}. " +
+        if (overview) "측정한 음 사이를 선으로 연결합니다." else "빈 음은 연결하지 않습니다."
     Canvas(modifier.fillMaxWidth().height(190.dp).testTag("range-stability-chart")
         .semantics {
             contentDescription = label
-            customActions = points.map { point ->
+            customActions = if (overview) emptyList() else points.map { point ->
                 val value = point.ratio?.let { "$measure ${(it * 100).roundToInt()}$unit" } ?: "표시할 측정값 없음"
-                CustomAccessibilityAction("${ScoringMath.midiName(point.note.midi)} $value 상세 보기") {
+                CustomAccessibilityAction("${RangeNoteNames.full(point.note.midi)} $value 상세 보기") {
                     onSelect(point.note.midi); true
                 }
             }
         }
-        .pointerInput(plot, onSelect) {
+        .then(if (overview) Modifier else Modifier.pointerInput(plot, onSelect) {
             detectTapGestures { position ->
                 val left = 44.dp.toPx()
                 val width = (size.width - left - 16.dp.toPx()).coerceAtLeast(1f)
                 onSelect(low + (((position.x - left) / width).coerceIn(0f, 1f) * span).roundToInt())
             }
-        }) {
+        })) {
         val left = 44.dp.toPx()
         val right = size.width - 16.dp.toPx()
         val top = 14.dp.toPx()
-        val bottom = size.height - 32.dp.toPx()
+        val bottom = size.height - 16.dp.toPx() - 14.sp.toPx()
         fun x(midi: Int) = left + (right - left) * (midi - low) / span
         fun y(ratio: Float) = bottom - (bottom - top) * ratio
         val dash = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 3.dp.toPx()))
@@ -67,7 +71,7 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
             val text = measurer.measure("${(value * 100).toInt()}" + if (plot.scoreBased) "점" else "%", TextStyle(fontSize = 11.sp, color = Grey))
             drawText(text, topLeft = Offset(left - text.size.width - 8.dp.toPx(), y(value) - text.size.height / 2f))
         }
-        val labelStep = ceil(span / 5.0).toInt().coerceAtLeast(1)
+        val labelStep = ceil(span / if (fontScale > 1.3f) 2.0 else 4.0).toInt().coerceAtLeast(1)
         val ticks = (0..span step labelStep).toMutableList().apply {
             if (last() != span) {
                 if (span - last() < labelStep) removeAt(lastIndex)
@@ -77,12 +81,13 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
         ticks.forEach { index ->
             val px = x(low + index)
             drawLine(GreyLight, Offset(px, top), Offset(px, bottom), 1.dp.toPx(), pathEffect = dash)
-            val text = measurer.measure(ScoringMath.midiName(low + index), TextStyle(fontSize = 11.sp, color = Grey))
+            val text = measurer.measure(axisName(low + index), TextStyle(fontSize = 11.sp, color = Grey))
             drawText(text, topLeft = Offset((px - text.size.width / 2f).coerceIn(0f, (size.width - text.size.width).coerceAtLeast(0f)), bottom + 12.dp.toPx()))
         }
         drawLine(Grey, Offset(left, top), Offset(left, bottom), 1.dp.toPx())
-        plot.segments.forEach { (a, b) ->
-            drawLine(Purple, Offset(x(a.note.midi), y(a.ratio!!)), Offset(x(b.note.midi), y(b.ratio!!)), 1.5.dp.toPx())
+        val segments = if (overview) points.filter { it.ratio != null }.zipWithNext() else plot.segments
+        segments.forEach { (a, b) ->
+            drawLine(Purple, Offset(x(a.note.midi), y(a.ratio!!)), Offset(x(b.note.midi), y(b.ratio!!)), 2.dp.toPx())
         }
         points.forEach { point ->
             point.ratio?.let { value ->
@@ -90,7 +95,7 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
                 val color = if (point.confirmed) Purple else Red
                 drawCircle(GreyLight, 5.dp.toPx(), center)
                 drawCircle(color, 2.8.dp.toPx(), center)
-                if (point.note.midi == selectedMidi) drawCircle(color, 7.dp.toPx(), center, style = Stroke(1.5.dp.toPx()))
+                if (!overview && point.note.midi == selectedMidi) drawCircle(color, 7.dp.toPx(), center, style = Stroke(1.5.dp.toPx()))
             }
         }
         if (points.none { it.ratio != null }) {
