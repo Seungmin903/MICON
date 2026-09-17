@@ -45,12 +45,20 @@ class SongImageEnrichmentServiceTest {
 	}
 
 	@Test
-	void leavesExistingImageUntouched() {
+	void replacesExistingDatabaseImageWithSpotifyImage() {
 		SongImageEnrichmentService service = service(3);
 		SongResponse.Summary song = song("tj-1", "https://existing.example/image.jpg");
+		SpotifyTrackImage image = new SpotifyTrackImage(
+			"https://i.scdn.co/image/good-day",
+			"https://open.spotify.com/track/good-day"
+		);
+		when(imageProvider.findImage("좋은 날", "아이유")).thenReturn(Optional.of(image));
 
-		assertThat(service.enrich(List.of(song))).containsExactly(song);
-		verify(imageProvider, never()).findImage("좋은 날", "아이유");
+		assertThat(service.enrich(List.of(song))).singleElement().satisfies(enriched -> {
+			assertThat(enriched.imageUrl()).isEqualTo(image.imageUrl());
+			assertThat(enriched.imageSourceUrl()).isEqualTo(image.sourceUrl());
+		});
+		verify(imageProvider).findImage("좋은 날", "아이유");
 	}
 
 	@Test

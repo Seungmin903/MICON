@@ -41,7 +41,7 @@ public class SongService {
 				.orElseThrow(() -> new SongNotFoundException(songId));
 		List<String> artists = songQueryRepository.findArtists(songId);
 		SongImageEnrichmentService.ImageResult image = imageEnrichmentService.enrich(
-			songId, song.title(), artists, song.imageUrl(), song.imageSourceUrl()
+			songId, song.title(), artists
 		);
 		return new SongResponse.Detail(
 			song.songId(),

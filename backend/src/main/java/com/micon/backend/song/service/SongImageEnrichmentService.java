@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
-/** 이미지가 없는 곡만 Spotify에서 보완하고 응답과 임시 캐시에 반영한다. */
+/** DB 이미지와 무관하게 Spotify 커버만 조회해 응답과 임시 캐시에 반영한다. */
 @Service
 public class SongImageEnrichmentService {
 
@@ -27,16 +27,14 @@ public class SongImageEnrichmentService {
 		this.cacheService = cacheService;
 	}
 
-	/** 목록 중 이미지가 비어 있는 곡을 설정된 최대 호출 수 안에서 보완한다. */
+	/** 목록의 기존 DB 이미지를 제거하고 Spotify 커버만 설정된 호출 수 안에서 조회한다. */
 	public List<SongResponse.Summary> enrich(List<SongResponse.Summary> songs) {
-		if (!properties.available()) {
-			return songs;
-		}
 		int remainingLookups = properties.maxLookupsPerRequest();
 		List<SongResponse.Summary> enriched = new ArrayList<>(songs.size());
 		for (SongResponse.Summary song : songs) {
-			if (hasText(song.imageUrl()) || song.artists().isEmpty()) {
-				enriched.add(song);
+			SongResponse.Summary spotifyOnlySong = withoutImage(song);
+			if (song.artists().isEmpty() || !properties.available()) {
+				enriched.add(spotifyOnlySong);
 				continue;
 			}
 			SpotifyTrackImage cached = cacheService.find(song.songId()).orElse(null);
@@ -45,18 +43,18 @@ public class SongImageEnrichmentService {
 				continue;
 			}
 			if (cacheService.isKnownMissing(song.songId())) {
-				enriched.add(song);
+				enriched.add(spotifyOnlySong);
 				continue;
 			}
 			if (remainingLookups == 0) {
-				enriched.add(song);
+				enriched.add(spotifyOnlySong);
 				continue;
 			}
 			remainingLookups--;
 			SpotifyTrackImage image = imageProvider.findImage(song.title(), song.artists().getFirst()).orElse(null);
 			if (image == null) {
 				cacheService.cacheMiss(song.songId());
-				enriched.add(song);
+				enriched.add(spotifyOnlySong);
 				continue;
 			}
 			cacheService.cache(song.songId(), image);
@@ -65,23 +63,21 @@ public class SongImageEnrichmentService {
 		return List.copyOf(enriched);
 	}
 
-	/** 상세 조회 한 건의 이미지가 비어 있을 때 Spotify 결과로 보완한다. */
+	/** 상세 조회의 DB 이미지는 사용하지 않고 Spotify 커버만 반환한다. */
 	public ImageResult enrich(
 		String songId,
 		String title,
-		List<String> artists,
-		String imageUrl,
-		String imageSourceUrl
+		List<String> artists
 	) {
-		if (hasText(imageUrl) || artists.isEmpty() || !properties.available()) {
-			return new ImageResult(imageUrl, imageSourceUrl);
+		if (artists.isEmpty() || !properties.available()) {
+			return new ImageResult(null, null);
 		}
 		Optional<SpotifyTrackImage> cached = cacheService.find(songId);
 		if (cached.isPresent()) {
 			return toResult(cached.get());
 		}
 		if (cacheService.isKnownMissing(songId)) {
-			return new ImageResult(null, imageSourceUrl);
+			return new ImageResult(null, null);
 		}
 		return imageProvider.findImage(title, artists.getFirst())
 			.map(image -> {
@@ -90,12 +86,14 @@ public class SongImageEnrichmentService {
 			})
 			.orElseGet(() -> {
 				cacheService.cacheMiss(songId);
-				return new ImageResult(null, imageSourceUrl);
+				return new ImageResult(null, null);
 			});
 	}
 
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
+	private SongResponse.Summary withoutImage(SongResponse.Summary song) {
+		return new SongResponse.Summary(
+			song.songId(), song.title(), song.artists(), null, null, song.durationMs()
+		);
 	}
 
 	private SongResponse.Summary withImage(SongResponse.Summary song, SpotifyTrackImage image) {
