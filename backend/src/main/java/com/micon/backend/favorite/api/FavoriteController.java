@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 인증된 회원의 찜 목록 조회와 곡 찜·해제 HTTP 요청을 처리한다. */
 @Validated
 @RestController
-@RequestMapping("/users/me/favorites")
+@RequestMapping("/favorites")
 public class FavoriteController {
 
 	private final FavoriteService favoriteService;
