@@ -62,6 +62,18 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | VOICE_STORAGE_DELETION_RETRY_INTERVAL | 30s | 삭제 큐에 남은 저장 녹음의 삭제 재시도 주기인 Spring Duration |
 | CATALOG_MEDIA_ALLOWED_PREFIX | catalog/정영주/section-384-v1/vocals/ | S15P21B110-228에서 승인한 보컬 stem 경로. DB object key와 정확히 일치해야 하며 다른 catalog 경로는 서명 거부 |
 | CATALOG_MEDIA_DOWNLOAD_URL_TTL | 10m | AI 전용 보컬 stem presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
+| SPOTIFY_IMAGE_ENABLED | true | true/false. 곡 이미지 조회를 비활성화할 때 false. 자격 증명이 없으면 외부 호출을 수행하지 않음 |
+| SPOTIFY_ACCOUNTS_BASE_URL | https://accounts.spotify.com | Spotify Client Credentials 토큰 발급 API의 HTTPS 기준 주소 |
+| SPOTIFY_API_BASE_URL | https://api.spotify.com | Spotify Web API의 HTTPS 기준 주소 |
+| SPOTIFY_CLIENT_ID | 빈 값 | Spotify 서버 애플리케이션 Client ID. 저장소 밖의 런타임 환경 또는 GitLab 보호 변수로만 주입 |
+| SPOTIFY_CLIENT_SECRET | 빈 값 | Spotify 서버 애플리케이션 비밀값. 추적 파일·로그에 기록하지 않고 GitLab 보호 변수로 주입 |
+| SPOTIFY_MARKET | KR | 이미지 검색에 사용할 ISO 3166-1 alpha-2 시장 코드 |
+| SPOTIFY_MAX_LOOKUPS_PER_REQUEST | 20 | 한 요청에서 허용하는 Spotify 조회 횟수 상한인 양의 정수 |
+| SPOTIFY_IMAGE_CACHE_TTL | 6h | 조회 성공 결과의 로컬 캐시 만료 시간인 양의 Spring Duration |
+| SPOTIFY_IMAGE_MISS_CACHE_TTL | 10m | 조회 실패 결과의 로컬 캐시 만료 시간인 양의 Spring Duration |
+| SPOTIFY_IMAGE_CACHE_MAX_ENTRIES | 5000 | Spotify 이미지 캐시의 최대 항목 수인 양의 정수 |
+| SPOTIFY_CONNECT_TIMEOUT | 2s | Spotify 연결 제한 시간인 양의 Spring Duration |
+| SPOTIFY_READ_TIMEOUT | 3s | Spotify 응답 제한 시간인 양의 Spring Duration |
 | VOICE_DATA_POLICY_VERSION | UNCONFIRMED | 공개 음성 데이터 정책 버전. 정책 승인 전에는 `UNCONFIRMED`를 유지하고 확정 버전처럼 표시하지 않음 |
 | VOICE_DATA_COLLECTION_PURPOSE | 코드의 한국어 기본값 | 공개 수집 목적 문구. 기획·개인정보 정책 승인 후 운영 환경에 명시 |
 | VOICE_DATA_RETENTION_PERIOD | 정책 확정 전 | 공개 보관 기간 문구. 실제 삭제·보관 동작과 일치하도록 승인 후 명시 |

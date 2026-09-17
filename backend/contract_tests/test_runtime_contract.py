@@ -16,6 +16,9 @@ class RuntimeContractTests(unittest.TestCase):
         cls.properties = (ROOT / 'backend/src/main/resources/application.properties').read_text(encoding='utf-8')
         cls.example = (ROOT / 'backend/.env.example').read_text(encoding='utf-8')
         cls.document = (ROOT / 'docs/operations/BACKEND_RUNTIME_CONTRACT.md').read_text(encoding='utf-8')
+        cls.gitlab_ci = (ROOT / '.gitlab-ci.yml').read_text(encoding='utf-8')
+        cls.song_import = (ROOT / 'docs/section_metadata_insert.sql').read_text(encoding='utf-8')
+        cls.song_import_generator = (ROOT / 'docs/build_section_metadata_insert.py').read_text(encoding='utf-8')
         cls.gradle_settings = (ROOT / 'backend/settings.gradle').read_text(encoding='utf-8')
         cls.entries = [line.split('=', 1) for line in cls.example.splitlines()
                        if line.strip() and not line.lstrip().startswith('#')]
@@ -66,6 +69,25 @@ class RuntimeContractTests(unittest.TestCase):
     def test_java_21_toolchain_can_be_provisioned_on_clean_ci_agents(self):
         self.assertIn("org.gradle.toolchains.foojay-resolver-convention", self.gradle_settings)
         self.assertIn("version '1.0.0'", self.gradle_settings)
+
+    def test_develop_merge_requests_run_static_contracts_on_unprotected_runner(self):
+        rule = ('- if: \'$CI_PIPELINE_SOURCE == "merge_request_event" && '
+                '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"\'')
+        self.assertEqual(1, self.gitlab_ci.count(rule))
+        match = re.search(
+            r'(?ms)^runtime-contract-tests-mr:\n(.*?)(?=^[.a-zA-Z][a-zA-Z0-9_.-]*:\n|\Z)',
+            self.gitlab_ci,
+        )
+        self.assertIsNotNone(match, 'runtime-contract-tests-mr is missing')
+        self.assertIn('- micon-notify', match.group(1))
+
+    def test_generated_song_import_uses_explicit_stable_string_ids(self):
+        self.assertEqual(384, self.song_import.count(
+            'INSERT INTO `song` (`song_id`, `title`, `title_normalized`'))
+        self.assertNotIn('INSERT INTO `song` (`title`, `title_normalized`', self.song_import)
+        self.assertNotIn('COALESCE(@song_id, LAST_INSERT_ID())', self.song_import)
+        self.assertIn('`song_id`, `title`, `title_normalized`', self.song_import_generator)
+        self.assertIn('COALESCE(@song_id, {track})', self.song_import_generator)
 
 
 if __name__ == '__main__':
