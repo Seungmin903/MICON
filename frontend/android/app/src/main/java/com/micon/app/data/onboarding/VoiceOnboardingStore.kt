@@ -23,6 +23,7 @@ interface VoiceOnboardingPersistence {
     fun recording(id: String?): SavedRecording?
     fun deleteRecording(id: String?)
     fun saveProfile(profile: SavedVoiceOnboardingProfile)
+    fun savedProfile(): SavedVoiceOnboardingProfile? = null
     fun clearDraft()
     fun hasPendingRange(): Boolean = false
 }
@@ -70,7 +71,7 @@ class VoiceOnboardingStore(context: Context, val ownerId: Long?,
         atomicWrite(profileFile, profileAdapter.toJson(profile))
     }
 
-    fun savedProfile(): SavedVoiceOnboardingProfile? = if (ownerId == null) null else runCatching {
+    override fun savedProfile(): SavedVoiceOnboardingProfile? = if (ownerId == null) null else runCatching {
         AtomicFile(profileFile).openRead().bufferedReader().use { profileAdapter.fromJson(it.readText()) }
     }.getOrNull()
 

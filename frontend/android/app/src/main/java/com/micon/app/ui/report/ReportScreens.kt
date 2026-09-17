@@ -112,10 +112,13 @@ fun VoiceReportScreen(
         }
     }
     val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
-        value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val store = com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner)
-            store.savedProfile() ?: runCatching { container.voiceOnboarding.latestSaved(owner) }.getOrNull()
-                ?.also(store::saveProfile)
+        value = null
+        if (owner != null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val repository = com.micon.app.data.onboarding.SavedVoiceReportRepository(
+                VoiceOnboardingStore(context.applicationContext, owner), container.voiceOnboarding)
+            repository.refresh(owner) { profile ->
+                if (TokenManager.getUserId() == owner) value = profile
+            }
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {

@@ -92,7 +92,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler(enabled = !state.saving) { leave() }
                 BackHandler(enabled = state.saving) { }
                 LaunchedEffect(state.draftId, state.recovering) {
-                    if (!state.recovering && state.serviceAvailable && state.progress == null && !state.saved) vm.analyze()
+                    if (!isGuest && state.canAnalyze && state.progress == null) vm.analyze()
                 }
                 VoiceOnboardingResultScreen(state, isGuest,
                     onExit = ::leave,
@@ -134,7 +134,7 @@ fun VoiceOnboardingResultScreen(
             val progress = state.progress
             state.range?.let { range ->
                 VoiceReportContent(range, progress,
-                    retryEnabled = state.serviceAvailable && !state.busy && !state.saving && !state.recovering && !state.saved,
+                    retryEnabled = !isGuest && state.canRetryAnalysis,
                     onRetry = onRetry,
                     // Fit uses the explicitly saved server profile, so do not show the previous profile's fit.
                     songFit = if (state.saved && !isGuest && state.savedReceipt != null) {
@@ -142,11 +142,16 @@ fun VoiceOnboardingResultScreen(
                     } else null)
             }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
+            if (!isGuest && state.serviceAvailable && !state.busy && !state.recovering && !state.saved && progress?.canSave != true) {
+                state.analysisInputError?.takeUnless { it == state.error }?.let {
+                    Text(it, color = Red, modifier = Modifier.testTag("onboarding_input_error"))
+                }
+            }
             if (state.busy || state.recovering) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 TextButton(onClick = onCancel) { Text("분석 확인 중단") }
             } else if (state.serviceAvailable && !state.saved && !state.expired && progress?.canSave != true) {
-                OutlinePurpleButton("분석 다시 확인하기", onAnalyze, Modifier.fillMaxWidth(), enabled = !state.saving)
+                OutlinePurpleButton("분석 다시 확인하기", onAnalyze, Modifier.fillMaxWidth(), enabled = !isGuest && state.canAnalyze)
             }
             if (state.expired) PrimaryButton("새로 측정하기", onRestart, Modifier.fillMaxWidth())
             else if (isGuest) {

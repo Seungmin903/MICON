@@ -9,11 +9,14 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import java.io.File
 import androidx.lifecycle.ViewModelStore
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VoiceOnboardingViewModelTest {
+    @get:Rule val files = TemporaryFolder()
     private val dispatcher = StandardTestDispatcher()
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
@@ -21,12 +24,8 @@ class VoiceOnboardingViewModelTest {
     private fun range() = RangeReport(RangeProtocol.VERSION, emptyList(), 48, 72, emptyList(),
         "completed", "measured", "measured", "available", verification = "device_measured")
 
-    private fun recording(draftId: String = "local-draft") = SavedRecording(SingRecordingMeta(
-        id = "recording", songId = 1, title = "Song", artist = "Artist", scope = "FULL",
-        planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 100.0,
-        sungStartSec = 0.0, sungEndSec = 35.0, endedEarly = true, recordedAt = 0,
-        sampleRate = 16000, durationSec = 35.0, lyricTiming = "SYNCED", wavFileName = "recording.wav",
-        onboardingDraftId = draftId), File("recording.wav"), File("recording.json"))
+    private fun recording(draftId: String = "local-draft") = onboardingRecording(
+        File.createTempFile("voice-onboarding", ".wav", files.root), draftId)
 
     private fun ready() = VoiceAnalysisProgress("server-session", 42, ComponentStatus.COMPLETED,
         ComponentStatus.COMPLETED, ComponentStatus.COMPLETED,
@@ -66,6 +65,10 @@ class VoiceOnboardingViewModelTest {
         val recoveredSessions = mutableListOf<Long>()
         var recoveryWait: CompletableDeferred<Unit>? = null
         var recoveryUpdate: ((VoiceAnalysisProgress) -> Unit)? = null
+        var artistUpdate: ((VoiceAnalysisProgress) -> Unit)? = null
+        var artistWait: CompletableDeferred<Unit>? = null
+        var artistResult: VoiceAnalysisProgress? = null
+        var artistLookups = 0
         var cancels = 0
         var cancelWait: CompletableDeferred<Unit>? = null
         override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
@@ -89,6 +92,13 @@ class VoiceOnboardingViewModelTest {
         override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {
             cancels++
             withContext(NonCancellable) { cancelWait?.await() }
+        }
+        override suspend fun awaitArtists(ownerId: Long, result: VoiceAnalysisProgress,
+            onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
+            artistLookups++
+            artistUpdate = onProgress
+            artistWait?.await()
+            return artistResult ?: result
         }
     }
 
@@ -251,6 +261,59 @@ class VoiceOnboardingViewModelTest {
         assertEquals(store.profile?.receipt, model.state.value.savedReceipt)
     }
 
+    @Test fun artistLookupContinuesWithoutBlockingSaveOrRequiringANewVersion() = runTest {
+        val waiting = ready().copy(sessionId = "7", artistSearch = ComponentStatus.RUNNING)
+        val gateway = Gateway().apply { result = waiting; artistWait = CompletableDeferred() }
+        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        model.analyze(); runCurrent()
+        assertFalse(model.state.value.busy)
+        assertTrue(model.state.value.canSave)
+        assertEquals(1, gateway.artistLookups)
+
+        val completed = waiting.copy(artistSearch = ComponentStatus.COMPLETED,
+            artists = listOf(SimilarVoiceArtist(3, "Singer", null, 0.9)))
+        gateway.artistResult = completed
+        gateway.artistWait!!.complete(Unit); advanceUntilIdle()
+        assertEquals(completed, model.state.value.progress)
+        assertEquals(42L, model.state.value.progress?.version)
+    }
+
+    @Test fun saveUsesLatestArtistsAndLateCallbacksCannotRecreateTheClearedDraft() = runTest {
+        val waiting = ready().copy(sessionId = "7", artistSearch = ComponentStatus.RUNNING)
+        val gateway = Gateway().apply {
+            result = waiting; artistWait = CompletableDeferred(); saveWait = CompletableDeferred()
+        }
+        val store = Store()
+        val model = VoiceOnboardingViewModel(1, store, gateway)
+        model.analyze(); runCurrent()
+        model.save(); runCurrent()
+        val completed = waiting.copy(artistSearch = ComponentStatus.COMPLETED,
+            artists = listOf(SimilarVoiceArtist(3, "Singer", null, 0.9)))
+        gateway.artistUpdate!!(completed)
+        gateway.saveWait!!.complete(Unit); runCurrent()
+        assertTrue(model.state.value.saved)
+        assertEquals(completed, store.profile?.progress)
+        val afterSave = store.data
+        gateway.artistUpdate!!(completed.copy(version = 43))
+        assertEquals(afterSave, store.data)
+        assertEquals(completed, store.profile?.progress)
+    }
+
+    @Test fun restoredReadyProfilePollsArtistsWithoutKeepingRecoveryLocked() = runTest {
+        val gateway = Gateway().apply {
+            recovered = ready().copy(sessionId = "7", artistSearch = ComponentStatus.PENDING)
+            artistWait = CompletableDeferred()
+        }
+        val model = VoiceOnboardingViewModel(1, Store().apply { data = data.copy(serverSessionId = 7) }, gateway)
+        runCurrent()
+        assertFalse(model.state.value.recovering)
+        assertTrue(model.state.value.canSave)
+        assertEquals(1, gateway.artistLookups)
+        model.restart()
+        gateway.artistUpdate!!(ready().copy(sessionId = "7"))
+        assertNull(model.state.value.progress)
+    }
+
     @Test fun guestCannotSaveEvenWhenAllResultsSucceed() = runTest {
         val gateway = Gateway()
         val store = Store()
@@ -283,8 +346,64 @@ class VoiceOnboardingViewModelTest {
         val model = VoiceOnboardingViewModel(1, Store(), gateway)
         model.analyze(); advanceUntilIdle()
         model.analyze(AnalysisComponent.SINGER_BYOL); advanceUntilIdle()
+        model.analyze(); advanceUntilIdle()
         assertEquals(1, gateway.analyses)
+        assertFalse(model.state.value.canAnalyze)
+        assertTrue(model.state.value.analysisInputError!!.contains("다시 불러"))
         assertFalse(model.state.value.canSave)
+    }
+
+    @Test fun invalidInputsNeverStartAnalysisOrAdvanceTheDraft() = runTest {
+        val valid = recording()
+        val invalidInputs = listOf(
+            Store().apply { report = null },
+            Store().apply { report = range()!!.copy(availability = "insufficient_data") },
+            Store().apply { audio = null },
+            Store().apply { audio = valid.copy(meta = valid.meta.copy(sampleRate = 16000)) },
+            Store().apply { audio = valid.copy(meta = valid.meta.copy(durationSec = 121.0)) },
+            Store().apply { audio = valid.copy(meta = valid.meta.copy(takes = emptyList())) },
+            Store().apply { audio = valid.copy(wav = File(files.root, "missing.wav")) },
+            Store().apply { audio = valid.copy(meta = valid.meta.copy(onboardingDraftId = "other-draft")) })
+        for (store in invalidInputs) {
+            val gateway = Gateway()
+            val model = VoiceOnboardingViewModel(1, store, gateway)
+            val revision = model.state.value.revision
+            assertFalse(model.state.value.canAnalyze)
+            model.analyze(); advanceUntilIdle()
+            assertEquals(0, gateway.analyses)
+            assertEquals(revision, model.state.value.revision)
+            assertFalse(model.state.value.busy)
+            assertNotNull(model.state.value.error)
+        }
+    }
+
+    @Test fun guestNeverStartsModelAnalysis() = runTest {
+        val gateway = Gateway()
+        val model = VoiceOnboardingViewModel(null, Store(), gateway)
+        model.analyze(); advanceUntilIdle()
+        assertEquals(0, gateway.analyses)
+        assertTrue(model.state.value.error!!.contains("로그인"))
+    }
+
+    @Test fun artistRetryRequiresBothModelInputsAndAllowsReadyProfile() = runTest {
+        val incomplete = ready().copy(sessionId = "7", byol = ComponentStatus.RUNNING, artistSearch = ComponentStatus.FAILED,
+            sessionStatus = VoiceSessionStatus.PARTIAL_READY, saveAllowed = false)
+        val gateway = Gateway().apply { recovered = incomplete }
+        val model = VoiceOnboardingViewModel(1, Store().apply { data = data.copy(serverSessionId = 7) }, gateway)
+        advanceUntilIdle()
+        assertFalse(model.state.value.canRetry(AnalysisComponent.ARTIST_SEARCH))
+        model.analyze(AnalysisComponent.ARTIST_SEARCH); advanceUntilIdle()
+        assertEquals(0, gateway.analyses)
+        gateway.recoveryUpdate!!(ready().copy(sessionId = "7", artistSearch = ComponentStatus.FAILED))
+        assertTrue(model.state.value.canRetry(AnalysisComponent.ARTIST_SEARCH))
+        model.analyze(AnalysisComponent.ARTIST_SEARCH); advanceUntilIdle()
+        assertEquals(1, gateway.analyses)
+        assertEquals(AnalysisComponent.ARTIST_SEARCH, gateway.retry)
+    }
+
+    @Test fun insufficientRangeCannotEnterTheSongRecordingStage() {
+        val store = Store().apply { report = range()!!.copy(availability = "insufficient_data") }
+        assertFalse(VoiceOnboardingViewModel(1, store, Gateway()).rangeReady())
     }
 
     @Test fun lateCallbackCannotRestoreDiscardedRecording() = runTest {
