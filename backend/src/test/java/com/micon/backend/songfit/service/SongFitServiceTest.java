@@ -39,7 +39,7 @@ class SongFitServiceTest {
 	void comparesOriginalAndSelectedKeyAgainstStableRange() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -91,7 +91,7 @@ class SongFitServiceTest {
 	void returnsUnavailableWhenStableRangeIsMissing() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("INSUFFICIENT_DATA", null, null)
+			new UserRangeRow("SAVED", "INSUFFICIENT_DATA", null, null)
 		));
 
 		SongFitResponse response = service.getSongFit(7L, "10", 20L, 0);
@@ -122,7 +122,7 @@ class SongFitServiceTest {
 	void returnsUnavailableWhenCompletedSongRangeIsMissing() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.empty());
 
@@ -137,7 +137,7 @@ class SongFitServiceTest {
 	void stillReturnsRangeComparisonWhenRecommendationHasNotBeenGenerated() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -158,7 +158,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -203,7 +203,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -219,7 +219,7 @@ class SongFitServiceTest {
 	private void stubAvailableSongFitInputs() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))

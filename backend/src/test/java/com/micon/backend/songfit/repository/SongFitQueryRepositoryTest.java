@@ -32,7 +32,8 @@ class SongFitQueryRepositoryTest {
 	void readsFitInputsOnlyForTheAnalysisOwner() {
 		assertThat(repository.songExists("10")).isTrue();
 		assertThat(repository.findUserRange(7L, 20L)).get().satisfies(range -> {
-			assertThat(range.status()).isEqualTo("SAVED");
+			assertThat(range.sessionStatus()).isEqualTo("SAVED");
+			assertThat(range.measurementStatus()).isEqualTo("AVAILABLE");
 			assertThat(range.stableLowMidi()).isEqualByComparingTo("55");
 			assertThat(range.stableHighMidi()).isEqualByComparingTo("75");
 		});
@@ -96,6 +97,7 @@ class SongFitQueryRepositoryTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE VOICE_RANGE_MEASUREMENT (
 			  range_measurement_id BIGINT PRIMARY KEY, session_id BIGINT,
+			  measurement_status VARCHAR(30),
 			  full_low_midi DECIMAL(6,2), full_high_midi DECIMAL(6,2)
 			)
 			""");
@@ -131,8 +133,8 @@ class SongFitQueryRepositoryTest {
 	private void insertFixtures() {
 		jdbcTemplate.update("INSERT INTO SONG VALUES (10, '좋은 날')");
 		jdbcTemplate.update("INSERT INTO VOICE_ANALYSIS_SESSION VALUES (19, 7, 'SAVED')");
-		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19, TIMESTAMP '2026-09-02 10:00:00')");
-		jdbcTemplate.update("INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 55, 75)");
+		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19)");
+		jdbcTemplate.update("INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 'AVAILABLE', 55, 75)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
 			(30, 10, 'COMPLETED', 50, 70, TIMESTAMP '2026-09-01 10:00:00'),
