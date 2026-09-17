@@ -25,7 +25,7 @@ public record SpotifyImageProperties(
 		clientId = trim(clientId);
 		clientSecret = trim(clientSecret);
 		market = defaultValue(market, "KR").toUpperCase();
-		maxLookupsPerRequest = maxLookupsPerRequest < 1 ? 3 : maxLookupsPerRequest;
+		maxLookupsPerRequest = maxLookupsPerRequest < 1 ? 20 : maxLookupsPerRequest;
 		cacheTtl = defaultDuration(cacheTtl, Duration.ofHours(6));
 		missCacheTtl = defaultDuration(missCacheTtl, Duration.ofMinutes(10));
 		cacheMaxEntries = cacheMaxEntries < 1 ? 5000 : cacheMaxEntries;
