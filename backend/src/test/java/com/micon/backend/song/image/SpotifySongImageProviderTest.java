@@ -61,6 +61,36 @@ class SpotifySongImageProviderTest {
 		assertThat(tokenRequests).hasValue(1);
 	}
 
+	@Test
+	void returnsImageBySpotifyTrackIdWithoutTitleMatching() throws Exception {
+		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/api/token", exchange ->
+			respond(exchange, "{\"access_token\":\"token-1\",\"expires_in\":3600}"));
+		server.createContext("/v1/tracks/3P3UA61WRQqwCXaoFOTENd", exchange -> {
+			assertThat(exchange.getRequestHeaders().getFirst("Authorization")).isEqualTo("Bearer token-1");
+			assertThat(exchange.getRequestURI().getRawQuery()).isEqualTo("market=KR");
+			respond(exchange, """
+				{"name":"Through the Night","album":{"images":[
+				  {"url":"https://i.scdn.co/image/large","width":640,"height":640}
+				]},"external_urls":{"spotify":"https://open.spotify.com/track/3P3UA61WRQqwCXaoFOTENd"}}
+				""");
+		});
+		server.start();
+
+		SpotifyImageProperties properties = properties();
+		SpotifySongImageProvider provider = new SpotifySongImageProvider(
+			properties,
+			new SpotifyAccessTokenProvider(properties)
+		);
+
+		assertThat(provider.findImageByTrackId("3P3UA61WRQqwCXaoFOTENd")).contains(
+			new SpotifyTrackImage(
+				"https://i.scdn.co/image/large",
+				"https://open.spotify.com/track/3P3UA61WRQqwCXaoFOTENd"
+			)
+		);
+	}
+
 	private SpotifyImageProperties properties() {
 		String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
 		return new SpotifyImageProperties(

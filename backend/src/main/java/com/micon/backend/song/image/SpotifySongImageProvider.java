@@ -63,6 +63,31 @@ public class SpotifySongImageProvider {
 		}
 	}
 
+	/** Spotify 트랙 ID가 있으면 제목 번역이나 표기 차이와 무관하게 해당 트랙 이미지를 조회한다. */
+	public Optional<SpotifyTrackImage> findImageByTrackId(String trackId) {
+		if (!properties.available() || isBlank(trackId)) {
+			return Optional.empty();
+		}
+		Optional<String> token = tokenProvider.getAccessToken();
+		if (token.isEmpty()) {
+			return Optional.empty();
+		}
+		try {
+			return getTrack(trackId, token.get());
+		} catch (RestClientResponseException exception) {
+			if (exception.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+				tokenProvider.invalidate();
+				return tokenProvider.getAccessToken()
+					.flatMap(refreshed -> safelyGetTrack(trackId, refreshed));
+			}
+			logFailure(trackId, "track-id", exception);
+			return Optional.empty();
+		} catch (RestClientException exception) {
+			logFailure(trackId, "track-id", exception);
+			return Optional.empty();
+		}
+	}
+
 	private Optional<SpotifyTrackImage> safelySearch(String title, String artist, String token) {
 		try {
 			return search(title, artist, token);
@@ -70,6 +95,27 @@ public class SpotifySongImageProvider {
 			logFailure(title, artist, exception);
 			return Optional.empty();
 		}
+	}
+
+	private Optional<SpotifyTrackImage> safelyGetTrack(String trackId, String token) {
+		try {
+			return getTrack(trackId, token);
+		} catch (RestClientException exception) {
+			logFailure(trackId, "track-id", exception);
+			return Optional.empty();
+		}
+	}
+
+	private Optional<SpotifyTrackImage> getTrack(String trackId, String token) {
+		JsonNode track = spotifyClient.get()
+			.uri(uriBuilder -> uriBuilder
+				.path("/v1/tracks/{trackId}")
+				.queryParam("market", properties.market())
+				.build(trackId.trim()))
+			.headers(headers -> headers.setBearerAuth(token))
+			.retrieve()
+			.body(JsonNode.class);
+		return toTrackImage(track);
 	}
 
 	private Optional<SpotifyTrackImage> search(String title, String artist, String token) {
@@ -102,13 +148,21 @@ public class SpotifySongImageProvider {
 				|| !containsArtist(item.path("artists"), expectedArtist)) {
 				continue;
 			}
-			String imageUrl = largestImageUrl(item.path("album").path("images")).orElse(null);
-			String sourceUrl = item.path("external_urls").path("spotify").asText().trim();
-			if (!isBlank(imageUrl) && !isBlank(sourceUrl)) {
-				return Optional.of(new SpotifyTrackImage(imageUrl, sourceUrl));
-			}
+			return toTrackImage(item);
 		}
 		return Optional.empty();
+	}
+
+	private Optional<SpotifyTrackImage> toTrackImage(JsonNode track) {
+		if (track == null) {
+			return Optional.empty();
+		}
+		String imageUrl = largestImageUrl(track.path("album").path("images")).orElse(null);
+		String sourceUrl = track.path("external_urls").path("spotify").asText().trim();
+		if (isBlank(imageUrl) || isBlank(sourceUrl)) {
+			return Optional.empty();
+		}
+		return Optional.of(new SpotifyTrackImage(imageUrl, sourceUrl));
 	}
 
 	private boolean containsArtist(JsonNode artists, String expectedArtist) {

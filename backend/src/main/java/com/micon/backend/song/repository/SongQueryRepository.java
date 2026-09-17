@@ -69,6 +69,31 @@ public class SongQueryRepository {
 				.toList();
 	}
 
+	/** 곡별 Spotify 트랙 ID를 조회한다. */
+	public Map<String, String> findTrackIds(List<String> songIds) {
+		if (songIds.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		String sql = """
+				SELECT song_id, track_id
+				FROM song_metadata
+				WHERE song_id IN (:songIds)
+				  AND track_id IS NOT NULL
+				  AND track_id <> ''
+				""";
+		Map<String, String> trackIds = new LinkedHashMap<>();
+		List<Map.Entry<String, String>> rows = jdbcTemplate.query(
+			sql,
+			Map.of("songIds", songIds),
+			(resultSet, rowNumber) -> Map.entry(
+				resultSet.getString("song_id"),
+				resultSet.getString("track_id")
+			)
+		);
+		rows.forEach(row -> trackIds.put(row.getKey(), row.getValue()));
+		return trackIds;
+	}
+
 	// 기능: count 조건으로 데이터베이스를 조회한다.
 	public long count(String query) {
 		String sql = """
@@ -83,7 +108,7 @@ public class SongQueryRepository {
 	// 기능: findDetail 조건으로 데이터베이스를 조회한다.
 	public Optional<SongDetailRow> findDetail(String songId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms,
+				SELECT s.song_id, s.title, s.duration_ms, sm.track_id,
 				       CASE
 				           WHEN ready_analysis.analysis_id IS NOT NULL
 				            AND sm.lyrics_synced IS NOT NULL
@@ -210,6 +235,7 @@ public class SongQueryRepository {
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
+		resultSet.getString("track_id"),
 		getNullableBoolean(resultSet, "practice_ready"),
 		resultSet.getString("album_name"),
 		resultSet.getObject("release_date", LocalDate.class),
@@ -238,6 +264,7 @@ public class SongQueryRepository {
 		String songId,
 		String title,
 		Long durationMs,
+		String trackId,
 		Boolean practiceReady,
 		String albumName,
 		LocalDate releaseDate,

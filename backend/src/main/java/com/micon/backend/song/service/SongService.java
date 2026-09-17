@@ -28,8 +28,12 @@ public class SongService {
 	// 기능: search 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size) {
 		long offset = (long) page * size;
+		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(query, size, offset);
 		List<SongResponse.Summary> songs = imageEnrichmentService.enrich(
-			songQueryRepository.findPage(query, size, offset)
+			songsWithoutImages,
+			songQueryRepository.findTrackIds(
+				songsWithoutImages.stream().map(SongResponse.Summary::songId).toList()
+			)
 		);
 		long totalElements = songQueryRepository.count(query);
 		return PageResponse.of(songs, page, size, totalElements);
@@ -41,7 +45,7 @@ public class SongService {
 				.orElseThrow(() -> new SongNotFoundException(songId));
 		List<String> artists = songQueryRepository.findArtists(songId);
 		SongImageEnrichmentService.ImageResult image = imageEnrichmentService.enrich(
-			songId, song.title(), artists
+			songId, song.trackId(), song.title(), artists
 		);
 		return new SongResponse.Detail(
 			song.songId(),

@@ -34,6 +34,8 @@ class SongQueryRepositoryTest {
 		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0);
 
 		assertThat(repository.count("아이유")).isEqualTo(1);
+		assertThat(repository.findTrackIds(List.of("tj-00281")))
+			.containsEntry("tj-00281", "spotify-track-good-day");
 		assertThat(songs).singleElement().satisfies(song -> {
 			assertThat(song.songId()).isEqualTo("tj-00281");
 			assertThat(song.title()).isEqualTo("좋은 날");
@@ -80,7 +82,7 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_METADATA (
 			  song_id VARCHAR(64) PRIMARY KEY, tj_number VARCHAR(20), album_name VARCHAR(255),
-			  display_image_url VARCHAR(2048), image_type VARCHAR(30), source_url VARCHAR(2048),
+			  track_id VARCHAR(100), display_image_url VARCHAR(2048), image_type VARCHAR(30), source_url VARCHAR(2048),
 			  release_date DATE, lyrics_synced CLOB
 			)
 			""");
@@ -129,8 +131,8 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO SONG VALUES ('tj-00281', '좋은 날', 233000, FALSE)");
 		jdbcTemplate.update("INSERT INTO SONG VALUES ('tj-00999', '밤편지', 253000, FALSE)");
 		jdbcTemplate.update("""
-			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, display_image_url, release_date, lyrics_synced)
-			VALUES ('tj-00281', '33791', 'REAL', 'https://example.com/good-day.jpg', DATE '2010-12-09', '[00:01.00]첫 소절')
+			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, track_id, display_image_url, release_date, lyrics_synced)
+			VALUES ('tj-00281', '33791', 'REAL', 'spotify-track-good-day', 'https://example.com/good-day.jpg', DATE '2010-12-09', '[00:01.00]첫 소절')
 			""");
 		jdbcTemplate.update("INSERT INTO SONG_METADATA(song_id, tj_number) VALUES ('tj-00999', '49818')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (10, '아이유')");

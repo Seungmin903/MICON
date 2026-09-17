@@ -11,6 +11,7 @@ import com.micon.backend.song.image.SpotifySongImageProvider;
 import com.micon.backend.song.image.SpotifyTrackImage;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +71,28 @@ class SongImageEnrichmentServiceTest {
 
 		verify(imageProvider).findImage("좋은 날", "아이유");
 		verify(imageProvider, never()).findImage("좋은 날 2", "아이유");
+	}
+
+	@Test
+	void usesSpotifyTrackIdBeforeTitleSearch() {
+		SongImageEnrichmentService service = service(3);
+		SpotifyTrackImage image = new SpotifyTrackImage(
+			"https://i.scdn.co/image/through-the-night",
+			"https://open.spotify.com/track/3P3UA61WRQqwCXaoFOTENd"
+		);
+		when(imageProvider.findImageByTrackId("3P3UA61WRQqwCXaoFOTENd"))
+			.thenReturn(Optional.of(image));
+
+		List<SongResponse.Summary> result = service.enrich(
+			List.of(new SongResponse.Summary("song-1", "밤편지", List.of("아이유"), null, null, 253_000L)),
+			Map.of("song-1", "3P3UA61WRQqwCXaoFOTENd")
+		);
+
+		assertThat(result).singleElement().satisfies(enriched ->
+			assertThat(enriched.imageUrl()).isEqualTo(image.imageUrl())
+		);
+		verify(imageProvider).findImageByTrackId("3P3UA61WRQqwCXaoFOTENd");
+		verify(imageProvider, never()).findImage("밤편지", "아이유");
 	}
 
 	private SongImageEnrichmentService service(int maxLookups) {
