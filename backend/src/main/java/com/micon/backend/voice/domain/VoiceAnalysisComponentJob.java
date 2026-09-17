@@ -188,6 +188,17 @@ public class VoiceAnalysisComponentJob {
         updatedAt = at;
     }
 
+    public void retryForFreshDispatch(LocalDateTime at) {
+        if (!"FAILED".equals(status) && !"INSUFFICIENT_DATA".equals(status)) {
+            throw new IllegalStateException("only failed component can be retried");
+        }
+        status = "PENDING";
+        failureCode = null;
+        failureReason = null;
+        completedAt = null;
+        updatedAt = at;
+    }
+
     public boolean isTerminal() {
         return "COMPLETED".equals(status) || "FAILED".equals(status)
                 || "INSUFFICIENT_DATA".equals(status) || "CANCELED".equals(status);
