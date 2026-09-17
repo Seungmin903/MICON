@@ -34,6 +34,10 @@ object UserStore {
     private val _profile = MutableStateFlow<VoiceProfile?>(null)
     val profile = _profile.asStateFlow()
 
+    /** 저장된 프로필을 서버·기기에서 복원하다 실패했다. profile 이 null 이어도 "미측정" 이 아니라 "불러오지 못함" 으로 보여야 한다. */
+    private val _profileLoadFailed = MutableStateFlow(false)
+    val profileLoadFailed = _profileLoadFailed.asStateFlow()
+
     /** 화면에 부르는 이름 ("유림님 음색에 딱인 곡"). 백엔드 users API 가 생기면 로그인 응답에서 채운다. null 이면 "내 …" 로 쓴다. */
     var nickname: String? = null
 
@@ -44,11 +48,13 @@ object UserStore {
     /** Clear account-scoped temporary state before another account can use the app. */
     fun clearUserData() {
         _profile.value = null
+        _profileLoadFailed.value = false
         preferredArtists = emptySet()
         preferredGenres = emptySet()
     }
 
-    fun setProfile(profile: VoiceProfile?) { _profile.value = profile }
+    fun setProfile(profile: VoiceProfile?) { _profile.value = profile; _profileLoadFailed.value = false }
+    fun setProfileLoadFailed(failed: Boolean) { _profileLoadFailed.value = failed }
 
     // 추천 키·적합도는 RecommendRepository(LocalRecommendRepository) 가 계산한다. 임시 recommendedKey() 는 제거했다.
 }

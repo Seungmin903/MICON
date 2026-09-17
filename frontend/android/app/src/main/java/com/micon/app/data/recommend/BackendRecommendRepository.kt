@@ -20,13 +20,12 @@ import com.micon.app.data.backend.dto.RecommendationDto
 import com.micon.app.data.backend.dto.RecommendationSongDto
 import com.micon.app.data.backend.dto.SongFitDto
 import com.micon.app.data.backend.unwrapData
-import com.micon.app.data.voice.VoiceAnalysis
-import com.micon.app.data.voice.VoiceAnalysisRepository
-import com.micon.app.data.voice.VoiceAnalysisStatus
+import com.micon.app.data.local.UserStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /**
  * 추천·적합도의 백엔드 구현. 앱은 추천 서버(8788)를 직접 부르지 않고 백엔드 `RecommendationController`·`SongFitController` 만 본다.
@@ -34,21 +33,22 @@ import kotlin.math.roundToInt
  * - [shelves]: `GET /recommendations/latest` 가 COMPLETED 면 그 섹션을 곡 카탈로그로 채워 돌려준다. 추천이 없으면 `POST /recommendations` 로
  *   생성을 요청하고, 생성 중·실패·미준비(AI 연동 꺼짐)면 앱 안 계산([local])을 [RecommendShelves.note] 와 함께 돌려준다.
  *   비회원이거나 목소리 분석이 없으면 빈 목록 + 이유(로그인·분석 필요) — 기본 추천은 없다.
- * - [fit]: 최근 COMPLETED 음성 분석이 있으면 `GET /songs/{id}/fit?analysisId` 를 쓰고, UNAVAILABLE·오류·비회원이면 [local] 로 내려간다.
+ * - [fit]: 저장된 목소리 프로필(`GET /users/me/voice-profile`)이 있으면 `GET /songs/{id}/fit?analysisId=<profileId>` 를 쓴다 —
+ *   BE 는 이 파라미터를 user_voice_profile.profile_id 로 조회한다. UNAVAILABLE·오류·비회원이면 [local] 로 내려간다.
  * - 서버 점수는 0~100 도 0~1 도 올 수 있어 [unit] 으로 0~1 에 맞춘다. 화면은 재정렬하지 않는다(REC-001).
  */
 class BackendRecommendRepository(
     private val api: BackendApi,
     private val songs: SongRepository,
-    private val voice: VoiceAnalysisRepository,
     private val local: RecommendRepository,
     private val isLoggedIn: () -> Boolean,
     private val now: () -> Long = System::currentTimeMillis,
 ) : RecommendRepository {
     private val mutex = Mutex()
     private var catalog: Map<Long, SongSummary> = emptyMap()
-    private var latestAnalysis: VoiceAnalysis? = null
-    private var latestAnalysisAt = 0L
+    private var profileId: Long? = null
+    private var profileAt = 0L
+    private var profileSeen: Long? = null   // UserStore.profile.measuredAt. 재측정으로 바뀌면 캐시를 버린다
 
     private class ServerState(val recommendation: RecommendationDto?, val note: String?)
 
@@ -65,7 +65,7 @@ class BackendRecommendRepository(
         }
         val rec = server.recommendation
         if (rec != null && rec.status == "COMPLETED") {
-            val mapped = mapShelves(rec, limit)
+            val mapped = mapShelves(rec, limit, reshuffle)
             if (mapped.isNotEmpty()) return RecommendShelves(personalized = true, shelves = mapped)
         }
         return fallback(limit, reshuffle, server.note ?: noteFor(rec))
@@ -81,6 +81,16 @@ class BackendRecommendRepository(
             reason == null -> shelves
             shelves.shelves.isEmpty() -> shelves.copy(note = reason)
             else -> shelves.copy(note = "$reason $NOTE_LOCAL_TAIL")
+        }
+    }
+
+    override suspend fun regenerate(): Boolean {
+        if (!isLoggedIn()) return false
+        return try {
+            api.createRecommendation().unwrapData()
+            true
+        } catch (e: BackendRequestException) {
+            e.code == "RECOMMENDATION_ALREADY_GENERATING"
         }
     }
 
@@ -112,20 +122,23 @@ class BackendRecommendRepository(
         null -> null
         "GENERATING" -> NOTE_GENERATING
         "FAILED" -> "서버 추천 생성에 실패했어요" + (rec.failureReason?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") + "."
-        "EMPTY" -> "서버 추천 결과가 비어 있어요."
+        "EMPTY" -> RecommendShelves.NOTE_EMPTY
         else -> "서버 추천을 아직 쓸 수 없어요."
     }
 
     // ------------------------------------------------------------------ 추천 섹션 매핑
 
-    private suspend fun mapShelves(rec: RecommendationDto, limit: Int): List<RecommendShelf> {
+    /** 서버 순서 그대로(REC-001). 단 새로운 발견은 [reshuffle] 이 바뀔 때마다 서버가 준 후보 안에서 다시 섞어 [limit] 만큼 보인다 — 서버를 다시 부르지 않는다. */
+    private suspend fun mapShelves(rec: RecommendationDto, limit: Int, reshuffle: Int): List<RecommendShelf> {
         val ids = rec.shelves.flatMap { s -> s.items.map { it.songId } }.toSet()
         val songsById = catalogFor(ids)
         return rec.shelves
             .filter { it.key != ShelfKeys.CHALLENGE }
             .sortedBy { it.order }
             .map { shelf ->
-                val items = shelf.items.sortedBy { it.position }.take(limit).mapNotNull { dto ->
+                val ordered = shelf.items.sortedBy { it.position }
+                val visible = if (shelf.key == ShelfKeys.DISCOVERY && reshuffle > 0) ordered.shuffled(Random(reshuffle)) else ordered
+                val items = visible.take(limit).mapNotNull { dto ->
                     val song = songsById[dto.songId] ?: return@mapNotNull null
                     val fit = dto.toSongFit(shelf.key, rec)
                     RecommendedSong(rank = if (dto.overallRank > 0) dto.overallRank else dto.position + 1, song = song, fit = fit, reasons = fit.reasons)
@@ -174,9 +187,9 @@ class BackendRecommendRepository(
 
     override suspend fun fit(songId: Long): SongFit? {
         if (!isLoggedIn()) return local.fit(songId)
-        val analysis = latestCompletedAnalysis() ?: return local.fit(songId)
+        val profile = savedProfileId() ?: return local.fit(songId)
         val dto = try {
-            api.songFit(songId, analysis.id, 0).unwrapData()
+            api.songFit(songId, profile, 0).unwrapData()
         } catch (e: Exception) {
             return local.fit(songId)
         }
@@ -184,20 +197,26 @@ class BackendRecommendRepository(
         return dto.toSongFit(songId) ?: local.fit(songId)
     }
 
-    /** 최근 COMPLETED 음성 분석(적합도 API 의 analysisId). 1분 캐시. 없으면 null → 로컬 계산. */
-    private suspend fun latestCompletedAnalysis(): VoiceAnalysis? {
+    /** 저장된 목소리 프로필 id. 1분 캐시, 재측정(프로필 measuredAt 변화)이면 즉시 다시 읽는다. 없으면(404) null → 로컬 계산. */
+    private suspend fun savedProfileId(): Long? {
         val t = now()
-        if (t - latestAnalysisAt > ANALYSIS_CACHE_MS) {
-            latestAnalysis = runCatching { voice.latest() }.getOrNull()
-            latestAnalysisAt = t
+        val seen = UserStore.profile.value?.measuredAt
+        if (t - profileAt > PROFILE_CACHE_MS || seen != profileSeen) {
+            profileId = try {
+                api.latestVoiceProfile().unwrapData().profileId.takeIf { it > 0 }
+            } catch (e: BackendRequestException) {
+                if (e.status == 404) null else throw e
+            }
+            profileAt = t
+            profileSeen = seen
         }
-        return latestAnalysis?.takeIf { it.status == VoiceAnalysisStatus.COMPLETED }
+        return profileId
     }
 
     companion object {
         private const val CATALOG_PAGE = 100
         private const val MAX_CATALOG_PAGES = 5
-        private const val ANALYSIS_CACHE_MS = 60_000L
+        private const val PROFILE_CACHE_MS = 60_000L
         private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 다시 불러오면 바뀌어요."
         /** 기기 계산 추천을 대신 보여 줄 때 이유 뒤에 붙이는 꼬리 */
         private const val NOTE_LOCAL_TAIL = "지금은 이 기기의 음역 계산 추천이에요."
@@ -228,7 +247,7 @@ class BackendRecommendRepository(
                     score = score, coverage = score, centerScore = 0f, spanFit = 0f, softFit = 0f,
                     songCoreLowMidi = range.songLowMidi?.roundToInt(), songCoreHighMidi = range.songHighMidi?.roundToInt(),
                 ),
-                recommendedKey = recommendedKeyOffset ?: 0,
+                recommendedKey = recommendedKeyOffset,   // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다
                 strainSections = StrainSections(original = burden, atKey = burden),
                 overallFit = unit(scores?.overall) ?: score,
                 reasons = listOfNotNull(reason?.takeIf { it.isNotBlank() }).ifEmpty { listOf("곡 음역의 ${(score * 100).roundToInt()}%가 내 안정 음역과 겹쳐요") },

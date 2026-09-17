@@ -22,6 +22,12 @@ interface RecommendRepository {
      * [reshuffle] 은 "새로운 발견" 다시 뽑기 횟수. 이 섹션만 무작위(하루 단위)라 값이 바뀌면 다른 순서가 나온다.
      */
     suspend fun shelves(limit: Int = 10, reshuffle: Int = 0): RecommendShelves
+
+    /**
+     * 서버 추천을 새로 만들어 달라고 요청한다. 결과가 비었을 때(REC EMPTY) 사용자가 눌러서만 부른다 — 화면을 열 때마다 자동으로 다시 만들지 않는다.
+     * true = 요청이 접수됐거나 이미 만드는 중. 서버 추천이 없는 구현은 false.
+     */
+    suspend fun regenerate(): Boolean = false
 }
 
 data class RecommendShelves(
@@ -34,6 +40,8 @@ data class RecommendShelves(
     companion object {
         const val NOTE_LOGIN_REQUIRED = "로그인하면 내 목소리에 맞춘 추천을 받을 수 있어요."
         const val NOTE_ANALYSIS_REQUIRED = "목소리 분석을 마쳐야 추천을 받을 수 있어요."
+        /** 서버가 추천을 끝까지 만들었지만 곡이 0개였다. 화면은 이 문구로 "다시 만들기" 를 붙인다. */
+        const val NOTE_EMPTY = "서버 추천 결과가 비어 있어요."
 
         fun empty(note: String) = RecommendShelves(personalized = false, shelves = emptyList(), note = note)
     }

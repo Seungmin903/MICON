@@ -188,6 +188,7 @@ fun SongDetailScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
+    val profileLoadFailed by UserStore.profileLoadFailed.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         MiconHeader(onSettings = onSettings, onLogin = onLogin)
@@ -210,12 +211,12 @@ fun SongDetailScreen(
                     // 1) 결론 먼저: 이 노래가 내 음역에 맞는지, 키를 얼마나 바꾸면 되는지 (노래방식 음이름)
                     val songHigh = a?.highestMidi ?: state.melody.maxOfOrNull { it.second.toInt() } ?: 72
                     val songLow = a?.lowestMidi ?: state.melody.minOfOrNull { it.second.toInt() } ?: 55
-                    val key = if (profile != null) (state.recommendedKey ?: 0) else 0   // RecommendRepository.fit 결과 (임시 해시 계산 제거)
+                    val key = if (profile != null) state.recommendedKey else null   // RecommendRepository.fit 결과. null = 계산되지 않음(원키 추천 아님)
                     SongFitCard(
                         songLow = songLow, songHigh = songHigh,
                         comfortLow = profile?.comfortLow ?: 55, comfortHigh = profile?.comfortHigh ?: 67,
                         recommendedKey = key, noteCount = a?.noteCount, durationSec = (d.summary.durationMs ?: 0) / 1000.0,
-                        hasProfile = profile != null,
+                        hasProfile = profile != null, profileLoadFailed = profileLoadFailed,
                     )
                     // 2) 노래 높낮이 흐름: 어디가 높은지 한눈에. 라벨은 말로.
                     MiconCard {
@@ -228,13 +229,13 @@ fun SongDetailScreen(
                         } else {
                             Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 LegendItem(Purple, "원곡")
-                                if (key != 0) LegendItem(Pink, "키 ${if (key > 0) "+$key" else key} 적용")
+                                if (key != null && key != 0) LegendItem(Pink, "키 ${if (key > 0) "+$key" else key} 적용")   // null = 권장 키 없음 → 키 적용선 없음
                                 if (profile != null) LegendItem(Lavender, "내 편안한 음역", wide = true)
                             }
                             Spacer(Modifier.height(8.dp))
                             KeyChangeGraph(
                                 melody = state.melody,
-                                shifted = if (key != 0) state.melody.map { it.first to it.second + key } else null,
+                                shifted = if (key != null && key != 0) state.melody.map { it.first to it.second + key } else null,
                                 bandLow = profile?.comfortLow,
                                 bandHigh = profile?.comfortHigh,
                                 labelOf = { KaraokeNames.koreanShort(it) },

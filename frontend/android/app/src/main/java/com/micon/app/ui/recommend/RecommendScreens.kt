@@ -42,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -196,6 +197,15 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         load()
     }
 
+    /** 서버 추천이 비었을 때 사용자가 눌러 다시 만든다. 자동으로는 부르지 않는다. */
+    fun retry() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true, error = null)
+            runCatching { recommend.regenerate() }
+            load()
+        }
+    }
+
     /** 추천 섹션 불러오기. 상태: 로딩 → 성공 | 결과 없음 | 실패 */
     fun load() {
         viewModelScope.launch {
@@ -327,7 +337,10 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
         }
         // 추천이 있을 때만 위에 한 줄 안내. 비었을 때의 이유는 아래 EmptyRecommend 가 크게 보인다.
         if (!state.loading && state.query.isBlank() && state.shelves.isNotEmpty() && state.note != null) {
-            Text(state.note!!, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 24.dp))
+            Row(Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(state.note!!, fontSize = 13.sp, color = Grey, lineHeight = 18.sp, modifier = Modifier.weight(1f))
+                if (state.note!!.startsWith(RecommendShelves.NOTE_EMPTY)) TextButton(onClick = vm::retry) { Text("추천 다시 만들기", fontSize = 13.sp, color = Purple) }
+            }
         }
         Spacer(Modifier.height(10.dp))
         // 필터 바. 성별·인기는 카탈로그에 데이터가 없어(artist_gender null, 인기 지표 없음) 자리만 두고 흐리게. 걸러 볼 곡이 없으면 감춘다.
@@ -364,8 +377,12 @@ fun RecommendScreen(onSongClick: (Long) -> Unit, onSettings: () -> Unit, onAnaly
                 EmptyRecommend(searching = false, text = state.note!!, modifier = Modifier.weight(1f)) {
                     VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
                 }
-            state.shelves.isEmpty() ->
-                EmptyRecommend(searching = false, onAction = vm::load, actionLabel = "다시 불러오기", text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
+            state.shelves.isEmpty() -> {
+                val empty = state.note?.startsWith(RecommendShelves.NOTE_EMPTY) == true
+                EmptyRecommend(searching = false, onAction = if (empty) vm::retry else vm::load,
+                    actionLabel = if (empty) "추천 다시 만들기" else "다시 불러오기",
+                    text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
+            }
             else -> HorizontalPager(pagerState, Modifier.weight(1f)) { page ->
                 val items = state.pageItems(page, BUBBLE_WEIGHTS.size)
                 if (items.isEmpty()) {
@@ -632,10 +649,11 @@ internal fun MatchBody(
                 Text("1옥타브 (Low)", fontSize = 12.sp, color = palette.muted); Text("2옥타브", fontSize = 12.sp, color = palette.muted); Text("3옥타브 (High)", fontSize = 12.sp, color = palette.muted)
             }
             Spacer(Modifier.height(12.dp))
+            val profileLoadFailed by UserStore.profileLoadFailed.collectAsStateWithLifecycle()
             if (profile != null) {
                 RangeBarRow("내 음역 범위 (${karaokeOctaveName(profile.lowMidi)} ~ ${karaokeOctaveName(profile.highMidi)})", profile.lowMidi, profile.highMidi, axisLow, axisHigh, LavenderDeep, palette)
             } else {
-                Text("내 음역 범위: 목소리 분석 후 표시됩니다", fontSize = 13.sp, color = palette.muted)
+                Text(if (profileLoadFailed) "내 음역 범위: 불러오지 못했어요" else "내 음역 범위: 저장된 목소리 프로필이 없어요", fontSize = 13.sp, color = palette.muted)
             }
             Spacer(Modifier.height(12.dp))
             if (hasSongRange) {
@@ -648,7 +666,7 @@ internal fun MatchBody(
             }
             Spacer(Modifier.height(14.dp))
             if (profile == null) {
-                Text("리포트 탭에서 목소리를 분석하면 이 곡과 내 음역을 비교해 드려요.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
+                Text(if (profileLoadFailed) "음역 정보를 불러오지 못했어요. 다시 시도해 주세요." else "리포트 탭에서 목소리를 분석하면 이 곡과 내 음역을 비교해 드려요.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
             } else if (!hasSongRange) {
                 Text("이 곡은 음역 분석 정보가 없어 적합도를 평가할 수 없어요.", fontSize = 15.sp, color = palette.body, lineHeight = 22.sp)
             } else if (coreOnly) {

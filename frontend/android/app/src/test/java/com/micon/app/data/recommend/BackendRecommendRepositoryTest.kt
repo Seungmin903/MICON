@@ -67,7 +67,7 @@ class BackendRecommendRepositoryTest {
         val tokens = MemoryTokenStore().apply { saveSession(1, "access", "refresh") }
         val api = BackendClient(server.url("/api/v1/").toString(), false, tokens) {}.api
         voice = FakeVoice(VoiceAnalysis(9, 57, null, "SCALE", VoiceAnalysisStatus.COMPLETED, "VALID", null, null, null, "2026-09-14T10:00:00"))
-        repo = BackendRecommendRepository(api, FakeSongs(catalog), voice, FakeLocal, isLoggedIn = { loggedIn })
+        repo = BackendRecommendRepository(api, FakeSongs(catalog), FakeLocal, isLoggedIn = { loggedIn })
     }
 
     @After fun tearDown() = server.shutdown()
@@ -143,6 +143,7 @@ class BackendRecommendRepositoryTest {
     }
 
     @Test fun `fit maps AVAILABLE song fit with normalized scores and burden sections`() = runBlocking {
+        server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
         server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"AVAILABLE",
             "originalKeyFit":{"userStableLowMidi":55,"userStableHighMidi":67,"songLowMidi":57,"songHighMidi":72,"score":66.67},
             "selectedKeyFit":{"userStableLowMidi":55,"userStableHighMidi":67,"songLowMidi":57,"songHighMidi":72,"score":66.67},
@@ -150,6 +151,7 @@ class BackendRecommendRepositoryTest {
             "reason":"고음 3반음만 내리면 편해요","burdenSections":[{"sectionId":501,"sectionType":"CHORUS","sectionName":"후렴","startMs":60000,"endMs":75000,"difficultyType":"HIGH","difficultyScore":0.8,"description":null}],
             "unavailableReason":null}"""))
         val fit = checkNotNull(repo.fit(7))
+        assertEquals("/api/v1/users/me/voice-profile", server.takeRequest().path)                     // 저장 프로필 id 를 먼저 읽는다
         assertEquals("/api/v1/songs/7/fit?analysisId=9&keyOffset=0", server.takeRequest().path)
         assertEquals(-3, fit.recommendedKey)
         assertEquals(0.6667f, fit.rangeFit!!.score, 1e-4f)
@@ -162,14 +164,15 @@ class BackendRecommendRepositoryTest {
         assertEquals("fit-v1", fit.scoringVersion)
     }
 
-    @Test fun `fit falls back to local when unavailable or without a completed analysis`() = runBlocking {
+    @Test fun `fit falls back to local when unavailable or without a saved profile`() = runBlocking {
+        server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
         server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"UNAVAILABLE","burdenSections":[],"unavailableReason":"SONG_RANGE_UNAVAILABLE"}"""))
         assertNull(repo.fit(7))
-        assertNotNull(server.takeRequest())
-        voice.latestAnalysis = null
-        val fresh = BackendRecommendRepository(BackendClient(server.url("/api/v1/").toString(), false, MemoryTokenStore().apply { saveSession(1, "a", "r") }) {}.api, FakeSongs(catalog), voice, FakeLocal, { true })
+        server.takeRequest(); server.takeRequest()
+        server.enqueue(json(404, """{"code":"VOICE_PROFILE_NOT_FOUND","message":"없음","data":null}"""))
+        val fresh = BackendRecommendRepository(BackendClient(server.url("/api/v1/").toString(), false, MemoryTokenStore().apply { saveSession(1, "a", "r") }) {}.api, FakeSongs(catalog), FakeLocal, { true })
         assertNull(fresh.fit(7))
-        assertEquals(1, server.requestCount)                                                        // 분석이 없으면 서버를 부르지 않는다
+        assertEquals(3, server.requestCount)                                                        // 저장 프로필이 없으면 적합도 API 를 부르지 않는다
     }
 
     @Test fun `unit normalizes both percent and ratio scales`() {
