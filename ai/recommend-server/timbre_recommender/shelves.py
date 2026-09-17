@@ -37,7 +37,6 @@ VOICE_MAX_KEY_SHIFT = 3                # A: 이 폭 안의 키 조정으로 부�
 ORIGINAL_KEY_MIN_COVERAGE = 0.95       # B
 CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상한(+여유)보다 이만큼 높음
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
-DISCOVERY_MAX_PER_GENRE = 3            # E
 RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop"}
 # 한국곡 설문 장르 → 스타일 태그. 외국어 선택은 아래 언어 판정으로 처리한다.
 # K-Pop 은 범용 태그라 항상 "취향 안"으로 본다.
@@ -55,7 +54,7 @@ SHELF_META = {
     "original_key": ("키 안 바꾸고 바로 부를 곡", "최적 키 0 · 원키 커버리지 ≥ 0.95. 곡 중심음이 내 중심음에 가까운 순"),
     "favorite_artists": ("선호 가수 좋아하면", "선호 가수 본인 곡 먼저, 이어서 선호 가수 목소리와 닮은 가수의 곡"),
     "challenge": ("고음 한 단계 도전", "원키에서 곡 상한이 내 상한보다 1~3반음 높고 그 구간이 3~20%인 곡. 고음 비율 작은 순 (실험)"),
-    "discovery": ("새로운 발견", "선택 안 한 장르 중 부를 수 있고 음색 중앙값 이상인 곡을 가수·장르 중복 없이 섞어 매일 다른 순서"),
+    "discovery": ("새로운 발견", "다른 섹션에 뽑히지 않은 나머지 곡을 섞은 것. 앱이 새로고침마다 이 안에서 다시 섞는다"),
 }
 
 
@@ -214,23 +213,9 @@ def build_shelves(
         emit("challenge", [(r, {"high_excess0": r["high_excess0"], "high_ratio0": r["high_ratio0"], "coverage0": r["coverage0"]}, None, None) for r in pool_d],
              {"experimental": True})
 
-    # E. 새로운 발견: 취향 밖 장르, 부를 수 있음(랩은 음역 조건 없이 허용), 음색 중앙값 이상 → 가수·장르 중복 없이 섞기
-    tags = selected_tags(genres)
-    selected_languages = {GENRE_LANGUAGE[g.strip().lower()] for g in genres if g.strip().lower() in GENRE_LANGUAGE}
-    median = float(np.median([r["timbre_score"] for r in rows])) if rows else 0.0
-    pool_e = [r for r in rows if (r["metadata"].get("genres") or [])
-              and track_language(r["metadata"]) not in selected_languages
-              and not (set(r["metadata"]["genres"]) & tags)
-              and r["timbre_score"] >= median and (r["is_rap"] or not range_enabled or singable(r))]
+    # E. 새로운 발견: 다른 섹션에 뽑히지 않은 나머지 전부. 장르·음색·음역 조건을 두지 않는다 — 장르 메타데이터가 없어도 채워진다.
+    #    서버는 하루 단위 시드로 한 번 섞어 top_k 까지 넉넉히 주고, 앱이 새로고침마다 이 후보 안에서 다시 섞는다.
+    pool_e = [r for r in rows if r["track_id"] not in used]
     random.Random(seed).shuffle(pool_e)
-    seen_artist: set[str] = set()
-    per_genre: dict[str, int] = {}
-    picked_e = []
-    for r in pool_e:
-        g = r["metadata"]["genres"][0]
-        if r["artist"] in seen_artist or per_genre.get(g, 0) >= DISCOVERY_MAX_PER_GENRE:
-            continue
-        seen_artist.add(r["artist"]); per_genre[g] = per_genre.get(g, 0) + 1
-        picked_e.append((r, {"genre": g, "timbre_score": r["timbre_score"]}, None, None))
-    emit("discovery", picked_e, {"excluded_tags": sorted(tags), "seed": seed})
+    emit("discovery", [(r, {"timbre_score": r["timbre_score"]}, None, None) for r in pool_e], {"seed": seed})
     return shelves
