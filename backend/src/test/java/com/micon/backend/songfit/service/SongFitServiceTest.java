@@ -39,13 +39,14 @@ class SongFitServiceTest {
 	void comparesOriginalAndSelectedKeyAgainstStableRange() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
 		));
 		when(repository.findRecommendation(7L, 20L, "10")).thenReturn(Optional.of(
-			new RecommendationRow(-2, decimal("88"), decimal("90"), null, decimal("77"), "음역이 잘 맞습니다.", "fit-v1")
+			new RecommendationRow(-2, decimal("0.88"), decimal("0.90"), decimal("0.77"), null,
+				"음역이 잘 맞습니다.", "fit-v1")
 		));
 		when(repository.findBurdenSections("10", 30L)).thenReturn(List.of(
 			new BurdenSection(40L, "CHORUS", "후렴", 60_000, 90_000, "HIGH_NOTE", decimal("82"), "고음 구간")
@@ -57,10 +58,33 @@ class SongFitServiceTest {
 		assertThat(response.originalKeyFit().score()).isEqualByComparingTo("75.00");
 		assertThat(response.selectedKeyFit().score()).isEqualByComparingTo("100.00");
 		assertThat(response.recommendedKeyOffset()).isEqualTo(-2);
-		assertThat(response.recommendationScores().timbre()).isNull();
+		assertThat(response.recommendationScores().overall()).isEqualByComparingTo("0.88");
+		assertThat(response.recommendationScores().range()).isEqualByComparingTo("0.90");
+		assertThat(response.recommendationScores().timbre()).isEqualByComparingTo("0.77");
+		assertThat(response.recommendationScores().rhythm()).isNull();
 		assertThat(response.burdenSections()).singleElement()
 			.extracting(BurdenSection::sectionName)
 			.isEqualTo("후렴");
+	}
+
+	@Test
+	void returnsZeroWhenOriginalKeyIsRecommended() {
+		when(repository.songExists("10")).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
+		));
+		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("55"), decimal("75"))
+		));
+		when(repository.findRecommendation(7L, 20L, "10")).thenReturn(Optional.of(
+			new RecommendationRow(0, decimal("0.91"), decimal("1.0"), decimal("0.88"), null,
+				"원키가 적합합니다.", "fit-v1")
+		));
+		when(repository.findBurdenSections("10", 30L)).thenReturn(List.of());
+
+		SongFitResponse response = service.getSongFit(7L, "10", 20L, 0);
+
+		assertThat(response.recommendedKeyOffset()).isZero();
 	}
 
 	@Test
@@ -98,7 +122,7 @@ class SongFitServiceTest {
 	void returnsUnavailableWhenCompletedSongRangeIsMissing() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.empty());
 
@@ -113,7 +137,7 @@ class SongFitServiceTest {
 	void stillReturnsRangeComparisonWhenRecommendationHasNotBeenGenerated() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -134,7 +158,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -179,7 +203,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))
@@ -195,7 +219,7 @@ class SongFitServiceTest {
 	private void stubAvailableSongFitInputs() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
-			new UserRangeRow("COMPLETED", decimal("55"), decimal("75"))
+			new UserRangeRow("SAVED", decimal("55"), decimal("75"))
 		));
 		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
 			new SongRangeRow(30L, decimal("50"), decimal("70"))

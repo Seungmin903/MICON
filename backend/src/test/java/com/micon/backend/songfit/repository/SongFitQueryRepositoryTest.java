@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import tools.jackson.databind.ObjectMapper;
 
 class SongFitQueryRepositoryTest {
 
@@ -24,7 +25,7 @@ class SongFitQueryRepositoryTest {
 		jdbcTemplate.execute("DROP ALL OBJECTS");
 		createTables();
 		insertFixtures();
-		repository = new SongFitQueryRepository(new NamedParameterJdbcTemplate(dataSource));
+		repository = new SongFitQueryRepository(new NamedParameterJdbcTemplate(dataSource), new ObjectMapper());
 	}
 
 	@Test
@@ -46,13 +47,37 @@ class SongFitQueryRepositoryTest {
 
 		assertThat(repository.findRecommendation(7L, 20L, "10")).get().satisfies(recommendation -> {
 			assertThat(recommendation.recommendedKey()).isEqualTo(-2);
-			assertThat(recommendation.overallScore()).isEqualByComparingTo("88");
+			assertThat(recommendation.overallScore()).isEqualByComparingTo("0.88");
+			assertThat(recommendation.rangeFitScore()).isEqualByComparingTo("0.90");
+			assertThat(recommendation.timbreFitScore()).isEqualByComparingTo("0.77");
+			assertThat(recommendation.rhythmFitScore()).isNull();
 			assertThat(recommendation.algorithmVersion()).isEqualTo("fit-v1");
 		});
 
 		assertThat(repository.findBurdenSections("10", 31L)).singleElement().satisfies(section -> {
 			assertThat(section.sectionName()).isEqualTo("후렴");
 			assertThat(section.difficultyType()).isEqualTo("HIGH_NOTE");
+		});
+	}
+
+	@Test
+	void distinguishesOriginalKeyFromMissingRecommendationAndIgnoresPreviousProfileVersion() {
+		jdbcTemplate.update("UPDATE USER_VOICE_PROFILE SET updated_at = TIMESTAMP '2026-09-04 10:00:00' WHERE profile_id = 20");
+		assertThat(repository.findRecommendation(7L, 20L, "10")).isEmpty();
+
+		jdbcTemplate.update("""
+			INSERT INTO RECOMMENDATION VALUES
+			(41, 7, 20, 'COMPLETED', TIMESTAMP '2026-09-04 10:00:01', 'fit-v2')
+			""");
+		jdbcTemplate.update("""
+			INSERT INTO RECOMMENDATION_SONG
+			(recommendation_id, song_id, recommended_key, final_score, timbre_score, range_fit, metrics, reason_text)
+			VALUES (41, '10', 0, 0.81, 0.73, '{"score":0.92,"keyShift":0}', '{}', '원키가 적합합니다.')
+			""");
+
+		assertThat(repository.findRecommendation(7L, 20L, "10")).get().satisfies(recommendation -> {
+			assertThat(recommendation.recommendedKey()).isZero();
+			assertThat(recommendation.rangeFitScore()).isEqualByComparingTo("0.92");
 		});
 	}
 
@@ -65,7 +90,7 @@ class SongFitQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE USER_VOICE_PROFILE (
-			  profile_id BIGINT PRIMARY KEY, user_id BIGINT, session_id BIGINT
+			  profile_id BIGINT PRIMARY KEY, user_id BIGINT, session_id BIGINT, updated_at TIMESTAMP
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -89,8 +114,8 @@ class SongFitQueryRepositoryTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE RECOMMENDATION_SONG (
 			  recommendation_id BIGINT, song_id VARCHAR(64), recommended_key SMALLINT,
-			  overall_score DECIMAL(5,2), range_fit_score DECIMAL(5,2),
-			  timbre_fit_score DECIMAL(5,2), rhythm_fit_score DECIMAL(5,2), reason_text VARCHAR(1000)
+			  final_score DECIMAL(8,6), timbre_score DECIMAL(8,6),
+			  range_fit JSON, metrics JSON, reason_text VARCHAR(1000)
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -106,7 +131,7 @@ class SongFitQueryRepositoryTest {
 	private void insertFixtures() {
 		jdbcTemplate.update("INSERT INTO SONG VALUES (10, '좋은 날')");
 		jdbcTemplate.update("INSERT INTO VOICE_ANALYSIS_SESSION VALUES (19, 7, 'SAVED')");
-		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19)");
+		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19, TIMESTAMP '2026-09-02 10:00:00')");
 		jdbcTemplate.update("INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 55, 75)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
@@ -115,7 +140,11 @@ class SongFitQueryRepositoryTest {
 			(32, 10, 'FAILED', 10, 20, TIMESTAMP '2026-09-03 10:00:00')
 			""");
 		jdbcTemplate.update("INSERT INTO RECOMMENDATION VALUES (40, 7, 20, 'COMPLETED', TIMESTAMP '2026-09-03 10:00:00', 'fit-v1')");
-		jdbcTemplate.update("INSERT INTO RECOMMENDATION_SONG VALUES (40, 10, -2, 88, 90, NULL, 77, '음역이 잘 맞습니다.')");
+		jdbcTemplate.update("""
+			INSERT INTO RECOMMENDATION_SONG
+			(recommendation_id, song_id, recommended_key, final_score, timbre_score, range_fit, metrics, reason_text)
+			VALUES (40, '10', -2, 0.88, 0.77, '{"score":0.90,"keyShift":-2}', '{}', '음역이 잘 맞습니다.')
+			""");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_SECTION VALUES
 			(50, 10, 31, 'VERSE', '1절', 0, 60000, 1, 'NONE', 10, NULL),

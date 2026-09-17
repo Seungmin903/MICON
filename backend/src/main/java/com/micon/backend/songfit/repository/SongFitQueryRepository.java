@@ -9,14 +9,19 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Repository
 public class SongFitQueryRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
-	public SongFitQueryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+	public SongFitQueryRepository(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.objectMapper = objectMapper;
 	}
 
 	public boolean songExists(String songId) {
@@ -69,15 +74,18 @@ public class SongFitQueryRepository {
 
 	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, String songId) {
 		String sql = """
-			SELECT rs.recommended_key, rs.overall_score, rs.range_fit_score,
-			       rs.timbre_fit_score, rs.rhythm_fit_score, rs.reason_text,
+			SELECT rs.recommended_key, rs.final_score, rs.timbre_score,
+			       rs.range_fit, rs.reason_text,
 			       r.algorithm_version
 			FROM recommendation r
+			JOIN user_voice_profile uvp ON uvp.profile_id = r.profile_id
 			JOIN recommendation_song rs ON rs.recommendation_id = r.recommendation_id
 			WHERE r.user_id = :userId
 			  AND r.profile_id = :analysisId
+			  AND uvp.user_id = :userId
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId
+			  AND r.generated_at >= uvp.updated_at
 			ORDER BY r.generated_at DESC, r.recommendation_id DESC
 			LIMIT 1
 			""";
@@ -86,14 +94,30 @@ public class SongFitQueryRepository {
 			Map.of("userId", userId, "analysisId", analysisId, "songId", songId),
 			(resultSet, rowNumber) -> new RecommendationRow(
 				getNullableInteger(resultSet, "recommended_key"),
-				resultSet.getBigDecimal("overall_score"),
-				resultSet.getBigDecimal("range_fit_score"),
-				resultSet.getBigDecimal("timbre_fit_score"),
-				resultSet.getBigDecimal("rhythm_fit_score"),
+				resultSet.getBigDecimal("final_score"),
+				readDecimal(resultSet.getString("range_fit"), "score"),
+				resultSet.getBigDecimal("timbre_score"),
+				null,
 				resultSet.getString("reason_text"),
 				resultSet.getString("algorithm_version")
 			)
 		).stream().findFirst();
+	}
+
+	private BigDecimal readDecimal(String json, String field) {
+		if (json == null || json.isBlank()) {
+			return null;
+		}
+		try {
+			JsonNode root = objectMapper.readTree(json);
+			if (root != null && root.isTextual()) {
+				root = objectMapper.readTree(root.asText());
+			}
+			JsonNode value = root == null ? null : root.get(field);
+			return value != null && value.isNumber() ? value.decimalValue() : null;
+		} catch (JacksonException exception) {
+			return null;
+		}
 	}
 
 	public List<BurdenSection> findBurdenSections(String songId, Long songAnalysisId) {
