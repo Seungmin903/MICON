@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 인증된 회원의 세트리스트와 포함 곡을 관리하는 HTTP API 진입점이다. */
 @Validated
 @RestController
-@RequestMapping("/setlists")
+@RequestMapping("/setlist")
 public class SetlistController {
 
 	private final SetlistService setlistService;
@@ -86,7 +86,7 @@ public class SetlistController {
 		return ResponseEntity.ok(ApiResponse.success(null));
 	}
 
-	@PutMapping("/{setlistId}/songs/{songId}")
+	@PostMapping("/{setlistId}/{songId}")
 	// 기능: addSong 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> addSong(
 		@PathVariable @Min(1) Long setlistId,
@@ -98,7 +98,7 @@ public class SetlistController {
 		));
 	}
 
-	@DeleteMapping("/{setlistId}/songs/{songId}")
+	@DeleteMapping("/{setlistId}/{songId}")
 	// 기능: removeSong 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> removeSong(
 		@PathVariable @Min(1) Long setlistId,
