@@ -16,6 +16,7 @@ class RuntimeContractTests(unittest.TestCase):
         cls.properties = (ROOT / 'backend/src/main/resources/application.properties').read_text(encoding='utf-8')
         cls.example = (ROOT / 'backend/.env.example').read_text(encoding='utf-8')
         cls.document = (ROOT / 'docs/operations/BACKEND_RUNTIME_CONTRACT.md').read_text(encoding='utf-8')
+        cls.gitlab_ci = (ROOT / '.gitlab-ci.yml').read_text(encoding='utf-8')
         cls.gradle_settings = (ROOT / 'backend/settings.gradle').read_text(encoding='utf-8')
         cls.entries = [line.split('=', 1) for line in cls.example.splitlines()
                        if line.strip() and not line.lstrip().startswith('#')]
@@ -66,6 +67,11 @@ class RuntimeContractTests(unittest.TestCase):
     def test_java_21_toolchain_can_be_provisioned_on_clean_ci_agents(self):
         self.assertIn("org.gradle.toolchains.foojay-resolver-convention", self.gradle_settings)
         self.assertIn("version '1.0.0'", self.gradle_settings)
+
+    def test_develop_merge_requests_run_all_verification_jobs(self):
+        rule = ('- if: \'$CI_PIPELINE_SOURCE == "merge_request_event" && '
+                '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"\'')
+        self.assertEqual(3, self.gitlab_ci.count(rule))
 
 
 if __name__ == '__main__':

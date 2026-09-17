@@ -23,6 +23,7 @@ runtime-contract-tests:
     - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
     - cd ai/recommend-server && python -m unittest tests.test_catalog_link -v
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
     - if: '$CI_COMMIT_BRANCH == "develop"'
 
 mysql-song-import:
@@ -45,6 +46,7 @@ mysql-song-import:
     - sh infra/mysql/verify-song-import.sh
     - cd backend && sh ./gradlew --no-daemon --max-workers=1 --console=plain test --tests '*EmbeddingCatalog*'
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
     - if: '$CI_COMMIT_BRANCH == "develop"'
 
 embedding-catalog-tests:
@@ -63,6 +65,7 @@ embedding-catalog-tests:
     - 'pip install --disable-pip-version-check --only-binary=:all: -r ai/embedding_catalog/requirements-test.txt'
     - python -m pytest ai/embedding_catalog/tests ai/catalog_media/tests -v
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
     - if: '$CI_COMMIT_BRANCH == "develop"'
 
 notify_mm_mr:
