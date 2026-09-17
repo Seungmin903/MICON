@@ -97,13 +97,14 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertTrue(keys["voice"]["items"])                                     # 음색만으로 채움
         self.assertTrue(all(it["range_fit"] is None or True for it in keys["voice"]["items"]))
 
-    def test_discovery_is_seeded_and_excludes_selected_tags(self) -> None:
+    def test_discovery_is_seeded_and_takes_every_leftover_track(self) -> None:
         a = build_shelves(self.rows, top_k=8, genres=["OST"], range_enabled=True, seed=7)
         b = build_shelves(self.rows, top_k=8, genres=["OST"], range_enabled=True, seed=7)
         da = next(s for s in a if s["key"] == "discovery"); db = next(s for s in b if s["key"] == "discovery")
-        self.assertEqual([i["track_id"] for i in da["items"]], [i["track_id"] for i in db["items"]])
-        self.assertNotIn("검정치마", {i["artist"] for i in da["items"]})            # Soundtrack 은 선택 장르(OST)
-        self.assertIn("Soundtrack", da["excluded_tags"])
+        self.assertEqual([i["track_id"] for i in da["items"]], [i["track_id"] for i in db["items"]])   # 같은 시드 → 같은 순서
+        others = {i["track_id"] for s in a if s["key"] != "discovery" for i in s["items"]}
+        self.assertEqual({i["track_id"] for i in da["items"]}, {r["track_id"] for r in self.rows} - others)  # 나머지 전부, 장르 무관
+        self.assertIn("검정치마", {i["artist"] for i in da["items"]})              # 선택 장르(OST)여도 제외하지 않는다
 
     def test_selected_foreign_languages_are_in_taste_for_every_style(self) -> None:
         rows = [_row("en", "English artist", timbre=.8, key=4, genres=("Jazz",)),
@@ -115,7 +116,7 @@ class BuildShelvesTest(unittest.TestCase):
             with self.subTest(choices=choices):
                 shelves = build_shelves(rows, top_k=8, genres=choices, range_enabled=True, seed=1)
                 discovery = next(s for s in shelves if s["key"] == "discovery")
-                self.assertEqual([r["track_id"] for r in discovery["items"]], ["ko"])
+                self.assertEqual({r["track_id"] for r in discovery["items"]}, {"en", "jp", "ko"})   # 언어·장르로 걸러내지 않는다
 
 
 if __name__ == "__main__":

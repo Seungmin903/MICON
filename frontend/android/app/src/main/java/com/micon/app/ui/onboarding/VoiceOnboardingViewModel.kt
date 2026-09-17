@@ -2,7 +2,9 @@ package com.micon.app.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.micon.app.data.local.UserStore
 import com.micon.app.data.onboarding.*
+import com.micon.app.data.voice.VoiceProfileMapper
 import com.micon.app.data.singanalysis.SavedRecording
 import com.micon.app.range.RangeReport
 import kotlinx.coroutines.CancellationException
@@ -173,6 +175,7 @@ class VoiceOnboardingViewModel(
                 check(receipt.sessionId == result.sessionId && receipt.version == result.version && receipt.profileId.isNotBlank())
                 // Remote success is authoritative even if refreshing the local cache fails.
                 val cached = runCatching { persistence.saveProfile(SavedVoiceOnboardingProfile(receipt, request.range, result)) }.isSuccess
+                UserStore.setProfile(VoiceProfileMapper.fromOnboarding(request.range, now()))   // 연습·추천 상세가 바로 새 음역을 본다
                 runCatching { persistence.clearDraft() }
                 mutableState.update { it.copy(saved = true, saving = false, savedReceipt = receipt,
                     error = if (cached) null else "서버에 저장됐지만 기기의 결과를 갱신하지 못했어요.") }

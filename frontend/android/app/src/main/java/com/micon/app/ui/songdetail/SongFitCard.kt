@@ -47,10 +47,12 @@ fun SongFitCard(
     songHigh: Int,
     comfortLow: Int,
     comfortHigh: Int,
-    recommendedKey: Int,
+    /** null = 서버가 키를 계산하지 못했다. 0 은 실제 원키 추천이다. */
+    recommendedKey: Int?,
     noteCount: Int?,
     durationSec: Double?,
     hasProfile: Boolean,
+    profileLoadFailed: Boolean = false,
 ) {
     val diff = songHigh - comfortHigh          // 반음. 양수 = 노래 최고음이 내 편안한 음역보다 높다
     val lowDiff = comfortLow - songLow          // 양수 = 노래 최저음이 내 편안한 음역보다 낮다
@@ -58,12 +60,13 @@ fun SongFitCard(
     val difficulty = (if (diff > 5) 2 else if (diff > 2) 1 else 0) + (if (songHigh - songLow > 19) 1 else 0) + (if (density > 3.2) 1 else 0)
     val stars = when { difficulty >= 3 -> 3; difficulty >= 1 -> 2; else -> 1 }
     val verdict = when {
+        !hasProfile && profileLoadFailed -> "음역 정보를 불러오지 못했어요. 다시 시도해 주세요."
         !hasProfile -> "내 음역을 아직 측정하지 않았어요. 리포트 탭에서 30초 측정을 하면 이 노래가 맞는지 알려 드려요."
         diff <= 0 && lowDiff <= 0 -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역 안에 있어요. 원키로 편하게 부를 수 있어요."
         diff <= 0 -> "높은 음은 편하지만, 낮은 음(${KaraokeNames.korean(songLow)})이 내 음역보다 ${lowDiff}반음 아래예요. 키를 조금 올리면 편해요."
         diff <= 2 -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역보다 ${diff}반음 높아요. 살짝 도전적이지만 충분히 부를 수 있어요."
-        diff <= 5 -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역보다 ${diff}반음 높아요. 키를 ${recommendedKey} 낮추면 편하게 부를 수 있어요."
-        else -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역보다 ${diff}반음이나 높아요. 키를 ${recommendedKey} 낮추고, 고음 구간은 하이라이트 연습으로 따로 익혀 보세요."
+        diff <= 5 -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역보다 ${diff}반음 높아요." + (recommendedKey?.let { " 키를 $it 낮추면 편하게 부를 수 있어요." } ?: " 권장 키는 아직 계산되지 않았어요.")
+        else -> "최고음 ${KaraokeNames.korean(songHigh)}이 내 편안한 음역보다 ${diff}반음이나 높아요." + (recommendedKey?.let { " 키를 $it 낮추고, 고음 구간은 하이라이트 연습으로 따로 익혀 보세요." } ?: " 권장 키는 아직 계산되지 않았어요.")
     }
 
     MiconCard {
@@ -80,9 +83,9 @@ fun SongFitCard(
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SoftChip(
-                text = when { !hasProfile -> "키 추천은 측정 후"; recommendedKey == 0 -> "원키 추천"; recommendedKey > 0 -> "키 +$recommendedKey 추천"; else -> "키 $recommendedKey 추천" },
-                bg = if (!hasProfile) GreyLight else if (recommendedKey == 0) GreenChipBg else PinkBg,
-                fg = if (!hasProfile) Grey else if (recommendedKey == 0) GreenChipText else Pink,
+                text = when { !hasProfile -> "키 추천은 측정 후"; recommendedKey == null -> "권장 키 계산 안 됨"; recommendedKey == 0 -> "원키 추천"; recommendedKey != null && recommendedKey > 0 -> "키 +$recommendedKey 추천"; else -> "키 $recommendedKey 추천" },
+                bg = if (!hasProfile || recommendedKey == null) GreyLight else if (recommendedKey == 0) GreenChipBg else PinkBg,
+                fg = if (!hasProfile || recommendedKey == null) Grey else if (recommendedKey == 0) GreenChipText else Pink,
             )
             SoftChip("난이도 " + "★".repeat(stars) + "☆".repeat(3 - stars), bg = GreyLight, fg = Ink)
         }

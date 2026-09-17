@@ -20,6 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.micon.app.appContainer
+import com.micon.app.data.onboarding.VoiceProfileSync
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -79,6 +82,11 @@ fun MiconRoot() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
+    // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
+    val context = LocalContext.current
+    LaunchedEffect(sessionVerified) {
+        if (sessionVerified) TokenManager.getUserId().takeIf { it > 0 }?.let { VoiceProfileSync.restore(context, it, context.appContainer.voiceOnboarding) }
+    }
 
     LaunchedEffect(nav) {
         SessionEvents.events.collect {

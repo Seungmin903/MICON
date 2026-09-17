@@ -1,6 +1,7 @@
 package com.micon.app.data.voice
 
 import com.micon.app.data.local.UserStore
+import com.micon.app.range.RangeReport
 import com.micon.app.scoring.ScoringMath
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -44,5 +45,39 @@ object VoiceProfileMapper {
     internal fun parseServerTime(raw: String?): Long? =
         raw?.let { runCatching { LocalDateTime.parse(it).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }.getOrNull() }
 
+    /**
+     * 온보딩(30초 계단 측정) 음역 리포트 → 프로필. 전체 음역은 lowMidi/highMidi, 편안한 음역은 안정 구간 중 가장 넓은 것,
+     * 안정 구간이 없으면 통과한 음들 중 가장 긴 연속 구간, 그것도 없으면 전체 음역. 예시 기본값은 쓰지 않는다 — 값이 없으면 null.
+     */
+    fun fromOnboarding(range: RangeReport, measuredAt: Long = System.currentTimeMillis()): UserStore.VoiceProfile? {
+        val low = range.lowMidi ?: return null
+        val high = range.highMidi ?: return null
+        if (high <= low) return null
+        val stable = range.stableIntervals.filter { it.size == 2 && it[0] <= it[1] }.map { it[0]..it[1] }
+            .ifEmpty { runs(range.notes.filter { it.status in CONFIRMED }.map { it.midi }) }
+            .maxByOrNull { it.last - it.first }
+        val comfortLow = (stable?.first ?: low).coerceIn(low, high)
+        val comfortHigh = (stable?.last ?: high).coerceIn(comfortLow, high)
+        val labelsMidi = (0 until STABILITY_POINTS).map { i -> low + ((high - low) * i.toDouble() / (STABILITY_POINTS - 1)).roundToInt() }
+        return UserStore.VoiceProfile(
+            lowMidi = low, highMidi = high,
+            comfortLow = comfortLow, comfortHigh = comfortHigh,
+            recommendLow = comfortLow, recommendHigh = comfortHigh,
+            stability = labelsMidi.map { stabilityAt(it, low, high, comfortLow, comfortHigh) },
+            stabilityLabels = labelsMidi.map(ScoringMath::midiName),
+            measuredAt = measuredAt,
+        )
+    }
+
+    /** 반음 단위로 이어진 음들을 구간으로 묶는다. */
+    private fun runs(notes: List<Int>): List<IntRange> {
+        val result = mutableListOf<IntRange>()
+        notes.distinct().sorted().forEach { midi ->
+            if (result.lastOrNull()?.last == midi - 1) result[result.lastIndex] = result.last().first..midi else result.add(midi..midi)
+        }
+        return result
+    }
+
+    private val CONFIRMED = setOf("passed", "reconfirmed")
     private const val STABILITY_POINTS = 8
 }
