@@ -19,7 +19,7 @@ public record VoiceAnalysisUploadRequest(
         @Schema(description = "분석 방식. SONG은 추천용 음색 분석이며 고음질 녹음 조건을 적용합니다.")
         @NotNull VoiceAnalysisMethod method,
         @Schema(description = "내부 숫자형 곡 ID. SONG 방식에서는 필수입니다.", example = "21")
-        Long songId,
+        String songId,
         @Schema(description = "녹음 가이드 또는 전처리 계약 버전", example = "v4")
         @NotBlank @Size(max = 50) String guideVersion,
         @Schema(description = "기기에서 녹음을 완료한 시각")

@@ -23,6 +23,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,8 +47,8 @@ class RecommendationQueryApiIntegrationTest {
     void returnsOwnedRecommendationInShelfAndPositionOrder() throws Exception {
         User user = user("query-owner@micon.com");
         Recommendation recommendation = recommendation(user, "query-job");
-        long songOne = song("첫 곡");
-        long songTwo = song("둘째 곡");
+        String songOne = song("첫 곡");
+        String songTwo = song("둘째 곡");
         complete(recommendation, songOne, songTwo);
 
         mockMvc.perform(get("/recommendations/{id}", recommendation.getId()).with(auth(user)))
@@ -66,7 +67,7 @@ class RecommendationQueryApiIntegrationTest {
         User user = user("query-latest@micon.com");
         recommendation(user, "older-job");
         Recommendation latest = recommendation(user, "latest-job");
-        long songId = song("상세 곡");
+        String songId = song("상세 곡");
         complete(latest, songId);
 
         mockMvc.perform(get("/recommendations/latest").with(auth(user)))
@@ -112,12 +113,14 @@ class RecommendationQueryApiIntegrationTest {
         return recommendations.saveAndFlush(recommendation);
     }
 
-    private long song(String title) {
-        jdbc.update("INSERT INTO song (title, status, practice_ready) VALUES (?, 'ACTIVE', TRUE)", title);
-        return jdbc.queryForObject("SELECT MAX(song_id) FROM song", Long.class);
+    private String song(String title) {
+        String songId = "query-" + UUID.randomUUID();
+        jdbc.update("INSERT INTO song (song_id, title, status, practice_ready) VALUES (?, ?, 'ACTIVE', TRUE)",
+                songId, title);
+        return songId;
     }
 
-    private void complete(Recommendation recommendation, long... songIds) throws Exception {
+    private void complete(Recommendation recommendation, String... songIds) throws Exception {
         var rangeFit = json.readTree("{\"score\":0.91,\"keyShift\":-1}");
         List<RecommendationResultGateway.Item> items = java.util.stream.IntStream.range(0, songIds.length)
                 .mapToObj(index -> new RecommendationResultGateway.Item(

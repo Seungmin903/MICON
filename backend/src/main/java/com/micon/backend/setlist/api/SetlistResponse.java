@@ -29,7 +29,7 @@ public final class SetlistResponse {
 	}
 
 	public record SongItem(
-		Long songId,
+		String songId,
 		String title,
 		List<String> artists,
 		String imageUrl,

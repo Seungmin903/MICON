@@ -34,11 +34,14 @@ class SongQueryRepositoryTest {
 		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0);
 
 		assertThat(repository.count("아이유")).isEqualTo(1);
+		assertThat(repository.findTrackIds(List.of("tj-00281")))
+			.containsEntry("tj-00281", "spotify-track-good-day");
 		assertThat(songs).singleElement().satisfies(song -> {
-			assertThat(song.songId()).isEqualTo(1L);
+			assertThat(song.songId()).isEqualTo("tj-00281");
 			assertThat(song.title()).isEqualTo("좋은 날");
 			assertThat(song.artists()).containsExactly("아이유");
-			assertThat(song.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
+			assertThat(song.imageUrl()).isNull();
+			assertThat(song.imageSourceUrl()).isNull();
 			assertThat(song.durationMs()).isEqualTo(233_000L);
 		});
 	}
@@ -54,15 +57,15 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void readsDetailFromProvidedSongTables() {
-		SongQueryRepository.SongDetailRow detail = repository.findDetail(1L).orElseThrow();
+		SongQueryRepository.SongDetailRow detail = repository.findDetail("tj-00281").orElseThrow();
 
 		assertThat(detail.originalKey()).isEqualTo("A♭ Major");
 		assertThat(detail.bpm()).isEqualByComparingTo("128.500");
 		assertThat(detail.practiceReady()).isTrue();
-		assertThat(repository.findArtists(1L)).containsExactly("아이유");
-		assertThat(repository.findGenres(1L)).containsExactly("K-POP", "발라드");
-		assertThat(repository.isFavorite(1L, 30L)).isTrue();
-		assertThat(repository.isFavorite(2L, 30L)).isFalse();
+		assertThat(repository.findArtists("tj-00281")).containsExactly("아이유");
+		assertThat(repository.findGenres("tj-00281")).containsExactly("K-POP", "발라드");
+		assertThat(repository.isFavorite("tj-00281", 30L)).isTrue();
+		assertThat(repository.isFavorite("tj-00999", 30L)).isFalse();
 	}
 
 	private void dropTables() {
@@ -72,14 +75,15 @@ class SongQueryRepositoryTest {
 	private void createTables() {
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG (
-			  song_id BIGINT PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT,
+			  song_id VARCHAR(64) PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT,
 			  practice_ready BOOLEAN
 			)
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_METADATA (
-			  song_id BIGINT PRIMARY KEY, tj_number VARCHAR(20), album_name VARCHAR(255),
-			  display_image_url VARCHAR(2048), release_date DATE, lyrics_synced CLOB
+			  song_id VARCHAR(64) PRIMARY KEY, tj_number VARCHAR(20), album_name VARCHAR(255),
+			  track_id VARCHAR(100), display_image_url VARCHAR(2048), image_type VARCHAR(30), source_url VARCHAR(2048),
+			  release_date DATE, lyrics_synced CLOB
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -89,7 +93,7 @@ class SongQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_SINGER (
-			  singer_id BIGINT, song_id BIGINT, display_order INT
+			  singer_id BIGINT, song_id VARCHAR(64), display_order INT
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -99,12 +103,12 @@ class SongQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_GENRE (
-			  song_id BIGINT, genre_id BIGINT, is_primary BOOLEAN
+			  song_id VARCHAR(64), genre_id BIGINT, is_primary BOOLEAN
 			)
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_ANALYSIS (
-			  analysis_id BIGINT PRIMARY KEY, song_id BIGINT, status VARCHAR(20),
+			  analysis_id BIGINT PRIMARY KEY, song_id VARCHAR(64), status VARCHAR(20),
 			  key_name VARCHAR(30), tempo_bpm DECIMAL(7,3), lowest_midi DECIMAL(6,2),
 			  highest_midi DECIMAL(6,2), analyzed_at TIMESTAMP
 			)
@@ -116,36 +120,36 @@ class SongQueryRepositoryTest {
 			""");
 		jdbcTemplate.execute("""
 			CREATE TABLE SONG_MEDIA (
-			  media_id BIGINT PRIMARY KEY, song_id BIGINT, kind VARCHAR(30),
+			  media_id BIGINT PRIMARY KEY, song_id VARCHAR(64), kind VARCHAR(30),
 			  generation_status VARCHAR(20), semitones INT
 			)
 			""");
-		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id BIGINT, prefer_key BIGINT)");
+		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id VARCHAR(64), prefer_key BIGINT)");
 	}
 
 	private void insertFixtures() {
-		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000, FALSE)");
-		jdbcTemplate.update("INSERT INTO SONG VALUES (2, '밤편지', 253000, FALSE)");
+		jdbcTemplate.update("INSERT INTO SONG VALUES ('tj-00281', '좋은 날', 233000, FALSE)");
+		jdbcTemplate.update("INSERT INTO SONG VALUES ('tj-00999', '밤편지', 253000, FALSE)");
 		jdbcTemplate.update("""
-			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, display_image_url, release_date, lyrics_synced)
-			VALUES (1, '33791', 'REAL', 'https://example.com/good-day.jpg', DATE '2010-12-09', '[00:01.00]첫 소절')
+			INSERT INTO SONG_METADATA(song_id, tj_number, album_name, track_id, display_image_url, release_date, lyrics_synced)
+			VALUES ('tj-00281', '33791', 'REAL', 'spotify-track-good-day', 'https://example.com/good-day.jpg', DATE '2010-12-09', '[00:01.00]첫 소절')
 			""");
-		jdbcTemplate.update("INSERT INTO SONG_METADATA(song_id, tj_number) VALUES (2, '49818')");
+		jdbcTemplate.update("INSERT INTO SONG_METADATA(song_id, tj_number) VALUES ('tj-00999', '49818')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (10, '아이유')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (11, '검정치마')");
-		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (10, 1, 1)");
-		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (11, 2, 1)");
+		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (10, 'tj-00281', 1)");
+		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (11, 'tj-00999', 1)");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (20, 'K-POP')");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (21, '발라드')");
-		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES (1, 20, TRUE)");
-		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES (1, 21, FALSE)");
+		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 20, TRUE)");
+		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 21, FALSE)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
-			(100, 1, 'COMPLETED', 'A♭ Major', 128.500, 56.00, 81.00, TIMESTAMP '2026-09-01 10:00:00'),
-			(101, 1, 'FAILED', 'C Major', 100.000, 50.00, 70.00, TIMESTAMP '2026-09-02 10:00:00')
+			(100, 'tj-00281', 'COMPLETED', 'A♭ Major', 128.500, 56.00, 81.00, TIMESTAMP '2026-09-01 10:00:00'),
+			(101, 'tj-00281', 'FAILED', 'C Major', 100.000, 50.00, 70.00, TIMESTAMP '2026-09-02 10:00:00')
 			""");
 		jdbcTemplate.update("INSERT INTO SONG_NOTE VALUES (200, 100, '[{\"startMs\":1000}]')");
-		jdbcTemplate.update("INSERT INTO SONG_MEDIA VALUES (300, 1, 'INSTRUMENTAL', 'READY', 0)");
-		jdbcTemplate.update("INSERT INTO FAVORITE_SONG VALUES (30, 1, 0)");
+		jdbcTemplate.update("INSERT INTO SONG_MEDIA VALUES (300, 'tj-00281', 'INSTRUMENTAL', 'READY', 0)");
+		jdbcTemplate.update("INSERT INTO FAVORITE_SONG VALUES (30, 'tj-00281', 0)");
 	}
 }

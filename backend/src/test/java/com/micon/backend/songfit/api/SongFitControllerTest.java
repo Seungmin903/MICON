@@ -39,9 +39,9 @@ class SongFitControllerTest {
 			new BigDecimal("55"), new BigDecimal("75"), new BigDecimal("100.00")
 		);
 		SongFitResponse response = new SongFitResponse(
-			10L, 20L, 5, "AVAILABLE", fit, fit, -2, null, null, List.of(), null
+			"10", 20L, 5, "AVAILABLE", fit, fit, -2, null, null, List.of(), null
 		);
-		when(songFitService.getSongFit(7L, 10L, 20L, 5)).thenReturn(response);
+		when(songFitService.getSongFit(7L, "10", 20L, 5)).thenReturn(response);
 
 		mockMvc.perform(get("/songs/10/fit")
 				.param("analysisId", "20")

@@ -4,6 +4,8 @@ import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.song.service.SongService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.security.Principal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,7 +40,7 @@ public class SongController {
 	@GetMapping("/{songId}")
 	// 기능: getSong 요청을 검증하고 서비스 처리 결과를 HTTP 응답으로 반환한다.
 	public ApiResponse<SongResponse.Detail> getSong(
-		@PathVariable @Min(1) Long songId,
+		@PathVariable @NotBlank @Size(max = 64) String songId,
 		Principal principal
 	) {
 		Long userId = principal == null ? null : Long.valueOf(principal.getName());

@@ -6,6 +6,8 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.setlist.service.SetlistService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,7 +90,7 @@ public class SetlistController {
 	// 기능: addSong 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> addSong(
 		@PathVariable @Min(1) Long setlistId,
-		@PathVariable @Min(1) Long songId,
+		@PathVariable @NotBlank @Size(max = 64) String songId,
 		@AuthenticationPrincipal Jwt jwt
 	) {
 		return ResponseEntity.ok(ApiResponse.success(
@@ -100,7 +102,7 @@ public class SetlistController {
 	// 기능: removeSong 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<SetlistResponse.Detail>> removeSong(
 		@PathVariable @Min(1) Long setlistId,
-		@PathVariable @Min(1) Long songId,
+		@PathVariable @NotBlank @Size(max = 64) String songId,
 		@AuthenticationPrincipal Jwt jwt
 	) {
 		return ResponseEntity.ok(ApiResponse.success(

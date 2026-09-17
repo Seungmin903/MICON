@@ -39,12 +39,12 @@ class HomepageControllerTest {
 	@Test
 	void rendersSongsFromTheCatalogService() throws Exception {
 		SongResponse.Summary song = new SongResponse.Summary(
-			1L, "좋은 날", List.of("아이유"), "https://example.com/cover.jpg", 233_000L
+			"1", "좋은 날", List.of("아이유"), "https://example.com/cover.jpg", 233_000L
 		);
 		when(songService.search("아이유", 1, 30))
 			.thenReturn(PageResponse.of(List.of(song), 1, 30, 61));
-		when(homepageSongRepository.findStatuses(List.of(1L))).thenReturn(Map.of(
-			1L, new HomepageSongStatus(1L, false, true, true, true, true, true, true)
+		when(homepageSongRepository.findStatuses(List.of("1"))).thenReturn(Map.of(
+			"1", new HomepageSongStatus("1", false, true, true, true, true, true, true)
 		));
 
 		mockMvc.perform(get("/homepage/songs").param("query", "아이유").param("page", "1"))
@@ -57,14 +57,14 @@ class HomepageControllerTest {
 			.andExpect(model().attributeExists("songs"));
 
 		verify(songService).search("아이유", 1, 30);
-		verify(homepageSongRepository).findStatuses(List.of(1L));
+		verify(homepageSongRepository).findStatuses(List.of("1"));
 	}
 
 	@Test
 	void formatsSongValuesForTheView() {
 		HomepageSongView view = HomepageSongView.from(
-			new SongResponse.Summary(1L, "좋은 날", List.of("아이유", "피처링"), null, 233_000L),
-			new HomepageSongStatus(1L, false, true, true, true, true, true, true)
+			new SongResponse.Summary("1", "좋은 날", List.of("아이유", "피처링"), null, 233_000L),
+			new HomepageSongStatus("1", false, true, true, true, true, true, true)
 		);
 
 		assertThat(view.artists()).isEqualTo("아이유, 피처링");

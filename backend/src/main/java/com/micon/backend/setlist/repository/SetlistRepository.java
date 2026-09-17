@@ -116,12 +116,12 @@ public class SetlistRepository {
 	}
 
 	// 기능: songExists에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
-	public boolean songExists(Long songId) {
+	public boolean songExists(String songId) {
 		return count("SELECT COUNT(*) FROM song WHERE song_id = :songId", Map.of("songId", songId)) > 0;
 	}
 
 	// 기능: isFavorite 조건으로 데이터베이스를 조회한다.
-	public boolean isFavorite(long userId, Long songId) {
+	public boolean isFavorite(long userId, String songId) {
 		return count(
 			"SELECT COUNT(*) FROM favorite_song WHERE user_id = :userId AND song_id = :songId",
 			Map.of("userId", userId, "songId", songId)
@@ -129,7 +129,7 @@ public class SetlistRepository {
 	}
 
 	// 기능: containsSong에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
-	public boolean containsSong(Long setlistId, Long songId) {
+	public boolean containsSong(Long setlistId, String songId) {
 		return count(
 			"SELECT COUNT(*) FROM setlist_item WHERE setlist_id = :setlistId AND song_id = :songId",
 			Map.of("setlistId", setlistId, "songId", songId)
@@ -137,7 +137,7 @@ public class SetlistRepository {
 	}
 
 	// 기능: addSong 데이터를 데이터베이스에 저장한다.
-	public void addSong(Long setlistId, Long songId) {
+	public void addSong(Long setlistId, String songId) {
 		if (containsSong(setlistId, songId)) {
 			return;
 		}
@@ -166,7 +166,7 @@ public class SetlistRepository {
 	}
 
 	// 기능: removeSong 대상 데이터를 데이터베이스에서 삭제한다.
-	public void removeSong(Long setlistId, Long songId) {
+	public void removeSong(Long setlistId, String songId) {
 		int removed = jdbcTemplate.update(
 			"DELETE FROM setlist_item WHERE setlist_id = :setlistId AND song_id = :songId",
 			Map.of("setlistId", setlistId, "songId", songId)
@@ -178,7 +178,7 @@ public class SetlistRepository {
 	}
 
 	// 기능: reorderSongs 대상 데이터를 데이터베이스에서 변경한다.
-	public void reorderSongs(Long setlistId, List<Long> songIds) {
+	public void reorderSongs(Long setlistId, List<String> songIds) {
 		for (int index = 0; index < songIds.size(); index++) {
 			jdbcTemplate.update(
 				"UPDATE setlist_item SET position_no = :position "
@@ -190,11 +190,11 @@ public class SetlistRepository {
 	}
 
 	// 기능: findSongIds 조건으로 데이터베이스를 조회한다.
-	public List<Long> findSongIds(Long setlistId) {
+	public List<String> findSongIds(Long setlistId) {
 		return jdbcTemplate.queryForList(
 			"SELECT song_id FROM setlist_item WHERE setlist_id = :setlistId ORDER BY position_no, setlist_item_id",
 			Map.of("setlistId", setlistId),
-			Long.class
+			String.class
 		);
 	}
 
@@ -210,12 +210,12 @@ public class SetlistRepository {
 			""";
 		List<SetlistSongRow> rows = jdbcTemplate.query(sql, Map.of("setlistId", setlistId), (resultSet, rowNumber) ->
 			new SetlistSongRow(
-				resultSet.getLong("song_id"), resultSet.getString("title"),
+				resultSet.getString("song_id"), resultSet.getString("title"),
 				resultSet.getString("display_image_url"), resultSet.getObject("duration_ms", Long.class),
 				resultSet.getInt("position_no")
 			)
 		);
-		Map<Long, List<String>> artists = findArtists(rows.stream().map(SetlistSongRow::songId).toList());
+		Map<String, List<String>> artists = findArtists(rows.stream().map(SetlistSongRow::songId).toList());
 		return rows.stream().map(row -> new SetlistResponse.SongItem(
 			row.songId(), row.title(), artists.getOrDefault(row.songId(), List.of()),
 			row.imageUrl(), row.durationMs(), row.position()
@@ -224,7 +224,7 @@ public class SetlistRepository {
 
 	// 기능: normalizePositions에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	private void normalizePositions(Long setlistId) {
-		List<Long> songIds = findSongIds(setlistId);
+		List<String> songIds = findSongIds(setlistId);
 		for (int index = 0; index < songIds.size(); index++) {
 			jdbcTemplate.update(
 				"UPDATE setlist_item SET position_no = :position WHERE setlist_id = :setlistId AND song_id = :songId",
@@ -248,7 +248,7 @@ public class SetlistRepository {
 	}
 
 	// 기능: findArtists 조건으로 데이터베이스를 조회한다.
-	private Map<Long, List<String>> findArtists(List<Long> songIds) {
+	private Map<String, List<String>> findArtists(List<String> songIds) {
 		if (songIds.isEmpty()) {
 			return Collections.emptyMap();
 		}
@@ -259,9 +259,9 @@ public class SetlistRepository {
 			WHERE ss.song_id IN (:songIds)
 			ORDER BY ss.song_id, ss.display_order, si.singer_id
 			""";
-		Map<Long, List<String>> artists = new LinkedHashMap<>();
+		Map<String, List<String>> artists = new LinkedHashMap<>();
 		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {
-			artists.computeIfAbsent(resultSet.getLong("song_id"), ignored -> new ArrayList<>())
+			artists.computeIfAbsent(resultSet.getString("song_id"), ignored -> new ArrayList<>())
 				.add(resultSet.getString("name"));
 		});
 		return artists;
@@ -281,7 +281,7 @@ public class SetlistRepository {
 	}
 
 	private record SetlistSongRow(
-		Long songId, String title, String imageUrl, Long durationMs, int position
+		String songId, String title, String imageUrl, Long durationMs, int position
 	) {
 	}
 }

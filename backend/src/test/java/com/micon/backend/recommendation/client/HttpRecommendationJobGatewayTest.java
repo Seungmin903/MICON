@@ -74,7 +74,7 @@ class HttpRecommendationJobGatewayTest {
     private RecommendationInput input() {
         return new RecommendationInput(
                 10L,
-                30L,
+                "30",
                 new RecommendationInput.VoiceProfile(
                         null, null, null, "{\"bins\":[]}", null, "맑은 음색",
                         "{\"bright\":0.8}", null,

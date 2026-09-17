@@ -34,9 +34,9 @@ class HomepageSongRepositoryTest {
 		jdbcTemplate.update("INSERT INTO song_note VALUES (20, 10, '[{}]')");
 		jdbcTemplate.update("INSERT INTO song_media VALUES (30, 1, 'INSTRUMENTAL', 0, 'READY')");
 
-		Map<Long, HomepageSongStatus> statuses = repository.findStatuses(List.of(1L, 2L));
+		Map<String, HomepageSongStatus> statuses = repository.findStatuses(List.of("1", "2"));
 
-		assertThat(statuses.get(1L)).satisfies(status -> {
+		assertThat(statuses.get("1")).satisfies(status -> {
 			assertThat(status.storedPracticeReady()).isFalse();
 			assertThat(status.practiceReady()).isTrue();
 			assertThat(status.lyricsPlainReady()).isTrue();
@@ -45,15 +45,15 @@ class HomepageSongRepositoryTest {
 			assertThat(status.targetNotesReady()).isTrue();
 			assertThat(status.originalInstrumentalReady()).isTrue();
 		});
-		assertThat(statuses.get(2L).storedPracticeReady()).isTrue();
-		assertThat(statuses.get(2L).practiceReady()).isFalse();
+		assertThat(statuses.get("2").storedPracticeReady()).isTrue();
+		assertThat(statuses.get("2").practiceReady()).isFalse();
 	}
 
 	private void createTables() {
-		jdbcTemplate.execute("CREATE TABLE song (song_id BIGINT PRIMARY KEY, practice_ready BOOLEAN)");
-		jdbcTemplate.execute("CREATE TABLE song_metadata (song_id BIGINT PRIMARY KEY, lyrics_plain CLOB, lyrics_synced CLOB)");
-		jdbcTemplate.execute("CREATE TABLE song_analysis (analysis_id BIGINT PRIMARY KEY, song_id BIGINT, status VARCHAR(20), analyzed_at TIMESTAMP)");
+		jdbcTemplate.execute("CREATE TABLE song (song_id VARCHAR(64) PRIMARY KEY, practice_ready BOOLEAN)");
+		jdbcTemplate.execute("CREATE TABLE song_metadata (song_id VARCHAR(64) PRIMARY KEY, lyrics_plain CLOB, lyrics_synced CLOB)");
+		jdbcTemplate.execute("CREATE TABLE song_analysis (analysis_id BIGINT PRIMARY KEY, song_id VARCHAR(64), status VARCHAR(20), analyzed_at TIMESTAMP)");
 		jdbcTemplate.execute("CREATE TABLE song_note (song_note_id BIGINT PRIMARY KEY, analysis_id BIGINT, karaoke_notes CLOB)");
-		jdbcTemplate.execute("CREATE TABLE song_media (media_id BIGINT PRIMARY KEY, song_id BIGINT, kind VARCHAR(30), semitones INT, generation_status VARCHAR(20))");
+		jdbcTemplate.execute("CREATE TABLE song_media (media_id BIGINT PRIMARY KEY, song_id VARCHAR(64), kind VARCHAR(30), semitones INT, generation_status VARCHAR(20))");
 	}
 }

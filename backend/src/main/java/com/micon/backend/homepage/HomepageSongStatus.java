@@ -2,7 +2,7 @@ package com.micon.backend.homepage;
 
 /** 곡별 연습 데이터 구성요소와 최종 연습 가능 여부를 나타낸다. */
 public record HomepageSongStatus(
-	Long songId,
+	String songId,
 	boolean storedPracticeReady,
 	boolean practiceReady,
 	boolean lyricsPlainReady,
@@ -12,7 +12,7 @@ public record HomepageSongStatus(
 	boolean originalInstrumentalReady
 ) {
 
-	public static HomepageSongStatus missing(Long songId) {
+	public static HomepageSongStatus missing(String songId) {
 		return new HomepageSongStatus(songId, false, false, false, false, false, false, false);
 	}
 }

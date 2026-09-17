@@ -52,24 +52,24 @@ class PracticeAssetServiceTest {
 
 	@Test
 	void returnsOnlyReadyAssetsForSelectedKey() {
-		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "\"[00:00.00] 가사\"", 20L, "analysis-v1",
+		when(repository.findSong("10")).thenReturn(Optional.of(
+			new SongAssetRow("10", "연습곡", true, "가사", "\"[00:00.00] 가사\"", 20L, "analysis-v1",
 				"G minor", new BigDecimal("134.0"), "4/4", "{\"beatTimes\":[0.45],\"offsetBeats\":1.0}")
 		));
-		when(repository.findInstrumental(10L, -2)).thenReturn(Optional.of(
+		when(repository.findInstrumental("10", -2)).thenReturn(Optional.of(
 			new MediaRow(30L, "/songs/10/-2.mp3", "audio/mpeg", 1234L, "hash")
 		));
 		when(repository.findNotes(20L)).thenReturn(Optional.of(
 			new NoteRow("[{\"startMs\":0,\"midi\":60}]", "notes-v2")
 		));
-		when(repository.findSections(10L, 20L)).thenReturn(List.of(
+		when(repository.findSections("10", 20L)).thenReturn(List.of(
 			new com.micon.backend.practice.api.PracticeAssetResponse.Section(
 				40L, "CHORUS", "후렴", 1000, 2000, 1, "HIGH_NOTE",
 				new BigDecimal("80.00"), new BigDecimal("0.95"), "고음 구간"
 			)
 		));
 
-		var response = service.get(10L, -2);
+		var response = service.get("10", -2);
 
 		assertThat(response.selectedKey()).isEqualTo(-2);
 		assertThat(response.instrumental().mediaId()).isEqualTo(30L);
@@ -89,29 +89,29 @@ class PracticeAssetServiceTest {
 
 	@Test
 	void rejectsUnsupportedTransposedKey() {
-		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
+		when(repository.findSong("10")).thenReturn(Optional.of(
+			new SongAssetRow("10", "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
 		));
-		when(repository.findInstrumental(10L, 3)).thenReturn(Optional.empty());
+		when(repository.findInstrumental("10", 3)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.get(10L, 3))
+		assertThatThrownBy(() -> service.get("10", 3))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.UNSUPPORTED_PRACTICE_KEY));
 	}
 
 	@Test
 	void returnsMrBySongIdWithoutRequiringAnalysisAssets() {
-		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", false, null, "\"[00:00.00] 가사\"", null, null,
+		when(repository.findSong("10")).thenReturn(Optional.of(
+			new SongAssetRow("10", "연습곡", false, null, "\"[00:00.00] 가사\"", null, null,
 				null, null, null, null)
 		));
-		when(repository.findInstrumental(10L, 0)).thenReturn(Optional.of(
+		when(repository.findInstrumental("10", 0)).thenReturn(Optional.of(
 			new MediaRow(30L, "/songs/10/original.mp3", "audio/mpeg", 1234L, "hash")
 		));
 
-		var response = service.getMr(10L, 0);
+		var response = service.getMr("10", 0);
 
-		assertThat(response.songId()).isEqualTo(10L);
+		assertThat(response.songId()).isEqualTo("10");
 		assertThat(response.selectedKey()).isZero();
 		assertThat(response.instrumental().mediaId()).isEqualTo(30L);
 		assertThat(response.instrumental().playbackUrl()).isEqualTo("https://storage.test/instrumental");
@@ -122,25 +122,25 @@ class PracticeAssetServiceTest {
 
 	@Test
 	void rejectsSongWithoutCompletedPracticeData() {
-		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", false, null, null, null, null, null, null, null, null)
+		when(repository.findSong("10")).thenReturn(Optional.of(
+			new SongAssetRow("10", "연습곡", false, null, null, null, null, null, null, null, null)
 		));
 
-		assertThatThrownBy(() -> service.get(10L, 0))
+		assertThatThrownBy(() -> service.get("10", 0))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PRACTICE_ASSET_NOT_READY));
 	}
 
 	@Test
 	void guideContainsOnlyStoredDifficultySections() {
-		when(repository.findSong(10L)).thenReturn(Optional.of(
-			new SongAssetRow(10L, "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
+		when(repository.findSong("10")).thenReturn(Optional.of(
+			new SongAssetRow("10", "연습곡", true, "가사", "[]", 20L, "v1", null, null, null, null)
 		));
-		when(repository.findInstrumental(10L, 0)).thenReturn(Optional.of(
+		when(repository.findInstrumental("10", 0)).thenReturn(Optional.of(
 			new MediaRow(30L, "/songs/10/original.mp3", "audio/mpeg", null, null)
 		));
 		when(repository.findNotes(20L)).thenReturn(Optional.of(new NoteRow("[]", "v1")));
-		when(repository.findSections(10L, 20L)).thenReturn(List.of(
+		when(repository.findSections("10", 20L)).thenReturn(List.of(
 			new com.micon.backend.practice.api.PracticeAssetResponse.Section(
 				40L, "VERSE", "1절", 0, 1000, 1, "NONE", null, null, null
 			),
@@ -150,7 +150,7 @@ class PracticeAssetServiceTest {
 			)
 		));
 
-		var guide = service.getGuide(10L, 0);
+		var guide = service.getGuide("10", 0);
 
 		assertThat(guide.difficultySections()).singleElement()
 			.extracting(com.micon.backend.practice.api.PracticeAssetResponse.Section::sectionId)

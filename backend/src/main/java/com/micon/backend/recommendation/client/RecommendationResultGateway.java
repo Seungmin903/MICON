@@ -18,7 +18,7 @@ public interface RecommendationResultGateway {
 
     record Shelf(String key, String title, String metric, List<Item> items) {}
 
-    record Item(int position, Long songId, String axis, String label, BigDecimal timbreScore,
+    record Item(int position, String songId, String axis, String label, BigDecimal timbreScore,
                 JsonNode rangeFit, Short recommendedKey, BigDecimal finalScore, JsonNode metrics,
                 String scoringVersion, String compositionVersion) {}
 }

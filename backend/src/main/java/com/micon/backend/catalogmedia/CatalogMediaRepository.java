@@ -14,14 +14,14 @@ public class CatalogMediaRepository {
         this.jdbc = jdbc;
     }
 
-    public boolean songExists(long songId) {
+    public boolean songExists(String songId) {
         Long count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM song WHERE song_id=:songId",
                 Map.of("songId", songId), Long.class);
         return count != null && count > 0;
     }
 
-    public Optional<VocalStemRow> findReadyVocalStem(long songId) {
+    public Optional<VocalStemRow> findReadyVocalStem(String songId) {
         return jdbc.query("""
                 SELECT smedia.media_id, smedia.song_id, metadata.catalog_track_id,
                        smedia.file_path, smedia.mime_type, smedia.file_bytes, smedia.sha256
@@ -34,7 +34,7 @@ public class CatalogMediaRepository {
                 LIMIT 1
                 """, Map.of("songId", songId), (row, number) -> new VocalStemRow(
                 row.getLong("media_id"),
-                row.getLong("song_id"),
+                row.getString("song_id"),
                 row.getString("catalog_track_id"),
                 row.getString("file_path"),
                 row.getString("mime_type"),
@@ -43,7 +43,7 @@ public class CatalogMediaRepository {
         )).stream().findFirst();
     }
 
-    public record VocalStemRow(long mediaId, long songId, String catalogTrackId, String objectKey,
+    public record VocalStemRow(long mediaId, String songId, String catalogTrackId, String objectKey,
                                String mimeType, Long fileBytes, String sha256) {
     }
 }

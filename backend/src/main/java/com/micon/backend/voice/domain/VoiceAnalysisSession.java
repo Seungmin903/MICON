@@ -11,7 +11,7 @@ public class VoiceAnalysisSession {
     @Column(name = "session_id") private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false) private User user;
-    @Column(name = "song_id") private Long songId;
+    @Column(name = "song_id") private String songId;
     @Column(nullable = false, length = 30) private String status;
     @Column(name = "range_status", nullable = false, length = 30) private String rangeStatus;
     @Column(name = "timbre_status", nullable = false, length = 30) private String timbreStatus;
@@ -25,7 +25,7 @@ public class VoiceAnalysisSession {
     @Column(name = "updated_at", nullable = false) private LocalDateTime updatedAt;
 
     protected VoiceAnalysisSession() {}
-    public VoiceAnalysisSession(User user, Long songId, LocalDateTime expiresAt) {
+    public VoiceAnalysisSession(User user, String songId, LocalDateTime expiresAt) {
         if (user == null || expiresAt == null) throw new IllegalArgumentException("user and expiresAt are required");
         this.user = user; this.songId = songId; this.status = "CREATED";
         this.rangeStatus = "PENDING"; this.timbreStatus = "PENDING";
@@ -34,7 +34,7 @@ public class VoiceAnalysisSession {
     }
     public Long getId() { return id; }
     public User getUser() { return user; }
-    public Long getSongId() { return songId; }
+    public String getSongId() { return songId; }
     public String getStatus() { return status; }
     public String getRangeStatus() { return rangeStatus; }
     public String getTimbreStatus() { return timbreStatus; }

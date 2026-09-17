@@ -2,7 +2,8 @@ package com.micon.backend.catalogmedia;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.voice.application.AiServiceTokenValidator;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -26,7 +27,7 @@ public class CatalogMediaController {
     @GetMapping("/internal/catalog-media/vocal-stems/{songId}")
     public ResponseEntity<ApiResponse<CatalogMediaResponse>> vocalStem(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable @Min(1) long songId) {
+            @PathVariable @NotBlank @Size(max = 64) String songId) {
         tokens.validate(authorization);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(ApiResponse.success(media.vocalStem(songId)));

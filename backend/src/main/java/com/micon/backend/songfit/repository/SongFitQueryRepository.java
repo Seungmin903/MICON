@@ -19,7 +19,7 @@ public class SongFitQueryRepository {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
-	public boolean songExists(Long songId) {
+	public boolean songExists(String songId) {
 		Long count = jdbcTemplate.queryForObject(
 			"SELECT COUNT(*) FROM song WHERE song_id = :songId",
 			Map.of("songId", songId),
@@ -48,7 +48,7 @@ public class SongFitQueryRepository {
 		).stream().findFirst();
 	}
 
-	public Optional<SongRangeRow> findLatestSongRange(Long songId) {
+	public Optional<SongRangeRow> findLatestSongRange(String songId) {
 		String sql = """
 			SELECT analysis_id, lowest_midi, highest_midi
 			FROM song_analysis
@@ -67,7 +67,7 @@ public class SongFitQueryRepository {
 		).stream().findFirst();
 	}
 
-	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, Long songId) {
+	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, String songId) {
 		String sql = """
 			SELECT rs.recommended_key, rs.overall_score, rs.range_fit_score,
 			       rs.timbre_fit_score, rs.rhythm_fit_score, rs.reason_text,
@@ -96,7 +96,7 @@ public class SongFitQueryRepository {
 		).stream().findFirst();
 	}
 
-	public List<BurdenSection> findBurdenSections(Long songId, Long songAnalysisId) {
+	public List<BurdenSection> findBurdenSections(String songId, Long songAnalysisId) {
 		String sql = """
 			SELECT section_id, section_type, section_name, start_ms, end_ms,
 			       difficulty_type, difficulty_score, description

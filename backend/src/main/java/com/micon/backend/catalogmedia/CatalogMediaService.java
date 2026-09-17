@@ -25,7 +25,7 @@ public class CatalogMediaService {
     }
 
     @Transactional(readOnly = true)
-    public CatalogMediaResponse vocalStem(long songId) {
+    public CatalogMediaResponse vocalStem(String songId) {
         if (!repository.songExists(songId)) {
             throw new BusinessException(ErrorCode.SONG_NOT_FOUND);
         }

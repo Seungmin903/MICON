@@ -13,7 +13,7 @@ public final class PracticeResultResponse {
 
 	public record Report(
 		Long practiceId,
-		Long songId,
+		String songId,
 		String songTitle,
 		int selectedKey,
 		String practiceScope,
