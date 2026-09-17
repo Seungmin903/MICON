@@ -5,13 +5,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import com.micon.app.ui.charts.GuidedPitchGauge
 import com.micon.app.ui.charts.GuidedRangeKeyboard
 import com.micon.app.ui.charts.WaveformBars
@@ -19,6 +22,7 @@ import com.micon.app.scoring.ScoringMath
 import com.micon.app.range.RangeNote
 import com.micon.app.range.RangeSession
 import com.micon.app.ui.common.PrimaryButton
+import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.theme.*
 
 fun rangeStageLabel(session: RangeSession.View): String = when (session.phase) {
@@ -69,7 +73,36 @@ fun RangeMeasurementPanel(session: RangeSession.View, level: Float, notes: List<
 }
 
 @Composable
-fun RangeAdvanceButton(session: RangeSession.View, onNext: (String?) -> Unit, modifier: Modifier = Modifier) {
-    if (session.targetMidi != null) PrimaryButton(if (session.canResetAnchor) "시작음 다시 찾기" else "넘어가기",
-        { onNext(session.visitId) }, modifier)
+fun RangeAdvanceButton(session: RangeSession.View, onNext: (String?) -> Unit, modifier: Modifier = Modifier,
+    height: Dp = 56.dp,
+) {
+    if (session.targetMidi != null) PrimaryButton(if (session.canResetAnchor) "시작음 다시 찾기" else "이 음 패스하기",
+        { onNext(session.visitId) }, modifier, height = height)
+}
+
+@Composable
+fun RangePassGuide(session: RangeSession.View?) {
+    if (session?.targetMidi != null && !session.canResetAnchor) {
+        Text("소리 내기 어려운 음은 패스할 수 있어요.", color = Grey, fontSize = 13.sp,
+            modifier = Modifier.testTag("range-pass-guide"))
+    }
+}
+
+@Composable
+fun RangeMeasurementActions(session: RangeSession.View?, onFinish: () -> Unit, onNext: (String?) -> Unit) {
+    val density = LocalDensity.current
+    val actionHeight = if (density.fontScale > 1.3f) with(density) { 60.sp.toDp() } else 56.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 320.dp || density.fontScale > 1.3f) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinePurpleButton("여기까지 측정하기", onFinish, Modifier.fillMaxWidth(), height = actionHeight)
+                if (session != null) RangeAdvanceButton(session, onNext, Modifier.fillMaxWidth(), height = actionHeight)
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinePurpleButton("여기까지 측정하기", onFinish, Modifier.weight(1f))
+                if (session != null) RangeAdvanceButton(session, onNext, Modifier.weight(1f))
+            }
+        }
+    }
 }

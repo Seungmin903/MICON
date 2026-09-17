@@ -116,14 +116,15 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
         }
         if (state.running) {
             Surface(shadowElevation = 6.dp) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val active = state.session
+                    RangePassGuide(active)
                     if (active?.phase == "profile_ready") {
-                        RangeProfileChoiceActions(state.pausedForChoice, { vm.finish("completed") }, vm::continueMeasurement)
-                    } else {
-                        OutlinePurpleButton("여기까지 측정하기", { vm.finish() }, Modifier.weight(1f))
-                        if (active != null) RangeAdvanceButton(active, vm::next, Modifier.weight(1f))
-                    }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            RangeProfileChoiceActions(state.pausedForChoice, { vm.finish("completed") }, vm::continueMeasurement)
+                        }
+                    } else RangeMeasurementActions(active, { vm.finish() }, vm::next)
                 }
             }
         }

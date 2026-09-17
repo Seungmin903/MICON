@@ -45,7 +45,7 @@ class VoiceOnboardingScreenTest {
             VoiceOnboardingResultScreen(VoiceOnboardingState("session", range = range(), recording = audio()), false,
                 {}, {}, {}, {}, {}, {}, {}, {})
         } }
-        compose.onNodeWithText("C3 ~ C5").assertIsDisplayed()
+        compose.onNodeWithText("3옥타브 도 ~ 5옥타브 도").assertIsDisplayed()
         compose.onNodeWithTag("onboarding_service_notice").assertTextContains("준비 중", substring = true)
         compose.onNodeWithText("분석 다시 확인하기").assertDoesNotExist()
         capture("onboarding-partial-top.png")
@@ -91,14 +91,17 @@ class VoiceOnboardingScreenTest {
         compose.runOnIdle { assertTrue(exited) }
     }
 
-    @Test fun queuedAndInsufficientJobsAreDistinctWithoutModelNames() {
+    @Test fun queuedStatusAndRawProgressStayHiddenWhileInsufficientDataIsActionable() {
         val progress = VoiceAnalysisProgress("server", 12, ecapa = ComponentStatus.QUEUED,
-            byol = ComponentStatus.INSUFFICIENT_DATA, sessionStatus = VoiceSessionStatus.PARTIAL_READY)
+            byol = ComponentStatus.INSUFFICIENT_DATA, sessionStatus = VoiceSessionStatus.PARTIAL_READY,
+            message = "접수 준비 중 · 테스트 진행 메시지")
         compose.setContent { MiconTheme {
             VoiceOnboardingResultScreen(VoiceOnboardingState("draft", range = range(), recording = audio(),
                 progress = progress, serviceAvailable = true), false, {}, {}, {}, {}, {}, {}, {}, {})
         } }
-        compose.onNodeWithText("순서 대기 중").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("순서 대기 중").assertDoesNotExist()
+        compose.onNodeWithText("접수 준비 중", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("닮은 목소리 분석").assertDoesNotExist()
         compose.onNodeWithText("목소리 부족 · 다시 녹음").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("ECAPA", substring = true).assertDoesNotExist()
         compose.onNodeWithText("BYOL", substring = true).assertDoesNotExist()

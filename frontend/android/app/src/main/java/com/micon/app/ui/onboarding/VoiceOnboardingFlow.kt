@@ -141,7 +141,6 @@ fun VoiceOnboardingResultScreen(
                         { ReportFitCard(true, state.savedReceipt) }
                     } else null)
             }
-            progress?.message?.let { Text(it, color = Grey) }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
             if (state.busy || state.recovering) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
