@@ -45,7 +45,7 @@ public class SongFitService {
 
 		UserRangeRow userRange = songFitQueryRepository.findUserRange(userId, analysisId)
 			.orElseThrow(() -> new VoiceAnalysisNotFoundException(analysisId));
-		if (!"COMPLETED".equals(userRange.status())
+		if (!"SAVED".equals(userRange.status())
 			|| !isValidRange(userRange.stableLowMidi(), userRange.stableHighMidi())) {
 			return SongFitResponse.unavailable(songId, analysisId, keyOffset, "USER_STABLE_RANGE_UNAVAILABLE");
 		}
