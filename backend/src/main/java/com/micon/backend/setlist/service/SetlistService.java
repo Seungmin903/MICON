@@ -2,7 +2,8 @@ package com.micon.backend.setlist.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.setlist.api.SetlistResponse;
+import com.micon.backend.setlist.dto.SetlistResponse;
+import com.micon.backend.setlist.exception.SetlistNotFoundException;
 import com.micon.backend.setlist.repository.SetlistRepository;
 import com.micon.backend.setlist.repository.SetlistRepository.SetlistRow;
 import com.micon.backend.song.service.SongNotFoundException;

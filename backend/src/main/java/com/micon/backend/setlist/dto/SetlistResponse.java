@@ -1,4 +1,4 @@
-package com.micon.backend.setlist.api;
+package com.micon.backend.setlist.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;

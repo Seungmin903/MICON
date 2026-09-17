@@ -1,4 +1,4 @@
-package com.micon.backend.setlist.api;
+package com.micon.backend.setlist.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

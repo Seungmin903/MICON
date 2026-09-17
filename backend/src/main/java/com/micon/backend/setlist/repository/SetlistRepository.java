@@ -1,6 +1,6 @@
 package com.micon.backend.setlist.repository;
 
-import com.micon.backend.setlist.api.SetlistResponse;
+import com.micon.backend.setlist.dto.SetlistResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;

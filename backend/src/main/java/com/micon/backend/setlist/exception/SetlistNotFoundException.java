@@ -1,4 +1,4 @@
-package com.micon.backend.setlist.service;
+package com.micon.backend.setlist.exception;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
