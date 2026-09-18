@@ -1,9 +1,9 @@
-package com.micon.backend.favorite.api;
+package com.micon.backend.domain.favorite.api;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.favorite.service.FavoriteService;
+import com.micon.backend.domain.favorite.service.FavoriteService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
