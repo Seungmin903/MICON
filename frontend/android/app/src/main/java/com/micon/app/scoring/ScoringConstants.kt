@@ -56,7 +56,10 @@ object ScoringConstants {
     const val RUNWAY_SECONDS_BEHIND = 3.0
     const val FRAME_HOP_SECONDS = 0.02      // 프레임 간격(20 ms) — expected 프레임 수 계산에 사용
 
-    // --- 반주 키 변경 범위 (엔진 /instrumental-key: −6…+5) ---
-    const val KEY_SHIFT_MIN = -6
-    const val KEY_SHIFT_MAX = 5
+    // --- 반주 키 변경 범위 (연습 화면 전용) ---
+    // 반음마다 반주 파일을 만들면 S3·DB 부담이 커서, 원키 반주 하나만 받아 재생기가 실시간으로
+    // 음높이를 옮긴다(InstrumentalPlayer.keyShift). 폭이 커질수록 시프트 알고리즘이 배경을
+    // 뭉개므로 ±3 으로 제한한다.
+    const val KEY_SHIFT_MIN = -3
+    const val KEY_SHIFT_MAX = 3
 }

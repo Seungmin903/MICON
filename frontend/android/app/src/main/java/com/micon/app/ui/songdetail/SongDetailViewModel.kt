@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.micon.app.data.*
 import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
+import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import okhttp3.OkHttpClient
@@ -70,7 +71,7 @@ internal class SongDetailViewModel(
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(loading = false, error = "곡 정보를 불러오지 못했어요.") } }
         }
-        loadAssets(_state.value.selectedKey, initial = _state.value.notes.isEmpty())
+        loadAssets(initial = _state.value.notes.isEmpty())
     }
 
     private fun mergeAssets(detail: SongDetail): SongDetail {
@@ -95,30 +96,38 @@ internal class SongDetailViewModel(
         }
     }
 
+    /**
+     * 키 선택. 반주는 **원키 하나만** 서버에서 받고, 미리듣기·연습 모두 재생기가 실시간으로 음높이를 옮긴다
+     * ([SongPreviewPlayer.keyShift] · `InstrumentalPlayer.keyShift`). 그래서 키를 바꿔도 다시 받지 않고,
+     * 서버에 키별 반주가 있는지도 묻지 않는다. 범위는 연습과 같은 ±3 ([ScoringConstants.KEY_SHIFT_MIN]‥[ScoringConstants.KEY_SHIFT_MAX]).
+     */
     fun selectKey(key: Int) {
-        if (key !in -6..5 || key == _state.value.selectedKey) return
-        loadAssets(key, initial = false)
+        val target = key.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
+        if (target == _state.value.selectedKey) return
+        player?.let { it.pause(); it.keyShift = target }
+        _state.update { it.copy(selectedKey = target, mediaKey = it.mediaKey?.let { _ -> target }, playing = false) }
     }
-    fun retryAssets() = loadAssets(_state.value.selectedKey, initial = _state.value.notes.isEmpty())
+    fun retryAssets() = loadAssets(initial = _state.value.notes.isEmpty())
 
-    private fun loadAssets(key: Int, initial: Boolean) {
+    /** 원키(`selectedKey = 0`) 자산만 요청한다. 키별 반주 파일은 만들지 않는다. */
+    private fun loadAssets(initial: Boolean) {
         keyJob?.cancel()
         releasePreview()
         mediaUrl = null
-        _state.update { it.copy(selectedKey = key, mediaKey = null, assetsError = null, playbackError = null,
+        _state.update { it.copy(mediaKey = null, assetsError = null, playbackError = null,
             assetsLoading = initial, keyLoading = !initial) }
         keyJob = viewModelScope.launch {
             try {
-                val assets = repo.practiceAssets(songId, key)
+                val assets = repo.practiceAssets(songId, 0)
                 ensureActive()
-                check(assets.songId == songId && assets.selectedKey == key)
+                check(assets.songId == songId && assets.selectedKey == 0)
                 // Original-key notes: shift only in the display/scorer, never in this cache.
                 val notes = assets.targetNotes.filter { it.sourceStart.isFinite() && it.sourceEnd.isFinite() &&
                     it.sourceStart >= 0 && it.sourceEnd > it.sourceStart && it.midi in 0..127 }
                 cachedAssets = assets
                 mediaUrl = assets.instrumental.playbackUrl?.takeIf { it.isNotBlank() }
                 _state.update { it.copy(notes = notes, sections = assets.sections,
-                    assetsLoading = false, keyLoading = false, mediaKey = if (mediaUrl != null) key else null,
+                    assetsLoading = false, keyLoading = false, mediaKey = if (mediaUrl != null) it.selectedKey else null,
                     durationSec = maxOf(it.durationSec, notes.maxOfOrNull { n -> n.sourceEnd } ?: 0.0),
                     assetsError = if (mediaUrl == null) "반주가 아직 준비되지 않았어요." else null) }
                 _state.update { it.copy(detail = it.detail?.let(::mergeAssets)) }
@@ -126,8 +135,7 @@ internal class SongDetailViewModel(
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 _state.update { it.copy(assetsLoading = false, keyLoading = false, mediaKey = null, assetsError = when (e) {
-                    is UnsupportedPracticeKeyException -> "${songKeyLabel(key)} 키 반주가 아직 준비되지 않았어요. 원키로 돌아가서 연습할 수 있어요."
-                    is PracticeAssetsNotReadyException -> "이 곡의 반주·음표 데이터가 아직 준비되지 않았어요."
+                    is UnsupportedPracticeKeyException, is PracticeAssetsNotReadyException -> "이 곡의 반주·음표 데이터가 아직 준비되지 않았어요."
                     else -> "연습 데이터를 불러오지 못했어요. 다시 시도해 주세요."
                 }) }
             }
@@ -159,6 +167,7 @@ internal class SongDetailViewModel(
         next.onEnded = { if (player === next) { next.pause(); _state.update { it.copy(playing = false) } } }
         try {
             next.load(url)
+            next.keyShift = _state.value.selectedKey   // 원키 반주를 고른 키로 실시간 시프트
             next.seekTo(_state.value.positionSec)
         } catch (e: Exception) {
             releasePreview()

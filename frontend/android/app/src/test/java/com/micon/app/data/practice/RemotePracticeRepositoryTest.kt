@@ -68,6 +68,22 @@ class RemotePracticeRepositoryTest {
         assertEquals("/api/v1/practices/31/cancel", server.takeRequest().path)
     }
 
+    @Test fun `complete sends the sung key and reads V29 key fields`() = runBlocking {
+        // BE fix/be/practiceSessionKey: 세션은 원키로 열고(initialKey 0) 완료 때 finalSelectedKey·keyChangeCount 로 실제 키를 남긴다
+        server.enqueue(ok(detail.replace("\"READY\"", "\"COMPLETED\"").replace("\"selectedKey\":-2", "\"initialKey\":0,\"selectedKey\":-2,\"keyChangeCount\":1,\"keyChanged\":true")))
+        val completed = repo.complete(31, 183_000, finalSelectedKey = -2, keyChangeCount = 1)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body, body.contains("\"finalSelectedKey\":-2") && body.contains("\"keyChangeCount\":1"))
+        assertEquals(0, completed.initialKey); assertEquals(-2, completed.selectedKey); assertTrue(completed.keyChanged)
+
+        // 키 필드를 주지 않으면 본문에도 없다(서버는 없는 필드를 최초 키 유지로 본다)
+        server.enqueue(ok(detail))
+        val plain = repo.complete(31, 1000)
+        val plainBody = server.takeRequest().body.readUtf8()
+        assertFalse(plainBody, plainBody.contains("finalSelectedKey") || plainBody.contains("keyChangeCount"))
+        assertEquals(-2, plain.initialKey); assertFalse(plain.keyChanged)   // 응답에 없으면 최종 키 = 최초 키
+    }
+
     @Test fun `savePerformance rounds scores to two decimals and parses report`() = runBlocking {
         server.enqueue(ok("""{"practiceId":31,"songId":7,"songTitle":"빈잔","selectedKey":-2,"practiceScope":"FULL_SONG","sectionId":null,"durationMs":183000,
             "status":"COMPLETED","overallScore":81.23,"pitchScore":85.00,"sustainScore":null,"rhythmScore":74.20,"summaryText":"잘 불렀어요.\n정확 12 · 높게 3",
