@@ -4,7 +4,8 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.micon.backend.practice.service.PracticeAssetService;
+import com.micon.backend.domain.practice.api.PracticeAssetController;
+import com.micon.backend.domain.practice.service.PracticeAssetService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

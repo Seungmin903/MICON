@@ -1,7 +1,8 @@
-package com.micon.backend.practice.service;
+package com.micon.backend.domain.practice.service;
 
-import com.micon.backend.practice.api.PracticeHistoryResponse;
-import com.micon.backend.practice.repository.PracticeHistoryRepository;
+import com.micon.backend.domain.practice.api.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
+
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;

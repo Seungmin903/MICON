@@ -1,6 +1,6 @@
-package com.micon.backend.practice.repository;
+package com.micon.backend.domain.practice.repository;
 
-import com.micon.backend.practice.api.PracticeAssetResponse;
+import com.micon.backend.domain.practice.api.PracticeAssetResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

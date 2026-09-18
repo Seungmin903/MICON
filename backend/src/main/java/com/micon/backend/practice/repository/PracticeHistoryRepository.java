@@ -1,6 +1,6 @@
-package com.micon.backend.practice.repository;
+package com.micon.backend.domain.practice.repository;
 
-import com.micon.backend.practice.api.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.api.PracticeHistoryResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

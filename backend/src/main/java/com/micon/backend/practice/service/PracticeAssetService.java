@@ -1,13 +1,10 @@
-package com.micon.backend.practice.service;
+package com.micon.backend.domain.practice.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.common.observability.AccessLog;
-import com.micon.backend.practice.api.PracticeAssetResponse;
-import com.micon.backend.practice.repository.PracticeAssetRepository;
-import com.micon.backend.practice.repository.PracticeAssetRepository.MediaRow;
-import com.micon.backend.practice.repository.PracticeAssetRepository.NoteRow;
-import com.micon.backend.practice.repository.PracticeAssetRepository.SongAssetRow;
+import com.micon.backend.domain.practice.api.PracticeAssetResponse;
+import com.micon.backend.domain.practice.repository.PracticeAssetRepository;
 import com.micon.backend.catalogmedia.CatalogMediaProperties;
 import com.micon.backend.voice.storage.VoiceStorage;
 import java.time.Clock;
@@ -43,7 +40,7 @@ public class PracticeAssetService {
 
 	// 기능: get 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
 	public PracticeAssetResponse.Detail get(String songId, int selectedKey) {
-		SongAssetRow song = repository.findSong(songId)
+		PracticeAssetRepository.SongAssetRow song = repository.findSong(songId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 		if (!song.practiceReady() || song.analysisId() == null) {
 			AccessLog.event("practice_asset_blocked", true, "song_id", songId, "selected_key", selectedKey,
@@ -52,10 +49,10 @@ public class PracticeAssetService {
 			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);
 		}
 
-		MediaRow media = repository.findInstrumental(songId, selectedKey)
+		PracticeAssetRepository.MediaRow media = repository.findInstrumental(songId, selectedKey)
 			.orElseThrow(() -> blocked(songId, selectedKey, "instrumental_missing", selectedKey == 0
 				? ErrorCode.PRACTICE_ASSET_NOT_READY : ErrorCode.UNSUPPORTED_PRACTICE_KEY));
-		NoteRow note = repository.findNotes(song.analysisId())
+		PracticeAssetRepository.NoteRow note = repository.findNotes(song.analysisId())
 			.orElseThrow(() -> blocked(songId, selectedKey, "notes_missing", ErrorCode.PRACTICE_ASSET_NOT_READY));
 		if (song.lyricsSynced() == null || song.lyricsSynced().isBlank()) {
 			throw blocked(songId, selectedKey, "synced_lyrics_missing", ErrorCode.PRACTICE_ASSET_NOT_READY);
@@ -79,9 +76,9 @@ public class PracticeAssetService {
 
 	// 기능: 곡 ID와 선택 키에 해당하는 MR을 조회하고 재생 URL을 발급한다.
 	public PracticeAssetResponse.Instrumental getMr(String songId, int selectedKey) {
-		SongAssetRow song = repository.findSong(songId)
+		PracticeAssetRepository.SongAssetRow song = repository.findSong(songId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
-		MediaRow media = findInstrumental(song.songId(), selectedKey);
+		PracticeAssetRepository.MediaRow media = findInstrumental(song.songId(), selectedKey);
 		return new PracticeAssetResponse.Instrumental(
 			song.songId(),
 			selectedKey,
@@ -104,7 +101,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: 선택 키에 맞는 MR을 찾고 준비되지 않은 경우 원인에 맞는 오류를 반환한다.
-	private MediaRow findInstrumental(String songId, int selectedKey) {
+	private PracticeAssetRepository.MediaRow findInstrumental(String songId, int selectedKey) {
 		return repository.findInstrumental(songId, selectedKey)
 			.orElseThrow(() -> new BusinessException(selectedKey == 0
 				? ErrorCode.PRACTICE_ASSET_NOT_READY
@@ -112,7 +109,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: 저장된 MR 메타데이터에 만료 시간이 있는 재생 URL을 결합한다.
-	private PracticeAssetResponse.Media toMedia(MediaRow media) {
+	private PracticeAssetResponse.Media toMedia(PracticeAssetRepository.MediaRow media) {
 		String playbackUrl = storage.createDownloadUrl(media.filePath(), mediaProperties.downloadUrlTtl()).toString();
 		Instant playbackUrlExpiresAt = clock.instant().plus(mediaProperties.downloadUrlTtl());
 		return new PracticeAssetResponse.Media(

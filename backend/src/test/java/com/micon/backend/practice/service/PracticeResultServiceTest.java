@@ -2,22 +2,23 @@ package com.micon.backend.practice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.practice.api.PracticeResponse;
-import com.micon.backend.practice.api.PracticeResultRequest;
-import com.micon.backend.practice.api.PracticeResultRequest.ResultStatus;
-import com.micon.backend.practice.api.PracticeResultRequest.SectionEvaluation;
-import com.micon.backend.practice.repository.PracticeRepository;
-import com.micon.backend.practice.repository.PracticeResultRepository;
-import com.micon.backend.practice.repository.PracticeResultRepository.ResultRow;
+import com.micon.backend.domain.practice.api.PracticeResponse;
+import com.micon.backend.domain.practice.api.PracticeResultRequest;
+import com.micon.backend.domain.practice.api.PracticeResultRequest.ResultStatus;
+import com.micon.backend.domain.practice.api.PracticeResultRequest.SectionEvaluation;
+import com.micon.backend.domain.practice.repository.PracticeRepository;
+import com.micon.backend.domain.practice.repository.PracticeResultRepository;
+import com.micon.backend.domain.practice.repository.PracticeResultRepository.ResultRow;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import com.micon.backend.domain.practice.service.PracticeResultService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

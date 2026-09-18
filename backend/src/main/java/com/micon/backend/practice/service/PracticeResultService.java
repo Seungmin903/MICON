@@ -1,14 +1,14 @@
-package com.micon.backend.practice.service;
+package com.micon.backend.domain.practice.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.practice.api.PracticeResponse;
-import com.micon.backend.practice.api.PracticeResultRequest;
-import com.micon.backend.practice.api.PracticeResultRequest.SectionEvaluation;
-import com.micon.backend.practice.api.PracticeResultResponse;
-import com.micon.backend.practice.repository.PracticeRepository;
-import com.micon.backend.practice.repository.PracticeResultRepository;
-import com.micon.backend.practice.repository.PracticeResultRepository.ResultRow;
+import com.micon.backend.domain.practice.repository.PracticeRepository;
+import com.micon.backend.domain.practice.repository.PracticeResultRepository;
+import com.micon.backend.domain.practice.api.PracticeResponse;
+import com.micon.backend.domain.practice.api.PracticeResultRequest;
+import com.micon.backend.domain.practice.api.PracticeResultRequest.SectionEvaluation;
+import com.micon.backend.domain.practice.api.PracticeResultResponse;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -67,7 +67,7 @@ public class PracticeResultService {
 	// 기능: report 비즈니스 로직을 수행한다.
 	public PracticeResultResponse.Report report(Long userId, Long practiceId) {
 		PracticeResponse.Detail practice = ownedPractice(userId, practiceId);
-		ResultRow result = resultRepository.findLatest(practiceId)
+		PracticeResultRepository.ResultRow result = resultRepository.findLatest(practiceId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRACTICE_RESULT_NOT_FOUND));
 		SummaryPayload payload = readSummary(result.summaryJson());
 		PracticeResultResponse.RetrySection weakSection = payload.sections().stream()
@@ -103,7 +103,7 @@ public class PracticeResultService {
 	// 기능: retry 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
 	public PracticeResultResponse.Analysis retry(Long userId, Long practiceId) {
 		ownedPractice(userId, practiceId);
-		ResultRow result = resultRepository.findLatest(practiceId)
+		PracticeResultRepository.ResultRow result = resultRepository.findLatest(practiceId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.PRACTICE_RESULT_NOT_FOUND));
 		if (resultRepository.retry(result.resultId()) == 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);

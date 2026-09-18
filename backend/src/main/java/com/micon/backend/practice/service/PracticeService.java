@@ -1,12 +1,12 @@
-package com.micon.backend.practice.service;
+package com.micon.backend.domain.practice.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.practice.api.PracticeRequest;
-import com.micon.backend.practice.api.PracticeRequest.PracticeScope;
-import com.micon.backend.practice.api.PracticeResponse;
-import com.micon.backend.practice.repository.PracticeRepository;
-import com.micon.backend.practice.repository.PracticeRepository.SongRow;
+import com.micon.backend.domain.practice.repository.PracticeRepository;
+import com.micon.backend.domain.practice.api.PracticeRequest;
+import com.micon.backend.domain.practice.api.PracticeRequest.PracticeScope;
+import com.micon.backend.domain.practice.api.PracticeResponse;
+
 import java.math.BigDecimal;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class PracticeService {
 	@Transactional
 	// 기능: create 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
 	public PracticeResponse.Detail create(Long userId, PracticeRequest.Create request) {
-		SongRow song = repository.findPracticeReadySong(request.songId())
+		PracticeRepository.SongRow song = repository.findPracticeReadySong(request.songId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 		if (!song.practiceReady()) {
 			throw new BusinessException(ErrorCode.PRACTICE_ASSET_NOT_READY);

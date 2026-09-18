@@ -1,4 +1,4 @@
-package com.micon.backend.practice.repository;
+package com.micon.backend.domain.practice.repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -7,10 +7,12 @@ import static org.mockito.Mockito.when;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.catalogmedia.CatalogMediaProperties;
-import com.micon.backend.practice.repository.PracticeAssetRepository;
-import com.micon.backend.practice.repository.PracticeAssetRepository.MediaRow;
-import com.micon.backend.practice.repository.PracticeAssetRepository.NoteRow;
-import com.micon.backend.practice.repository.PracticeAssetRepository.SongAssetRow;
+import com.micon.backend.domain.practice.api.PracticeAssetResponse;
+import com.micon.backend.domain.practice.repository.PracticeAssetRepository;
+import com.micon.backend.domain.practice.repository.PracticeAssetRepository.MediaRow;
+import com.micon.backend.domain.practice.repository.PracticeAssetRepository.NoteRow;
+import com.micon.backend.domain.practice.repository.PracticeAssetRepository.SongAssetRow;
+import com.micon.backend.domain.practice.service.PracticeAssetService;
 import com.micon.backend.voice.storage.VoiceStorage;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -63,7 +65,7 @@ class PracticeAssetServiceTest {
 			new NoteRow("[{\"startMs\":0,\"midi\":60}]", "notes-v2")
 		));
 		when(repository.findSections("10", 20L)).thenReturn(List.of(
-			new com.micon.backend.practice.api.PracticeAssetResponse.Section(
+			new PracticeAssetResponse.Section(
 				40L, "CHORUS", "후렴", 1000, 2000, 1, "HIGH_NOTE",
 				new BigDecimal("80.00"), new BigDecimal("0.95"), "고음 구간"
 			)
@@ -83,7 +85,7 @@ class PracticeAssetServiceTest {
 		assertThat(response.beatGrid().get("beatTimes").get(0).asDouble()).isEqualTo(0.45);
 		assertThat(response.dataVersion()).isEqualTo("notes-v2");
 		assertThat(response.sections()).singleElement()
-			.extracting(com.micon.backend.practice.api.PracticeAssetResponse.Section::sectionName)
+			.extracting(PracticeAssetResponse.Section::sectionName)
 			.isEqualTo("후렴");
 	}
 
@@ -141,10 +143,10 @@ class PracticeAssetServiceTest {
 		));
 		when(repository.findNotes(20L)).thenReturn(Optional.of(new NoteRow("[]", "v1")));
 		when(repository.findSections("10", 20L)).thenReturn(List.of(
-			new com.micon.backend.practice.api.PracticeAssetResponse.Section(
+			new PracticeAssetResponse.Section(
 				40L, "VERSE", "1절", 0, 1000, 1, "NONE", null, null, null
 			),
-			new com.micon.backend.practice.api.PracticeAssetResponse.Section(
+			new PracticeAssetResponse.Section(
 				41L, "CHORUS", "후렴", 1000, 2000, 2, "HIGH_NOTE",
 				new BigDecimal("82"), new BigDecimal("0.95"), "고음 구간"
 			)
@@ -153,7 +155,7 @@ class PracticeAssetServiceTest {
 		var guide = service.getGuide("10", 0);
 
 		assertThat(guide.difficultySections()).singleElement()
-			.extracting(com.micon.backend.practice.api.PracticeAssetResponse.Section::sectionId)
+			.extracting(PracticeAssetResponse.Section::sectionId)
 			.isEqualTo(41L);
 	}
 }

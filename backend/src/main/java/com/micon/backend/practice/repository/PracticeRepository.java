@@ -1,7 +1,7 @@
-package com.micon.backend.practice.repository;
+package com.micon.backend.domain.practice.repository;
 
-import com.micon.backend.practice.api.PracticeRequest.PracticeScope;
-import com.micon.backend.practice.api.PracticeResponse;
+import com.micon.backend.domain.practice.api.PracticeRequest.PracticeScope;
+import com.micon.backend.domain.practice.api.PracticeResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;

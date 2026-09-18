@@ -1,9 +1,9 @@
-package com.micon.backend.practice.api;
+package com.micon.backend.domain.practice.api;
 
 import com.micon.backend.common.api.ApiResponse;
-import com.micon.backend.practice.service.PracticeHistoryService;
-import com.micon.backend.practice.service.PracticeResultService;
-import com.micon.backend.practice.service.PracticeService;
+import com.micon.backend.domain.practice.service.PracticeResultService;
+import com.micon.backend.domain.practice.service.PracticeService;
+import com.micon.backend.domain.practice.service.PracticeHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
