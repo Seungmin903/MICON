@@ -40,7 +40,7 @@ internal fun guidedKeyboardOctaves(range: IntRange): List<Int> =
     (range.first until range.last step 12).map { it / 12 - 1 }
 
 fun measurementKeyboardMode(phase: String): GuidedKeyboardMode =
-    if (phase in setOf("noise", "comfortable", "profile_ready")) GuidedKeyboardMode.FULL_RANGE
+    if (phase in setOf("noise", "comfortable_ready", "comfortable", "profile_ready")) GuidedKeyboardMode.FULL_RANGE
     else GuidedKeyboardMode.THREE_OCTAVES
 
 /** Display windows never change the measurement target or the recorded pitch. */

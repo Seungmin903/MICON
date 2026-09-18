@@ -7,6 +7,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import android.content.pm.PackageManager
 import androidx.test.platform.app.InstrumentationRegistry
 import android.content.Context
 import android.content.ContextWrapper
@@ -28,33 +32,80 @@ class OnboardingRangeIntroScreenTest {
         }
     }
 
-    @Test fun repeatedClicksDoNotRestartWhileNoiseCalibrationIsActive() {
-        val calibrating = mutableStateOf(false)
+    @Test fun startWaitsForQuietAndBothLinesThenBlocksRepeatedClicks() {
+        val ready = mutableStateOf(false)
+        val busy = mutableStateOf(false)
         var starts = 0
         var backs = 0
+        compose.mainClock.autoAdvance = false
         compose.setContent { MiconTheme {
-            OnboardingRangeIntroOverlay(true, calibrating.value, !calibrating.value,
-                onStart = { starts++; calibrating.value = true }, onBack = { backs++ })
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.6f)) {
+            OnboardingRangeIntroOverlay(true, ready.value, !busy.value,
+                onStart = { starts++; busy.value = true }, onBack = { backs++ })
+            }
         } }
+        compose.mainClock.advanceTimeBy(100)
+        val duringFade = brightestTextPixel()
+        compose.mainClock.advanceTimeBy(250)
+        org.junit.Assert.assertTrue("first copy should fade in", brightestTextPixel() > duringFade + .08f)
+        compose.onNodeWithText("측정이 시작되면,").assertIsDisplayed()
+        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertDoesNotExist()
+        compose.onNodeWithText("측정 시작하기").assertDoesNotExist()
+        compose.mainClock.advanceTimeBy(1550)
         compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
-        compose.onNodeWithText("측정 시작").performClick()
-        compose.onNodeWithText("잠시 조용히 계세요").assertIsDisplayed()
-        compose.onNodeWithText("측정 시작").assertIsNotEnabled().performTouchInput { click() }
+        compose.onNodeWithText("측정 시작하기").assertDoesNotExist()
+        compose.runOnIdle { ready.value = true }
+        compose.mainClock.advanceTimeBy(350)
+        compose.onNodeWithText("측정 시작하기").performClick()
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithText("측정 시작하기").assertIsNotEnabled().performTouchInput { click() }
+        compose.onNodeWithText("측정이 시작되면,").assertIsDisplayed()
+        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
         compose.runOnIdle { assertEquals(1, starts) }
         compose.onNodeWithContentDescription("뒤로").performClick()
         compose.runOnIdle { assertEquals(1, backs) }
     }
 
-    @Test fun deniedPermissionOrStartFailureKeepsIntroAvailableForRetry() {
-        val error = mutableStateOf<String?>(null)
+    private fun brightestTextPixel(): Float {
+        val bitmap = compose.onNodeWithText("측정이 시작되면,").captureToImage().asAndroidBitmap()
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return pixels.maxOf { android.graphics.Color.red(it) } / 255f
+    }
+
+    @Test fun decliningAutomaticPermissionKeepsTheIntroAndOffersAnExplicitRetry() {
         compose.setContent { MiconTheme {
-            OnboardingRangeIntroOverlay(true, false, true, error = error.value,
-                onStart = { error.value = "마이크 권한과 저장 공간을 확인해 주세요" }, onBack = {})
+            val base = LocalContext.current
+            val denied = remember { object : ContextWrapper(base) {
+                override fun checkPermission(permission: String, pid: Int, uid: Int) = PackageManager.PERMISSION_DENIED
+                override fun checkSelfPermission(permission: String) = PackageManager.PERMISSION_DENIED
+            } }
+            CompositionLocalProvider(LocalContext provides denied) {
+                val repository = remember { RangeRepository(base, deviceOnly = true,
+                    storageDirectory = File(base.cacheDir, "denied-intro-${UUID.randomUUID()}")) }
+                GuidedRangeScreen({}, {}, repository = repository, onboardingIntro = true)
+            }
         } }
-        compose.onNodeWithText("측정 시작").performClick()
+        compose.onNodeWithText("나중에").performClick()
+        compose.onNodeWithTag("onboarding-range-intro").assertIsDisplayed()
+        compose.onNodeWithText("측정 시작하기").assertDoesNotExist()
+        compose.onNodeWithText("소음 측정 다시 시도").performClick()
+        compose.onNodeWithText("나중에").assertIsDisplayed()
+    }
+
+    @Test fun deniedPermissionOrStartFailureKeepsIntroAvailableForRetry() {
+        val error = mutableStateOf<String?>("마이크 권한과 저장 공간을 확인해 주세요")
+        var retries = 0
+        compose.setContent { MiconTheme {
+            OnboardingRangeIntroOverlay(true, false, false, error = error.value,
+                onStart = {}, onBack = {}, calibrationRetryAvailable = true,
+                onRetryCalibration = { retries++; error.value = null })
+        } }
         compose.onNodeWithText("마이크 권한과 저장 공간을 확인해 주세요").assertIsDisplayed()
-        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
-        compose.onNodeWithText("측정 시작").assertIsEnabled()
+        compose.onNodeWithText("측정 시작하기").assertDoesNotExist()
+        compose.onNodeWithText("소음 측정 다시 시도").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(1, retries) }
     }
 
     @Test fun comfortablePhaseRemovesIntroAfter300msFade() {
@@ -90,11 +141,13 @@ class OnboardingRangeIntroScreenTest {
             GuidedRangeScreen({}, {}, repository = repository, onboardingIntro = true)
         } }
         compose.waitUntil(10_000) {
-            compose.onAllNodes(hasText("측정 시작") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodes(hasText("측정 시작하기") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithText("측정이 시작되면,").assertIsDisplayed()
+        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
+        compose.onNodeWithTag("guided-range-keyboard").assertDoesNotExist()
         capture("onboarding-range-intro.png")
-        compose.onNodeWithText("측정 시작").performClick()
-        compose.onNodeWithText("잠시 조용히 계세요").assertIsDisplayed()
+        compose.onNodeWithText("측정 시작하기").performClick()
         compose.waitUntil(15_000) {
             compose.onAllNodesWithTag("onboarding-range-intro").fetchSemanticsNodes().isEmpty()
         }

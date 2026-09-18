@@ -12,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +42,8 @@ import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -107,6 +111,7 @@ import com.micon.app.ui.theme.Teal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.ceil
 
 /**
  * 불러서 분석하기 (Figma 프레임 없음 — "음성 간편 분석" 의 단계 구성 + "노래 연습중" 의 가사 화면을 따른다).
@@ -192,6 +197,7 @@ fun SingAnalysisScreen(songId: String, onBack: () -> Unit, onBackToReport: () ->
         if (state.confirmEnd) {
             FinishDialog(
                 sungSeconds = state.sungSeconds,
+                onboarding = onboardingDraftId != null,
                 onConfirm = vm::confirmFinish,
                 onContinue = vm::cancelFinish,
                 onDiscard = { vm.discardAndExit(); onBack() },
@@ -256,7 +262,8 @@ internal fun SetupBody(state: SingAnalysisViewModel.UiState, onChoose: (ScopePla
                     Spacer(Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("· 이어폰을 쓰면 반주가 녹음에 섞이지 않아 더 정확해요", fontSize = 13.sp, color = Grey)
-                        Text("· 반주와 함께 30초 이상 녹음한 뒤 일시정지하고 마쳐 주세요", fontSize = 13.sp, color = Grey)
+                        Text(if (compact) "· 반주와 함께 30초 이상 녹음한 뒤 마쳐 주세요"
+                            else "· 반주와 함께 30초 이상 녹음한 뒤 일시정지하고 마쳐 주세요", fontSize = 13.sp, color = Grey)
                         Text("· 마이크는 목소리 분석을 위해 사용해요", fontSize = 13.sp, color = Grey)
                     }
                 }
@@ -317,7 +324,7 @@ private fun ScopeCard(plan: ScopePlan, onClick: () -> Unit, compact: Boolean = f
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisViewModel) {
+internal fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisViewModel) {
     val paused = state.phase == Phase.PAUSED
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -357,8 +364,13 @@ private fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisVi
             }
 
             MicLevelStrip(state.micLevel, Modifier.padding(horizontal = 24.dp))
-            // 하단 시트(오버레이)에 가리지 않도록 비워 두는 높이
-            Spacer(Modifier.height(232.dp))
+            if (state.onboarding) {
+                ControlSheet(state, onTogglePause = { if (paused) vm.resume() else vm.pause() },
+                    onFinish = vm::requestFinish, onExit = vm::requestExit)
+            } else {
+                // Standalone retains its original bottom overlay.
+                Spacer(Modifier.height(232.dp))
+            }
         }
 
         // 카운트다운 오버레이(연습과 동일)
@@ -379,7 +391,10 @@ private fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisVi
             }
         }
 
-        ControlSheet(state, vm, Modifier.align(Alignment.BottomCenter))
+        if (!state.onboarding) ControlSheet(state,
+            onTogglePause = { if (paused) vm.resume() else vm.pause() },
+            onFinish = vm::requestFinish, onExit = vm::requestExit,
+            modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -410,58 +425,92 @@ private fun MicLevelStrip(level: Float, modifier: Modifier = Modifier) {
 
 /** 하단 시트: 일시정지/이어서 원 버튼 + 항상 보이는 "여기까지 마치기". */
 @Composable
-private fun ControlSheet(state: SingAnalysisViewModel.UiState, vm: SingAnalysisViewModel, modifier: Modifier) {
+internal fun ControlSheet(state: SingAnalysisViewModel.UiState, onTogglePause: () -> Unit,
+    onFinish: () -> Unit, onExit: () -> Unit, modifier: Modifier = Modifier) {
     val paused = state.phase == Phase.PAUSED
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = Color.White, shadowElevation = 16.dp) {
         Column(Modifier.padding(top = 18.dp, bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(
-                onClick = { if (paused) vm.resume() else vm.pause() },
+                onClick = onTogglePause,
                 enabled = !paused || state.nowSec < (state.plan?.endSec ?: 0.0),
                 shape = CircleShape,
-                color = if (paused) Purple else GreyLight,
+                color = if (state.onboarding || paused) Purple else GreyLight,
                 shadowElevation = 8.dp,
-                modifier = Modifier.size(88.dp),
+                modifier = Modifier.size(88.dp).testTag("sing-pause-resume"),
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, if (paused) "이어서 부르기" else "일시정지", Modifier.size(42.dp), tint = if (paused) Color.White else Grey)
+                    Icon(if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, if (paused) "이어서 부르기" else "일시정지", Modifier.size(42.dp), tint = if (state.onboarding || paused) Color.White else Grey)
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(if (paused) "이어서 부르기" else "일시정지", fontSize = 12.sp, color = Grey)
             Spacer(Modifier.height(14.dp))
-            OutlinePurpleButton(
-                "여기까지 마치기", vm::requestFinish,
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp), height = 48.dp, enabled = state.canFinish,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(when {
-                state.elapsedRecSec < 30 -> "반주와 함께 녹음한 시간이 30초 이상이어야 해요"
-                !paused -> "일시정지하면 녹음을 마칠 수 있어요"
-                else -> "녹음을 마치고 분석 결과를 확인해 보세요"
-            }, fontSize = 12.sp, color = Grey)
-            TextButton(onClick = vm::requestExit) { Text("녹음 그만하기", color = Grey) }
+            if (state.onboarding) {
+                OutlinedButton(onClick = onFinish, enabled = state.canFinish,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                        .heightIn(min = 48.dp).testTag("sing-finish"),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, if (state.canFinish) Purple else GreyLight),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Purple, disabledContentColor = Grey)) {
+                    Text(singFinishLabel(state), Modifier.fillMaxWidth(), fontSize = 16.sp, lineHeight = 22.sp,
+                        fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                }
+            } else OutlinePurpleButton("여기까지 마치기", onFinish,
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp).testTag("sing-finish"),
+                height = 48.dp, enabled = state.canFinish)
+            if (!state.onboarding) {
+                Spacer(Modifier.height(6.dp))
+                Text(when {
+                    state.elapsedRecSec < 30 -> "반주와 함께 녹음한 시간이 30초 이상이어야 해요"
+                    !paused -> "일시정지하면 녹음을 마칠 수 있어요"
+                    else -> "녹음을 마치고 분석 결과를 확인해 보세요"
+                }, fontSize = 12.sp, color = Grey)
+            }
+            TextButton(onClick = onExit) { Text("녹음 그만하기", color = Grey) }
             state.error?.let { Text(it, color = Red, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp)) }
         }
     }
 }
 
 @Composable
-private fun FinishDialog(sungSeconds: Double, onConfirm: () -> Unit, onContinue: () -> Unit, onDiscard: () -> Unit) {
+internal fun FinishDialog(sungSeconds: Double, onConfirm: () -> Unit, onContinue: () -> Unit,
+    onDiscard: () -> Unit, onboarding: Boolean = false) {
     AlertDialog(
         onDismissRequest = onContinue,
         containerColor = Paper,
         shape = RoundedCornerShape(20.dp),
-        title = { Text("여기까지 마칠까요?", fontSize = 18.sp, color = Ink, fontWeight = FontWeight.Bold) },
+        title = { Text(if (onboarding) "정말 마치겠습니까?" else "여기까지 마칠까요?",
+            fontSize = 18.sp, color = Ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text("지금까지 부른 ${formatSec(sungSeconds)} 이 저장돼요.", fontSize = 14.sp, color = InkSoft)
-                Spacer(Modifier.height(14.dp))
-                Text("저장하지 않고 나가기", fontSize = 13.sp, color = Red, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = onDiscard).padding(vertical = 4.dp))
+                if (!onboarding) {
+                    Spacer(Modifier.height(14.dp))
+                    Text("저장하지 않고 나가기", fontSize = 13.sp, color = Red, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = onDiscard).padding(vertical = 4.dp))
+                }
             }
         },
-        confirmButton = { PrimaryButton("여기까지 마치기", onConfirm, height = 46.dp) },
-        dismissButton = { TextButton(onClick = onContinue) { Text("계속 부르기", color = Purple, fontWeight = FontWeight.SemiBold) } },
+        confirmButton = {
+            if (onboarding) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PrimaryButton("여기까지 마치기", onConfirm, Modifier.fillMaxWidth(), height = 48.dp)
+                    OutlinePurpleButton("계속 부르기", onContinue, Modifier.fillMaxWidth(), height = 48.dp)
+                }
+            } else PrimaryButton("여기까지 마치기", onConfirm, height = 46.dp)
+        },
+        dismissButton = {
+            if (!onboarding) TextButton(onClick = onContinue) {
+                Text("계속 부르기", color = Purple, fontWeight = FontWeight.SemiBold)
+            }
+        },
     )
+}
+
+internal fun singFinishLabel(state: SingAnalysisViewModel.UiState): String {
+    if (!state.onboarding) return "여기까지 마치기"
+    val remaining = ceil((com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS -
+        state.elapsedRecSec).coerceAtLeast(0.0)).toInt()
+    return if (remaining > 0) "${remaining}초 후에 분석을 끝낼 수 있어요" else "여기까지 부르기"
 }
 
 // ---------------------------------------------------------------------------

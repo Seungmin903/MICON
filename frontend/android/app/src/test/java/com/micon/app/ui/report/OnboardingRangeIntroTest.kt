@@ -17,6 +17,7 @@ class OnboardingRangeIntroTest {
         val noise = RangeSession("noise").view()
         val measuring = GuidedRangeViewModel.State(running = true, session = noise)
         assertTrue(onboardingRangeIntroVisible(measuring))
+        assertTrue(onboardingRangeIntroVisible(measuring.copy(session = noise.copy(phase = "comfortable_ready"), pausedForIntro = true)))
         assertFalse(onboardingRangeIntroVisible(measuring.copy(session = noise.copy(phase = "comfortable"))))
         assertFalse(onboardingRangeIntroVisible(measuring.copy(session = noise.copy(phase = "profile_ready"))))
     }
