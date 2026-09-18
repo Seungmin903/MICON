@@ -20,7 +20,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(properties = "ai.recommendation.enabled=true")
+@SpringBootTest(properties = {
+        "ai.recommendation.enabled=true",
+        "ai.recommendation.recovery.initial-delay=1h"
+})
 class RecommendationAfterCommitIntegrationTest {
     @Autowired PlatformTransactionManager manager;
     @Autowired ApplicationEventPublisher events;
