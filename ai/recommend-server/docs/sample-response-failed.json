@@ -8,9 +8,9 @@
     "R&B",
     "발라드"
   ],
-  "preferred_artists": [
-    "이하이",
-    "한로로"
+  "preferred_artist_ids": [
+    831,
+    838
   ],
   "result": null,
   "error": "보컬 오디오가 너무 짧습니다.",

@@ -116,9 +116,52 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 ## 테스트
 
+### 가수 ID 로컬 스냅샷 및 이름 없는 AI 응답
+
+AI HTTP 응답과 닮은 가수 콜백은 가수 이름을 반환하지 않는다. 이름/이미지는 BE가 DB에서 조회한다.
+닮은 가수는 `artistId`(실제 `singer.singer_id`)로 집계하고 `rank`, `similarity`,
+`ecapaScore`, `singerByolScore`만 함께 반환한다. 추천 곡 및 상태 카탈로그는
+`artist_ids: [singer_id]`, 선호 가수 진단은 `preferred_artist_ids`를 사용한다.
+`artist`, `artistName`, `singerName`, 문자열 `preferred_artists` 반환은 제거했다.
+기존 저장 추천/검색 job도 GET 시 이름 필드와 내부 요청 payload를 제거한다.
+선호 가수 이름을 받는 기존 **입력** 계약과 내부 채점은 이번 변경에서 유지한다.
+가수명을 받아 직접 표시하던 개발용 클라이언트는 BE 조회 또는 로컬 메타데이터를 사용해야 한다.
+
+임베딩 인덱스의 표시용 이름은 추천 실험실 지도에서 계속 사용한다. 벡터를 다시 추출하지 않는다.
+ID는 같은 인덱스 디렉터리의 `artist_ids.json`에서만 읽으며 검색 중 DB 조회나 이름 기반 ID 추측을 하지 않는다.
+스냅샷은 `schemaVersion=1`, `catalogVersion`, `sourceRevision`, `indexSha256` 및 전체 곡 매핑을 가진다.
+배치/해시/곡 집합/양수 BIGINT ID가 맞지 않거나 누락되면 검색을 실패시킨다.
+현재 898곡은 곡당 MAIN 가수 한 명이므로 해당 정책만 지원하며, 복수 가수/피처링은 조용히 임의 선택하지 않는다.
+
+카탈로그 배포 시 DB의 `song_singer JOIN singer`를 읽기 전용으로 export하고,
+이름 없는 JSON 배열 `[{"songId":"<DB 문자열 ID>","artistId":396,"role":"MAIN"}, ...]`을
+아래 도구의 stdin으로 전달한다. DB 연결/인증 정보는 실행 중인 AI에 추가하지 않는다.
+
+```powershell
+python scripts/export_artist_catalog.py --catalog <index-directory> --revision <active-revision>
+```
+
+기존 스냅샷은 도구가 덮어쓰지 않는다. 다음 카탈로그는 새 디렉터리에서 완전성 검사 후 전환한다.
+같은 catalogVersion의 DB 관계가 변경됐다면 별도 메타데이터 revision/재배포 정책을 협의해야 한다.
+`GET /recommendations/status`의 `artistCatalog`로 로컬 매핑 준비 상태·개수·배치를 확인한다.
+
+닮은 가수 job/입력/콜백은 `workspace/artist-search/jobs/<jobId>/job.json`에 보존한다.
+계산 `status`와 전달 `deliveryStatus`(`NOT_READY`, `PENDING`, `DELIVERING`, `ACCEPTED`,
+`REJECTED`, `PENDING_RETRY`)를 구분한다. `deliveryFailureCode`는 전달 장애이며 계산 실패 코드와 별개다.
+`COMPLETED`만 보고 BE 저장 성공으로 판단하면 안 된다.
+
+- `POST /artist-search-jobs/{jobId}/retry`: 계산 실패 또는 계산 완료·콜백 미수락 작업을 재계산한다.
+- `POST /artist-search-jobs/{jobId}/redeliver`: 보존된 유효 콜백을 재추론 없이 재전송한다. 이미 수락된 결과는 다시 보내지 않는다.
+- null ID인 이전 결과는 재전송하지 않고 ID 매핑 수정 후 재계산해야 한다.
+- 재시작 때 job은 복원하지만 이전 콜백을 자동 전송하지 않는다. BE의 현재 attempt/resultVersion 확인 후 명시적으로 복구한다.
+- 입력 부족은 BE가 지원하는 `FAILED` 상태와 `failureCode=INSUFFICIENT_DATA`로 전달한다.
+
+AI 수정과 별도로 BE 검색 활성화, 정체 작업 복구·시간 제한, 최신 attempt/버전 검증이 필요하다.
+보존 job에는 사용자 임베딩이 있으므로 운영 내부 접근 제어·보존 기간 정책을 적용하고 외부로 공개하지 않는다.
+
 ### 통합 곡 상세의 `/song-fit` 계약
 
-`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 그대로 반환한다.
+`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 반환한다(가수 이름 필드는 제외).
 기존 `overall`, `range`, `timbre`, `rhythm`, `algorithmVersion` 외에 선택 필드
 `timbreAxis`(`ECAPA` / `SINGER_BYOL` / `CONSENSUS`)와 `timbreLabel`이 포함될 수 있다.
 두 필드가 없는 구버전 요청도 지원하며, `AVAILABLE` / `UNAVAILABLE` 모두 설명과 점수를 변형하지 않는다.

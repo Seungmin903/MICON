@@ -35,12 +35,13 @@
         "language_gate": {
           "$ref": "#/$defs/LanguageGate"
         },
-        "preferred_artists": {
+        "preferred_artist_ids": {
           "default": [],
           "items": {
-            "type": "string"
+            "exclusiveMinimum": 0,
+            "type": "integer"
           },
-          "title": "Preferred Artists",
+          "title": "Preferred Artist Ids",
           "type": "array"
         }
       },
@@ -297,9 +298,14 @@
           "title": "Title",
           "type": "string"
         },
-        "artist": {
-          "title": "Artist",
-          "type": "string"
+        "artist_ids": {
+          "description": "DB singer_id 목록. 가수명은 BE가 조회",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "title": "Artist Ids",
+          "type": "array"
         },
         "metadata": {
           "$ref": "#/$defs/TrackMetadata"
@@ -435,7 +441,6 @@
         "track_id",
         "song_id",
         "title",
-        "artist",
         "metadata",
         "timbre_score",
         "range_fit",
@@ -625,12 +630,13 @@
       "title": "Genres",
       "type": "array"
     },
-    "preferred_artists": {
+    "preferred_artist_ids": {
       "default": [],
       "items": {
-        "type": "string"
+        "exclusiveMinimum": 0,
+        "type": "integer"
       },
-      "title": "Preferred Artists",
+      "title": "Preferred Artist Ids",
       "type": "array"
     },
     "result": {

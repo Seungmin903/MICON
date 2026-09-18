@@ -19,6 +19,8 @@ class RecommendationApiTestCase(unittest.TestCase):
                               return_value=({"index_dir": "index"}, [])),
             mock.patch.object(recommendation_api.CatalogIndex, "load", return_value=catalog),
             mock.patch.object(recommendation_api.RangeCatalog, "load"),
+            mock.patch.object(recommendation_api.ArtistCatalog, "load", return_value=SimpleNamespace(
+                by_track={}, catalog_version="test", source_revision=1)),
             mock.patch.object(recommendation_api.catalog_link, "ensure",
                               return_value={"mappedTracks": 0, "revision": None,
                                             "batchId": None, "error": "backend starting"}),

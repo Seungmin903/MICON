@@ -20,6 +20,7 @@ import numpy as np
 import soundfile as sf
 
 import catalog_link
+from artist_catalog import ArtistCatalog, public_response
 from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
 from schemas import RecommendResult
@@ -177,7 +178,8 @@ def build_result(
             "artist_gender 는 카탈로그에 아직 없다(null).",
         ],
     }
-    return RecommendResult.model_validate(result).model_dump()   # 응답 스키마 고정(schemas.py)
+    artists = ArtistCatalog.load(catalog)
+    return RecommendResult.model_validate(public_response(result, artists, catalog)).model_dump()
 
 
 # ── BE JSON 입력 ─────────────────────────────────────────────────────────────
@@ -489,6 +491,7 @@ def recommendation_status() -> dict[str, Any]:
     catalog_link_state = catalog_link.ensure()
     tracks = 0
     catalog_tracks: list[dict[str, str]] = []
+    artist_state: dict[str, Any] = {"ready": False, "mappedTracks": 0, "artists": 0}
     if not missing:
         try:
             catalog = CatalogIndex.load(config["index_dir"])
@@ -498,11 +501,16 @@ def recommendation_status() -> dict[str, Any]:
                 verify_hashes=True,
             )
             tracks = len(catalog.tracks)
+            artists = ArtistCatalog.load(catalog)
+            artist_state = {"ready": True, "mappedTracks": len(artists.by_track),
+                            "artists": len(set(artists.by_track.values())),
+                            "catalogVersion": artists.catalog_version,
+                            "sourceRevision": artists.source_revision}
             catalog_tracks = [
                 {
                     "track_id": track.track_id,
                     "title": track.title,
-                    "artist": track.artist,
+                    "artist_ids": [artists.by_track[track.track_id]],
                 }
                 for track in catalog.tracks
             ]
@@ -518,6 +526,7 @@ def recommendation_status() -> dict[str, Any]:
         "models": ["ECAPA-TDNN VoxCeleb", "Singer-BYOL", "VocalScope CREPE + pYIN"],
         "rangeModes": ["timbre", "range"],
         "catalogLink": catalog_link_state,   # 앱 song_id 짝표. mappedTracks 가 0 이면 BE 에 저장할 수 없다
+        "artistCatalog": artist_state,
         "missing": missing,
     }
 
@@ -555,7 +564,7 @@ def _create_from_json(payload: Any, background_tasks: BackgroundTasks) -> dict[s
     (JOBS_DIR / job_id).mkdir(parents=True, exist_ok=True)
     _save_job(job_id)
     background_tasks.add_task(_json_process, job_id, dict(payload))
-    return JOBS[job_id]
+    return _public_job(JOBS[job_id])
 
 
 async def _create_from_multipart(form: Any, background_tasks: BackgroundTasks) -> dict[str, Any]:
@@ -623,7 +632,7 @@ async def _create_from_multipart(form: Any, background_tasks: BackgroundTasks) -
         tuple(JOBS[job_id]["genres"]),
         tuple(JOBS[job_id]["preferred_artists"]),
     )
-    return JOBS[job_id]
+    return _public_job(JOBS[job_id])
 
 
 @router.get("/recommendations/{job_id}")
@@ -633,4 +642,14 @@ def get_recommendation(job_id: str) -> dict[str, Any]:
     job = JOBS.get(job_id)
     if not job:
         raise HTTPException(404, "추천 작업을 찾을 수 없습니다.")
-    return job
+    return _public_job(job)
+
+
+def _public_job(job: dict[str, Any]) -> dict[str, Any]:
+    try:
+        config, _ = _configuration_status()
+        catalog = CatalogIndex.load(config["index_dir"])
+        artists = ArtistCatalog.load(catalog)
+    except (OSError, ValueError, KeyError, TypeError):
+        return public_response(job)
+    return public_response(job, artists, catalog)
