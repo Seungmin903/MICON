@@ -22,6 +22,7 @@ import com.micon.app.data.backend.dto.SongFitDto
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.data.local.UserStore
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 import kotlin.math.roundToInt
@@ -190,9 +191,12 @@ class BackendRecommendRepository(
         val profile = savedProfileId() ?: return local.fit(songId)
         val dto = try {
             api.songFit(songId, profile, 0).unwrapData()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             return local.fit(songId)
         }
+        if (dto.songId != songId || dto.analysisId != profile || dto.selectedKeyOffset != 0) return null
         if (dto.evaluationStatus != "AVAILABLE") return local.fit(songId)
         return dto.toSongFit(songId) ?: local.fit(songId)
     }
@@ -222,7 +226,7 @@ class BackendRecommendRepository(
         private const val NOTE_LOCAL_TAIL = "지금은 이 기기의 음역 계산 추천이에요."
 
         /** 서버 점수(0~100 또는 0~1) → 0~1 */
-        fun unit(value: Double?): Float? = value?.let { (if (it > 1.0) it / 100.0 else it).coerceIn(0.0, 1.0).toFloat() }
+        fun unit(value: Double?): Float? = value?.takeIf { it.isFinite() }?.let { (if (it > 1.0) it / 100.0 else it).coerceIn(0.0, 1.0).toFloat() }
 
         fun shelfReason(key: String): String = when (key) {
             ShelfKeys.VOICE -> "내 음색과 닮은 가수의 곡"
@@ -238,9 +242,11 @@ class BackendRecommendRepository(
             val score = unit(range.score) ?: return null
             val burden = burdenSections.filter { it.endMs > it.startMs }.map { StrainSection(it.startMs / 1000.0, it.endMs / 1000.0, 0) }
             val scores = recommendationScores
+            val axis = scores?.timbreAxis?.let { runCatching { TimbreAxis.valueOf(it) }.getOrNull() }
+            val label = scores?.timbreLabel?.takeIf { it.isNotBlank() }
             return SongFit(
                 songId = songId,
-                timbre = null,
+                timbre = if (axis != null && label != null) TimbreMatch(axis, label, null) else null,
                 timbreFit = unit(scores?.timbre),
                 rhythmFit = unit(scores?.rhythm),
                 rangeFit = RangeFit(

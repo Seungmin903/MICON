@@ -110,14 +110,15 @@ import kotlin.math.roundToInt
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
-fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (Long) -> Unit) {
+fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (Long) -> Unit, initialKey: Int = 0) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
-        key = "practice-$songId",
-        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, isLoggedIn = { TokenManager.isLoggedIn() }) } },
+        key = "practice-$songId-$initialKey",
+        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, isLoggedIn = { TokenManager.isLoggedIn() }, initialKey = initialKey) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
+    com.micon.app.ui.common.PlaybackLifecycleEffect(vm, onExit = vm::stopAudioForExit)
     fun hasMic() = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) vm.start() }
     fun startWithPermission() { if (hasMic()) vm.start() else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
@@ -203,7 +204,9 @@ fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (Long) -> Uni
         }
 
         if (state.phase != Phase.LOADING && state.phase != Phase.ERROR) {
-            BottomSheet(state, vm, onStart = ::startWithPermission, onBack = onBack, onOpenResult = onOpenResult)
+            BottomSheet(state, vm, onStart = ::startWithPermission,
+                onBack = { vm.stopAudioForExit(); onBack() },
+                onOpenResult = { id -> vm.stopAudioForExit(); onOpenResult(id) })
         }
     }
 }

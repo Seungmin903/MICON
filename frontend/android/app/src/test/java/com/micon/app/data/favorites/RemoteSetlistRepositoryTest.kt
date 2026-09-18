@@ -37,12 +37,12 @@ class RemoteSetlistRepositoryTest {
     @Test fun `list and detail map summaries and sort songs by position`() = runBlocking {
         server.enqueue(ok("[$summary]"))
         val lists = repo.list()
-        assertEquals("/api/v1/setlists", server.takeRequest().path)
+        assertEquals("/api/v1/setlist", server.takeRequest().path)
         assertEquals(1, lists.size); assertEquals(5L, lists[0].id); assertEquals(2, lists[0].songCount)
 
         server.enqueue(ok(detail))
         val d = repo.detail(5)
-        assertEquals("/api/v1/setlists/5", server.takeRequest().path)
+        assertEquals("/api/v1/setlist/5", server.takeRequest().path)
         assertEquals(listOf(1L, 7L), d.songs.map { it.songId })           // position 0, 1 순
         assertEquals("#안녕, 영화처럼", d.songs[0].artist)
     }
@@ -51,13 +51,13 @@ class RemoteSetlistRepositoryTest {
         server.enqueue(ok(summary, 201))
         repo.create("  회식용  ")
         var request = server.takeRequest()
-        assertEquals("POST", request.method); assertEquals("/api/v1/setlists", request.path)
+        assertEquals("POST", request.method); assertEquals("/api/v1/setlist", request.path)
         assertEquals("""{"name":"회식용"}""", request.body.readUtf8())
 
         server.enqueue(ok(summary))
         repo.rename(5, "회식용 2")
         request = server.takeRequest()
-        assertEquals("PATCH", request.method); assertEquals("/api/v1/setlists/5", request.path)
+        assertEquals("PATCH", request.method); assertEquals("/api/v1/setlist/5", request.path)
         assertEquals("""{"name":"회식용 2"}""", request.body.readUtf8())
     }
 
@@ -65,17 +65,17 @@ class RemoteSetlistRepositoryTest {
         server.enqueue(ok("null"))
         repo.delete(5)
         var request = server.takeRequest()
-        assertEquals("DELETE", request.method); assertEquals("/api/v1/setlists/5", request.path)
+        assertEquals("DELETE", request.method); assertEquals("/api/v1/setlist/5", request.path)
 
         server.enqueue(ok(detail))
         repo.addSong(5, 7)
         request = server.takeRequest()
-        assertEquals("PUT", request.method); assertEquals("/api/v1/setlists/5/songs/7", request.path)
+        assertEquals("POST", request.method); assertEquals("/api/v1/setlist/5/7", request.path)
 
         server.enqueue(ok(detail))
         repo.removeSong(5, 7)
         request = server.takeRequest()
-        assertEquals("DELETE", request.method); assertEquals("/api/v1/setlists/5/songs/7", request.path)
+        assertEquals("DELETE", request.method); assertEquals("/api/v1/setlist/5/7", request.path)
     }
 
     @Test fun `adding an unfavorited song surfaces SONG_NOT_FAVORITED`() = runBlocking {

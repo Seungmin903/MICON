@@ -147,7 +147,7 @@ class BackendRecommendRepositoryTest {
         server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"AVAILABLE",
             "originalKeyFit":{"userStableLowMidi":55,"userStableHighMidi":67,"songLowMidi":57,"songHighMidi":72,"score":66.67},
             "selectedKeyFit":{"userStableLowMidi":55,"userStableHighMidi":67,"songLowMidi":57,"songHighMidi":72,"score":66.67},
-            "recommendedKeyOffset":-3,"recommendationScores":{"overall":81.2,"range":66.67,"timbre":90,"rhythm":null,"algorithmVersion":"fit-v1"},
+            "recommendedKeyOffset":-3,"recommendationScores":{"overall":81.2,"range":66.67,"timbre":90,"rhythm":null,"algorithmVersion":"fit-v1","timbreAxis":"ECAPA","timbreLabel":"목소리 물성이 가까워요"},
             "reason":"고음 3반음만 내리면 편해요","burdenSections":[{"sectionId":501,"sectionType":"CHORUS","sectionName":"후렴","startMs":60000,"endMs":75000,"difficultyType":"HIGH","difficultyScore":0.8,"description":null}],
             "unavailableReason":null}"""))
         val fit = checkNotNull(repo.fit(7))
@@ -162,6 +162,8 @@ class BackendRecommendRepositoryTest {
         val strain = fit.strainSections!!.original.single()
         assertEquals(60.0, strain.startSec, 1e-9); assertEquals(75.0, strain.endSec, 1e-9)
         assertEquals("fit-v1", fit.scoringVersion)
+        assertEquals(com.micon.app.data.TimbreAxis.ECAPA, fit.timbre?.axis)
+        assertEquals("목소리 물성이 가까워요", fit.timbre?.label)
     }
 
     @Test fun `fit falls back to local when unavailable or without a saved profile`() = runBlocking {
@@ -180,5 +182,25 @@ class BackendRecommendRepositoryTest {
         assertEquals(0.5f, BackendRecommendRepository.unit(0.5)!!, 1e-6f)
         assertEquals(1f, BackendRecommendRepository.unit(1.0)!!, 1e-6f)
         assertNull(BackendRecommendRepository.unit(null))
+        assertNull(BackendRecommendRepository.unit(Double.NaN))
+        assertNull(BackendRecommendRepository.unit(Double.POSITIVE_INFINITY))
+    }
+
+    @Test fun `fit rejects another song profile or selected key`() = runBlocking {
+        server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
+        for ((song, profile, key) in listOf(Triple(8, 9, 0), Triple(7, 10, 0), Triple(7, 9, -2))) {
+            server.enqueue(ok("""{"songId":$song,"analysisId":$profile,"selectedKeyOffset":$key,"evaluationStatus":"AVAILABLE",
+                "originalKeyFit":{"score":0.8},"recommendationScores":{"timbre":0.9},"burdenSections":[]}"""))
+            assertNull(repo.fit(7))
+        }
+    }
+
+    @Test fun `legacy fit scores without timbre label remain readable`() = runBlocking {
+        server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
+        server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"AVAILABLE",
+            "originalKeyFit":{"score":0.8},"recommendationScores":{"timbre":0.9},"burdenSections":[]}"""))
+        val fit = checkNotNull(repo.fit(7))
+        assertEquals(0.9f, fit.timbreFit!!, 1e-6f)
+        assertNull(fit.timbre)
     }
 }
