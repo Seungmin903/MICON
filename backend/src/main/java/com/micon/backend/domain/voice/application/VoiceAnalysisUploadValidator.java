@@ -17,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class VoiceAnalysisUploadValidator {
     private static final Set<String> WAV_MEDIA_TYPES = Set.of("audio/wav", "audio/x-wav", "audio/wave");
     private static final Set<String> START_POSITIONS = Set.of("BEGINNING", "VERSE_2", "HIGHLIGHT");
-    private static final long RANGE_MAX_FILE_BYTES = 8_000_000;
     private final long maxFileBytes;
 
     public VoiceAnalysisUploadValidator(
@@ -39,8 +38,8 @@ public class VoiceAnalysisUploadValidator {
     public void validateRange(MultipartFile file, VoiceSessionRequest.RangeAnalysisUpload request) {
         validateFile(file);
         String mediaType = file.getContentType();
-        if (!("audio/wav".equalsIgnoreCase(mediaType) || "audio/x-wav".equalsIgnoreCase(mediaType))
-                || !"wav".equals(extension(file.getOriginalFilename())) || file.getSize() > RANGE_MAX_FILE_BYTES
+        if (!WAV_MEDIA_TYPES.contains(mediaType.toLowerCase(Locale.ROOT))
+                || !"wav".equals(extension(file.getOriginalFilename())) || file.getSize() > maxFileBytes
                 || !hasWavHeader(file)) {
             throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
                     "음역 분석에는 WAV 파일만 제출할 수 있습니다.");

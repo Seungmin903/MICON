@@ -25,13 +25,24 @@ public class VoiceRangeMeasurement {
     public VoiceRangeMeasurement(VoiceAnalysisSession session, String measurementUid, String ruleVersion,
                                  BigDecimal lowMidi, BigDecimal highMidi, String noteResults,
                                  String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
+        this(session, measurementUid, ruleVersion, "ON_DEVICE", lowMidi, highMidi, noteResults,
+                measurementStatus, qualityStatus, measuredAt);
+    }
+
+    public VoiceRangeMeasurement(VoiceAnalysisSession session, String measurementUid, String ruleVersion,
+                                 String source, BigDecimal lowMidi, BigDecimal highMidi, String noteResults,
+                                 String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
         this.session = session; this.measurementUid = measurementUid; this.ruleVersion = ruleVersion;
-        this.source = "ON_DEVICE"; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
+        if (!"ON_DEVICE".equals(source) && !"SERVER_AI".equals(source)) {
+            throw new IllegalArgumentException("unsupported range measurement source");
+        }
+        this.source = source; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
         this.noteResults = noteResults; this.measurementStatus = measurementStatus;
         this.qualityStatus = qualityStatus; this.measuredAt = measuredAt; this.submittedAt = LocalDateTime.now();
     }
     public BigDecimal getFullLowMidi() { return fullLowMidi; }
     public BigDecimal getFullHighMidi() { return fullHighMidi; }
+    public String getSource() { return source; }
     public String getMeasurementUid() { return measurementUid; }
     public String getNoteResults() { return noteResults; }
     public String getMeasurementStatus() { return measurementStatus; }

@@ -7,6 +7,7 @@ import com.micon.backend.domain.user.domain.UserStatus;
 import com.micon.backend.domain.voice.api.*;
 import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
 import com.micon.backend.domain.voice.domain.*;
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -68,13 +69,13 @@ public class VoiceSessionService {
         if (!"guided-range-v7".equals(request.protocolVersion())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 음역 측정 버전입니다.");
         }
-        if (request.lowMidi() != null && request.highMidi() != null
-                && request.lowMidi().compareTo(request.highMidi()) > 0) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "최저음은 최고음보다 높을 수 없습니다.");
-        }
+        validateDeviceRange(request);
         if (userId == null) return saveGuestDeviceRange(sessionId, guestToken, request);
         VoiceAnalysisSession session = sessions.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND));
+        if (session.isExpired() || "CANCELED".equals(session.getStatus()) || "SAVED".equals(session.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
         VoiceRangeMeasurement existing = ranges.findBySessionId(sessionId).orElse(null);
         if (existing == null) {
             if (ranges.findByMeasurementUid(request.measurementId()).isPresent()) {
@@ -88,6 +89,9 @@ public class VoiceSessionService {
         } else if (!Objects.equals(existing.getMeasurementUid(), request.measurementId())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                     "이미 다른 음역 측정 결과가 저장된 세션입니다.");
+        } else if (!sameRangeResult(existing, request)) {
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                    "같은 measurementId에는 동일한 음역 결과만 재전송할 수 있습니다.");
         }
         return member(session, ranges.findBySessionId(sessionId).orElse(null));
     }
@@ -95,16 +99,21 @@ public class VoiceSessionService {
     private synchronized VoiceSessionResponse.Session saveGuestDeviceRange(long sessionId, String token,
             VoiceSessionRequest.DeviceRangeResult request) {
         GuestSession guest = guest(sessionId, token);
+        String fingerprint = rangeFingerprint(request);
         if (guest.range == null) {
             guest.rangeMeasurementId = request.measurementId();
             guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
                     request.measurementStatus(), request.qualityStatus());
             guest.rangeStatus = request.measurementStatus();
-            guest.status = "AVAILABLE".equals(request.measurementStatus()) ? "RANGE_IN_PROGRESS" : request.measurementStatus();
+            guest.rangeFingerprint = fingerprint;
+            guest.refreshStatus();
             guest.version++;
         } else if (!Objects.equals(guest.rangeMeasurementId, request.measurementId())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                     "이미 다른 음역 측정 결과가 저장된 세션입니다.");
+        } else if (!Objects.equals(guest.rangeFingerprint, fingerprint)) {
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                    "같은 measurementId에는 동일한 음역 결과만 재전송할 수 있습니다.");
         }
         return guest.response(false);
     }
@@ -114,22 +123,62 @@ public class VoiceSessionService {
         catch (JacksonException exception) { throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR); }
     }
 
+    private void validateDeviceRange(VoiceSessionRequest.DeviceRangeResult request) {
+        boolean available = "AVAILABLE".equals(request.measurementStatus());
+        if (available && (request.lowMidi() == null || request.highMidi() == null)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "AVAILABLE 음역 결과에는 최저음과 최고음이 필요합니다.");
+        }
+        if (request.lowMidi() != null && (request.lowMidi().compareTo(BigDecimal.ZERO) < 0
+                || request.lowMidi().compareTo(BigDecimal.valueOf(127)) > 0)
+                || request.highMidi() != null && (request.highMidi().compareTo(BigDecimal.ZERO) < 0
+                || request.highMidi().compareTo(BigDecimal.valueOf(127)) > 0)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "MIDI 값은 0에서 127 사이여야 합니다.");
+        }
+        if (request.lowMidi() != null && request.highMidi() != null
+                && request.lowMidi().compareTo(request.highMidi()) > 0) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "최저음은 최고음보다 높을 수 없습니다.");
+        }
+        if (request.noteResults() == null || request.noteResults().isNull()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "음역 측정 결과가 필요합니다.");
+        }
+    }
+
+    private boolean sameRangeResult(VoiceRangeMeasurement existing,
+                                   VoiceSessionRequest.DeviceRangeResult request) {
+        return Objects.equals(existing.getFullLowMidi(), request.lowMidi())
+                && Objects.equals(existing.getFullHighMidi(), request.highMidi())
+                && Objects.equals(existing.getMeasurementStatus(), request.measurementStatus())
+                && Objects.equals(existing.getQualityStatus(), request.qualityStatus())
+                && Objects.equals(existing.getNoteResults(), write(request.noteResults()));
+    }
+
+    private String rangeFingerprint(VoiceSessionRequest.DeviceRangeResult request) {
+        return String.join("|", request.measurementId(), String.valueOf(request.lowMidi()),
+                String.valueOf(request.highMidi()), request.measurementStatus(), request.qualityStatus(),
+                write(request.noteResults()));
+    }
+
     public synchronized VoiceAnalysisJobResponse prepareGuestRange(long sessionId, String guestToken,
-                                                                   VoiceSessionRequest.RangeAnalysisUpload request) {
+                                                                   VoiceSessionRequest.RangeAnalysisUpload request,
+                                                                   String audioSha256) {
         GuestSession guest = guest(sessionId, guestToken);
         GuestRangeJob existing = guestRangeJobs.get(request.requestId());
         if (existing != null) {
             if (existing.session != guest) throw new BusinessException(ErrorCode.INVALID_REQUEST,
                     "이미 다른 분석에 사용된 requestId입니다.");
+            if (!Objects.equals(existing.audioSha256, audioSha256)) {
+                throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                        "같은 requestId에는 동일한 WAV만 재전송할 수 있습니다.");
+            }
             return existing.response();
         }
         if (guest.range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                 "이미 완료된 음역 분석이 있습니다.");
         GuestRangeJob job = new GuestRangeJob(guestIds.getAndDecrement(), guest, request.requestId(),
-                request.attemptNo());
+                request.attemptNo(), audioSha256);
         guestRangeJobs.put(request.requestId(), job);
-        guest.status = "UPLOADING";
         guest.rangeStatus = "UPLOADING";
+        guest.refreshStatus();
         return job.response();
     }
 
@@ -138,8 +187,8 @@ public class VoiceSessionService {
         job.aiJobId = aiJobId;
         job.status = "QUEUED";
         job.startedAt = LocalDateTime.now();
-        job.session.status = "ANALYZING";
         job.session.rangeStatus = "ANALYZING";
+        job.session.refreshStatus();
         return job.response();
     }
 
@@ -148,7 +197,8 @@ public class VoiceSessionService {
         job.status = "DISPATCH_UNKNOWN";
         job.failureCode = "AI_DISPATCH_UNKNOWN";
         job.failureReason = reason;
-        job.session.status = "UPLOADING";
+        job.session.rangeStatus = "UPLOADING";
+        job.session.refreshStatus();
     }
 
     public synchronized VoiceAnalysisComponentCallbackResponse acceptGuestRangeCallback(
@@ -179,10 +229,17 @@ public class VoiceSessionService {
     }
 
     private void validateRangeResult(VoiceAnalysisComponentCallbackRequest request) {
-        if (request.lowMidi() == null || request.highMidi() == null
-                || request.lowMidi().compareTo(request.highMidi()) > 0
-                || request.noteResults() == null || request.measurementStatus() == null
-                || request.qualityStatus() == null) {
+        boolean available = "AVAILABLE".equals(request.measurementStatus());
+        if ((available && (request.lowMidi() == null || request.highMidi() == null))
+                || request.lowMidi() != null && (request.lowMidi().compareTo(BigDecimal.ZERO) < 0
+                || request.lowMidi().compareTo(BigDecimal.valueOf(127)) > 0)
+                || request.highMidi() != null && (request.highMidi().compareTo(BigDecimal.ZERO) < 0
+                || request.highMidi().compareTo(BigDecimal.valueOf(127)) > 0)
+                || request.lowMidi() != null && request.highMidi() != null
+                && request.lowMidi().compareTo(request.highMidi()) > 0
+                || request.noteResults() == null || request.noteResults().isNull()
+                || !Set.of("AVAILABLE", "INSUFFICIENT_DATA", "FAILED").contains(request.measurementStatus())
+                || !Set.of("VALID", "NOISY", "CLIPPED", "INSUFFICIENT_VOICE").contains(request.qualityStatus())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
         }
     }
@@ -207,7 +264,8 @@ public class VoiceSessionService {
         GuestTimbreJob job = new GuestTimbreJob(guestIds.getAndDecrement(), session, requestId,
                 attemptNo, audioSha256);
         guestTimbreJobs.put(requestId, job);
-        session.status = "UPLOADING";
+        session.timbreStatus = "UPLOADING";
+        session.refreshStatus();
         return job.response();
     }
 
@@ -226,7 +284,8 @@ public class VoiceSessionService {
         job.failureCode = null;
         job.failureReason = null;
         job.components.replaceAll((key, value) -> "PENDING".equals(value) ? "QUEUED" : value);
-        job.session.status = "ANALYZING";
+        job.session.timbreStatus = "ANALYZING";
+        job.session.refreshStatus();
         return job.response();
     }
 
@@ -236,7 +295,8 @@ public class VoiceSessionService {
         job.status = "DISPATCH_UNKNOWN";
         job.failureCode = "AI_DISPATCH_UNKNOWN";
         job.failureReason = reason;
-        job.session.status = "UPLOADING";
+        job.session.timbreStatus = "UPLOADING";
+        job.session.refreshStatus();
     }
 
     public synchronized void failGuestTimbre(String requestId, String code, String reason) {
@@ -247,7 +307,8 @@ public class VoiceSessionService {
         job.failureReason = reason;
         job.completedAt = LocalDateTime.now();
         job.components.replaceAll((key, value) -> isTerminalStatus(value) ? value : "FAILED");
-        job.session.status = "FAILED";
+        job.session.timbreStatus = "FAILED";
+        job.session.refreshStatus();
     }
 
     private GuestTimbreJob guestTimbreJob(String requestId) {
@@ -257,7 +318,17 @@ public class VoiceSessionService {
         return job;
     }
     public synchronized VoiceAnalysisJobResponse guestTimbreStatus(long sid,String token){GuestSession s=guest(sid,token);return guestTimbreJobs.values().stream().filter(j->j.session==s).max(java.util.Comparator.comparingLong(j->j.id)).orElseThrow(()->new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND)).response();}
-    public synchronized VoiceAnalysisJobResponse cancelGuestTimbre(long sid,String token,long id){GuestSession s=guest(sid,token);GuestTimbreJob j=guestTimbreJobs.values().stream().filter(x->x.id==id&&x.session==s).findFirst().orElseThrow(()->new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));j.status="CANCELED";j.completedAt=LocalDateTime.now();s.status="CANCELED";return j.response();}
+    public synchronized VoiceAnalysisJobResponse cancelGuestTimbre(long sid, String token, long id) {
+        GuestSession session = guest(sid, token);
+        GuestTimbreJob job = guestTimbreJobs.values().stream()
+                .filter(item -> item.id == id && item.session == session).findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        job.status = "CANCELED";
+        job.completedAt = LocalDateTime.now();
+        session.timbreStatus = "FAILED";
+        session.refreshStatus();
+        return job.response();
+    }
     public synchronized VoiceAnalysisComponentCallbackResponse acceptGuestTimbreCallback(
             VoiceAnalysisComponentCallbackRequest request) {
         GuestTimbreJob job = guestTimbreJobs.get(request.requestId());
@@ -274,6 +345,9 @@ public class VoiceSessionService {
         if (isTerminalStatus(job.components.get(component))) {
             return new VoiceAnalysisComponentCallbackResponse(job.id, job.status, true);
         }
+        if (request.status() == VoiceAnalysisComponentCallbackRequest.Status.COMPLETED) {
+            validateGuestTimbreComponent(component, request);
+        }
         job.components.put(component, request.status().name());
         if (request.status() == VoiceAnalysisComponentCallbackRequest.Status.RUNNING) {
             job.status = "RUNNING";
@@ -281,12 +355,32 @@ public class VoiceSessionService {
             boolean completed = job.components.values().stream().allMatch("COMPLETED"::equals);
             job.status = completed ? "COMPLETED" : "FAILED";
             job.completedAt = request.processedAt();
-            job.session.status = completed ? "READY_TO_SAVE" : "FAILED";
+            job.session.timbreStatus = completed ? "AVAILABLE" : "FAILED";
+            job.session.refreshStatus();
             if (completed) job.session.version++;
         } else {
             job.status = "RUNNING";
         }
         return new VoiceAnalysisComponentCallbackResponse(job.id, job.status, false);
+    }
+
+    private void validateGuestTimbreComponent(String component,
+            VoiceAnalysisComponentCallbackRequest request) {
+        int expectedDimension = "ECAPA".equals(component) ? 192 : "SINGER_BYOL".equals(component) ? 1000 : -1;
+        List<Double> embedding = request.embedding();
+        var validChunkCount = request.segmentInfo() == null ? null : request.segmentInfo().get("validChunkCount");
+        double energy = embedding == null ? 0 : embedding.stream()
+                .filter(Objects::nonNull).mapToDouble(value -> value * value).sum();
+        if (expectedDimension < 0 || !component.equals(request.modelKey())
+                || request.modelVersion() == null || request.modelVersion().isBlank()
+                || request.dimension() == null || request.dimension() != expectedDimension
+                || embedding == null || embedding.size() != expectedDimension
+                || embedding.stream().anyMatch(value -> value == null || !Double.isFinite(value))
+                || !Double.isFinite(energy) || energy < 1e-12
+                || validChunkCount == null || !validChunkCount.isIntegralNumber()
+                || validChunkCount.asInt() < 5) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
+        }
     }
 
     private static boolean isTerminalStatus(String status) {
@@ -319,17 +413,27 @@ public class VoiceSessionService {
 
     private static final class GuestSession {
         final long id; final String token; final LocalDateTime expiresAt;
-        long version; String status="CREATED", rangeStatus="PENDING"; String rangeMeasurementId;
+        long version; String status="CREATED", rangeStatus="PENDING", timbreStatus="PENDING";
+        String rangeMeasurementId, rangeFingerprint;
         VoiceSessionResponse.Range range;
         GuestSession(long id, String token, LocalDateTime expiresAt) { this.id=id; this.token=token; this.expiresAt=expiresAt; }
         void accept(VoiceAnalysisComponentCallbackRequest r) {
             if (range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
             range = new VoiceSessionResponse.Range(r.lowMidi(), r.highMidi(), r.measurementStatus(), r.qualityStatus());
-            rangeStatus=r.measurementStatus(); status="AVAILABLE".equals(rangeStatus)?"RANGE_IN_PROGRESS":rangeStatus; version++;
+            rangeStatus=r.measurementStatus(); refreshStatus(); version++;
         }
         VoiceSessionResponse.Session response(boolean includeToken) {
-            return new VoiceSessionResponse.Session(id, includeToken?token:null, status, rangeStatus, "PENDING", "PENDING",
+            return new VoiceSessionResponse.Session(id, includeToken?token:null, status, rangeStatus, timbreStatus, "PENDING",
                     version, false, true, expiresAt, range);
+        }
+        void refreshStatus() {
+            if ("AVAILABLE".equals(rangeStatus) && "AVAILABLE".equals(timbreStatus)) status = "READY_TO_SAVE";
+            else if ("AVAILABLE".equals(rangeStatus) || "AVAILABLE".equals(timbreStatus)) status = "PARTIAL_READY";
+            else if ("FAILED".equals(rangeStatus) || "FAILED".equals(timbreStatus)) status = "FAILED";
+            else if ("INSUFFICIENT_DATA".equals(rangeStatus) || "INSUFFICIENT_DATA".equals(timbreStatus)) status = "INSUFFICIENT_DATA";
+            else if ("UPLOADING".equals(rangeStatus) || "UPLOADING".equals(timbreStatus)) status = "UPLOADING";
+            else if ("ANALYZING".equals(rangeStatus) || "ANALYZING".equals(timbreStatus)) status = "ANALYZING";
+            else status = "CREATED";
         }
     }
 
@@ -337,13 +441,15 @@ public class VoiceSessionService {
         final long id; final GuestSession session; final String requestId; final int attemptNo;
         String aiJobId, failureCode, failureReason, status = "PENDING";
         LocalDateTime startedAt, completedAt;
-        GuestRangeJob(long id, GuestSession session, String requestId, int attemptNo) {
+        final String audioSha256;
+        GuestRangeJob(long id, GuestSession session, String requestId, int attemptNo, String audioSha256) {
             this.id=id; this.session=session; this.requestId=requestId; this.attemptNo=attemptNo;
+            this.audioSha256=audioSha256;
         }
         void fail(String code, String reason, boolean insufficient) {
             status = insufficient ? "INSUFFICIENT_DATA" : "FAILED";
             failureCode = code; failureReason = reason; completedAt = LocalDateTime.now();
-            session.rangeStatus = status; session.status = status;
+            session.rangeStatus = status; session.refreshStatus();
         }
         VoiceAnalysisJobResponse response() {
             return new VoiceAnalysisJobResponse(id, session.id, null, requestId, aiJobId, "RANGE", status,
