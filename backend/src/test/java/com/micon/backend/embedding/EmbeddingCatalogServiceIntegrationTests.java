@@ -2,8 +2,8 @@ package com.micon.backend.embedding;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

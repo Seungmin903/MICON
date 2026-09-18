@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
-import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
+import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,11 +17,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.micon.backend.user.domain.User;
-import com.micon.backend.user.domain.UserRepository;
+import com.micon.backend.domain.user.domain.User;
+import com.micon.backend.domain.user.domain.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import com.micon.backend.voice.domain.VoiceAnalysisSessionRepository;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisSessionRepository;
 import java.time.LocalDateTime;
 
 @SpringBootTest(properties = "ai.voice-analysis-enabled=true")

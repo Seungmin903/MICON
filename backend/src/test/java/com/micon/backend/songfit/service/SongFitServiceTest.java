@@ -4,16 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.songfit.api.SongFitResponse;
-import com.micon.backend.songfit.api.SongFitResponse.BurdenSection;
-import com.micon.backend.songfit.client.SongFitGateway;
-import com.micon.backend.songfit.repository.SongFitQueryRepository;
-import com.micon.backend.songfit.repository.SongFitQueryRepository.RecommendationRow;
-import com.micon.backend.songfit.repository.SongFitQueryRepository.SongRangeRow;
-import com.micon.backend.songfit.repository.SongFitQueryRepository.UserRangeRow;
+import com.micon.backend.domain.songfit.api.SongFitResponse;
+import com.micon.backend.domain.songfit.api.SongFitResponse.BurdenSection;
+import com.micon.backend.domain.songfit.client.SongFitGateway;
+import com.micon.backend.domain.songfit.repository.SongFitQueryRepository;
+import com.micon.backend.domain.songfit.repository.SongFitQueryRepository.RecommendationRow;
+import com.micon.backend.domain.songfit.repository.SongFitQueryRepository.SongRangeRow;
+import com.micon.backend.domain.songfit.repository.SongFitQueryRepository.UserRangeRow;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+
+import com.micon.backend.domain.songfit.service.SongFitEvaluationFailedException;
+import com.micon.backend.domain.songfit.service.SongFitService;
+import com.micon.backend.domain.songfit.service.SongNotFoundException;
+import com.micon.backend.domain.songfit.service.VoiceAnalysisNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

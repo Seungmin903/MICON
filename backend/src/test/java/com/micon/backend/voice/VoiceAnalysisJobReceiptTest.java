@@ -1,7 +1,7 @@
 package com.micon.backend.voice;
 
-import com.micon.backend.voice.domain.VoiceAnalysisJob;
-import com.micon.backend.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisJob;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;

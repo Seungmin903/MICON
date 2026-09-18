@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.micon.backend.voice.client.VoiceAnalysisJobGateway;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.micon.backend.common.exception.GlobalExceptionHandler;
-import com.micon.backend.songfit.service.SongFitService;
+import com.micon.backend.domain.songfit.api.SongFitController;
+import com.micon.backend.domain.songfit.api.SongFitResponse;
+import com.micon.backend.domain.songfit.service.SongFitService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

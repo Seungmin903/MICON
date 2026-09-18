@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.setlist.repository.SetlistRepository;
-import com.micon.backend.setlist.service.SetlistNotFoundException;
-import com.micon.backend.setlist.service.SetlistService;
+import com.micon.backend.domain.setlist.repository.SetlistRepository;
+import com.micon.backend.domain.setlist.exception.SetlistNotFoundException;
+import com.micon.backend.domain.setlist.service.SetlistService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

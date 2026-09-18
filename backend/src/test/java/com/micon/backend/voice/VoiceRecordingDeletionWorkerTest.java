@@ -4,9 +4,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.voice.application.VoiceRecordingDeletionLifecycle;
-import com.micon.backend.voice.application.VoiceRecordingDeletionWorker;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.application.VoiceRecordingDeletionLifecycle;
+import com.micon.backend.domain.voice.application.VoiceRecordingDeletionWorker;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import org.junit.jupiter.api.Test;
 
 class VoiceRecordingDeletionWorkerTest {

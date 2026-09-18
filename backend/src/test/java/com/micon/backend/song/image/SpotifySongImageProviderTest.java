@@ -2,6 +2,10 @@ package com.micon.backend.song.image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.micon.backend.domain.song.image.SpotifyAccessTokenProvider;
+import com.micon.backend.domain.song.image.SpotifyImageProperties;
+import com.micon.backend.domain.song.image.SpotifySongImageProvider;
+import com.micon.backend.domain.song.image.SpotifyTrackImage;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;

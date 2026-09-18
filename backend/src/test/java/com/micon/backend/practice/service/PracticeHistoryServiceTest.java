@@ -3,12 +3,14 @@ package com.micon.backend.practice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.practice.api.PracticeHistoryResponse;
-import com.micon.backend.practice.repository.PracticeHistoryRepository;
+import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.micon.backend.domain.practice.service.PracticeHistoryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

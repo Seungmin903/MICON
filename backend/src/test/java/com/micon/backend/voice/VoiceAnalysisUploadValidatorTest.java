@@ -3,9 +3,9 @@ package com.micon.backend.voice;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.micon.backend.common.exception.BusinessException;
-import com.micon.backend.voice.api.VoiceAnalysisUploadRequest;
-import com.micon.backend.voice.application.VoiceAnalysisUploadValidator;
-import com.micon.backend.voice.domain.VoiceAnalysisMethod;
+import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.application.VoiceAnalysisUploadValidator;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisMethod;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
