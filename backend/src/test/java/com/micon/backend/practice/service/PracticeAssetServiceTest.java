@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.catalogmedia.CatalogMediaProperties;
-import com.micon.backend.domain.practice.api.PracticeAssetResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeAssetResponse;
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository;
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository.MediaRow;
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository.NoteRow;

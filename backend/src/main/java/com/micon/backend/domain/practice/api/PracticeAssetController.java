@@ -1,6 +1,7 @@
 package com.micon.backend.domain.practice.api;
 
 import com.micon.backend.common.api.ApiResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeAssetResponse;
 import com.micon.backend.domain.practice.service.PracticeAssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

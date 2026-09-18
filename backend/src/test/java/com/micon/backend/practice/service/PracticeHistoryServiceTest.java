@@ -3,7 +3,7 @@ package com.micon.backend.practice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.domain.practice.api.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
 import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;

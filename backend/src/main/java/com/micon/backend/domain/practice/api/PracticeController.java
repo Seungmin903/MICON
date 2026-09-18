@@ -1,6 +1,11 @@
 package com.micon.backend.domain.practice.api;
 
 import com.micon.backend.common.api.ApiResponse;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest;
+import com.micon.backend.domain.practice.dto.request.PracticeResultRequest;
+import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeResultResponse;
 import com.micon.backend.domain.practice.service.PracticeResultService;
 import com.micon.backend.domain.practice.service.PracticeService;
 import com.micon.backend.domain.practice.service.PracticeHistoryService;

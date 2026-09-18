@@ -1,6 +1,6 @@
 package com.micon.backend.domain.favorite.service;
 
-import com.micon.backend.domain.favorite.api.FavoriteResponse;
+import com.micon.backend.domain.favorite.dto.FavoriteResponse;
 import com.micon.backend.domain.favorite.repository.FavoriteRepository;
 import com.micon.backend.domain.song.service.SongNotFoundException;
 import org.springframework.stereotype.Service;

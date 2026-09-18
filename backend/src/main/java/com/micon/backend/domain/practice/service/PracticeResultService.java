@@ -4,10 +4,10 @@ import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.practice.repository.PracticeRepository;
 import com.micon.backend.domain.practice.repository.PracticeResultRepository;
-import com.micon.backend.domain.practice.api.PracticeResponse;
-import com.micon.backend.domain.practice.api.PracticeResultRequest;
-import com.micon.backend.domain.practice.api.PracticeResultRequest.SectionEvaluation;
-import com.micon.backend.domain.practice.api.PracticeResultResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeResponse;
+import com.micon.backend.domain.practice.dto.request.PracticeResultRequest;
+import com.micon.backend.domain.practice.dto.request.PracticeResultRequest.SectionEvaluation;
+import com.micon.backend.domain.practice.dto.response.PracticeResultResponse;
 
 import java.util.Comparator;
 import java.util.List;

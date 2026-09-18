@@ -1,6 +1,6 @@
 package com.micon.backend.domain.practice.service;
 
-import com.micon.backend.domain.practice.api.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
 import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
 
 import java.time.LocalDate;

@@ -10,9 +10,9 @@ import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.practice.api.PracticeRequest;
-import com.micon.backend.domain.practice.api.PracticeRequest.PracticeScope;
-import com.micon.backend.domain.practice.api.PracticeResponse;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest.PracticeScope;
+import com.micon.backend.domain.practice.dto.response.PracticeResponse;
 import com.micon.backend.domain.practice.repository.PracticeRepository;
 import com.micon.backend.domain.practice.repository.PracticeRepository.SongRow;
 import java.math.BigDecimal;

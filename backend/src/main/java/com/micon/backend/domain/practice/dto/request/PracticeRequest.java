@@ -1,4 +1,4 @@
-package com.micon.backend.domain.practice.api;
+package com.micon.backend.domain.practice.dto.request;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

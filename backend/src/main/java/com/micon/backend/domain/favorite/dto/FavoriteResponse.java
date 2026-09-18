@@ -1,4 +1,4 @@
-package com.micon.backend.domain.favorite.api;
+package com.micon.backend.domain.favorite.dto;
 
 import com.micon.backend.domain.song.api.SongResponse;
 import java.util.List;

@@ -3,9 +3,9 @@ package com.micon.backend.domain.practice.service;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.practice.repository.PracticeRepository;
-import com.micon.backend.domain.practice.api.PracticeRequest;
-import com.micon.backend.domain.practice.api.PracticeRequest.PracticeScope;
-import com.micon.backend.domain.practice.api.PracticeResponse;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest.PracticeScope;
+import com.micon.backend.domain.practice.dto.response.PracticeResponse;
 
 import java.math.BigDecimal;
 import java.util.concurrent.ThreadLocalRandom;

@@ -3,7 +3,7 @@ package com.micon.backend.domain.practice.service;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.common.observability.AccessLog;
-import com.micon.backend.domain.practice.api.PracticeAssetResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeAssetResponse;
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository;
 import com.micon.backend.catalogmedia.CatalogMediaProperties;
 import com.micon.backend.domain.voice.storage.VoiceStorage;
