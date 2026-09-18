@@ -24,6 +24,7 @@ data class PracticeRecord(
     val sectionId: Long?,
     val recordingId: Long?,
     val voiceAnalysisId: Long?,
+    /** 최종 키(실제로 부른 키). [initialKey] 는 세션을 연 키 — 앱은 늘 원키로 열므로 보통 0. */
     val selectedKey: Int,
     val playbackSpeed: Double?,
     val practiceScope: String?,
@@ -32,6 +33,8 @@ data class PracticeRecord(
     val endedAt: String?,
     val durationMs: Int?,
     val createdAt: String?,
+    val initialKey: Int = selectedKey,
+    val keyChanged: Boolean = initialKey != selectedKey,
 ) {
     val isCompleted: Boolean get() = status == "COMPLETED"
 }
@@ -50,6 +53,8 @@ data class PracticeSummary(
     val durationMs: Int?,
     val resultStatus: String?,
     val overallScore: Double?,
+    val initialKey: Int = selectedKey,
+    val keyChanged: Boolean = initialKey != selectedKey,
 )
 
 data class PracticePage(val items: List<PracticeSummary>, val page: Int, val size: Int, val totalElements: Long, val totalPages: Int)
@@ -109,6 +114,8 @@ data class PracticeReport(
     val dataVersion: String? = null,
     val notes: List<JudgedNote> = emptyList(),
     val curve: PitchCurve? = null,
+    val initialKey: Int = selectedKey,
+    val keyChanged: Boolean = initialKey != selectedKey,
 ) {
     val hasDetail: Boolean get() = notes.isNotEmpty() || (curve != null && !curve.isEmpty)
 
@@ -117,6 +124,7 @@ data class PracticeReport(
         id = practiceId, songId = songId, songTitle = songTitle, sectionId = sectionId, recordingId = null, voiceAnalysisId = null,
         selectedKey = selectedKey, playbackSpeed = null, practiceScope = practiceScope, status = status ?: "COMPLETED",
         startedAt = analyzedAt, endedAt = analyzedAt, durationMs = durationMs, createdAt = analyzedAt,
+        initialKey = initialKey, keyChanged = keyChanged,
     )
 }
 
@@ -130,7 +138,11 @@ data class PracticeReport(
  */
 interface PracticeRepository {
     suspend fun create(songId: String, selectedKey: Int, practiceScope: String = "FULL_SONG"): PracticeRecord
-    suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord
+    /**
+     * 완료. [finalSelectedKey]·[keyChangeCount] 를 주면 실제로 부른 키를 기록한다(BE V29).
+     * 서버가 그 키의 반주를 확인하지 못하면 422 `UNSUPPORTED_PRACTICE_KEY` — 호출자가 키 없이 다시 완료할 수 있다.
+     */
+    suspend fun complete(practiceId: Long, durationMs: Int, finalSelectedKey: Int? = null, keyChangeCount: Int? = null): PracticeRecord
     suspend fun cancel(practiceId: Long): PracticeRecord
     suspend fun savePerformance(practiceId: Long, result: PracticeResultInput): PracticeReport
     /** 최신순 목록. size 최대 100. [date](yyyy-MM-dd) 를 주면 그 날짜만. */
@@ -145,8 +157,9 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
     override suspend fun create(songId: String, selectedKey: Int, practiceScope: String): PracticeRecord =
         api.createPractice(PracticeCreateRequest(songId = songId, selectedKey = selectedKey, practiceScope = practiceScope)).unwrapData().toModel()
 
-    override suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord =
-        api.completePractice(practiceId, PracticeCompleteRequest(durationMs.coerceAtLeast(0))).unwrapData().toModel()
+    override suspend fun complete(practiceId: Long, durationMs: Int, finalSelectedKey: Int?, keyChangeCount: Int?): PracticeRecord =
+        api.completePractice(practiceId, PracticeCompleteRequest(durationMs.coerceAtLeast(0),
+            finalSelectedKey = finalSelectedKey, keyChangeCount = keyChangeCount)).unwrapData().toModel()
 
     override suspend fun cancel(practiceId: Long): PracticeRecord = api.cancelPractice(practiceId).unwrapData().toModel()
 
@@ -202,11 +215,12 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
 
         private fun PracticeDetailDto.toModel() = PracticeRecord(
             practiceId, songId, songTitle, sectionId, recordingId, voiceAnalysisId, selectedKey, playbackSpeed, practiceScope,
-            status ?: "UNKNOWN", startedAt, endedAt, durationMs, createdAt,
+            status ?: "UNKNOWN", startedAt, endedAt, durationMs, createdAt, initialKey = initialKey, keyChanged = keyChanged,
         )
 
         private fun PracticeSummaryDto.toModel() = PracticeSummary(
             practiceId, songId, songTitle, imageUrl, selectedKey, practiceScope, sectionId, status ?: "UNKNOWN", startedAt, durationMs, resultStatus, overallScore,
+            initialKey = initialKey, keyChanged = keyChanged,
         )
 
         private fun SectionEvaluationDto.toModel() = SectionEvaluation(sectionId, score, measured, summary)
@@ -218,6 +232,7 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
             dataVersion = dataVersion,
             notes = notes.orEmpty().map { JudgedNote(it.i, it.s, it.c, it.d) },
             curve = curve?.let { PitchCurve(it.hopMs.coerceAtLeast(1), it.startMs, it.user) },
+            initialKey = initialKey, keyChanged = keyChanged,
         )
     }
 }

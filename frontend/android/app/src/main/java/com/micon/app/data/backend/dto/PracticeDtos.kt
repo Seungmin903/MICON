@@ -21,8 +21,18 @@ data class PracticeCreateRequest(
 /** `PATCH /practices/{id}/status` → PracticeRequest.StatusUpdate. status: RECORDING | IN_PROGRESS | PAUSED */
 data class PracticeStatusRequest(val status: String)
 
-/** `POST /practices/{id}/complete` → PracticeRequest.Complete */
-data class PracticeCompleteRequest(val durationMs: Int, val voiceAnalysisId: Long? = null, val recordingId: Long? = null)
+/**
+ * `POST /practices/{id}/complete` → PracticeRequest.Complete.
+ * [finalSelectedKey]·[keyChangeCount] 는 BE `fix/be/practiceSessionKey`(V29) 에서 추가된 선택 항목 — 실제로 부른 키와 변경 횟수.
+ * 서버는 최종 키가 최초 키(세션 생성 키)와 다르면 변경 횟수 ≥ 1 을 요구하고, 그 키의 반주가 READY 인지도 검사한다.
+ */
+data class PracticeCompleteRequest(
+    val durationMs: Int,
+    val voiceAnalysisId: Long? = null,
+    val recordingId: Long? = null,
+    val finalSelectedKey: Int? = null,
+    val keyChangeCount: Int? = null,
+)
 
 /** `PUT /practices/{id}/performance` → PracticeResultRequest.Save. 점수는 0~100, summaryText ≤ 500자, sections ≤ 20개 */
 data class PracticeResultSaveRequest(
@@ -68,7 +78,12 @@ data class PracticeDetailDto(
     val sectionId: Long? = null,
     val recordingId: Long? = null,
     val voiceAnalysisId: Long? = null,
+    /** 세션 생성 시 키(V29 `initial_key`). 앱은 늘 원키(0)로 열고 실제 키는 완료 때 보낸다. */
+    val initialKey: Int = 0,
+    /** 최종 키(완료 때 `finalSelectedKey` 로 갱신) */
     val selectedKey: Int = 0,
+    val keyChangeCount: Int = 0,
+    val keyChanged: Boolean = false,
     val playbackSpeed: Double? = null,
     val customStartMs: Int? = null,
     val customEndMs: Int? = null,
@@ -87,7 +102,10 @@ data class PracticeSummaryDto(
     val songId: String = "",
     val songTitle: String? = null,
     val imageUrl: String? = null,
+    val initialKey: Int = 0,
     val selectedKey: Int = 0,
+    val keyChangeCount: Int = 0,
+    val keyChanged: Boolean = false,
     val practiceScope: String? = null,
     val sectionId: Long? = null,
     val status: String? = null,
@@ -103,7 +121,10 @@ data class PracticeReportDto(
     val practiceId: Long = 0,
     val songId: String = "",
     val songTitle: String? = null,
+    val initialKey: Int = 0,
     val selectedKey: Int = 0,
+    val keyChangeCount: Int = 0,
+    val keyChanged: Boolean = false,
     val practiceScope: String? = null,
     val sectionId: Long? = null,
     val durationMs: Int? = null,
