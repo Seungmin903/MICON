@@ -11,7 +11,7 @@ async function api(path, options) {
   if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail || body));
   return body;
 }
-function badge(status) {const value = String(status || 'UNKNOWN'); return el('span', value, 'status ' + (/FAILED|INSUFFICIENT/i.test(value)? 'failed' : /COMPLETE|REPLAY_READY/i.test(value)? 'complete' : 'pending'));}
+function badge(status) {const value = String(status || 'UNKNOWN'); return el('span', value, 'status ' + (/FAILED|INSUFFICIENT|REJECTED|CONFLICT|UNAVAILABLE/i.test(value)? 'failed' : /COMPLETE|REPLAY_READY|ACCEPTED|AVAILABLE|NO_RESULT/i.test(value)? 'complete' : 'pending'));}
 function ownerText(r) {return r.kind==='case'?'테스트 case':r.loginId?`가입 ID ${r.loginId}`:'가입 ID 확인 불가';}
 function inputInfo(r) {return r?(ownerText(r)+' · '+(r.kind==='case'?'동의받아 저장한 고정 입력 case':'분석 원본 진단 · 당시 추천의 취향과 profile 동일성 보장 안 됨')):'';}
 function tip(event, text) {
@@ -34,7 +34,7 @@ function refreshRequestList() {
     card.append(head,owner,el('div',r.id,'request-id'),badge(r.status),el('div',r.createdAt || '생성 시각 미상','muted'));
     if(r.userId)card.append(el('div',`회원번호 ${r.userId}`,'muted'));
     if(!r.replayAvailable) card.append(el('div','상태 조회만 가능','muted'));
-    function select(){state.selected=r.id; refreshRequestList(); if(r.kind==='case'){ $('caseSelect').value=r.id; inputChanged(); } else { $('jobId').value=r.id; inspectJob(r.id); if(r.replayAvailable){ $('caseSelect').value=r.id; inputChanged(); } }}
+    function select(){state.selected=r.id; refreshRequestList(); if(r.kind==='case'){state.inspected='';state.jobEpoch++;$('jobDetail').replaceChildren(el('p','저장 테스트 case입니다. 실제 회원의 음역·가수 접수 결과가 아닙니다.','muted')); $('caseSelect').value=r.id; inputChanged(); } else { $('jobId').value=r.id; inspectJob(r.id); if(r.replayAvailable){ $('caseSelect').value=r.id; inputChanged(); } }}
     card.onclick=select; card.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();select();}}; $('requests').append(card);
   }
   if(!filtered.length) $('requests').append(el('p','설정된 소스에 요청이 없거나 검색 결과가 없습니다.','muted'));
@@ -44,10 +44,10 @@ async function refreshRequests() {
   if(polling)return; polling=true;
   try {
     const body=await api('api/requests');
-    const previous=state.requests.find(r=>r.id===state.inspected);
     state.requests=body.requests;
     const current=state.requests.find(r=>r.id===state.inspected);
-    if(current&&previous&&(current.status!==previous.status||current.updatedAt!==previous.updatedAt||current.userId!==previous.userId||current.loginId!==previous.loginId||current.ownerStatus!==previous.ownerStatus))inspectJob(state.inspected);
+    // Artist callbacks/DB results can change while this AI job stays COMPLETED.
+    if(current&&current.kind!=='case')inspectJob(state.inspected,true);
     for(const id of [...state.shown]) if(!state.requests.some(r=>r.id===id && r.points)) state.shown.delete(id);
     const old=$('caseSelect').value; $('caseSelect').replaceChildren(new Option('재생 입력 선택',''));
     for(const r of state.requests.filter(r=>r.replayAvailable)) $('caseSelect').add(new Option(`${ownerText(r)} · ${r.title || r.analysisType || r.kind} · ${r.id}`,r.id));
@@ -57,14 +57,58 @@ async function refreshRequests() {
   }catch(e){error('요청 목록: '+e.message);}finally{polling=false;}
 }
 function fact(label,value){const n=el('div',undefined,'fact');n.append(el('small',label),el('div',value===null||value===undefined?'기록 없음':String(value)));return n;}
-async function inspectJob(id) {
+function midiNote(value){
+  if(value===null||value===undefined||!Number.isFinite(Number(value)))return '미측정';
+  const midi=Number(value),nearest=Math.round(midi),names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+  return `${names[nearest%12]}${Math.floor(nearest/12)-1}${Math.abs(midi-nearest)>.001?' (가장 가까운 음)':''}`;
+}
+function artistList(artists){
+  const list=el('ol',undefined,'artist-list');
+  for(const a of artists){const item=el('li');item.value=a.rank;item.dataset.artistId=a.artistId || '';item.append(el('strong',a.artistName || `가수 ID ${a.artistId || '없음'}`));
+    const score=v=>v===null||v===undefined?'미기록':Number(v).toFixed(4);
+    item.append(el('div',`가수 ID ${a.artistId || '없음 (이전 결과)'} · 유사도 ${score(a.similarity)}`,'muted'),el('div',`ECAPA ${score(a.ecapaScore)} · Singer-BYOL ${score(a.singerByolScore)}`,'muted'));
+    if(a.nameSource==='historical-ai-record')item.append(el('div','이전 계산 기록의 이름 · ID 연결 안 됨','muted'));
+    if(a.earlierAttempt)item.append(el('div','이전 시도에서 저장된 결과 · 최신 시도와 다름','failure-reason'));
+    list.append(item);
+  }return list;
+}
+function renderVoiceInsights(j){
+  const holder=el('section',undefined,'voice-insights');holder.dataset.lookupStatus=j.voiceInsights?.lookupStatus || 'not-configured';holder.append(el('h3','회원 음역대 · 닮은 가수'));
+  const data=j.voiceInsights;
+  if(!data||data.lookupStatus!=='verified'){holder.append(el('p',data?.reason || '회원별 음역·가수 결과 소스가 연결되지 않았습니다.','muted'));return holder;}
+  if(data.sessionContext==='current-profile')holder.append(el('p',`현재 프로필 ${data.currentProfileId}에 연결된 session ${data.sessionId}의 결과입니다. 이 과거 추천에는 원래 세션 ID가 저장되지 않아, 추천 당시 음역·닮은 가수는 확인할 수 없습니다.`,'metadata-check'));
+  else holder.append(el('p',`이 요청에 연결된 session ${data.sessionId}의 현재 DB 저장 결과입니다. 과거 추천 시점의 입력과는 다를 수 있습니다.`,'muted'));
+  const columns=el('div',undefined,'insight-columns');
+  const range=el('div',undefined,'insight-card range-card');range.append(el('h3','앱에 등록된 전체 음역'),badge(data.rangeStatus));
+  const r=data.registeredRange || {};
+  if(r.boundsValid){range.append(el('div',`${midiNote(r.fullLowMidi)} ~ ${midiNote(r.fullHighMidi)}`,'range-value'),el('p',`MIDI ${r.fullLowMidi} ~ ${r.fullHighMidi}`,'muted'));}
+  else range.append(el('p',r.measurementId?'유효한 최저·최고음이 저장되지 않았습니다.':'이 session에 등록된 앱 음역 측정 기록이 없습니다.','muted'));
+  if(r.measurementId){const facts=el('div',undefined,'facts');facts.append(fact('측정 상태',r.measurementStatus),fact('품질',r.qualityStatus),fact('측정 시각 (앱 전송값)',r.measuredAt),fact('접수 시각 (서버)',r.submittedAt),fact('측정 방식 / 규칙',`${r.measurementSource || '-'} / ${r.ruleVersion || '-'}`));range.append(facts);
+    if(r.measurementStatus!=='AVAILABLE')range.append(el('p','기록된 범위이며, 성공한 음역 측정으로 확정된 결과가 아닙니다.','failure-reason'));}
+  range.append(el('p','전체 음역은 편안한/안정 음역이나 노래의 중심 음높이와 다릅니다. 이 기록에는 실측 중앙값·안정 음역이 없습니다.','muted'));columns.append(range);
+  const backend=el('div',undefined,'insight-card backend-artists');backend.append(el('h3','백엔드에 실제 저장된 닮은 가수'),badge(data.artistSearchStatus));
+  const bj=data.backendArtistJob;
+  if(data.backendArtists?.length)backend.append(artistList(data.backendArtists));
+  else {const message=data.artistSearchStatus==='NO_RESULT'?'처리 완료 · 닮은 가수 결과 0명':data.artistSearchStatus==='COMPLETED'?'완료 상태이지만 저장된 가수 목록은 없습니다.':'아직 저장된 추천 가수가 없습니다. 사용자에게 전달 완료된 결과가 아닙니다.';backend.append(el('p',message,'muted'));}
+  if(bj){backend.append(el('p',`백엔드 작업 ${bj.componentJobId} · ${bj.status} · 시도 ${bj.attemptNo}`,'muted'));if(bj.aiJobId)backend.append(el('div',bj.aiJobId,'muted'));if(bj.failureCode||bj.failureReason)backend.append(el('p',[bj.failureCode,bj.failureReason].filter(Boolean).join(' · '),'failure-reason'));}
+  backend.append(el('p','DB 저장 여부를 확인한 목록입니다. 앱 화면에 표시됐는지까지 확인한 것은 아닙니다.','muted'));columns.append(backend);holder.append(columns);
+  const ai=data.aiArtistCalculation || {}, calc=el('div',undefined,'insight-card ai-artists');calc.dataset.lookupStatus=ai.lookupStatus || 'not-found';calc.append(el('h3','AI 계산 결과 · 전달 상태 별도'));
+  if(ai.lookupStatus==='verified'){const statuses=el('div',undefined,'component-row');statuses.append(el('span','계산'),badge(ai.calculationStatus),el('span','전달'),badge(ai.deliveryStatus));calc.append(statuses,el('div',ai.jobId,'muted'),el('p',`콜백 HTTP ${ai.callbackHttp ?? '미기록'} · 백엔드 ${ai.callbackAccepted?'수락':'미수락'}${ai.deliveryFailureCode?' · '+ai.deliveryFailureCode:''}`,'muted'));
+    if(ai.artists?.length)calc.append(artistList(ai.artists));else calc.append(el('p','보존된 계산 가수 목록이 없습니다.','muted'));
+    if(!ai.callbackAccepted)calc.append(el('p','이 계산 목록은 백엔드 저장·사용자 전달이 완료된 추천이 아닙니다.','failure-reason'));
+    if(!ai.versionCurrent)calc.append(el('p','현재 session의 결과 버전과 다른 이전 계산입니다.','failure-reason'));
+  }else calc.append(el('p',ai.lookupStatus==='conflict'?'AI 기록의 session·버전 연결이 충돌하여 표시하지 않습니다.':ai.lookupStatus==='unavailable'?'AI 계산 기록을 읽지 못했습니다.':ai.lookupStatus==='not-configured'?'AI 검색 job 디렉터리가 연결되지 않았습니다.':'이 session의 보존된 AI 검색 계산 기록이 없습니다.','muted'));
+  calc.append(el('p','가수 이름은 백엔드 singer 테이블에서 표시용으로 조회합니다. ID가 없는 과거 기록만 당시 보존된 이름을 표시하며 ID를 추측하지 않습니다. 유사도는 정확도/성공 확률이 아닙니다.','muted'));holder.append(calc);return holder;
+}
+async function inspectJob(id, quiet=false) {
   state.inspected=id;
-  const epoch=++state.jobEpoch; $('jobDetail').replaceChildren(el('p','조회 중…','muted'));
+  const epoch=++state.jobEpoch; if(!quiet)$('jobDetail').replaceChildren(el('p','조회 중…','muted'));
   try {
     const j=await api('api/jobs/'+encodeURIComponent(id)); if(epoch!==state.jobEpoch)return;
     const detail=$('jobDetail');detail.replaceChildren(badge(j.status));
     const facts=el('div',undefined,'facts'); facts.append(fact('가입 ID (로그인 이메일)',j.loginId || '확인 불가'),fact('회원번호 (내부 userId)',j.userId || '확인 불가'),fact('회원 확인 근거',j.ownerReason || '회원 연결 기록 없음'),fact('유형',j.analysisType||j.kind),fact('분석 컴포넌트 상태',j.componentStatus||j.status),fact('실패 코드',j.failureCode),fact('session / profile',`${j.sessionId ?? '-'} / ${j.profileId ?? '-'}`),fact('생성 시각',j.createdAt),fact('갱신 시각',j.updatedAt));detail.append(facts);
     if(j.loginIdStatus==='missing')detail.append(el('p','회원번호는 확인됐지만 가입 ID가 제공되지 않았습니다. 회원 연결 데이터 소스에 loginId가 필요합니다.','muted'));
+    detail.append(renderVoiceInsights(j));
     if(j.failureReason)detail.append(el('div',j.failureReason,'failure-reason'));
     if(j.reasonUnavailable)detail.append(el('p',j.reasonUnavailable,'failure-reason'));
     for(const c of j.components){const line=el('div',undefined,'component-row');line.append(el('strong',c.name),badge(c.status),el('span',`콜백 HTTP ${c.callbackHttp ?? '미기록'} · 백엔드 ${c.accepted?'수락':'미수락'} · 시도 ${c.callbackAttempts ?? '-'}`));detail.append(line);if(c.failureReason&&c.failureReason!==j.failureReason)detail.append(el('p',c.failureReason,'failure-reason'));}
@@ -72,7 +116,7 @@ async function inspectJob(id) {
     if(j.metadataChecks.length){const box=el('div',undefined,'metadata-check');box.append(el('strong','메타데이터 기반 진단 후보'));
       for(const a of j.metadataChecks)box.append(el('div',`${a.attemptId}: 목표 ${a.targetMidi} / 기준 ${Number(a.referenceMidi).toFixed(4)} / 차이 ${a.deltaSemitones.toFixed(4)}반음 / 앱 ${a.clientStatus}`));box.append(el('p',j.metadataCheckNote,'muted'));detail.append(box);}
     detail.append(el('p',j.replayReason || '분석 원본으로 진단 재생할 수 있습니다.','muted'));
-    if(j.storedRecommendations.length){detail.append(el('h3','당시 저장된 추천 결과')); const list=el('ol');for(const p of j.storedRecommendations)list.append(el('li',`${p.artist} · ${p.title} (${p.final_score})`));detail.append(list);}
+    if(j.storedRecommendations.length){detail.append(el('h3','당시 AI job에 저장된 곡 추천 결과')); const list=el('ol');for(const p of j.storedRecommendations){const artist=p.artist || (p.artist_ids?.length?`가수 ID ${p.artist_ids.join(', ')}`:'가수명 확인 불가');list.append(el('li',`${artist} · ${p.title} (${p.final_score})`));}detail.append(list);}
   }catch(e){if(epoch===state.jobEpoch)$('jobDetail').replaceChildren(el('p',e.message,'failure-reason'));}
 }
 const svgNS='http://www.w3.org/2000/svg';

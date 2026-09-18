@@ -7,6 +7,7 @@ from pathlib import Path
 
 from adapters import matrices, profile_from_range
 from ownership import OwnerResolver
+from session_insights import SessionInsightsResolver
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 
@@ -34,11 +35,12 @@ def safe_reason(value):
 
 
 class Repository:
-    def __init__(self, analysis=None, recommendations=None, cases=None, owners=None):
+    def __init__(self, analysis=None, recommendations=None, cases=None, owners=None, insights=None):
         self.analysis = Path(analysis).resolve() if analysis else None
         self.recommendations = Path(recommendations).resolve() if recommendations else None
         self.cases = Path(cases).resolve() if cases else None
         self.owners = owners or OwnerResolver()
+        self.insights = insights or SessionInsightsResolver()
 
     def _within(self, root, *parts):
         path = root.joinpath(*parts).resolve()
@@ -112,7 +114,7 @@ class Repository:
             "storedRecommendations": ((job.get("result") or {}).get("recommendations") or [])}
 
     def job(self, job_id):
-        return self.owners.enrich([self._job_summary(*self._find(job_id))])[0]
+        return self.insights.enrich(self.owners.enrich([self._job_summary(*self._find(job_id))])[0])
 
     def list(self):
         records = []

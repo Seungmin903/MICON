@@ -10,6 +10,7 @@
 - 고정 입력 기본값과 후보 설정 비교, 최종 추천과 Top K 교집합, 벡터 없는 결과 JSON 저장
 - job-id 조회, 컴포넌트 분석 상태와 콜백 수락·HTTP 상태 분리, 실패 코드·사유 표시
 - 요청 목록·job 상세·요청 지도 hover의 가입 ID(로그인 이메일), 내부 회원번호 보조 표시, 가입 ID 검색 및 `회원:5` 정확한 번호 검색
+- 선택한 job 회원의 등록 전체 음역(음이름·MIDI), 닮은 가수 순위와 모델별 점수: 실제 DB 저장 결과와 AI 계산·콜백 전달 상태 분리
 - 실패 원문이 만료된 경우 명시하고, 보존된 메타데이터로 확인한 조건 위반은 별도 진단 후보로 표시
 
 지도는 정규화된 구간 평균의 PCA입니다. 이전 t-SNE 그림과 좌표가 같지 않습니다. 새 요청을 같은 좌표계에 transform할 수 있도록 PCA를 선택했습니다. 지도 거리와 실제 구간 비교 추천 점수는 다릅니다. 같은 가수 강조는 display artist 문자열 기준이며 canonical artist 매핑이나 정확도 지표가 아닙니다.
@@ -40,6 +41,7 @@ ai/recommend-lab/.venv/Scripts/python.exe ai/recommend-lab/app.py
 | LAB_INDEX_DIR | index.json, ecapa.npy, singer_byol.npy, range_profiles.json이 있는 현재 배치 디렉터리 |
 | LAB_ANALYSIS_DIR | 분석 job별 job.json 및 아직 만료되지 않은 callback 파일의 읽기 전용 디렉터리 |
 | LAB_RECOMMEND_JOBS_DIR | 추천 job별 job.json 읽기 전용 디렉터리 |
+| LAB_ARTIST_JOBS_DIR | 선택: AI 닮은 가수 검색 job별 job.json 읽기 전용 디렉터리; 콜백 실패한 계산 목록도 진단 표시 |
 | LAB_CASES_DIR | 동의받은 고정 입력 case JSON 디렉터리 |
 | LAB_OWNER_SSH_TARGET, LAB_OWNER_SSH_KEY | 선택: 기존 백엔드 DB의 읽기 전용 job 소유자 조회 SSH 연결 및 서버 전용 key 경로 |
 | LAB_OWNER_SSH_BIN | 선택: OpenSSH client 실행 파일; 기본 PATH의 ssh |
@@ -62,6 +64,17 @@ ai/recommend-lab/.venv/Scripts/python.exe ai/recommend-lab/app.py
 선택 SSH bridge는 기존 백엔드의 `micon-mysql-1` 컨테이너에서 `START TRANSACTION READ ONLY` 내 고정 SELECT만 실행합니다. 기존 운영 진단 접근(`sudo -n python3 -`, 컨테이너 password file)을 사용하는 **로컬 내부 진단용**이며, 비밀번호·SSH key·전체 회원 정보는 응답이나 Git에 포함되지 않습니다. 요청 소유자 확인에 필요한 로그인 이메일만 조회하며 이 값은 개인정보이므로 localhost 개발 모드 또는 인증된 팀용 페이지에서만 볼 수 있습니다. 목록 전체를 일괄 조회하고 결과를 메모리에 30초만 캐시합니다. 연결 실패/삭제/매핑 없음은 `가입 ID 확인 불가`로 구분하고 운영 DB를 수정하지 않습니다. 공유 배포에는 이 관리자 SSH 접근을 그대로 사용하지 말고, 최소 권한 SELECT 계정/승인된 BE 소유자 조회 API 또는 아래 read-only snapshot을 적용하세요. Docker 예시는 SSH client·관리자 key를 포함하지 않습니다.
 
 Portable snapshot은 `schemaVersion: 1`, 미래 Unix 초 `validUntilEpoch`, `owners: [{kind: "analysis" 또는 "recommendation", id: 정확한 job-id, userId: 회원번호 문자열, loginId: 가입 로그인 이메일, sessionId/profileId: 확인된 연결 번호}]` 형식입니다. 승인된 백엔드 exporter가 공급하고 read-only mount 및 `LAB_OWNER_MAP`으로 연결하세요. 만료되면 확인 불가가 됩니다(최대 캐시 30초). snapshot은 개인정보인 loginId를 포함하므로 접근·보관·삭제 정책을 적용하고 Git에 commit하지 않습니다. 원본 음성·비밀번호·토큰·불필요한 계정 정보를 넣지 않습니다. 저장 테스트 case에는 실제 회원 접수증처럼 ID를 부여하지 않습니다.
+
+### 회원 음역과 닮은 가수
+
+Job 상세는 확인된 **job→회원→동일 session** 연결에 DB SELECT를 실행합니다. 추천 job은 `recommendation.source_session_id`를 사용합니다. 과거 추천에 이 값이 없으면 확인된 동일 job의 `profile_id/user_id` → `user_voice_profile`의 **현재 연결 session**을 별도 컨텍스트로 조회하고 추천 당시 음역·가수 결과는 확인 불가라고 명시합니다. job의 원 sessionId를 현재 프로필 session으로 채우지 않으며 회원의 가장 최근 session을 임의로 붙이지 않습니다. 동일 job에 서로 다른 session/profile이 연결되면 회원과 상세 결과를 숨깁니다. 목록에는 추가 상세 DB 조회를 하지 않고 선택한 job만 조회하며 캐시는 10초입니다. 분석 job이 계속 COMPLETED여도 별도로 진행되는 닮은 가수 DB 결과를 10초마다 다시 확인합니다.
+
+- 음역은 `voice_range_measurement.full_low_midi/full_high_midi`의 **앱 등록 전체 음역**입니다. 측정·품질 상태를 함께 표시하며 미측정/유효하지 않은 범위를 채우지 않습니다. 해당 기록에는 실측 중앙값·안정/편안한 음역이 없으므로 범위 중간값으로 대체하지 않습니다. 측정 시각은 앱 전송값의 DB 원문이며 접수 시각과 시간대가 다를 수 있습니다.
+- 닮은 가수 **실제 저장 목록**은 해당 session의 `similar_artist_result JOIN singer`입니다. 가수 이름은 표시용 BE 데이터이고 AI 서버의 ID-only 응답 계약을 변경하지 않습니다. DB 저장 확인은 앱 화면 표시 확인과 다릅니다. 최신 시도와 다른 component job에서 저장된 결과는 이전 시도로 표시합니다.
+- AI **계산 목록**은 BE가 해당 session에 연결한 정확한 `ai_job_id`의 로컬 기록만 읽습니다. 원 요청 session·결과 버전·배치·scoring version을 대조합니다. 콜백 409 등으로 거절됐으면 계산 완료와 전달 실패를 함께 표시하며 사용자에게 실제 전달된 추천으로 표시하지 않습니다. 현재 session 버전과 다른 이전 계산도 표시합니다.
+- 새 ID-only 계산 목록의 이름은 ID sidecar가 index hash와 일치할 때, BE `singer_id`로 조회합니다. ID가 없는 과거 기록은 보존된 당시 이름만 별도 표기하고 이름으로 ID를 추측하지 않습니다. 해당 sidecar가 없는 배치에서는 알 수 없는 가수 ID를 임의의 이름으로 대체하지 않습니다.
+
+이 상세 기능은 현재 로컬 SSH read-only bridge를 사용하는 경우 연결됩니다. 소유자 snapshot만으로 실시간 음역·가수 정보를 확보했다고 간주하지 않습니다. EC2 팀 배포는 승인된 최소권한 데이터 소스 구현과 AI 검색 job 읽기 전용 연결이 별도 필요합니다. 관리자 key를 image/Git에 넣거나 팀 브라우저에 원본 payload·벡터·음성 파일을 보내지 않습니다. 연결 실패는 저장 결과가 없다는 뜻이 아니며 조회 불가로 표시합니다.
 
 ## 동의받은 고정 입력 case 계약
 

@@ -63,6 +63,12 @@ class SshMysqlLookup:
         query = ownership_query(rows)
         if not query:
             return []
+        return self.query(query)
+
+    def query(self, query):
+        # Internal fixed-query entry point, never an HTTP SQL interface.
+        if not query.startswith("START TRANSACTION READ ONLY;\n") or not query.endswith("COMMIT;"):
+            raise ValueError("읽기 전용 조회만 허용합니다.")
         # Password is read only inside the remote DB container and never returned.
         remote = "import subprocess,sys\nquery=" + repr(query) + "\n" + '''
 script='export MYSQL_PWD="$(cat "$MYSQL_ROOT_PASSWORD_FILE")"; exec mysql -u root --batch --raw --skip-column-names --default-character-set=utf8mb4 micon'
@@ -136,14 +142,17 @@ class OwnerResolver:
                 _, status, owners = self.cache.get(key, (now, "not-configured" if key else "not-applicable", []))
                 users = {numeric_id(o["userId"]) for o in owners}
                 logins = {login_identifier(o.get("loginId")) for o in owners} - {None}
+                sessions = {numeric_id(o.get("sessionId")) for o in owners} - {None}
+                profiles = {numeric_id(o.get("profileId")) for o in owners} - {None}
                 # Check exact job linkage against retained session/profile metadata too.
                 mismatch = any(numeric_id(row.get(field)) and numeric_id(o.get(field)) and numeric_id(row[field]) != numeric_id(o[field]) for o in owners for field in ["sessionId", "profileId"])
-                if len(users) > 1 or len(logins) > 1 or mismatch:
+                if len(users) > 1 or len(logins) > 1 or len(sessions) > 1 or len(profiles) > 1 or mismatch:
                     status = "conflict"
                 row["userId"] = next(iter(users)) if status == "verified" and len(users) == 1 else None
                 row["loginId"] = next(iter(logins)) if status == "verified" and len(logins) == 1 else None
                 row["loginIdStatus"] = ("verified" if row["loginId"] else "missing") if status == "verified" else status
                 row["ownerStatus"] = status
+                row["verifiedProfileId"] = next(iter(profiles)) if status == "verified" and len(profiles) == 1 else None
                 row["ownerSource"] = sorted({o["source"] for o in owners}) if status == "verified" else []
                 row["ownerReason"] = {
                     "verified": "백엔드 job-id 연결 확인",
@@ -154,5 +163,7 @@ class OwnerResolver:
                     "conflict": "job-id의 회원 또는 session/profile 연결이 충돌하여 표시하지 않습니다.",
                 }[status]
                 if status == "verified":
+                    if not numeric_id(row.get("sessionId")) and len(sessions) == 1:
+                        row["sessionId"] = next(iter(sessions))
                     row["ownerReason"] = "백엔드 DB · job-id 직접 연결" if "ownership-snapshot" not in row["ownerSource"] else "승인된 백엔드 snapshot · job-id 직접 연결"
         return rows
