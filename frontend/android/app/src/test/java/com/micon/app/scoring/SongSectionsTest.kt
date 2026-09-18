@@ -30,16 +30,49 @@ class SongSectionsTest {
         assertEquals(listOf("1절", "2절"), map.sections.map { it.label })
         assertEquals(12.0, map.sections[0].start, 1e-9)
         assertEquals(52.0, map.sections[1].start, 1e-9)
+        // 마디 정보 없음 → 점프 시각은 고정 여유(2.5 s) 앞
+        assertEquals(52.0 - SongSections.LEAD_FALLBACK_SECONDS, map.sections[1].jumpStart, 1e-9)
         assertNotNull(map.interludeAt(45.0))
         assertNull(map.interludeAt(30.0))
         assertEquals(0, map.sectionIndexAt(0.0))
         assertEquals(0, map.sectionIndexAt(30.0))
-        assertEquals(1, map.sectionIndexAt(51.0))                      // 시작 1.5 s 앞부터 다음 구간
+        assertEquals(1, map.sectionIndexAt(50.0))                      // 점프 시각(49.5)부터 다음 구간
         val h = checkNotNull(map.highlight)
         assertEquals(72, h.midi)
         // 구절 정보 없음 → 최고음 1 s 앞이 구절 시작, 그보다 한 마디(2.5 s) 앞에서 출발
         assertTrue("highlight start ${h.start}", h.start >= 65.5 && h.start <= 67.5)
         assertTrue(h.end <= 90.4)
+    }
+
+    @Test
+    fun `sections and interlude skip start on the bar before the vocal when bar starts are known`() {
+        val bars = (0 until 50).map { it * 2.0 }                        // 2 s 마디
+        val map = SongSections.build(song(), emptyList(), bars)
+        // 2절 첫 음표 52.0 은 마디 52.0 에 속한다 → 그 한 마디 앞 50.0 에서 출발
+        assertEquals(50.0, map.sections[1].jumpStart, 1e-9)
+        // 1절 첫 음표 12.0 → 마디 12.0 의 한 마디 앞 10.0
+        assertEquals(10.0, map.sections[0].jumpStart, 1e-9)
+        // 간주(40–52) 건너뛰기 목적지도 같은 지점
+        assertEquals(50.0, map.leadBefore(map.interludes[1].end), 1e-9)
+        // 마디 첫 박이 아닌 시각(53.1)도 그 마디(52.0)의 한 마디 앞으로 스냅된다
+        assertEquals(50.0, map.leadBefore(53.1), 1e-9)
+    }
+
+    @Test
+    fun `songs with many vocal blocks are still split into exactly two verses at the longest interlude`() {
+        // 4 묶음: 10–30 · 36–56 · 70–90(가장 긴 간주 14 s 앞) · 96–116
+        val notes = ArrayList<LiveNote>()
+        for ((a, b) in listOf(10.0 to 30.0, 36.0 to 56.0, 70.0 to 90.0, 96.0 to 116.0)) {
+            var t = a
+            while (t < b) { notes.add(note(t, t + 0.4, 62, notes.size)); t += 0.6 }
+        }
+        val map = SongSections.build(notes, emptyList())
+        assertEquals(4, map.interludes.size)                            // 전주 + 간주 3개는 그대로(건너뛰기용)
+        assertEquals(listOf("1절", "2절"), map.sections.map { it.label })
+        assertEquals(10.0, map.sections[0].start, 1e-9)
+        assertTrue(map.sections[0].end <= 56.4 + 1e-9)
+        assertEquals(70.0, map.sections[1].start, 1e-9)                // 가장 긴 간주(56→70) 뒤가 2절
+        assertTrue(map.sections[1].end >= 116.0)
     }
 
     @Test
@@ -56,7 +89,7 @@ class SongSectionsTest {
         val notes = song()
         val line = LyricLine("최고음 줄", 69.5, 75.0, 76.0, emptyList(), emptyList())
         val map = SongSections.build(notes, listOf(line))
-        assertEquals(69.5 - SongSections.HIGHLIGHT_LEAD_FALLBACK_SECONDS, checkNotNull(map.highlight).start, 1e-9)
+        assertEquals(69.5 - SongSections.LEAD_FALLBACK_SECONDS, checkNotNull(map.highlight).start, 1e-9)
     }
 
     @Test
@@ -69,11 +102,26 @@ class SongSectionsTest {
     }
 
     @Test
-    fun `single block song has one section and no interlude when the intro is short`() {
+    fun `single block song without any gap keeps one verse and no interlude when the intro is short`() {
         val notes = (0 until 50).map { i -> note(2.0 + i * 0.5, 2.4 + i * 0.5, 60, i) }
         val map = SongSections.build(notes, emptyList())
         assertEquals(1, map.sections.size)
-        assertEquals("전체", map.sections[0].label)
+        assertEquals("1절", map.sections[0].label)
         assertTrue(map.interludes.isEmpty())
+    }
+
+    @Test
+    fun `single block song with a mid-song note gap is split into two verses there`() {
+        // 간주는 없지만(모든 공백 < 5 s) 가운데(60 s 부근)에 3 s 공백이 있는 곡
+        val notes = ArrayList<LiveNote>()
+        var t = 5.0
+        while (t < 120.0) {
+            notes.add(note(t, t + 0.4, 62, notes.size))
+            t += if (t in 59.0..59.9) 3.4 else 0.6
+        }
+        val map = SongSections.build(notes, emptyList())
+        assertTrue(map.interludes.size <= 1)                            // 전주만 있을 수 있다
+        assertEquals(listOf("1절", "2절"), map.sections.map { it.label })
+        assertTrue("2절 시작 ${map.sections[1].start}", map.sections[1].start in 62.0..64.0)
     }
 }
