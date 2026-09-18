@@ -133,6 +133,12 @@ def public_response(value: Any, mapping: ArtistCatalog | None = None, catalog: C
             continue
         result[key] = public_response(item, mapping, catalog)
     track_id = value.get("track_id")
-    if mapping is not None and track_id in mapping.by_track:
-        result["artist_ids"] = [mapping.by_track[track_id]]
+    if isinstance(track_id, str):
+        artist_id = mapping.by_track.get(track_id) if mapping is not None else None
+        if artist_id is None and mapping is not None and isinstance(value.get("song_id"), str):
+            # Historical track IDs can differ, but an exact canonical DB song
+            # ID is safe. Never match titles, names, TJ numbers or numeric IDs.
+            by_song = {mapping.song_ids[tid]: aid for tid, aid in mapping.by_track.items()}
+            artist_id = by_song.get(value["song_id"])
+        result["artist_ids"] = [artist_id] if artist_id is not None else []
     return result

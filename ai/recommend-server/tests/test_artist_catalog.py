@@ -118,6 +118,13 @@ class ArtistCatalogTests(unittest.TestCase):
         self.assertNotIn("NAME_A", json.dumps(body))
         self.assertEqual(body["result"]["recommendations"][0]["artist_ids"], [10])
 
+    def test_historical_ids_use_exact_db_song_id_without_guessing(self):
+        body = public_response([
+            {"track_id": "old", "song_id": "a", "artist": "WRONG_NAME"},
+            {"track_id": "unknown", "song_id": 10, "artist": "NAME_A"}], self.mapping, self.catalog)
+        self.assertEqual(body[0]["artist_ids"], [10])
+        self.assertEqual(body[1]["artist_ids"], [])
+
     def test_voice_job_get_does_not_echo_artist_names(self):
         jid = "job_" + "a"*32
         with mock.patch.dict(analysis_jobs.JOBS, {jid: {"jobId": jid, "meta": {"artistName": "NAME_A"}}}):
