@@ -22,6 +22,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -164,10 +166,12 @@ private fun isBlackKey(midi: Int) = when (midi % 12) { 1, 3, 6, 8, 10 -> true; e
 /** C3~C5 건반. [hlLow, hlHigh] 구간은 연보라(흰 건반)/보라(검은 건반)로 강조. */
 @Composable
 fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowMidi: Int = 48, highMidi: Int = 72, caption: String? = null,
-                    labelOf: (Int) -> String = ScoringMath::midiName) {
+                    labelOf: (Int) -> String = ScoringMath::midiName, showOctaves: Boolean = false) {
     val measurer = rememberTextMeasurer()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(Modifier.fillMaxWidth().height(96.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(96.dp).semantics {
+            if (showOctaves) stateDescription = guidedKeyboardOctaves(lowMidi..highMidi).joinToString(", ") { "$it 옥타브" }
+        }) {
             val whites = (lowMidi..highMidi).filter { !isBlackKey(it) }
             val labelH = 14.sp.toPx().coerceAtLeast(16.dp.toPx())
             val keyTop = labelH + 4.dp.toPx()
@@ -187,7 +191,23 @@ fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowM
                 val inRange = m in hlLow..hlHigh
                 drawRect(if (inRange) Color(0xFF7B6CF0) else Color(0xFF1B1B25), Offset(left + w - bw / 2, keyTop), Size(bw, keyH * 0.62f))
             }
-            (if (fontScale > 1.3f) listOf(lowMidi, 60, highMidi)
+            if (showOctaves) {
+                (lowMidi + 12..highMidi step 12).forEach { midi ->
+                    val x = xOf[midi] ?: return@forEach
+                    drawLine(Ink, Offset(x, keyTop), Offset(x, keyTop + keyH), 2.dp.toPx())
+                }
+                guidedKeyboardOctaves(lowMidi..highMidi).forEach { octave ->
+                    val start = xOf[(octave + 1) * 12] ?: return@forEach
+                    val label = "$octave 옥타브"
+                    var layout = measurer.measure(label, TextStyle(fontSize = 11.sp, color = Grey), softWrap = false)
+                    val availableWidth = (7 * w - 4.dp.toPx()).coerceAtLeast(1f)
+                    if (layout.size.width > availableWidth) {
+                        layout = measurer.measure(label, TextStyle(fontSize = (11 * availableWidth / layout.size.width).sp,
+                            color = Grey), softWrap = false)
+                    }
+                    drawText(layout, topLeft = Offset(start + 3.5f * w - layout.size.width / 2f, 0f))
+                }
+            } else (if (fontScale > 1.3f) listOf(lowMidi, 60, highMidi)
                 else listOf(lowMidi, 55, 60, 67, highMidi)).distinct().forEach { m ->
                 val x = xOf[m] ?: return@forEach
                 val hl = m == hlLow || m == hlHigh
@@ -559,8 +579,8 @@ fun PitchGauge(
 
 /** 마이크 입력 파형 장식. level 0~1 로 높이를 스케일한다. */
 @Composable
-fun WaveformBars(level: Float, modifier: Modifier = Modifier, bars: Int = 56) {
-    Canvas(modifier.fillMaxWidth().height(44.dp)) {
+fun WaveformBars(level: Float, modifier: Modifier = Modifier, bars: Int = 56, height: Dp = 44.dp) {
+    Canvas(modifier.fillMaxWidth().height(height)) {
         val gap = 2.dp.toPx()
         val w = (size.width - gap * (bars - 1)) / bars
         val mid = size.height / 2

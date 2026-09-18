@@ -1,5 +1,12 @@
 package com.micon.app.range
 
+/** Navigation eligibility only. This snapshot must never replace a model-verified report. */
+fun RangeSubmission.onboardingPreview(): RangeReport? {
+    if (protocolVersion != RangeProtocol.VERSION || sampling?.basicCompleted != true ||
+        sampling.measuredNoteCount <= 0 || stopReason !in setOf("completed", "user_stopped", "time_limit", "model_limit")) return null
+    return deviceReport().takeIf { it.availability == "available" }
+}
+
 /** Summarises the v7 decisions already evaluated on device; it does not infer unmeasured notes. */
 fun RangeSubmission.deviceReport(): RangeReport {
     require(protocolVersion == RangeProtocol.VERSION)

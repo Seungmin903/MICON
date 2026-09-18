@@ -37,4 +37,16 @@ class DeviceRangeReportTest {
         assertNull(report.highMidi)
         assertEquals("unavailable", report.availability)
     }
+
+    @Test fun onboardingPreviewRequiresTheExistingProfileGateAndNormalCompletion() {
+        val complete = submission().copy(sampling = RangeSampling(basicCompleted = true, measuredNoteCount = 2))
+        assertNotNull(complete.onboardingPreview())
+        assertEquals("device_measured", complete.onboardingPreview()!!.verification)
+        assertNull(complete.copy(sampling = RangeSampling(measuredNoteCount = 2)).onboardingPreview())
+        assertNull(complete.copy(sampling = RangeSampling(basicCompleted = true)).onboardingPreview())
+        assertNull(complete.copy(attempts = emptyList()).onboardingPreview())
+        for (reason in listOf("app_interrupted", "input_quality", "anchor_not_matched")) {
+            assertNull(complete.copy(stopReason = reason).onboardingPreview())
+        }
+    }
 }

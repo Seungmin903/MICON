@@ -1,10 +1,20 @@
 package com.micon.app.range
 
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.report.rangeMeasurementCanFinish
 import org.junit.Assert.*
 import org.junit.Test
 
 class RangePresentationTest {
+    @Test fun `measurement can finish only after a usable basic profile exists`() {
+        val measuring = RangeSession("finish-state").view()
+        assertFalse(rangeMeasurementCanFinish(measuring))
+        assertFalse(rangeMeasurementCanFinish(measuring.copy(
+            sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 0))))
+        assertTrue(rangeMeasurementCanFinish(measuring.copy(
+            sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 1))))
+    }
+
     @Test fun `median hides isolated spikes but raw evaluation still fails repeated deviations`() {
         val display = PitchDisplayFilter()
         val frames = (0 until 100).map { i ->
@@ -33,6 +43,20 @@ class RangePresentationTest {
         assertNull(display.update(62.0, .32, 2, 62, false))
         assertNull(display.update(62.0, 0.0, 2, 62, false))
         assertNull(display.update(62.0, 1.0, 2, 62, false))
+    }
+
+    @Test fun `display needle eases into pitch changes without changing the measured frames`() {
+        val display = PitchDisplayFilter()
+        repeat(5) { index -> display.update(60.0, index * .02, 1, 60, false) }
+        val shown = (5 until 12).map { index -> display.update(61.0, index * .02, 1, 60, false) }
+
+        assertTrue(shown.filterNotNull().first { it > 60.0 } < 60.5)
+        assertTrue(shown.last()!! < 61.0)
+
+        val rawFrames = (0 until 10).map { index ->
+            RangeFrame(index * .02, .02, ScoringMath.midiToHz(61.0), 1.0, .1)
+        }
+        assertEquals(61.0, RangeEvaluator.median(rawFrames.map { RangeProtocol.midi(it.f0) })!!, .001)
     }
 
     private fun attempt(midi: Int, status: String) = RangeAttempt("$midi-$status", midi, "up",

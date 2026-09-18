@@ -30,7 +30,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +51,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.micon.app.data.local.UserStore
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -111,14 +116,47 @@ fun VoiceReportScreen(
             entry.navigationHandled()
         }
     }
-    val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
-        value = null
+    var saved by remember(owner) {
+        mutableStateOf<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null)
+    }
+    var embeddingMap by remember(owner) {
+        mutableStateOf<com.micon.app.data.onboarding.EcapaEmbeddingMap?>(null)
+    }
+    var reportRefresh by remember(owner) { mutableIntStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) reportRefresh++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(owner, reportRefresh) {
         if (owner != null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val repository = com.micon.app.data.onboarding.SavedVoiceReportRepository(
                 VoiceOnboardingStore(context.applicationContext, owner), container.voiceOnboarding)
             repository.refresh(owner) { profile ->
-                if (TokenManager.getUserId() == owner) value = profile
+                if (TokenManager.getUserId() == owner) saved = profile
             }
+        }
+    }
+    val savedSessionId = saved?.receipt?.sessionId?.toLongOrNull()
+    LaunchedEffect(owner, savedSessionId, reportRefresh) {
+        embeddingMap = null
+        val expectedOwner = owner ?: return@LaunchedEffect
+        val expectedSession = savedSessionId ?: return@LaunchedEffect
+        val fetched = try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                container.voiceOnboarding.ecapaEmbeddingMap(expectedOwner, expectedSession)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        if (TokenManager.getUserId() == expectedOwner &&
+            saved?.receipt?.sessionId?.toLongOrNull() == expectedSession) {
+            embeddingMap = fetched?.usableFor(expectedSession)
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -128,7 +166,7 @@ fun VoiceReportScreen(
             Spacer(Modifier.height(16.dp))
             val current = saved
             if (current != null) {
-                SavedVoiceReportContent(current.range, current.progress)
+                SavedVoiceReportContent(current.range, current.progress, embeddingMap)
             } else if (owner != null && previousAnalysis != null) {
                 Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(12.dp))
@@ -202,6 +240,9 @@ private fun EmptyReport() {
 @Composable
 internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SimilarArtistsCard(showEmpty = true)
+        EcapaEmbeddingCard(progress = null)
+
         MiconCard {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("나의 음역대", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -233,6 +274,7 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
             Text("음역", fontSize = 13.sp, color = Grey)
             Spacer(Modifier.height(6.dp))
             PianoRangeChart(p.comfortLow, p.comfortHigh, modifier = Modifier.testTag("report-piano"),
+                lowMidi = 36, highMidi = 84, showOctaves = true,
                 caption = "안정 음역 ${ReportNoteNames.range(p.comfortLow, p.comfortHigh)}",
                 labelOf = ReportNoteNames::note)
         }
@@ -243,7 +285,6 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
             StabilityLineChart(p.stability, p.stabilityLabels.map(ReportNoteNames::fromScientific))
         }
 
-        SimilarArtistsCard(showEmpty = true)
     }
 }
 
