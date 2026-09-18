@@ -2,7 +2,7 @@ package com.micon.backend.voice.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.preference.repository.PreferenceCatalogRepository;
+import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import com.micon.backend.voice.api.VoiceAnalysisComponentCallbackRequest;
 import com.micon.backend.voice.domain.SimilarArtistResult;
 import com.micon.backend.voice.domain.SimilarArtistResultRepository;

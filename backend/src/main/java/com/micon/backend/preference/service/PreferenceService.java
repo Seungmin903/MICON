@@ -1,13 +1,13 @@
-package com.micon.backend.preference.service;
+package com.micon.backend.domain.preference.service;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.preference.api.PreferenceRequest;
-import com.micon.backend.preference.api.PreferenceResponse;
-import com.micon.backend.preference.api.PreferenceResponse.Artist;
-import com.micon.backend.preference.api.PreferenceResponse.Genre;
-import com.micon.backend.preference.repository.PreferenceCatalogRepository;
-import com.micon.backend.preference.repository.UserPreferenceRepository;
+import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
+import com.micon.backend.domain.preference.repository.UserPreferenceRepository;
+import com.micon.backend.domain.preference.api.PreferenceRequest;
+import com.micon.backend.domain.preference.api.PreferenceResponse;
+import com.micon.backend.domain.preference.api.PreferenceResponse.Artist;
+import com.micon.backend.domain.preference.api.PreferenceResponse.Genre;
 import com.micon.backend.song.api.PageResponse;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.user.domain.UserStatus;

@@ -1,9 +1,9 @@
-package com.micon.backend.preference.api;
+package com.micon.backend.domain.preference.api;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.preference.service.PreferenceService;
+import com.micon.backend.domain.preference.service.PreferenceService;
 import com.micon.backend.song.api.PageResponse;
 import jakarta.validation.Valid;
 import java.util.List;

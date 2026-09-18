@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
-import com.micon.backend.preference.api.PreferenceResponse;
-import com.micon.backend.preference.repository.PreferenceCatalogRepository;
+import com.micon.backend.domain.preference.api.PreferenceResponse;
+import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import com.micon.backend.voice.api.VoiceAnalysisComponentCallbackRequest;
 import com.micon.backend.voice.application.ArtistSearchCallbackService;
 import com.micon.backend.voice.domain.SimilarArtistResult;

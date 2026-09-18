@@ -1,4 +1,4 @@
-package com.micon.backend.preference.api;
+package com.micon.backend.domain.preference.api;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

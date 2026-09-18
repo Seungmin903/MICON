@@ -2,8 +2,8 @@ package com.micon.backend.voice.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.preference.api.PreferenceResponse;
-import com.micon.backend.preference.repository.PreferenceCatalogRepository;
+import com.micon.backend.domain.preference.api.PreferenceResponse;
+import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import com.micon.backend.voice.api.*;
 import com.micon.backend.voice.domain.*;
 import java.util.*;
