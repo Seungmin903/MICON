@@ -28,9 +28,11 @@ class RangeStandaloneRepositoryTest {
         var failure: Exception? = null
         var report = result()
         var requests = 0
+        var beforeResult: (() -> Unit)? = null
         override suspend fun analyze(audio: MultipartBody.Part, metadata: RequestBody): RangeReport {
             requests++
             failure?.let { throw it }
+            beforeResult?.invoke()
             return report
         }
     }
@@ -98,6 +100,58 @@ class RangeStandaloneRepositoryTest {
         repository.submit {}
         assertTrue(repository.audio(id).isFile)
         assertNull(repository.pending())
+    }
+
+    @Test fun lateModelResultCannotOverwriteOrDeleteANewerPendingMeasurement() = runBlocking {
+        val model = Model()
+        val repository = RangeRepository(context(), model)
+        val oldId = pending(repository)
+        var newId: String? = null
+        model.beforeResult = {
+            repository.clear()
+            newId = pending(repository)
+        }
+        assertTrue(runCatching { repository.submit {} }.isFailure)
+        assertNotEquals(oldId, newId)
+        assertEquals(newId, repository.pending()!!.submission.sessionId)
+        assertTrue(repository.audio(checkNotNull(newId)).isFile)
+        assertNull(repository.localReport())
+        assertNull(repository.lastSessionReport())
+    }
+
+    @Test fun completedTargetsSurviveRecreationAndResetForANewMeasurement() = runBlocking {
+        val context = context()
+        val model = Model()
+        val repository = RangeRepository(context, model)
+        val id = pending(repository)
+        val first = repository.pending()!!
+        fun attempt(target: Int, reason: String) = RangeAttempt("visit-$target", target, "up", 0.0, 0.0, 0.0, .5,
+            null, null, "unmeasured", null, null, "unknown", selectedForVisit = true, advanceReason = reason)
+        repository.savePending(first.copy(submission = first.submission.copy(durationSeconds = 1.0,
+            attempts = listOf(attempt(60, "threshold"), attempt(66, "manual"), attempt(63, "manual"), attempt(62, "anchor_reset")))))
+        model.report = result().copy(analysisId = id, notes = listOf(RangeNote(61, "passed")))
+        repository.submit {}
+        var reopened = RangeRepository(context, model)
+        assertEquals(setOf(60, 66, 63), reopened.completedTargets(reopened.localReport()!!))
+        assertNull(reopened.completedTargets(model.report.copy(analysisId = "other-account-session")))
+
+        val extensionId = pending(reopened)
+        val extension = reopened.pending()!!
+        reopened.savePending(extension.copy(submission = extension.submission.copy(durationSeconds = 1.0, mode = "extension",
+            parentAnalysisId = id, attempts = listOf(attempt(65, "manual")))))
+        model.report = result().copy(analysisId = extensionId)
+        reopened.submit {}
+        reopened = RangeRepository(context, model)
+        assertEquals(setOf(60, 63, 65, 66), reopened.completedTargets(reopened.localReport()!!))
+
+        val newId = pending(reopened)
+        val fresh = reopened.pending()!!
+        reopened.savePending(fresh.copy(submission = fresh.submission.copy(durationSeconds = 1.0, attempts = listOf(attempt(70, "manual")))))
+        model.report = result().copy(analysisId = newId)
+        reopened.submit {}
+        assertEquals(setOf(70), RangeRepository(context, model).completedTargets(model.report))
+        reopened.clear()
+        assertNull(reopened.completedTargets(model.report))
     }
 
     companion object {

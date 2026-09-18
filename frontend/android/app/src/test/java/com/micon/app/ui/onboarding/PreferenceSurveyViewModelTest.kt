@@ -150,6 +150,27 @@ class PreferenceSurveyViewModelTest {
         assertTrue(vm.state.value.saved)
     }
 
+    @Test fun `repeated completion waits for one successful final save`() = runTest(dispatcher) {
+        val response = CompletableDeferred<Unit>()
+        val repo = FakeRepository().apply { saveHandler = { response.await(); saved(it) } }
+        val vm = model(repo)
+        runCurrent()
+        vm.toggleGenre(genres.first())
+        vm.toggleArtist(artists.first())
+        vm.finish()
+        vm.finish()
+        runCurrent()
+        assertEquals(1, repo.saves.size)
+        assertTrue(vm.state.value.isSaving)
+        assertFalse(vm.state.value.saved)
+        response.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.saved)
+        vm.finish()
+        advanceUntilIdle()
+        assertEquals(1, repo.saves.size)
+    }
+
     @Test fun `final save failure preserves draft and retry alone completes onboarding`() = runTest(dispatcher) {
         val store = MemoryDrafts()
         var failing = true

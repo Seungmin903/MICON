@@ -71,19 +71,31 @@ class RangeCopyCleanupTest {
         } }
         for(fontScale in listOf(1f,1.6f)) {
             compose.runOnIdle { scale.value=fontScale }
-            compose.onNodeWithText("기준음 C♯4 듣기").performScrollTo().assertIsDisplayed().performClick()
+            compose.onNodeWithTag("range-hold-feedback").assertTextEquals("현재 음을 유지해주세요")
+            compose.onNodeWithText("C♯4 듣기").performScrollTo().assertIsDisplayed().performClick()
             listOf("현재 음:","지금 인정 유지","현재 합산","최장 인정","이탈 감점","고정 중심", "정상 ±45",
-                "가성으로 전환했어요","측정 중 판정은","빈 건반은","지금 높이를").forEach {
+                "가성으로 전환했어요","측정 중 판정은","빈 건반은","지금 높이를","고음 탐색","경과",
+                "지금 부를 음", "초록 건반은").forEach {
                 compose.onNodeWithText(it,substring=true).assertDoesNotExist()
             }
+            compose.onNodeWithTag("guided-range-keyboard")
+                .assert(hasContentDescription("3옥타브 도부터 6옥타브 도까지 세 옥타브 건반", substring = true))
             val gauge=compose.onNodeWithTag("range-pitch-and-hold").fetchSemanticsNode().boundsInRoot
+            val keyboard=compose.onNodeWithTag("guided-range-keyboard").fetchSemanticsNode().boundsInRoot
             val input=compose.onNodeWithTag("range-sound-input").fetchSemanticsNode().boundsInRoot
-            assertTrue(gauge.bottom<input.top)
+            assertTrue(gauge.bottom<keyboard.top)
+            val feedback=compose.onNodeWithTag("range-hold-feedback").fetchSemanticsNode().boundsInRoot
+            assertTrue(input.bottom <= feedback.top)
+            assertTrue(feedback.bottom < keyboard.top)
             save("guided-clean-active-${fontScale}.png")
         }
         assertEquals(2,replays)
+        compose.runOnIdle { state.value=state.value.copy(metrics=RangeMetrics(0.0,0.0,1.0,1.0,1.0,
+            creditedMidi=61,stabilityScore=40.0,creditedHoldSeconds=1.0)) }
+        compose.onNodeWithTag("range-hold-feedback").assertTextEquals("통과")
         compose.runOnIdle { state.value=state.value.copy(waitingForCue=true) }
-        compose.onNodeWithText("기준음 C♯4 재생 중…").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("range-hold-feedback").assertTextEquals("")
+        compose.onNodeWithText("C♯4 재생 중…").performScrollTo().assertIsNotEnabled()
     }
     @Test fun reportsKeepMetricsAndCardsWithoutExplanatoryCopy() {
         val m=RangeMetrics(10.0,13.4,.8,1.0,.58,continuousHoldSeconds=.58,actualMidi=51.9,creditedMidi=52,

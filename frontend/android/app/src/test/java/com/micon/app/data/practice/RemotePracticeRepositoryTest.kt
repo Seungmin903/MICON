@@ -39,13 +39,13 @@ class RemotePracticeRepositoryTest {
 
     @Test fun `create sends FULL_SONG request and parses detail`() = runBlocking {
         server.enqueue(ok(detail))
-        val record = repo.create(songId = 7, selectedKey = -2)
+        val record = repo.create(songId = "7", selectedKey = -2)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/api/v1/practices/session", request.path)
         assertEquals("Bearer access", request.getHeader("Authorization"))
         val sent = request.body.readUtf8()
-        assertTrue(sent.contains("\"songId\":7"))
+        assertTrue(sent.contains("\"songId\":\"7\""))
         assertTrue(sent.contains("\"selectedKey\":-2"))
         assertTrue(sent.contains("\"practiceScope\":\"FULL_SONG\""))
         assertFalse(sent.contains("recordingId"))              // null 은 보내지 않는다(서버 @Min 검증 회피)

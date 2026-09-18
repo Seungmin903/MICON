@@ -11,7 +11,7 @@ package com.micon.app.data
  */
 data class SongFit(
     /** 백엔드 song_id */
-    val songId: Long,
+    val songId: String,
     /** 음색 — 두 축 + 라벨. 서버 응답에만 있고 로컬 계산은 null. FIT-002 */
     val timbre: TimbreMatch?,
     /** 음색 적합도 단일 숫자 0~1. 현재 서버는 라벨만 내려주므로 null. 숫자 표시가 결정되면 채운다. FIT-002 */

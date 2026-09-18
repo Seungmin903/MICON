@@ -30,9 +30,9 @@ import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.songdetail.SongDetailColors as Detail
 
 @Composable
-fun SongDetailScreen(songId: Long, onBack: () -> Unit, onPractice: (Int) -> Unit,
+fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Unit,
     onSettings: () -> Unit = {}, onLogin: (() -> Unit)? = null,
-    carouselIds: List<Long> = emptyList(), artwork: Map<Long, String?> = emptyMap(), onSongSelected: (Long) -> Unit = {}) {
+    carouselIds: List<String> = emptyList(), artwork: Map<String, String?> = emptyMap(), onSongSelected: (String) -> Unit = {}) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(key = "song-$songId", factory = viewModelFactory {
@@ -58,8 +58,8 @@ fun SongDetailContent(state: SongDetailState, profile: UserStore.VoiceProfile?, 
     onKey: (Int) -> Unit = {}, onToggle: () -> Unit = {}, onSeek: (Double) -> Unit = {}, onListen: (Double) -> Unit = {},
     onPractice: () -> Unit = {}, onRetryAssets: () -> Unit = {}, onRetryFit: () -> Unit = {},
     onBack: () -> Unit = {}, onSettings: () -> Unit = {}, onLogin: (() -> Unit)? = null, onRetryDetail: () -> Unit = {},
-    songId: Long = state.detail?.summary?.id ?: 0L,
-    carouselIds: List<Long> = emptyList(), artwork: Map<Long, String?> = emptyMap(), onSongSelected: (Long) -> Unit = {}) {
+    songId: String = state.detail?.summary?.id.orEmpty(),
+    carouselIds: List<String> = emptyList(), artwork: Map<String, String?> = emptyMap(), onSongSelected: (String) -> Unit = {}) {
     val detail = state.detail
     val measured = profile?.let { MeasuredPitchRange(it.lowMidi, it.highMidi) }?.takeIf { it.valid }
     val pitch = remember(state.notes, state.sections, state.durationSec, measured, state.selectedKey, state.fit?.recommendedKey) {

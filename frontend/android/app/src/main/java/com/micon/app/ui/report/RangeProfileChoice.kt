@@ -21,5 +21,5 @@ fun RangeProfileChoiceMessage(measuredCount: Int, paused: Boolean) {
 @Composable
 fun RowScope.RangeProfileChoiceActions(paused: Boolean, onFinish: () -> Unit, onContinue: () -> Unit) {
     PrimaryButton("프로필 생성하기", onFinish, Modifier.weight(1f), enabled = paused)
-    OutlinePurpleButton("계속 측정하기", { if (paused) onContinue() }, Modifier.weight(1f))
+    OutlinePurpleButton("추가로 분석하기", { if (paused) onContinue() }, Modifier.weight(1f))
 }

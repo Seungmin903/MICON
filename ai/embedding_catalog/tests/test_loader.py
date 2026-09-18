@@ -52,6 +52,39 @@ def test_range_catalog_writer_uses_playable_key_bounds(tmp_path, monkeypatch):
     assert set(payload["profiles"]) == {"1"}
 
 
+def test_uuid_song_ids_survive_refresh_and_offline_restore(package_factory, store, models, tmp_path):
+    directory, manifest, checksum = package_factory()
+    upload(directory, store)
+    snapshot = synthetic_snapshot(store, manifest, checksum)
+    ids = ["e8873464-9cc0-5dbe-b3ac-f561fd55eaa5", "a9a5f4d3-2ef9-541f-b334-e1793510b176"]
+    for track, song_id in zip(snapshot["tracks"], ids):
+        track["song_id"] = song_id
+    cache = CatalogCache(store, tmp_path / "cache", models)
+    loaded = cache.refresh(snapshot)
+    assert loaded.embeddings(ids[0], "ecapa").shape == (2, 192)
+    restored = CatalogCache(store, tmp_path / "cache", models).restore()
+    assert set(restored.arrays) == set(ids)
+    np.testing.assert_array_equal(restored.embeddings(ids[1], "singer_byol"), loaded.embeddings(ids[1], "singer_byol"))
+
+
+@pytest.mark.parametrize("bad_id", [None, True, False, 0, -1, "", " bad", "a/b", "a?b", "a" * 65])
+def test_invalid_snapshot_song_ids_are_rejected(package_factory, store, models, tmp_path, bad_id):
+    directory, manifest, checksum = package_factory()
+    snapshot = synthetic_snapshot(store, manifest, checksum)
+    snapshot["tracks"][0]["song_id"] = bad_id
+    with pytest.raises(ValueError, match="song mapping"):
+        CatalogCache(store, tmp_path / "cache", models).refresh(snapshot)
+
+
+def test_numeric_and_string_alias_cannot_map_two_tracks(package_factory, store, models, tmp_path):
+    directory, manifest, checksum = package_factory()
+    snapshot = synthetic_snapshot(store, manifest, checksum)
+    snapshot["tracks"][0]["song_id"] = 1
+    snapshot["tracks"][1]["song_id"] = "1"
+    with pytest.raises(ValueError, match="song mapping"):
+        CatalogCache(store, tmp_path / "cache", models).refresh(snapshot)
+
+
 def test_bad_new_batch_preserves_previous_memory_and_pointer(package_factory, store, models, tmp_path):
     directory, manifest, checksum = package_factory("first")
     upload(directory, store)

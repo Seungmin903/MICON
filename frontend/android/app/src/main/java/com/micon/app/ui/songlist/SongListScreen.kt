@@ -65,7 +65,7 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
     data class State(
         val query: String = "",
         val songs: List<SongSummary> = emptyList(),
-        val keys: Map<Long, Int?> = emptyMap(),   // songId → 추천 키 배지 (RecommendRepository.fit, 없으면 배지 없음)
+        val keys: Map<String, Int?> = emptyMap(),   // songId → 추천 키 배지 (RecommendRepository.fit, 없으면 배지 없음)
         val loading: Boolean = true,
         val totalElements: Long = 0,              // 서버 전체 곡 수 (검색어 기준)
         val error: String? = null,
@@ -112,7 +112,7 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
  */
 @Composable
 fun SongListScreen(
-    onSongClick: (Long) -> Unit,
+    onSongClick: (String) -> Unit,
     onSettings: () -> Unit = {},
     onLogin: (() -> Unit)? = null,
     backTitle: String? = null,
@@ -128,7 +128,7 @@ fun SongListScreen(
     val context = LocalContext.current
     // 찜은 서버가 진실. 로그인 상태면 진입 때 캐시를 한 번 맞춘다(비회원은 서버를 부르지 않는다).
     LaunchedEffect(loggedIn) { if (loggedIn) runCatching { container.favorites.refresh() } }
-    fun like(songId: Long) {
+    fun like(songId: String) {
         if (!loggedIn) {
             onLogin?.invoke() ?: Toast.makeText(context, "로그인하면 찜할 수 있어요.", Toast.LENGTH_SHORT).show()
             return

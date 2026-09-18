@@ -5,7 +5,10 @@ import kotlin.math.roundToInt
 
 /** Audio timestamps, never wall time, drive evaluation and session progress. */
 class RangeSession(val id: String, private val parent: RangeReport? = null,
-                   private val protocolVersion: String = RangeProtocol.VERSION) {
+                   private val protocolVersion: String = RangeProtocol.VERSION,
+                   private val awaitAnchorConfirmation: Boolean = false,
+                   private val previousCompletedTargets: Set<Int>? = null) {
+    private val revisedSearch = protocolVersion == "guided-range-v7"
     private val adaptive = protocolVersion in setOf("guided-range-v6", "guided-range-v7")
     private val coarseStep = if (protocolVersion == "guided-range-v7") 6 else 8
     private val buffered = RangeProtocol.buffered(protocolVersion)
@@ -90,14 +93,14 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             responseStart, onset, floor, tracker?.referenceMidi, tracker?.current?.start,
             tracker?.current?.end, tracker?.current?.metrics?.continuousHoldSeconds ?: 0.0,
             when {
-                phase in listOf("done", "profile_ready") -> "paused"
+                phase in listOf("done", "profile_ready", "anchor_ready") -> "paused"
                 !f.t.isFinite() || f.t + f.duration < now - 1e-6 -> "stale_frame"
                 phase in listOf("noise", "comfortable") -> phase
                 waitingForCue -> "reference_playing"
                 responseStart == null || f.t < responseStart!! -> "reference_decay"
                 else -> "onset_settling"
             }) else null
-        if (phase in listOf("done", "profile_ready") || !f.t.isFinite() || f.t + f.duration < now - 1e-6) return view()
+        if (phase in listOf("done", "profile_ready", "anchor_ready") || !f.t.isFinite() || f.t + f.duration < now - 1e-6) return view()
         now = max(now, f.t + f.duration)
         currentMidi = if (RangeEvaluator.voiced(f, floor)) RangeProtocol.midi(f.f0) else null
         if (phase == "noise") {
@@ -125,7 +128,11 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
                     anchor = m; phase = "anchor"
                     if (!adaptive) central.addAll(listOf(m + 4, m - 4).filter { it in RangeProtocol.MIN_MIDI..RangeProtocol.MAX_MIDI })
                     message = if (adaptive) "편한 시작음 하나를 확인해요" else "시작음과 위·아래 음을 확인해요"
-                    calibration.clear(); startAttempt(m, now)
+                    calibration.clear()
+                    if (awaitAnchorConfirmation) {
+                        phase = "anchor_ready"; target = null; cueMidi = null; waitingForCue = false
+                        currentMidi = null
+                    } else startAttempt(m, now)
                 }
             }
             return view()
@@ -187,6 +194,14 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
         return view()
     }
     private fun eligible(m: RangeMetrics) = m.voicedRatio >= .5 - 1e-8 && m.clippedRatio <= .01 + 1e-8
+
+    /** The onboarding guide holds both the first cue and the audio evaluation clock. */
+    @Synchronized fun startAnchorMeasurement(audioTime: Double): Boolean {
+        if (phase != "anchor_ready") return false
+        now = max(now, audioTime); phase = "anchor"
+        startAttempt(anchor!!, now)
+        return true
+    }
 
     @Synchronized fun cueFinished(serial: Int, audioTime: Double) {
         if (serial != cueId || !waitingForCue || phase in listOf("done", "profile_ready")) return
@@ -326,7 +341,8 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             val interval = if (direction > 0) listOf(m + 1, m + 3) else listOf(m - 3, m - 1)
             sampling = sampling.copy(skippedCentralIntervals = sampling.skippedCentralIntervals + listOf(interval))
         }
-        search = RangeSearch(m, direction, if (adaptive) coarseStep else if (skip) 6 else 2, adaptive = adaptive)
+        search = RangeSearch(m, direction, if (adaptive) coarseStep else if (skip) 6 else 2, adaptive = adaptive,
+            maxMidpointProbes = if (revisedSearch) 1 else null)
         if (direction > 0) sampling = sampling.copy(upperLastSuccess = if (skip) m + 4 else if (centralResults[m]?.progressQualified == true) m else null)
         else sampling = sampling.copy(lowerLastSuccess = if (skip) m - 4 else if (centralResults[m]?.progressQualified == true) m else null)
         message = if (direction > 0) "두 반음씩 위로 올라가요" else "이제 두 반음씩 아래로 내려가요"
@@ -375,8 +391,12 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
 
     private fun startRefinement(t: Double) {
         sampling = sampling.copy(refinementStatus = "in_progress")
-        refinement.addAll(RangeRefinement.targets(anchor!!, sampling, measuredNotes()))
-        message = "고음·저음 경계부터 다시 확인하고 빈 음을 채워요"
+        // Older saved reports have no target history; retain their existing note fallback.
+        val priorTargets = previousCompletedTargets ?: parent?.completedNoteFallback().orEmpty()
+        val completedTargets = priorTargets + submission().completedTargets()
+        refinement.addAll(RangeRefinement.targets(anchor!!, sampling, if (revisedSearch) completedTargets else measuredNotes(),
+            reconfirmBoundaries = !revisedSearch))
+        message = "고음·저음 경계의 빈 음부터 추가로 확인해요"
         nextRefinement(t)
     }
     private fun nextRefinement(t: Double) {
@@ -385,7 +405,7 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
         } else {
             val midi = refinement.removeFirst()
             val old = attempts.firstOrNull { it.selectedForVisit && it.targetMidi == midi }
-            phase = if (old != null || parent?.notes?.any { it.midi == midi && it.metrics != null } == true) "reconfirm" else "extension"
+            phase = if (!revisedSearch && (old != null || parent?.notes?.any { it.midi == midi && it.metrics != null } == true)) "reconfirm" else "extension"
             startAttempt(midi, t, old?.attemptId)
         }
     }
@@ -413,7 +433,7 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             .maxByOrNull { if (relative) it.recordedHoldSeconds else it.inTuneRatio }
         return View(phase, target, currentMidi, cents, now, (displayHold / if (relative) RangeProtocol.FULL_HOLD_SECONDS else 1.0).coerceIn(0.0, 1.0).toFloat(), latest,
             cueId, cueMidi, waitingForCue, message, attempts.toList(), phase == "done", cueDurationSeconds, peak, visitId,
-            phase == "profile_ready" || waitingForCue || responseStart?.let { now < it } == true,
+            phase in listOf("profile_ready", "anchor_ready") || waitingForCue || responseStart?.let { now < it } == true,
             sampling.copy(measuredNoteCount = measuredNotes().size),
             bufferedTracker?.referenceMidi, if (buffered) bufferedTracker?.zone else null,
             bufferedTracker?.generation ?: 0, floor, if (adaptive) probeStage() else null, adaptive && phase == "anchor")

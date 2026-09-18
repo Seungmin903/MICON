@@ -45,18 +45,18 @@ class SongDetailPlaybackTest {
         val playbackUrl = server.url("/tone.wav").toString()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val songs = object : SongRepository {
-            override suspend fun detail(songId: Long) = SongDetail(SongSummary(7, "재생 테스트", "합성 음원", null, 15_000), emptyList(), null, false, true)
+            override suspend fun detail(songId: String) = SongDetail(SongSummary("7", "재생 테스트", "합성 음원", null, 15_000), emptyList(), null, false, true)
             override suspend fun search(query: String, page: Int, size: Int) = SongPage(emptyList(), page, size, 0, 0)
-            override suspend fun practiceAssets(songId: Long, selectedKey: Int) = PracticeAssets(7, "재생 테스트", selectedKey,
+            override suspend fun practiceAssets(songId: String, selectedKey: Int) = PracticeAssets("7", "재생 테스트", selectedKey,
                 InstrumentalMedia(null, null, "audio/wav", null, null, playbackUrl),
                 null, null, listOf(KaraokeNote(0.0, 15.0, 69)), "test", emptyList())
         }
         val recommendations = object : RecommendRepository {
-            override suspend fun fit(songId: Long): SongFit? = null
+            override suspend fun fit(songId: String): SongFit? = null
             override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
         }
         main {
-            vm = SongDetailViewModel(songs, recommendations, 7, {
+            vm = SongDetailViewModel(songs, recommendations, "7", {
                 TrackedPlayer(Media3SongPreview(context, OkHttpClient())).also { players += it }
             }, MutableStateFlow<UserStore.VoiceProfile?>(null))
             store.put("test-detail", vm)

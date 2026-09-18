@@ -5,19 +5,19 @@ import org.junit.Test
 
 class LoginReturnDestinationTest {
     @Test fun detailOriginAndSelectedPracticeKeyAreOptionalAndBackwardsCompatible() {
-        assertEquals("song/42", Routes.song(42))
-        assertEquals("song/42?source=favorites", Routes.song(42, Routes.FAVORITES))
-        assertEquals("practice/42", Routes.practice(42))
-        assertEquals("practice/42?selectedKey=-2", Routes.practice(42, -2))
-        assertEquals("practice/42?selectedKey=3", Routes.practice(42, 3))
+        assertEquals("song/42", Routes.song("42"))
+        assertEquals("song/42?source=favorites", Routes.song("42", Routes.FAVORITES))
+        assertEquals("practice/42", Routes.practice("42"))
+        assertEquals("practice/42?selectedKey=-2", Routes.practice("42", -2))
+        assertEquals("practice/42?selectedKey=3", Routes.practice("42", 3))
         assertTrue(Routes.SONG_MATCH in Routes.withBottomBar)
     }
     @Test fun restoresRequestedTabAndSong() {
         assertEquals(Routes.FAVORITES, loginReturnDestination(Routes.FAVORITES))
-        assertEquals("song/42", loginReturnDestination(Routes.SONG, 42))
-        assertEquals("song/42?source=favorites", loginReturnDestination(Routes.SONG, 42, source = Routes.FAVORITES))
-        assertEquals("song/42", loginReturnDestination(Routes.SONG, 42, source = "untrusted"))
-        assertEquals("match/42", loginReturnDestination(Routes.SONG_MATCH, 42))
+        assertEquals("song/42", loginReturnDestination(Routes.SONG, "42"))
+        assertEquals("song/42?source=favorites", loginReturnDestination(Routes.SONG, "42", source = Routes.FAVORITES))
+        assertEquals("song/42", loginReturnDestination(Routes.SONG, "42", source = "untrusted"))
+        assertEquals("match/42", loginReturnDestination(Routes.SONG_MATCH, "42"))
         assertEquals("setlist/42", loginReturnDestination(Routes.SETLIST, setlistId = 42))
     }
 
@@ -28,14 +28,14 @@ class LoginReturnDestinationTest {
     }
 
     @Test fun doesNotRestoreGuestRecordingOrResult() {
-        assertEquals(Routes.REPORT, loginReturnDestination(Routes.SING_ANALYSIS_RUN, 42))
+        assertEquals(Routes.REPORT, loginReturnDestination(Routes.SING_ANALYSIS_RUN, "42"))
         assertEquals(Routes.EVALUATION, loginReturnDestination(Routes.RESULT))
-        assertEquals("song/42", loginReturnDestination(Routes.PRACTICE_RUN, 42))
+        assertEquals("song/42", loginReturnDestination(Routes.PRACTICE_RUN, "42"))
     }
 
     @Test fun rejectsInvalidDestinations() {
         assertNull(loginReturnDestination("untrusted"))
-        assertNull(loginReturnDestination(Routes.SONG, 0))
+        assertNull(loginReturnDestination(Routes.SONG, ""))
         assertNull(loginReturnDestination(Routes.SETLIST, setlistId = 0))
         assertNull(loginReturnDestination(Routes.SETLIST, setlistId = -1))
     }

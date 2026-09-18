@@ -17,21 +17,21 @@ import kotlinx.coroutines.flow.update
  * 모두 로그인 필요(비회원 401 → AuthSessionExpiredException). 비회원 화면은 이 저장소를 부르지 않는다.
  */
 interface FavoriteRepository {
-    val likedIds: StateFlow<Set<Long>>
+    val likedIds: StateFlow<Set<String>>
 
     /** 서버 찜 목록으로 캐시를 새로 채우고 곡 요약을 돌려준다. */
     suspend fun refresh(): List<SongSummary>
 
     /** 찜 ↔ 해제. 낙관적으로 캐시를 먼저 바꾸고 실패하면 되돌린 뒤 예외를 던진다. @return 바뀐 뒤 찜 여부 */
-    suspend fun toggle(songId: Long): Boolean
+    suspend fun toggle(songId: String): Boolean
 
     /** 로그아웃·계정 전환 때 캐시를 비운다. */
     fun clear()
 }
 
 class RemoteFavoriteRepository(private val api: BackendApi) : FavoriteRepository {
-    private val _liked = MutableStateFlow<Set<Long>>(emptySet())
-    override val likedIds: StateFlow<Set<Long>> = _liked.asStateFlow()
+    private val _liked = MutableStateFlow<Set<String>>(emptySet())
+    override val likedIds: StateFlow<Set<String>> = _liked.asStateFlow()
 
     override suspend fun refresh(): List<SongSummary> {
         val songs = api.favorites().unwrapData().songs.map { it.toSummary() }
@@ -39,7 +39,7 @@ class RemoteFavoriteRepository(private val api: BackendApi) : FavoriteRepository
         return songs
     }
 
-    override suspend fun toggle(songId: Long): Boolean {
+    override suspend fun toggle(songId: String): Boolean {
         val liking = songId !in _liked.value
         _liked.update { if (liking) it + songId else it - songId }
         try {

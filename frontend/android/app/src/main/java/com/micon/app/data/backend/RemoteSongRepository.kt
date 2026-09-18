@@ -31,13 +31,13 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
         )
     }
 
-    override suspend fun detail(songId: Long): SongDetail? {
+    override suspend fun detail(songId: String): SongDetail? {
         val response = api.song(songId)
         if (response.code() == 404) return null
         return response.unwrapData().toDetail()
     }
 
-    override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets {
+    override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets {
         val response = api.practiceAssets(songId, selectedKey)
         if (!response.isSuccessful) {
             val error = response.errorEnvelope()

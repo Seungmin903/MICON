@@ -10,13 +10,13 @@ package com.micon.app.data.backend.dto
 data class RecordingUploadDto(val recordingId: Long = 0)
 
 /** `POST /voice-analyses` 요청. method = SCALE(간편 분석) | SONG(불러서 분석하기) */
-data class VoiceAnalysisCreateRequest(val recordingId: Long, val method: String, val songId: Long?)
+data class VoiceAnalysisCreateRequest(val recordingId: Long, val method: String, val songId: String?)
 
 /** VoiceAnalysisResponse 와 VoiceAnalysisHistoryResponse.Summary 의 공통 필드(둘은 analysisVersion 유무만 다르다). */
 data class VoiceAnalysisDto(
     val analysisId: Long = 0,
     val recordingId: Long? = null,
-    val songId: Long? = null,
+    val songId: String? = null,
     val method: String? = null,
     /** READY·RECORDING·UPLOADING·ANALYZING·COMPLETED·FAILED·CANCELED·INSUFFICIENT_DATA */
     val status: String? = null,

@@ -19,7 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -226,7 +225,8 @@ private fun MiconNavHost(
         }
         composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {
-            PreferenceSurveyScreen(onDone = { goMain() }, onSessionExpired = { goLogin() }, onBack = { goLogin() })
+            PreferenceSurveyScreen(onDone = { nav.completeInitialPreferenceSurvey(session) },
+                onSessionExpired = { goLogin() }, onBack = { goLogin() })
         }
         composable(Routes.EDIT_PREFERENCES) {
             if (isGuest || !accessGranted) return@composable
@@ -241,12 +241,12 @@ private fun MiconNavHost(
             else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
                 onAnalyze = { nav.navigate(Routes.VOICE_ONBOARDING) })
         }
-        composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
+        composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (isGuest || !accessGranted) return@composable
-            val songId = entry.arguments?.getLong("songId") ?: return@composable
+            val songId = entry.arguments?.getString("songId") ?: return@composable
             // Preserve the old match route, but render exactly the same detail as practice/favorites.
-            val ids = rememberSaveable(songId) { SongCarousel.idsFor(songId).toLongArray() }
-            var currentId by rememberSaveable(songId) { mutableLongStateOf(songId) }
+            val ids = rememberSaveable(songId) { SongCarousel.idsFor(songId).toTypedArray() }
+            var currentId by rememberSaveable(songId) { mutableStateOf(songId) }
             LaunchedEffect(currentId) { entry.savedStateHandle["detailSongId"] = currentId }
             val artwork = remember(ids) { ids.associateWith { SongCarousel.imageOf(it) } }
             SongDetailScreen(songId = currentId, onBack = { nav.popBackStack() },
@@ -284,7 +284,7 @@ private fun MiconNavHost(
         }
         composable(
             Routes.SING_ANALYSIS_RUN,
-            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
+            arguments = listOf(navArgument("songId") { type = NavType.StringType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SING_ANALYSIS_RUN}" }),
         ) { entry ->
             if (!accessGranted) return@composable
@@ -302,11 +302,11 @@ private fun MiconNavHost(
         }
         composable(
             Routes.SONG,
-            arguments = listOf(navArgument("songId") { type = NavType.LongType }, navArgument("source") { type = NavType.StringType; defaultValue = Routes.PRACTICE }),
+            arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("source") { type = NavType.StringType; defaultValue = Routes.PRACTICE }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SONG}" }),
         ) { entry ->
             if (!accessGranted) return@composable
-            val songId = entry.arguments?.getLong("songId") ?: return@composable
+            val songId = entry.arguments?.getString("songId") ?: return@composable
             SongDetailScreen(
                 songId = songId,
                 onBack = { nav.popBackStack() },
@@ -317,11 +317,11 @@ private fun MiconNavHost(
         }
         composable(
             Routes.PRACTICE_RUN,
-            arguments = listOf(navArgument("songId") { type = NavType.LongType }, navArgument("selectedKey") { type = NavType.IntType; defaultValue = 0 }),
+            arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("selectedKey") { type = NavType.IntType; defaultValue = 0 }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.PRACTICE_RUN}" }),
         ) { entry ->
             if (!accessGranted) return@composable
-            val songId = entry.arguments?.getLong("songId") ?: return@composable
+            val songId = entry.arguments?.getString("songId") ?: return@composable
             PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) },
                 initialKey = entry.arguments?.getInt("selectedKey") ?: 0)
         }
@@ -408,13 +408,22 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
     fun rememberDestination(nav: NavHostController) {
         val entry = nav.currentBackStackEntry ?: return
         val destination = loginReturnDestination(entry.destination.route,
-            entry.savedStateHandle.get<Long>("detailSongId") ?: entry.arguments?.getLong("songId"),
+            entry.savedStateHandle.get<String>("detailSongId") ?: entry.arguments?.getString("songId"),
             entry.arguments?.getLong("setlistId"), entry.arguments?.getString("source")) ?: return
         savedState["loginDestination"] = destination
     }
 
     fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
     fun clearDestination() { savedState.remove<String>("loginDestination") }
+}
+
+/** Initial preferences lead directly into voice onboarding; settings edits keep their own return path. */
+internal fun NavHostController.completeInitialPreferenceSurvey(session: NavigationSessionViewModel) {
+    if (currentDestination?.route != Routes.SURVEY) return
+    session.clearDestination()
+    session.guest = false
+    session.verified = true
+    replaceAll(Routes.VOICE_ONBOARDING)
 }
 
 /** Discard all protected history, including saved tab stacks, on account/gate changes. */

@@ -2,6 +2,7 @@ package com.micon.app.range
 
 import com.micon.app.core.network.Json
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.report.rangeHoldFeedback
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -22,6 +23,50 @@ class RevisedHoldTest {
         }
         fun hold(seconds: Double = 1.2) { feed(.2); feed(seconds) }
         fun quiet(seconds: Double) = feed(seconds,null,.0001)
+    }
+
+    @Test fun wholeToneStartBoundaryIsInclusiveAndLegacyRecordsKeepTheirOriginalGate() {
+        for (offset in listOf(-2.001, -2.0, 2.0, 2.001)) {
+            val d = Driver()
+            d.feed(.2, 60.0 + offset)
+            d.feed(1.0, 60.0 + offset)
+            if (kotlin.math.abs(offset) <= 2.0) {
+                assertEquals(60.0 + offset, d.tracker.referenceMidi!!, 1e-7)
+                assertTrue(d.tracker.current!!.metrics.passed)
+                assertEquals((60.0 + offset).toInt(), d.tracker.current!!.metrics.creditedMidi)
+            } else {
+                assertNull(d.tracker.referenceMidi)
+                assertNull(d.tracker.current)
+            }
+        }
+        val legacy = Driver(revised = false)
+        legacy.feed(1.2, 62.0)
+        assertNull(legacy.tracker.referenceMidi)
+    }
+
+    @Test fun actualSessionShowsHoldThenPassAndClearsFeedbackForTheNextNote() {
+        val s = RangeSession("whole-tone-feedback")
+        var t = 0.0
+        fun feed(n: Int, midi: Double? = null) {
+            repeat(n) {
+                s.onFrame(RangeFrame(t, .02, midi?.let(ScoringMath::midiToHz) ?: 0.0,
+                    if (midi == null) 0.0 else 1.0, if (midi == null) .0001 else .1))
+                t += .02
+            }
+        }
+        feed(55); feed(101, 60.0)
+        assertNull(rangeHoldFeedback(s.view()))
+        s.cueFinished(s.view().cueId, t); feed(14)
+        feed(10, 62.0)
+        assertEquals("현재 음을 유지해주세요", rangeHoldFeedback(s.view()))
+        feed(49, 62.0)
+        assertEquals("현재 음을 유지해주세요", rangeHoldFeedback(s.view()))
+        feed(1, 62.0)
+        assertEquals("통과", rangeHoldFeedback(s.view()))
+        feed(6)
+        assertEquals(66, s.view().targetMidi)
+        assertEquals(62, s.view().attempts.single().metrics!!.creditedMidi)
+        assertNull(rangeHoldFeedback(s.view()))
     }
 
     @Test fun staggeredVoiceEndPreservesRecordAndEmitsOnlyOnce() {

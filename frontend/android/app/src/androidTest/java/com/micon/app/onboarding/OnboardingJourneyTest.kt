@@ -89,6 +89,9 @@ class OnboardingJourneyTest {
         awaitTag("selected-artist-10")
         awaitTag("selected-artist-13")
         compose.onNodeWithTag("preferences-complete").performClick()
+        awaitTag("onboarding-range-intro")
+        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
+        compose.onNodeWithContentDescription("뒤로").performClick()
         awaitHome()
 
         val repo = NetworkPreferenceRepository(compose.activity.appContainer.backend.retrofit.create(PreferenceApi::class.java))

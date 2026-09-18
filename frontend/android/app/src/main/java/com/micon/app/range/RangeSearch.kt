@@ -2,7 +2,9 @@ package com.micon.app.range
 
 /** Legacy two-semitone sweep, or v6 eight-semitone probes followed by midpoint refinement. */
 class RangeSearch(private val anchor: Int, val direction: Int, startOffset: Int = 2,
-                  private val adaptive: Boolean = startOffset == 8) {
+                  private val adaptive: Boolean = startOffset == 8,
+                  private val maxMidpointProbes: Int? = null) {
+    private var midpointProbes = 0
     private val coarseStep = startOffset
     private var candidate = anchor + direction * startOffset
     private var failures = 0
@@ -28,6 +30,7 @@ class RangeSearch(private val anchor: Int, val direction: Int, startOffset: Int 
     fun record(midi: Int, qualified: Boolean) {
         require(boundary == null && midi == candidate) { "Sweep results must follow target order" }
         if (adaptive) {
+            if (firstFailure != null) midpointProbes++
             if (firstFailure == null) frontier = midi
             if (qualified) lastSuccess = midi
             else {
@@ -37,6 +40,7 @@ class RangeSearch(private val anchor: Int, val direction: Int, startOffset: Int 
             val failed = failedEndpoint
             if (failed == null) candidate = midi + direction * coarseStep
             else if (kotlin.math.abs(failed - lastSuccess!!) == 1) boundary = "boundary_refined"
+            else if (maxMidpointProbes != null && midpointProbes >= maxMidpointProbes) boundary = "midpoint_sampled"
             else candidate = (failed + lastSuccess!!) / 2
             return
         }

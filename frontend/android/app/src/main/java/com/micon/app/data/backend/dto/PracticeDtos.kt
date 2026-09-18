@@ -8,7 +8,7 @@ package com.micon.app.data.backend.dto
 
 /** `POST /practices` → PracticeRequest.Create. practiceScope: FULL_SONG | SECTION | CUSTOM */
 data class PracticeCreateRequest(
-    val songId: Long,
+    val songId: String,
     val selectedKey: Int,
     val practiceScope: String = "FULL_SONG",
     val recordingId: Long? = null,
@@ -63,7 +63,7 @@ data class SectionEvaluationDto(
 /** PracticeResponse.Detail */
 data class PracticeDetailDto(
     val practiceId: Long = 0,
-    val songId: Long = 0,
+    val songId: String = "",
     val songTitle: String? = null,
     val sectionId: Long? = null,
     val recordingId: Long? = null,
@@ -84,7 +84,7 @@ data class PracticeDetailDto(
 /** PracticeHistoryResponse.Summary — `GET /practices` 목록 항목 */
 data class PracticeSummaryDto(
     val practiceId: Long = 0,
-    val songId: Long = 0,
+    val songId: String = "",
     val songTitle: String? = null,
     val imageUrl: String? = null,
     val selectedKey: Int = 0,
@@ -101,7 +101,7 @@ data class PracticeSummaryDto(
 /** PracticeResultResponse.Report */
 data class PracticeReportDto(
     val practiceId: Long = 0,
-    val songId: Long = 0,
+    val songId: String = "",
     val songTitle: String? = null,
     val selectedKey: Int = 0,
     val practiceScope: String? = null,

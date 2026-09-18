@@ -67,10 +67,10 @@ set +a
 : "${MICON_CATALOG_REGION:?Set catalog region}"
 : "${MICON_CATALOG_ALLOWED_PREFIX:?Set catalog prefix}"
 case "$MICON_CATALOG_SMOKE_SONG_ID" in
-    *[!0-9]*|'') echo "catalog smoke song ID must be a positive integer" >&2; exit 2 ;;
+    *[!a-zA-Z0-9_-]*|'') echo "catalog smoke song ID must be a path-safe catalog identifier" >&2; exit 2 ;;
 esac
-if [ "$MICON_CATALOG_SMOKE_SONG_ID" -lt 1 ]; then
-    echo "catalog smoke song ID must be a positive integer" >&2
+if [ "${#MICON_CATALOG_SMOKE_SONG_ID}" -gt 64 ]; then
+    echo "catalog smoke song ID must be at most 64 characters" >&2
     exit 2
 fi
 

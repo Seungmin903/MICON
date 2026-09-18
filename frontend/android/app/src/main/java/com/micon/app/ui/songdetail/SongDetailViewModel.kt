@@ -34,11 +34,11 @@ data class SongDetailState(
 }
 
 internal class SongDetailViewModel(
-    private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: Long,
+    private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String,
     private val playerFactory: () -> SongPreviewPlayer,
     profile: StateFlow<UserStore.VoiceProfile?> = UserStore.profile,
 ) : ViewModel() {
-    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository, songId: Long) :
+    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository, songId: String) :
         this(repo, recommend, songId, { Media3SongPreview(context, http) })
 
     private val _state = MutableStateFlow(SongDetailState())

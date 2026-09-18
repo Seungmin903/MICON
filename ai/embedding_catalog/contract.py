@@ -22,6 +22,14 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def valid_song_id(value: Any) -> bool:
+    """V28 opaque string IDs, plus numeric IDs for restoring pre-V28 caches."""
+    if type(value) is int:
+        return value > 0
+    return (isinstance(value, str) and value.isascii() and 0 < len(value) <= 64
+            and all(c.isalnum() or c in "-_" for c in value))
+
+
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 

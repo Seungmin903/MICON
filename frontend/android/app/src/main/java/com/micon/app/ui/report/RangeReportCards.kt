@@ -103,7 +103,7 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
                 Spacer(Modifier.height(18.dp))
                 Text("음역", color = Grey, fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
-                GuidedRangeKeyboard(report.notes, labelOf = ReportNoteNames::note, noteName = ReportNoteNames::note)
+                GuidedRangeKeyboard(report.notes, noteName = ReportNoteNames::note)
             }
         }
         RangeStabilityCard(report, overview = reportTab)

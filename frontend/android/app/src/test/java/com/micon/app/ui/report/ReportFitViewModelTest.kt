@@ -31,8 +31,8 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReportFitViewModelTest {
     private val dispatcher = StandardTestDispatcher()
-    private val catalog = listOf(SongSummary(1, "너의 번호를 누르고", "#안녕, 영화처럼", null, 251_158), SongSummary(7, "빈잔", "남진", null, 200_000))
-    private val liked = listOf(SongSummary(7, "빈잔", "남진", null, 200_000))
+    private val catalog = listOf(SongSummary("1", "너의 번호를 누르고", "#안녕, 영화처럼", null, 251_158), SongSummary("7", "빈잔", "남진", null, 200_000))
+    private val liked = listOf(SongSummary("7", "빈잔", "남진", null, 200_000))
 
     private class FakeSongs(val items: List<SongSummary>) : SongRepository {
         var lastQuery: String? = null
@@ -41,24 +41,24 @@ class ReportFitViewModelTest {
             val hit = if (query.isBlank()) items else items.filter { it.title.contains(query) }
             return SongPage(hit, page, size, hit.size.toLong(), 1)
         }
-        override suspend fun detail(songId: Long): SongDetail? = null
-        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
+        override suspend fun detail(songId: String): SongDetail? = null
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
     }
 
     private class FakeFavorites(val songs: List<SongSummary>) : FavoriteRepository {
         var refreshes = 0
-        override val likedIds: StateFlow<Set<Long>> = MutableStateFlow(songs.map { it.id }.toSet())
+        override val likedIds: StateFlow<Set<String>> = MutableStateFlow(songs.map { it.id }.toSet())
         override suspend fun refresh(): List<SongSummary> { refreshes++; return songs }
-        override suspend fun toggle(songId: Long): Boolean = throw UnsupportedOperationException()
+        override suspend fun toggle(songId: String): Boolean = throw UnsupportedOperationException()
         override fun clear() {}
     }
 
-    private class FakeRecommend(val fits: Map<Long, SongFit?>) : RecommendRepository {
-        override suspend fun fit(songId: Long): SongFit? = fits[songId]
+    private class FakeRecommend(val fits: Map<String, SongFit?>) : RecommendRepository {
+        override suspend fun fit(songId: String): SongFit? = fits[songId]
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
     }
 
-    private fun fit(songId: Long) = SongFit(
+    private fun fit(songId: String) = SongFit(
         songId = songId, timbre = null, timbreFit = null, rhythmFit = null, rangeFit = null, recommendedKey = -2, strainSections = null,
         overallFit = 0.8f, reasons = listOf("키 -2 로 편해요"), scoringVersion = "test", compositionVersion = null,
     )
@@ -72,13 +72,13 @@ class ReportFitViewModelTest {
         vm.openPicker(); advanceUntilIdle()
         assertTrue(vm.state.value.pickerOpen)
         assertTrue(vm.state.value.fromFavorites)
-        assertEquals(listOf(7L), vm.state.value.candidates.map { it.id })
+        assertEquals(listOf("7"), vm.state.value.candidates.map { it.id })
         assertEquals(1, favorites.refreshes)
 
         vm.setQuery("번호"); advanceUntilIdle()
         assertFalse(vm.state.value.fromFavorites)
         assertEquals("번호", songs.lastQuery)
-        assertEquals(listOf(1L), vm.state.value.candidates.map { it.id })
+        assertEquals(listOf("1"), vm.state.value.candidates.map { it.id })
     }
 
     @Test fun `guest picker uses the catalog without touching favorites`() = runTest {
@@ -91,17 +91,17 @@ class ReportFitViewModelTest {
     }
 
     @Test fun `selecting a song closes the picker and loads its fit`() = runTest {
-        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked), FakeRecommend(mapOf(7L to fit(7))), loggedIn = true)
+        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked), FakeRecommend(mapOf("7" to fit("7"))), loggedIn = true)
         vm.openPicker(); advanceUntilIdle()
         vm.select(liked[0]); advanceUntilIdle()
         val s = vm.state.value
         assertFalse(s.pickerOpen)
-        assertEquals(7L, s.selected?.id)
+        assertEquals("7", s.selected?.id)
         assertNotNull(s.fit); assertEquals(-2, s.fit?.recommendedKey); assertNull(s.fitNote); assertFalse(s.fitLoading)
     }
 
     @Test fun `missing fit explains why - no profile vs no song range`() = runTest {
-        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked), FakeRecommend(mapOf(1L to null)), loggedIn = true)
+        val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked), FakeRecommend(mapOf("1" to null)), loggedIn = true)
         vm.select(catalog[0]); advanceUntilIdle()
         assertNull(vm.state.value.fit)
         assertTrue(vm.state.value.fitNote!!.contains("목소리를 먼저 분석"))
@@ -112,12 +112,12 @@ class ReportFitViewModelTest {
     }
 
     @Test fun `saved profile does not fall back to another profiles fit`() = runTest {
-        var requested: Long? = null
+        var requested: String? = null
         val vm = ReportFitViewModel(FakeSongs(catalog), FakeFavorites(liked),
-            FakeRecommend(mapOf(7L to fit(7))), loggedIn = true,
+            FakeRecommend(mapOf("7" to fit("7"))), loggedIn = true,
             savedProfileFit = { requested = it; null })
         vm.select(liked[0]); advanceUntilIdle()
-        assertEquals(7L, requested)
+        assertEquals("7", requested)
         assertNull(vm.state.value.fit)
         assertTrue(vm.state.value.fitNote!!.contains("저장한 프로필"))
     }

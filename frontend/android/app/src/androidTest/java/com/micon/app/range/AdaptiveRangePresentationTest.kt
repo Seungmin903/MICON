@@ -70,14 +70,14 @@ class AdaptiveRangePresentationTest {
     }
 
     @Test fun passActionsFitSmallScreenWithLargeFontAndForwardTheCurrentVisit() {
-        val session = RangeSession("pass-ui").view().copy(phase = "up", targetMidi = 66, visitId = "current-visit")
+        val session = mutableStateOf(RangeSession("pass-ui").view().copy(phase = "up", targetMidi = 66, visitId = "current-visit"))
         var passedVisit: String? = null
         compose.setContent { MiconTheme {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, 1.6f)) {
                 Column(Modifier.width(320.dp).padding(24.dp)) {
-                    RangePassGuide(session)
-                    RangeMeasurementActions(session, {}, { passedVisit = it })
+                    RangePassGuide(session.value)
+                    RangeMeasurementActions(session.value, {}, { passedVisit = it })
                 }
             }
         } }
@@ -85,7 +85,7 @@ class AdaptiveRangePresentationTest {
         File(context.getExternalFilesDir(null), "range-pass-large-font.png").outputStream().use {
             compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
         }
-        listOf("여기까지 측정하기", "이 음 패스하기").forEach { label ->
+        listOf("이 음 패스하기").forEach { label ->
             compose.onNodeWithText(label).assertIsDisplayed()
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { action ->
                     val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
@@ -102,7 +102,15 @@ class AdaptiveRangePresentationTest {
                 }
         }
         compose.onNodeWithTag("range-pass-guide").assertIsDisplayed()
+        compose.onNodeWithText("여기까지 측정하기").assertDoesNotExist()
+        compose.onNodeWithTag("range-action-divider").assertDoesNotExist()
         compose.onNodeWithText("이 음 패스하기").performClick()
         compose.runOnIdle { assertEquals("current-visit", passedVisit) }
+        compose.runOnIdle {
+            session.value = session.value.copy(
+                sampling = session.value.sampling.copy(basicCompleted = true, measuredNoteCount = 3))
+        }
+        compose.onNodeWithText("여기까지 측정하기").assertIsEnabled()
+        compose.onNodeWithTag("range-action-divider").assertIsDisplayed()
     }
 }

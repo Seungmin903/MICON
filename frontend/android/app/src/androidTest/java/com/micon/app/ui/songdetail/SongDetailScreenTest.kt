@@ -35,8 +35,8 @@ class SongDetailScreenTest {
         KaraokeNote(start, start + 1.6, midi)
     }
     private val fixture = SongDetailState(loading = false,
-        detail = SongDetail(SongSummary(42, "밤편지", "아이유", null, 253000), listOf("발라드"), SongAnalysis("A♭", 79, "4/4", 60, 74), false, true),
-        fit = SongFit(42, TimbreMatch(TimbreAxis.CONSENSUS, "목소리의 질감이 잘 어울려요", null), .87f,
+        detail = SongDetail(SongSummary("42", "밤편지", "아이유", null, 253000), listOf("발라드"), SongAnalysis("A♭", 79, "4/4", 60, 74), false, true),
+        fit = SongFit("42", TimbreMatch(TimbreAxis.CONSENSUS, "목소리의 질감이 잘 어울려요", null), .87f,
             rangeFit = null, recommendedKey = -2, strainSections = null, overallFit = .89f, reasons = emptyList(), scoringVersion = "ui-fixture", compositionVersion = null),
         fitLoading = false, notes = notes, assetsLoading = false, mediaKey = 0, durationSec = 253.0,
         sections = listOf(PracticeSection(1, "CHORUS", "후렴 · 긴 호흡", 144000, 152000, 1, "LONG_BREATH", null, "프레이즈가 길게 이어져요. 시작 전에 숨을 준비해 보세요.")))
@@ -134,14 +134,14 @@ class SongDetailScreenTest {
     }
 
     @Test fun turntableSwipeChangesSongAndKeepsPracticeTargetInSync() {
-        var viewed = 42L
-        var practiced = 0L
+        var viewed = "42"
+        var practiced = ""
         compose.setContent {
             var current by remember { mutableStateOf(fixture) }
             MiconTheme {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
-                        SongDetailContent(current, profile, carouselIds = listOf(42L, 43L, 44L),
+                        SongDetailContent(current, profile, carouselIds = listOf("42", "43", "44"),
                             onSongSelected = { id ->
                                 viewed = id
                                 current = current.copy(selectedKey = 0, mediaKey = 0,
@@ -157,18 +157,18 @@ class SongDetailScreenTest {
         compose.onNodeWithTag("song-carousel").performTouchInput {
             swipeLeft(startX = center.x + width * .2f, endX = center.x - width * .2f, durationMillis = 500)
         }
-        compose.waitUntil(5_000) { viewed == 43L }
+        compose.waitUntil(5_000) { viewed == "43" }
         capture("song-detail-carousel-swiped.png")
         compose.onNodeWithText("테스트 곡 43").assertExists()
         compose.onNodeWithTag("song-practice").performClick()
-        assertEquals(43L, practiced)
+        assertEquals("43", practiced)
         scrollTo("song-settings")
         compose.onNodeWithTag("song-detail-scroll").performScrollToIndex(0)
         compose.onNodeWithText("2 / 3 · LP를 넘겨 다른 곡 보기").assertExists()
         compose.onNodeWithTag("song-carousel").performTouchInput {
             swipeRight(startX = center.x - width * .2f, endX = center.x + width * .2f, durationMillis = 500)
         }
-        compose.waitUntil(5_000) { viewed == 42L }
+        compose.waitUntil(5_000) { viewed == "42" }
     }
 
     @Test fun favoritesOriginStaysSelectedAndDetailThemeDoesNotLeakToOtherTabs() {

@@ -78,12 +78,14 @@ fun VoiceReportContent(
 
 /** The report tab keeps measured range cards and actual artist results. */
 @Composable
-fun SavedVoiceReportContent(range: RangeReport, progress: VoiceAnalysisProgress?) {
+fun SavedVoiceReportContent(range: RangeReport, progress: VoiceAnalysisProgress?,
+                            embeddingMap: EcapaEmbeddingMap? = null) {
     val current = progress?.takeIf { it.matchesRange(range) }
     LogVoiceReportProgress(current)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        RangeResultCards(range, reportTab = true)
         SimilarArtistsCard(current?.takeIf { it.hasTimbreReport(range) }, showEmpty = true)
+        EcapaEmbeddingCard(current, embeddingMap)
+        RangeResultCards(range, reportTab = true)
     }
 }
 
