@@ -64,6 +64,20 @@ if [ ! -e "$RUNTIME_DIR/backend.env" ]; then
         "$RUNTIME_DIR/backend.env"
 fi
 
+# Add newly introduced non-secret settings without replacing operator-managed
+# values in an existing runtime file. This keeps rolling deployments backward
+# compatible while ensuring the application receives the recovery defaults.
+ensure_runtime_setting() {
+    setting_name="$1"
+    setting_value="$2"
+    if ! grep -Eq "^${setting_name}=" "$RUNTIME_DIR/backend.env"; then
+        printf '%s=%s\n' "$setting_name" "$setting_value" >> "$RUNTIME_DIR/backend.env"
+    fi
+}
+
+ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INTERVAL 1m
+ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s
+
 if [ ! -e "$RUNTIME_DIR/recommendation.env" ]; then
     install \
         -o root \
