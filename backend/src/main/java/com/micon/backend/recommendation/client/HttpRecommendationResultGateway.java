@@ -1,11 +1,11 @@
-package com.micon.backend.recommendation.client;
+package com.micon.backend.domain.recommendation.client;
 
 import com.micon.backend.common.observability.ObservedAiRequestFactory;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
-import com.micon.backend.recommendation.config.RecommendationAiProperties;
+import com.micon.backend.domain.recommendation.config.RecommendationAiProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;

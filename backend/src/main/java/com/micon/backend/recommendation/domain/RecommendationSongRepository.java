@@ -1,4 +1,4 @@
-package com.micon.backend.recommendation.domain;
+package com.micon.backend.domain.recommendation.domain;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

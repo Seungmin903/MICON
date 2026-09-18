@@ -1,4 +1,4 @@
-package com.micon.backend.recommendation.client;
+package com.micon.backend.domain.recommendation.client;
 
 import tools.jackson.databind.JsonNode;
 

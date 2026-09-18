@@ -1,14 +1,14 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.recommendation.api.RecommendationResponse;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationShelf;
-import com.micon.backend.recommendation.domain.RecommendationShelfRepository;
-import com.micon.backend.recommendation.domain.RecommendationSong;
-import com.micon.backend.recommendation.domain.RecommendationSongRepository;
+import com.micon.backend.domain.recommendation.api.RecommendationResponse;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelf;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelfRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationSong;
+import com.micon.backend.domain.recommendation.domain.RecommendationSongRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;

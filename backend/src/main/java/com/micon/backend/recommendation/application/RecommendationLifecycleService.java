@@ -1,11 +1,11 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationMode;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import com.micon.backend.voice.domain.UserVoiceProfile;
 import com.micon.backend.voice.domain.UserVoiceProfileRepository;
 import org.springframework.stereotype.Service;

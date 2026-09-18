@@ -1,9 +1,9 @@
-package com.micon.backend.recommendation.api;
+package com.micon.backend.domain.recommendation.api;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.recommendation.application.RecommendationQueryService;
+import com.micon.backend.domain.recommendation.application.RecommendationQueryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;

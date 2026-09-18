@@ -1,9 +1,9 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.recommendation.client.RecommendationJobGateway;
-import com.micon.backend.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.client.RecommendationJobGateway;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

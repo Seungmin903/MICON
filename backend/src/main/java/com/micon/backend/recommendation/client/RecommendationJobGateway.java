@@ -1,7 +1,7 @@
-package com.micon.backend.recommendation.client;
+package com.micon.backend.domain.recommendation.client;
 
-import com.micon.backend.recommendation.application.RecommendationInput;
-import com.micon.backend.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.application.RecommendationInput;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
 
 public interface RecommendationJobGateway {
     Result submit(Command command);

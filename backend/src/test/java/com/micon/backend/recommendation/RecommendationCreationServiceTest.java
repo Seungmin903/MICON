@@ -2,10 +2,10 @@ package com.micon.backend.recommendation;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.recommendation.application.RecommendationCreationService;
-import com.micon.backend.recommendation.application.RecommendationDispatchResult;
-import com.micon.backend.recommendation.application.RecommendationDispatchService;
-import com.micon.backend.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.application.RecommendationCreationService;
+import com.micon.backend.domain.recommendation.application.RecommendationDispatchResult;
+import com.micon.backend.domain.recommendation.application.RecommendationDispatchService;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
 import com.micon.backend.voice.domain.UserVoiceProfile;
 import com.micon.backend.voice.domain.UserVoiceProfileRepository;
 import org.junit.jupiter.api.Test;

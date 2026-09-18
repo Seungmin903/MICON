@@ -1,7 +1,7 @@
-package com.micon.backend.recommendation.api;
+package com.micon.backend.domain.recommendation.api;
 
-import com.micon.backend.recommendation.application.RecommendationDispatchResult;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.application.RecommendationDispatchResult;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

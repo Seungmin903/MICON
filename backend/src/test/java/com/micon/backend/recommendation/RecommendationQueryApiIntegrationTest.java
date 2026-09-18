@@ -1,10 +1,10 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.RecommendationResultStore;
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationMode;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.application.RecommendationResultStore;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.voice.domain.UserVoiceProfile;

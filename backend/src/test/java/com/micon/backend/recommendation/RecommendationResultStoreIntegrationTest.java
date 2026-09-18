@@ -1,8 +1,8 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.RecommendationResultStore;
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.domain.*;
+import com.micon.backend.domain.recommendation.application.RecommendationResultStore;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.domain.*;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.voice.domain.*;
@@ -25,7 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecommendationResultStoreIntegrationTest {
     @Autowired RecommendationResultStore store;
     @Autowired RecommendationRepository recommendations;
-    @Autowired RecommendationShelfRepository shelves;
+    @Autowired
+    RecommendationShelfRepository shelves;
     @Autowired RecommendationSongRepository songs;
     @Autowired UserRepository users;
     @Autowired VoiceAnalysisSessionRepository sessions;

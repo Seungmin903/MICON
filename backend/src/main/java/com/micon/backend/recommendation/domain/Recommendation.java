@@ -1,4 +1,4 @@
-package com.micon.backend.recommendation.domain;
+package com.micon.backend.domain.recommendation.domain;
 
 import com.micon.backend.user.domain.User;
 import com.micon.backend.voice.domain.UserVoiceProfile;

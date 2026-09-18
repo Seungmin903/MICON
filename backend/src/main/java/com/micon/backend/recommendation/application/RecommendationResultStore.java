@@ -1,16 +1,16 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationShelf;
-import com.micon.backend.recommendation.domain.RecommendationShelfRepository;
-import com.micon.backend.recommendation.domain.RecommendationSong;
-import com.micon.backend.recommendation.domain.RecommendationSongRepository;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelf;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelfRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationSong;
+import com.micon.backend.domain.recommendation.domain.RecommendationSongRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import com.micon.backend.song.repository.SongQueryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

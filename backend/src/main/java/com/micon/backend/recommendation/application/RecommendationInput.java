@@ -1,4 +1,4 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
 import java.math.BigDecimal;
 import java.util.List;

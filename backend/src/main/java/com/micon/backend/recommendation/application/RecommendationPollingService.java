@@ -1,10 +1,10 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.config.RecommendationPollingProperties;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.config.RecommendationPollingProperties;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

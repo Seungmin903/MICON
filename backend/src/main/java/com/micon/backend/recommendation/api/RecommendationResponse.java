@@ -1,6 +1,6 @@
-package com.micon.backend.recommendation.api;
+package com.micon.backend.domain.recommendation.api;
 
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;

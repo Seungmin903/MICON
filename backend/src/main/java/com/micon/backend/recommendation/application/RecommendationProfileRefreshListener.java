@@ -1,6 +1,6 @@
-package com.micon.backend.recommendation.application;
+package com.micon.backend.domain.recommendation.application;
 
-import com.micon.backend.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
 import com.micon.backend.voice.application.VoiceProfileSavedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

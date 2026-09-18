@@ -1,13 +1,13 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationMode;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationShelf;
-import com.micon.backend.recommendation.domain.RecommendationShelfRepository;
-import com.micon.backend.recommendation.domain.RecommendationSong;
-import com.micon.backend.recommendation.domain.RecommendationSongRepository;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelf;
+import com.micon.backend.domain.recommendation.domain.RecommendationShelfRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationSong;
+import com.micon.backend.domain.recommendation.domain.RecommendationSongRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import com.micon.backend.voice.domain.UserVoiceProfile;
