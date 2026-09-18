@@ -53,6 +53,8 @@ class SongFitQueryRepositoryTest {
 			assertThat(recommendation.timbreFitScore()).isEqualByComparingTo("0.77");
 			assertThat(recommendation.rhythmFitScore()).isNull();
 			assertThat(recommendation.algorithmVersion()).isEqualTo("fit-v1");
+			assertThat(recommendation.timbreAxis()).isEqualTo("ECAPA");
+			assertThat(recommendation.timbreLabel()).isEqualTo("음색이 가까운 가수");
 		});
 
 		assertThat(repository.findBurdenSections("10", 31L)).singleElement().satisfies(section -> {
@@ -79,6 +81,8 @@ class SongFitQueryRepositoryTest {
 		assertThat(repository.findRecommendation(7L, 20L, "10")).get().satisfies(recommendation -> {
 			assertThat(recommendation.recommendedKey()).isZero();
 			assertThat(recommendation.rangeFitScore()).isEqualByComparingTo("0.92");
+			assertThat(recommendation.timbreAxis()).isNull();
+			assertThat(recommendation.timbreLabel()).isNull();
 		});
 	}
 
@@ -117,7 +121,7 @@ class SongFitQueryRepositoryTest {
 			CREATE TABLE RECOMMENDATION_SONG (
 			  recommendation_id BIGINT, song_id VARCHAR(64), recommended_key SMALLINT,
 			  final_score DECIMAL(8,6), timbre_score DECIMAL(8,6),
-			  range_fit JSON, metrics JSON, reason_text VARCHAR(1000)
+			  range_fit JSON, metrics JSON, reason_text VARCHAR(1000), axis VARCHAR(30), label VARCHAR(200)
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -133,7 +137,7 @@ class SongFitQueryRepositoryTest {
 	private void insertFixtures() {
 		jdbcTemplate.update("INSERT INTO SONG VALUES (10, '좋은 날')");
 		jdbcTemplate.update("INSERT INTO VOICE_ANALYSIS_SESSION VALUES (19, 7, 'SAVED')");
-		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19)");
+		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19, TIMESTAMP '2026-09-02 10:00:00')");
 		jdbcTemplate.update("INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 'AVAILABLE', 55, 75)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
@@ -144,8 +148,8 @@ class SongFitQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO RECOMMENDATION VALUES (40, 7, 20, 'COMPLETED', TIMESTAMP '2026-09-03 10:00:00', 'fit-v1')");
 		jdbcTemplate.update("""
 			INSERT INTO RECOMMENDATION_SONG
-			(recommendation_id, song_id, recommended_key, final_score, timbre_score, range_fit, metrics, reason_text)
-			VALUES (40, '10', -2, 0.88, 0.77, '{"score":0.90,"keyShift":-2}', '{}', '음역이 잘 맞습니다.')
+			(recommendation_id, song_id, recommended_key, final_score, timbre_score, range_fit, metrics, reason_text, axis, label)
+			VALUES (40, '10', -2, 0.88, 0.77, '{"score":0.90,"keyShift":-2}', '{}', '음역이 잘 맞습니다.', 'ECAPA', '음색이 가까운 가수')
 			""");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_SECTION VALUES

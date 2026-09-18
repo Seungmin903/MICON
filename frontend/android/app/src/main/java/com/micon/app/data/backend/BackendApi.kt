@@ -144,27 +144,27 @@ interface BackendApi {
     @DELETE("favorites/{songId}")
     suspend fun removeFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
 
-    @GET("setlists")
+    @GET("setlist")
     suspend fun setlists(): Response<ApiResponse<List<SetlistSummaryDto>>>
 
     /** name 1~100자. 201. */
-    @POST("setlists")
+    @POST("setlist")
     suspend fun createSetlist(@Body body: SetlistNameRequest): Response<ApiResponse<SetlistSummaryDto>>
 
-    @GET("setlists/{setlistId}")
+    @GET("setlist/{setlistId}")
     suspend fun setlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<SetlistDetailDto>>
 
-    @PATCH("setlists/{setlistId}")
+    @PATCH("setlist/{setlistId}")
     suspend fun renameSetlist(@Path("setlistId") setlistId: Long, @Body body: SetlistNameRequest): Response<ApiResponse<SetlistSummaryDto>>
 
-    @DELETE("setlists/{setlistId}")
+    @DELETE("setlist/{setlistId}")
     suspend fun deleteSetlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<Any>>
 
     /** 찜한 곡만 추가된다(400 SONG_NOT_FAVORITED). 바뀐 상세를 돌려준다. */
-    @PUT("setlists/{setlistId}/songs/{songId}")
+    @POST("setlist/{setlistId}/{songId}")
     suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
 
-    @DELETE("setlists/{setlistId}/songs/{songId}")
+    @DELETE("setlist/{setlistId}/{songId}")
     suspend fun removeSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
 
     // ---- 연습 기록 (PracticeController) ----

@@ -77,7 +77,7 @@ public class SongFitQueryRepository {
 	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, String songId) {
 		String sql = """
 			SELECT rs.recommended_key, rs.final_score, rs.timbre_score,
-			       rs.range_fit, rs.reason_text,
+			       rs.range_fit, rs.reason_text, rs.axis, rs.label,
 			       r.algorithm_version
 			FROM recommendation r
 			JOIN user_voice_profile uvp ON uvp.profile_id = r.profile_id
@@ -101,7 +101,9 @@ public class SongFitQueryRepository {
 				resultSet.getBigDecimal("timbre_score"),
 				null,
 				resultSet.getString("reason_text"),
-				resultSet.getString("algorithm_version")
+				resultSet.getString("algorithm_version"),
+				resultSet.getString("axis"),
+				resultSet.getString("label")
 			)
 		).stream().findFirst();
 	}
@@ -171,7 +173,14 @@ public class SongFitQueryRepository {
 		BigDecimal timbreFitScore,
 		BigDecimal rhythmFitScore,
 		String reasonText,
-		String algorithmVersion
+		String algorithmVersion,
+		String timbreAxis,
+		String timbreLabel
 	) {
+		public RecommendationRow(Integer recommendedKey, BigDecimal overallScore, BigDecimal rangeFitScore,
+			BigDecimal timbreFitScore, BigDecimal rhythmFitScore, String reasonText, String algorithmVersion) {
+			this(recommendedKey, overallScore, rangeFitScore, timbreFitScore, rhythmFitScore,
+				reasonText, algorithmVersion, null, null);
+		}
 	}
 }

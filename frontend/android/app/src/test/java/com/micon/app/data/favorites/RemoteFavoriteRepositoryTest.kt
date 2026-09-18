@@ -36,7 +36,7 @@ class RemoteFavoriteRepositoryTest {
             {"songId":1,"title":"너의 번호를 누르고","artists":["#안녕","영화처럼"],"imageUrl":"https://img/1.jpg","durationMs":251158}],"totalCount":2}"""))
         val songs = repo.refresh()
         val request = server.takeRequest()
-        assertEquals("/api/v1/users/me/favorites", request.path)
+        assertEquals("/api/v1/favorites", request.path)
         assertEquals("Bearer access", request.getHeader("Authorization"))
         assertEquals(listOf(7L, 1L), songs.map { it.id })
         assertEquals("#안녕, 영화처럼", songs[1].artist)
@@ -47,13 +47,13 @@ class RemoteFavoriteRepositoryTest {
         server.enqueue(ok("null"))
         assertTrue(repo.toggle(7))
         var request = server.takeRequest()
-        assertEquals("PUT", request.method); assertEquals("/api/v1/users/me/favorites/7", request.path)
+        assertEquals("PUT", request.method); assertEquals("/api/v1/favorites/7", request.path)
         assertEquals(setOf(7L), repo.likedIds.value)
 
         server.enqueue(ok("null"))
         assertFalse(repo.toggle(7))
         request = server.takeRequest()
-        assertEquals("DELETE", request.method); assertEquals("/api/v1/users/me/favorites/7", request.path)
+        assertEquals("DELETE", request.method); assertEquals("/api/v1/favorites/7", request.path)
         assertTrue(repo.likedIds.value.isEmpty())
     }
 
