@@ -1,0 +1,157 @@
+"""Read-only lab around the production segment scorer and two-axis composer."""
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+import numpy as np
+from sklearn.decomposition import PCA
+from threadpoolctl import threadpool_limits
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "recommend-server"))
+from timbre_recommender.catalog import CatalogIndex
+from timbre_recommender.contracts import MODEL_KEYS, SCORING_VERSION
+from timbre_recommender.composition import allowed_languages, track_language, compose_two_axis
+from timbre_recommender.pitch_range import RangeCatalog, _validated_profile
+from timbre_recommender.scoring import RankerConfig
+from timbre_recommender.shelves import score_all_tracks, build_shelves, VOICE_MAX_KEY_SHIFT, MIN_PROFILE_CONFIDENCE
+
+from adapters import matrices
+
+DEFAULTS = {"ecapaWeight": .5, "centroidWeight": .3, "timbreWeight": .75,
+            "maxKeyShift": VOICE_MAX_KEY_SHIFT, "maxCoreExcess": 0.0,
+            "minRangeScore": .35, "minProfileConfidence": MIN_PROFILE_CONFIDENCE,
+            "useRangeGate": True, "topK": 10}
+
+
+def centroid(x):
+    v = np.asarray(x, dtype=np.float64).mean(axis=0)
+    n = np.linalg.norm(v)
+    if not np.isfinite(n) or n < 1e-12:
+        raise ValueError("구간 평균이 영벡터이므로 지도에 투영할 수 없습니다.")
+    return v / n
+
+
+class Engine:
+    def __init__(self, directory):
+        self.catalog = CatalogIndex.load(directory, verify_hashes=True)
+        self.ranges = RangeCatalog.load(directory, verify_hashes=True,
+                                        expected_track_ids={t.track_id for t in self.catalog.tracks})
+        self.fingerprint = hashlib.sha256((Path(directory) / "index.json").read_bytes()).hexdigest()
+        self.core_fingerprint = hashlib.sha256(b"".join(
+            (Path(__file__).resolve().parents[1] / "recommend-server" / "timbre_recommender" / name).read_bytes()
+            for name in ["scoring.py", "shelves.py", "composition.py", "pitch_range.py"])).hexdigest()
+        if len(self.catalog.tracks) < 2:
+            raise ValueError("지도에는 최소 두 곡이 필요합니다.")
+        self.projectors, self.points = {}, []
+        with threadpool_limits(limits=2):
+            for key in MODEL_KEYS:
+                vectors = np.array([centroid(self.catalog.embeddings(t, key)) for t in self.catalog.tracks])
+                pca = PCA(n_components=2, svd_solver="randomized", random_state=42)
+                coords = pca.fit_transform(vectors)
+                self.projectors[key] = pca
+                if not self.points:
+                    self.points = [{"id": t.track_id, "title": t.title, "artist": t.artist} for t in self.catalog.tracks]
+                for point, xy in zip(self.points, coords):
+                    point[key] = xy.tolist()
+
+    def info(self):
+        batches = sorted({str((t.metadata or {}).get("batch_id")) for t in self.catalog.tracks if (t.metadata or {}).get("batch_id")})
+        return {"trackCount": len(self.catalog.tracks), "catalogFingerprint": self.fingerprint,
+                "coreFingerprint": self.core_fingerprint, "scoringVersion": SCORING_VERSION,
+                "batchIds": batches, "defaults": DEFAULTS,
+                "projection": {"method": "PCA normalized segment centroid seed 42",
+                    "explainedVariance": {k: self.projectors[k].explained_variance_ratio_.tolist() for k in MODEL_KEYS}},
+                "limitations": ["2차원 거리는 실제 구간 기반 추천 점수와 다릅니다.",
+                    "모델 점수는 성공 확률이나 음색 정확도 지표가 아닙니다.",
+                    "성별 메타데이터가 없어 성별 필터를 적용하지 않습니다."]}
+
+    def project(self, query):
+        x = matrices(query)
+        return {k: self.projectors[k].transform(centroid(x[k]).reshape(1, -1))[0].tolist() for k in MODEL_KEYS}
+
+    def run(self, case, settings):
+        if case.get("catalogFingerprint") and case["catalogFingerprint"] != self.fingerprint:
+            raise ValueError("저장 case와 현재 카탈로그 fingerprint가 다릅니다. 다른 배치를 혼용할 수 없습니다.")
+        query = matrices(case["query"])
+        profile = case.get("pitchProfile")
+        profile = _validated_profile(profile, label="case") if profile else None
+        range_available = bool(profile and profile.get("reliable", False))
+        genres = case.get("genres") or []
+        excluded = set(case.get("excludedTrackIds") or [])
+        baseline = dict(DEFAULTS, topK=case.get("topK", 10),
+                        timbreWeight=.3 if case.get("mode") == "range" else .75)
+        with threadpool_limits(limits=2):
+            a = self._rank(query, profile, range_available, genres, excluded, baseline, True)
+            b = self._rank(query, profile, range_available, genres, excluded, dict(baseline, **settings), False)
+        before = {p["track_id"]: p["position"] for p in a["recommendations"]}
+        after = {p["track_id"]: p["position"] for p in b["recommendations"]}
+        return {"caseId": case["caseId"], "inputKind": case.get("inputKind", "saved-case"),
+                "rangeAvailable": range_available, "rangeFallbackReason": None if range_available else "검증된 음역 입력 없음 또는 신뢰도 부족",
+                "catalogFingerprint": self.fingerprint, "coreFingerprint": self.core_fingerprint,
+                "baseline": a, "candidate": b,
+                "changes": [{"id": tid, "before": before.get(tid), "after": after.get(tid)}
+                            for tid in sorted(set(before) | set(after))],
+                "overlapAtK": len(set(before) & set(after)), "userPoints": self.project(case["query"])}
+
+    def _rank(self, query, profile, available, genres, excluded, cfg, baseline):
+        use_range = available and cfg["useRangeGate"]
+        # Scores use the existing production core; no inference, GPU, globals or DB writes.
+        rows = score_all_tracks(self.catalog, self.ranges, query,
+                                query_profile=profile if available else None,
+                                config=RankerConfig(base_ecapa_weight=cfg["ecapaWeight"],
+                                    centroid_weight=cfg["centroidWeight"], segment_weight=1-cfg["centroidWeight"]),
+                                mode="range" if cfg["timbreWeight"] == .3 else "timbre")
+        allowed = allowed_languages(genres)
+        diagnostics = []
+        eligible = []
+        for r in rows:
+            fit = r["range_fit"]
+            reasons = []
+            if r["track_id"] in excluded:
+                reasons.append({"code": "SOURCE_OR_EXCLUDED", "message": "입력 case의 제외 곡 또는 원곡"})
+            lang = track_language(r["metadata"])
+            if allowed is not None and lang is not None and lang not in allowed:
+                reasons.append({"code": "LANGUAGE", "message": f"언어 {lang}: 허용 {','.join(sorted(allowed))}"})
+            if r["is_rap"]:
+                reasons.append({"code": "RAP", "message": "목소리 shelf에서 랩 제외"})
+            if use_range:
+                cand = self.ranges.profiles.get(r["track_id"], {})
+                if not fit:
+                    reasons.append({"code": "RANGE_MISSING", "message": "곡 음역 프로파일 없음"})
+                else:
+                    if not cand.get("reliable", True):
+                        reasons.append({"code": "PROFILE_UNRELIABLE", "message": "곡 음역 reliable=false"})
+                    confidence = float(cand.get("confidence", 1))
+                    if confidence < cfg["minProfileConfidence"]:
+                        reasons.append({"code": "PROFILE_CONFIDENCE", "message": f"곡 신뢰도 {confidence:.3f} < {cfg['minProfileConfidence']:.3f}"})
+                    if fit["totalCoreExcessSemitones"] > cfg["maxCoreExcess"]:
+                        reasons.append({"code": "CORE_EXCESS", "message": f"핵심 음역 초과 {fit['totalCoreExcessSemitones']:.2f}반음 > {cfg['maxCoreExcess']:.2f}"})
+                    if abs(int(fit["keyShift"])) > cfg["maxKeyShift"]:
+                        reasons.append({"code": "KEY_SHIFT", "message": f"최적 키 {int(fit['keyShift']):+d}반음: 허용 ±{cfg['maxKeyShift']} 초과"})
+                    if fit["score"] < cfg["minRangeScore"]:
+                        reasons.append({"code": "RANGE_SCORE", "message": f"음역 점수 {fit['score']:.3f} < {cfg['minRangeScore']:.3f}"})
+            # In production unreliable/missing range falls back to timbre only.
+            r["final_score"] = (cfg["timbreWeight"]*r["timbre_score"] + (1-cfg["timbreWeight"])*fit["score"]
+                                  if available and fit else r["timbre_score"])
+            diagnostics.append({"id": r["track_id"], "title": r["title"], "artist": r["artist"],
+                "scores": {k: r["models"][k]["absolute_score"] for k in MODEL_KEYS},
+                "timbreScore": r["timbre_score"], "finalScore": r["final_score"], "rangeFit": fit,
+                "eligible": not reasons, "exclusions": reasons})
+            if not reasons:
+                eligible.append(r)
+        if baseline:
+            # Baseline selection/order is delegated to production, not reconstructed.
+            allowed_rows = [r for r in rows if r["track_id"] not in excluded and
+                            (allowed is None or track_language(r["metadata"]) is None or track_language(r["metadata"]) in allowed)]
+            recs = build_shelves(allowed_rows, top_k=cfg["topK"], genres=genres, range_enabled=available, seed=42)[0]["items"]
+        else:
+            recs = compose_two_axis(eligible, top_k=cfg["topK"], range_enabled=use_range,
+                                    min_range_score=cfg["minRangeScore"], scoring_version=SCORING_VERSION)["recommendations"]
+        lists = {}
+        for key in MODEL_KEYS:
+            lists[key] = [dict(d, rank=i+1) for i, d in enumerate(sorted(diagnostics, key=lambda d: (-d["scores"][key], d["id"])))]
+        return {"settings": cfg, "recommendations": recs, "rankings": lists,
+                "eligibleCount": sum(d["eligible"] for d in diagnostics), "excludedCount": sum(not d["eligible"] for d in diagnostics),
+                "rangeGateApplied": use_range}
