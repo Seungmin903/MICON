@@ -74,9 +74,11 @@ class BackendRecommendRepositoryTest {
 
     private fun json(code: Int, body: String) = MockResponse().setResponseCode(code).setHeader("Content-Type", "application/json").setBody(body)
     private fun ok(data: String, code: Int = 200) = json(code, """{"code":"SUCCESS","message":"요청을 처리했습니다.","data":$data}""")
+    private fun currentProfile() { server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}""")) }
 
     @Test fun `completed recommendation maps shelves in server order and fills songs from the catalog`() = runBlocking {
-        server.enqueue(ok("""{"recommendationId":5,"status":"COMPLETED","progress":100,"scoringVersion":"two-axis-v1","compositionVersion":"quota-v1","shelves":[
+        currentProfile()
+        server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"COMPLETED","progress":100,"scoringVersion":"two-axis-v1","compositionVersion":"quota-v1","shelves":[
             {"key":"discovery","title":"새로운 발견","metric":"안 듣던 장르","order":3,"items":[{"songId":3,"overallRank":9,"position":0,"finalScore":61.5,"reasonText":"가볼 만한 장르"}]},
             {"key":"challenge","title":"고음 도전","metric":null,"order":2,"items":[{"songId":1,"overallRank":4,"position":0}]},
             {"key":"voice","title":"내 음색에 딱인 곡","metric":"ECAPA 상위","order":0,"items":[
@@ -84,6 +86,7 @@ class BackendRecommendRepositoryTest {
                 {"songId":99,"overallRank":2,"position":1,"finalScore":0.8},
                 {"songId":1,"overallRank":3,"position":2,"finalScore":0.7,"reasonText":"중심음이 가까워요"}]}]}"""))
         val result = repo.shelves(limit = 10)
+        assertEquals("/api/v1/users/me/voice-profile", server.takeRequest().path)
         assertEquals("/api/v1/recommendations/latest", server.takeRequest().path)
         assertTrue(result.personalized); assertNull(result.note)
         assertEquals(listOf(ShelfKeys.VOICE, ShelfKeys.DISCOVERY), result.shelves.map { it.key })   // challenge 제외, order 순
@@ -100,37 +103,62 @@ class BackendRecommendRepositoryTest {
     }
 
     @Test fun `no recommendation yet requests one and falls back to local with a note`() = runBlocking {
+        currentProfile()
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"추천 결과를 찾을 수 없습니다.","data":null}"""))
         server.enqueue(ok("""{"recommendationId":6,"jobId":"j1","status":"GENERATING","progress":0,"generatedAt":"2026-09-14T10:00:00","shelves":[]}""", 202))
         val result = repo.shelves()
+        server.takeRequest()
         assertEquals("/api/v1/recommendations/latest", server.takeRequest().path)
         val create = server.takeRequest()
         assertEquals("POST", create.method); assertEquals("/api/v1/recommendations", create.path)
         assertEquals("local", result.shelves.single().key)
         assertTrue(result.note!!.contains("만들고 있어요"))
+        assertTrue(result.generating)
     }
 
     @Test fun `input not ready and ai disabled fall back with explanatory notes`() = runBlocking {
+        currentProfile()
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"없음","data":null}"""))
         server.enqueue(json(409, """{"code":"RECOMMENDATION_INPUT_NOT_READY","message":"완료된 음성 분석과 사용자 임베딩이 필요합니다.","data":null}"""))
         val notReady = repo.shelves()
         assertTrue(notReady.note!!.startsWith(RecommendShelves.NOTE_ANALYSIS_REQUIRED))
         assertTrue("기기 계산 추천이 있으면 그 사실을 덧붙인다", notReady.note!!.contains("이 기기의 음역 계산 추천"))
-        server.takeRequest(); server.takeRequest()
+        server.takeRequest(); server.takeRequest(); server.takeRequest()
 
+        currentProfile()
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"없음","data":null}"""))
         server.enqueue(json(503, """{"code":"RECOMMENDATION_DISPATCH_FAILED","message":"추천 작업을 요청하지 못했습니다.","data":null}"""))
         assertTrue(repo.shelves().note!!.contains("준비되지 않았어요"))
     }
 
     @Test fun `generating or failed recommendation keeps local shelves with a status note`() = runBlocking {
-        server.enqueue(ok("""{"recommendationId":5,"status":"GENERATING","progress":40,"shelves":[]}"""))
+        currentProfile()
+        server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"GENERATING","progress":40,"shelves":[]}"""))
         assertTrue(repo.shelves().note!!.contains("만들고 있어요"))
-        server.takeRequest()
-        server.enqueue(ok("""{"recommendationId":5,"status":"FAILED","failureReason":"임베딩 없음","shelves":[]}"""))
+        server.takeRequest(); server.takeRequest()
+        currentProfile()
+        server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"FAILED","failureReason":"임베딩 없음","shelves":[]}"""))
         val failed = repo.shelves()
         assertEquals("local", failed.shelves.single().key)
         assertTrue(failed.note!!.contains("임베딩 없음"))
+    }
+
+    @Test fun `deleted server profile cannot use stale device fallback or create recommendations`() = runBlocking {
+        server.enqueue(json(404, """{"code":"VOICE_ANALYSIS_NOT_FOUND","message":"없음","data":null}"""))
+        val result = repo.shelves()
+        assertTrue(result.shelves.isEmpty())
+        assertEquals(RecommendShelves.NOTE_ANALYSIS_REQUIRED, result.note)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test fun `stale recommendation identity is rejected and current generation requested`() = runBlocking {
+        currentProfile()
+        server.enqueue(ok("""{"profileId":9,"sourceSessionId":2,"profileVersion":0,"recommendationId":5,"status":"COMPLETED","shelves":[]}"""))
+        server.enqueue(ok("""{"recommendationId":6,"status":"GENERATING"}""", 202))
+        val result = repo.shelves()
+        assertTrue(result.generating)
+        server.takeRequest(); server.takeRequest()
+        assertEquals("POST", server.takeRequest().method)
     }
 
     @Test fun `guest gets no recommendation and a login note without touching the server`() = runBlocking {

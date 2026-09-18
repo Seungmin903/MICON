@@ -33,6 +33,8 @@ object UserStore {
 
     private val _profile = MutableStateFlow<VoiceProfile?>(null)
     val profile = _profile.asStateFlow()
+    private val _voiceDataRevision = MutableStateFlow(0L)
+    val voiceDataRevision = _voiceDataRevision.asStateFlow()
 
     /** 저장된 프로필을 서버·기기에서 복원하다 실패했다. profile 이 null 이어도 "미측정" 이 아니라 "불러오지 못함" 으로 보여야 한다. */
     private val _profileLoadFailed = MutableStateFlow(false)
@@ -47,13 +49,22 @@ object UserStore {
 
     /** Clear account-scoped temporary state before another account can use the app. */
     fun clearUserData() {
-        _profile.value = null
-        _profileLoadFailed.value = false
+        clearVoiceData()
         preferredArtists = emptySet()
         preferredGenres = emptySet()
     }
 
-    fun setProfile(profile: VoiceProfile?) { _profile.value = profile; _profileLoadFailed.value = false }
+    @Synchronized fun setProfile(profile: VoiceProfile?) {
+        val changed = _profile.value != profile
+        _profile.value = profile
+        _profileLoadFailed.value = false
+        if (changed) _voiceDataRevision.value++
+    }
+    @Synchronized fun clearVoiceData() {
+        _profile.value = null
+        _profileLoadFailed.value = false
+        _voiceDataRevision.value++
+    }
     fun setProfileLoadFailed(failed: Boolean) { _profileLoadFailed.value = failed }
 
     // 추천 키·적합도는 RecommendRepository(LocalRecommendRepository) 가 계산한다. 임시 recommendedKey() 는 제거했다.

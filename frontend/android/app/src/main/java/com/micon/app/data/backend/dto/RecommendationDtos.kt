@@ -31,6 +31,9 @@ data class RecommendationDto(
     val completedAt: String? = null,
     val expiresAt: String? = null,
     val shelves: List<RecommendationShelfDto> = emptyList(),
+    val profileId: Long? = null,
+    val sourceSessionId: Long? = null,
+    val profileVersion: Long? = null,
 )
 
 /** RecommendationResponse.Shelf. key: voice · original_key · favorite_artists · challenge · discovery */

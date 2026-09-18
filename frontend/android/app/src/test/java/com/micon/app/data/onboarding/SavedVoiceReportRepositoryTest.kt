@@ -20,6 +20,7 @@ class SavedVoiceReportRepositoryTest {
         var writes = 0
         var failWrite = false
         override fun savedProfile() = profile
+        override fun clearSavedProfile() { profile = null }
         override fun saveProfile(profile: SavedVoiceOnboardingProfile) {
             if (failWrite) error("disk full")
             this.profile = profile; writes++
@@ -38,9 +39,10 @@ class SavedVoiceReportRepositoryTest {
         var updates = emptyList<VoiceAnalysisProgress>()
         var failure: Exception? = null
         var latestCalls = 0
+        var beforeLatestResult: () -> Unit = {}
         var lookups = 0
         override suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? {
-            latestCalls++; failure?.let { throw it }; return saved
+            latestCalls++; failure?.let { throw it }; beforeLatestResult(); return saved
         }
         override suspend fun awaitArtists(ownerId: Long, result: VoiceAnalysisProgress,
             onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
@@ -49,6 +51,24 @@ class SavedVoiceReportRepositoryTest {
         override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
             onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress = error("unused")
         override suspend fun save(request: VoiceOnboardingRequest, result: VoiceAnalysisProgress): ProfileSaveReceipt = error("unused")
+    }
+
+    @Test fun confirmedMissingProfileClearsPersistentCacheAndDisplayedReport() = runTest {
+        val store = Store(profile())
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
+        SavedVoiceReportRepository(store, Gateway()).refresh(42, shown::add)
+        assertNull(store.profile)
+        assertNull(shown.last())
+    }
+
+    @Test fun invalidatedRefreshCannotRestoreDeletedProfile() = runTest {
+        val store = Store(null)
+        var valid = true
+        val gateway = Gateway().apply { saved = profile(); beforeLatestResult = { valid = false } }
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
+        SavedVoiceReportRepository(store, gateway, isCurrent = { valid }).refresh(42, shown::add)
+        assertTrue(shown.isEmpty())
+        assertEquals(0, store.writes)
     }
 
     @Test fun cachedEmptyReportIsRefreshedWithLateMatchesAtTheSameVersion() = runTest {
@@ -60,14 +80,14 @@ class SavedVoiceReportRepositoryTest {
             saved = cached.copy(range = range.copy(notes = emptyList()))
             updates = listOf(completed)
         }
-        val shown = mutableListOf<SavedVoiceOnboardingProfile>()
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
         SavedVoiceReportRepository(store, gateway).refresh(42, shown::add)
         assertSame(cached, shown.first())
         assertEquals(1, gateway.latestCalls)
         assertEquals(1, gateway.lookups)
-        assertEquals(completed, shown.last().progress)
-        assertEquals(3L, shown.last().receipt.version)
-        assertEquals(range.notes, shown.last().range.notes)
+        assertEquals(completed, shown.last()!!.progress)
+        assertEquals(3L, shown.last()!!.receipt.version)
+        assertEquals(range.notes, shown.last()!!.range.notes)
         assertEquals(shown.last(), store.profile)
     }
 
@@ -76,7 +96,7 @@ class SavedVoiceReportRepositoryTest {
         val remote = profile(waiting.copy(sessionId = "8", artistSearch = ComponentStatus.COMPLETED))
             .copy(range = range.copy(lowMidi = 48, backendSessionId = 8))
         val gateway = Gateway().apply { saved = remote }
-        val shown = mutableListOf<SavedVoiceOnboardingProfile>()
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
         SavedVoiceReportRepository(store, gateway).refresh(42, shown::add)
         assertEquals(remote, shown.last())
         assertEquals(0, gateway.lookups)
@@ -86,7 +106,7 @@ class SavedVoiceReportRepositoryTest {
         val cached = profile()
         val store = Store(cached)
         val gateway = Gateway().apply { failure = java.io.IOException("offline") }
-        val shown = mutableListOf<SavedVoiceOnboardingProfile>()
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
         SavedVoiceReportRepository(store, gateway).refresh(42, shown::add)
         assertEquals(listOf(cached), shown)
         assertEquals(0, store.writes)
@@ -109,7 +129,7 @@ class SavedVoiceReportRepositoryTest {
             updates = listOf(waiting.copy(sessionId = "8", artistSearch = ComponentStatus.COMPLETED),
                 waiting.copy(version = 2, artistSearch = ComponentStatus.COMPLETED))
         }
-        val shown = mutableListOf<SavedVoiceOnboardingProfile>()
+        val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
         SavedVoiceReportRepository(store, gateway).refresh(42, shown::add)
         assertEquals(listOf(profile()), shown)
         assertEquals(waiting, store.profile?.progress)
@@ -120,7 +140,7 @@ class SavedVoiceReportRepositoryTest {
             val store = Store(null).apply { failWrite = true }
             val remote = profile(waiting.copy(artistSearch = status))
             val gateway = Gateway().apply { saved = remote }
-            val shown = mutableListOf<SavedVoiceOnboardingProfile>()
+            val shown = mutableListOf<SavedVoiceOnboardingProfile?>()
             SavedVoiceReportRepository(store, gateway).refresh(42, shown::add)
             assertEquals(listOf(remote), shown)
             assertEquals(0, gateway.lookups)

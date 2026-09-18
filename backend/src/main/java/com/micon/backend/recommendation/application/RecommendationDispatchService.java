@@ -6,6 +6,8 @@ import com.micon.backend.recommendation.client.RecommendationJobGateway;
 import com.micon.backend.recommendation.domain.RecommendationMode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RecommendationDispatchService {
@@ -26,13 +28,16 @@ public class RecommendationDispatchService {
         this.enabled = enabled;
     }
 
+    // AFTER_COMMIT may still have the completed EntityManager bound to this thread.
+    // Suspend it, and never hold a database transaction open across the AI request.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RecommendationDispatchResult dispatch(long userId, long profileId, RecommendationMode mode) {
         if (!enabled) {
             throw new BusinessException(ErrorCode.RECOMMENDATION_DISPATCH_FAILED);
         }
         RecommendationMode requestedMode = mode == null ? RecommendationMode.OVERALL : mode;
         RecommendationInput input = inputs.assemble(userId, profileId);
-        RecommendationLifecycleService.Created created = lifecycle.create(userId, profileId, requestedMode);
+        RecommendationLifecycleService.Created created = lifecycle.create(userId, input, requestedMode);
         try {
             RecommendationJobGateway.Result result = gateway.submit(
                     new RecommendationJobGateway.Command(input, requestedMode, TOP_K));

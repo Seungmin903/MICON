@@ -10,6 +10,7 @@ import com.micon.backend.voice.domain.UserVoiceProfile;
 import com.micon.backend.voice.domain.UserVoiceProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 
@@ -24,11 +25,18 @@ public class RecommendationLifecycleService {
         this.recommendations = recommendations;
     }
 
-    @Transactional
-    public Created create(long userId, long profileId, RecommendationMode mode) {
-        UserVoiceProfile profile = profiles.findByIdAndUserId(profileId, userId)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Created create(long userId, RecommendationInput input, RecommendationMode mode) {
+        long profileId = input.profileId();
+        UserVoiceProfile profile = profiles.findByIdAndUserIdForUpdate(profileId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
-        if (recommendations.existsByVoiceProfileIdAndStatus(profileId, RecommendationStatus.GENERATING)) {
+        if (profile.getProfileVersion() != input.profileVersion()
+                || !profile.getSession().getId().equals(input.sourceSessionId())) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_INPUT_NOT_READY,
+                    "목소리 프로필이 변경됐습니다. 새 프로필로 다시 요청해 주세요.");
+        }
+        if (recommendations.existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndStatus(
+                profileId, input.profileVersion(), input.sourceSessionId(), RecommendationStatus.GENERATING)) {
             throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_GENERATING);
         }
         Recommendation recommendation = recommendations.saveAndFlush(
@@ -36,12 +44,12 @@ public class RecommendationLifecycleService {
         return new Created(recommendation.getId(), recommendation.getGeneratedAt());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void assignJob(long recommendationId, String jobId) {
         locked(recommendationId).assignJob(jobId);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void fail(long recommendationId, String reason) {
         locked(recommendationId).fail("AI_DISPATCH_FAILED", abbreviate(reason), LocalDateTime.now());
     }

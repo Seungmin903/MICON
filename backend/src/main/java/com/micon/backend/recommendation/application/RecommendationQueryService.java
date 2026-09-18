@@ -39,13 +39,15 @@ public class RecommendationQueryService {
     @Transactional(readOnly = true)
     public RecommendationResponse get(long userId, long recommendationId) {
         Recommendation recommendation = recommendations.findByIdAndUserId(recommendationId, userId)
+                .filter(Recommendation::isForCurrentProfile)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         return response(recommendation);
     }
 
     @Transactional(readOnly = true)
     public RecommendationResponse latest(long userId) {
-        Recommendation recommendation = recommendations.findFirstByUserIdOrderByGeneratedAtDescIdDesc(userId)
+        Recommendation recommendation = recommendations.findCurrentByUserId(userId,
+                        org.springframework.data.domain.PageRequest.of(0, 1)).stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         return response(recommendation);
     }
@@ -53,6 +55,7 @@ public class RecommendationQueryService {
     @Transactional(readOnly = true)
     public RecommendationResponse.Song song(long userId, long recommendationId, String songId) {
         recommendations.findByIdAndUserId(recommendationId, userId)
+                .filter(Recommendation::isForCurrentProfile)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
         return songs.findByRecommendationIdAndIdSongId(recommendationId, songId)
                 .map(this::song)
@@ -76,7 +79,9 @@ public class RecommendationQueryService {
                 recommendation.getProgress(), recommendation.getFailureCode(), recommendation.getFailureReason(),
                 recommendation.getAlgorithmVersion(), recommendation.getScoringVersion(),
                 recommendation.getCompositionVersion(), recommendation.getGeneratedAt(),
-                recommendation.getCompletedAt(), recommendation.getExpiresAt(), shelfResponses);
+                recommendation.getCompletedAt(), recommendation.getExpiresAt(), shelfResponses,
+                recommendation.getVoiceProfile().getId(), recommendation.getSourceSessionId(),
+                recommendation.getProfileVersion());
     }
 
     private RecommendationResponse.Song song(RecommendationSong song) {

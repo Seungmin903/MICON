@@ -24,6 +24,7 @@ interface VoiceOnboardingPersistence {
     fun deleteRecording(id: String?)
     fun saveProfile(profile: SavedVoiceOnboardingProfile)
     fun savedProfile(): SavedVoiceOnboardingProfile? = null
+    fun clearSavedProfile() {}
     fun clearDraft()
     fun hasPendingRange(): Boolean = false
 }
@@ -82,6 +83,13 @@ class VoiceOnboardingStore(context: Context, val ownerId: Long?,
         recordings.list().forEach { recordings.delete(it.id) }
         recordings.deleteOrphans()
         AtomicFile(draftFile).delete()
+    }
+
+    override fun clearSavedProfile() { AtomicFile(profileFile).delete() }
+
+    fun clearVoiceData() {
+        clearSavedProfile()
+        clearDraft()
     }
 
     fun disposeGuest() {

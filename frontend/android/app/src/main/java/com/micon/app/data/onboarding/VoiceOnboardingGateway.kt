@@ -78,7 +78,8 @@ data class VoiceAnalysisProgress(
     }
 }
 
-data class ProfileSaveReceipt(val sessionId: String, val version: Long, val profileId: String)
+data class ProfileSaveReceipt(val sessionId: String, val version: Long, val profileId: String,
+    val profileVersion: Long? = null)
 /** draftId/revision are local correlation values, never BE sessionId/resultVersion. */
 data class VoiceOnboardingRequest(val draftId: String, val revision: Long, val ownerId: Long?,
     val range: RangeReport, val recording: SavedRecording)

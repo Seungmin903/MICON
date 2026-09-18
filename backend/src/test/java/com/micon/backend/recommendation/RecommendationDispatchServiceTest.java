@@ -53,7 +53,7 @@ class RecommendationDispatchServiceTest {
         RecommendationInput input = input();
         when(inputs.assemble(1L, 10L)).thenReturn(input);
         LocalDateTime generatedAt = LocalDateTime.of(2026, 9, 9, 23, 0);
-        when(lifecycle.create(1L, 10L, RecommendationMode.RANGE))
+        when(lifecycle.create(1L, input, RecommendationMode.RANGE))
                 .thenReturn(new RecommendationLifecycleService.Created(20L, generatedAt));
         when(gateway.submit(org.mockito.ArgumentMatchers.any())).thenReturn(
                 new RecommendationJobGateway.Result("recommend-job-1", "queued"));
@@ -74,7 +74,7 @@ class RecommendationDispatchServiceTest {
     @Test
     void recordsFailureWhenAiCannotBeReached() {
         when(inputs.assemble(1L, 10L)).thenReturn(input());
-        when(lifecycle.create(1L, 10L, RecommendationMode.OVERALL))
+        when(lifecycle.create(1L, input(), RecommendationMode.OVERALL))
                 .thenReturn(new RecommendationLifecycleService.Created(20L, LocalDateTime.now()));
         when(gateway.submit(org.mockito.ArgumentMatchers.any()))
                 .thenThrow(new RuntimeException("connection timed out"));
@@ -89,7 +89,7 @@ class RecommendationDispatchServiceTest {
     @Test
     void recordsFailureWhenAiReturnsBlankJobId() {
         when(inputs.assemble(1L, 10L)).thenReturn(input());
-        when(lifecycle.create(1L, 10L, RecommendationMode.TIMBRE))
+        when(lifecycle.create(1L, input(), RecommendationMode.TIMBRE))
                 .thenReturn(new RecommendationLifecycleService.Created(20L, LocalDateTime.now()));
         when(gateway.submit(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new RecommendationJobGateway.Result(" ", "queued"));
@@ -102,6 +102,7 @@ class RecommendationDispatchServiceTest {
     private RecommendationInput input() {
         return new RecommendationInput(
                 10L,
+                20L, 1L,
                 "30",
                 new RecommendationInput.VoiceProfile(
                         null, null, null, null, null, null, null, null,
