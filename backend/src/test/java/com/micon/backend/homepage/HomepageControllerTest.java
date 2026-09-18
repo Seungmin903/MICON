@@ -8,9 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-import com.micon.backend.song.api.PageResponse;
-import com.micon.backend.song.api.SongResponse;
-import com.micon.backend.song.service.SongService;
+import com.micon.backend.domain.song.api.PageResponse;
+import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.service.SongService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;

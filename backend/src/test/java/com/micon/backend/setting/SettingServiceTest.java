@@ -2,8 +2,8 @@ package com.micon.backend.setting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.micon.backend.setting.repository.SettingRepository;
-import com.micon.backend.setting.service.SettingService;
+import com.micon.backend.domain.setting.repository.SettingRepository;
+import com.micon.backend.domain.setting.service.SettingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

@@ -2,8 +2,10 @@ package com.micon.backend.song.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.micon.backend.song.api.SongResponse;
+import com.micon.backend.domain.song.api.SongResponse;
 import java.util.List;
+
+import com.micon.backend.domain.song.repository.SongQueryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

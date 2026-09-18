@@ -6,8 +6,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.micon.backend.common.exception.GlobalExceptionHandler;
-import com.micon.backend.song.service.SongNotFoundException;
-import com.micon.backend.song.service.SongService;
+import com.micon.backend.domain.song.api.PageResponse;
+import com.micon.backend.domain.song.api.SongController;
+import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.service.SongNotFoundException;
+import com.micon.backend.domain.song.service.SongService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

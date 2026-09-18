@@ -2,6 +2,7 @@ package com.micon.backend.songfit.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.micon.backend.domain.songfit.repository.SongFitQueryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

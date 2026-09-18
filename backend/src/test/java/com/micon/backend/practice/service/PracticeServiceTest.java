@@ -10,14 +10,16 @@ import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.practice.api.PracticeRequest;
-import com.micon.backend.practice.api.PracticeRequest.PracticeScope;
-import com.micon.backend.practice.api.PracticeResponse;
-import com.micon.backend.practice.repository.PracticeRepository;
-import com.micon.backend.practice.repository.PracticeRepository.SongRow;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest;
+import com.micon.backend.domain.practice.dto.request.PracticeRequest.PracticeScope;
+import com.micon.backend.domain.practice.dto.response.PracticeResponse;
+import com.micon.backend.domain.practice.repository.PracticeRepository;
+import com.micon.backend.domain.practice.repository.PracticeRepository.SongRow;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
+
+import com.micon.backend.domain.practice.service.PracticeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

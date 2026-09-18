@@ -1,6 +1,8 @@
 package com.micon.backend.recommendation.client;
 
-import com.micon.backend.recommendation.config.RecommendationAiProperties;
+import com.micon.backend.domain.recommendation.client.HttpRecommendationResultGateway;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.config.RecommendationAiProperties;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;

@@ -1,12 +1,12 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.RecommendationPollingService;
-import com.micon.backend.recommendation.application.RecommendationResultStore;
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.config.RecommendationPollingProperties;
-import com.micon.backend.recommendation.domain.Recommendation;
-import com.micon.backend.recommendation.domain.RecommendationRepository;
-import com.micon.backend.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.application.RecommendationPollingService;
+import com.micon.backend.domain.recommendation.application.RecommendationResultStore;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.config.RecommendationPollingProperties;
+import com.micon.backend.domain.recommendation.domain.Recommendation;
+import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
+import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

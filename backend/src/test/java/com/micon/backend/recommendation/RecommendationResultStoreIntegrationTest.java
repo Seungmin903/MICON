@@ -1,11 +1,14 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.RecommendationResultStore;
-import com.micon.backend.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.recommendation.domain.*;
-import com.micon.backend.user.domain.User;
-import com.micon.backend.user.domain.UserRepository;
-import com.micon.backend.voice.domain.*;
+import com.micon.backend.domain.recommendation.application.RecommendationResultStore;
+import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
+import com.micon.backend.domain.recommendation.domain.*;
+import com.micon.backend.domain.user.domain.User;
+import com.micon.backend.domain.user.domain.UserRepository;
+import com.micon.backend.domain.voice.domain.UserVoiceProfile;
+import com.micon.backend.domain.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.domain.VoiceAnalysisSessionRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +28,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecommendationResultStoreIntegrationTest {
     @Autowired RecommendationResultStore store;
     @Autowired RecommendationRepository recommendations;
-    @Autowired RecommendationShelfRepository shelves;
+    @Autowired
+    RecommendationShelfRepository shelves;
     @Autowired RecommendationSongRepository songs;
     @Autowired UserRepository users;
-    @Autowired VoiceAnalysisSessionRepository sessions;
-    @Autowired UserVoiceProfileRepository profiles;
+    @Autowired
+    VoiceAnalysisSessionRepository sessions;
+    @Autowired
+    UserVoiceProfileRepository profiles;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper json;
     @Autowired EntityManager entityManager;
