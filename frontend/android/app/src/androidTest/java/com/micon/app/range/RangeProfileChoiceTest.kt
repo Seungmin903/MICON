@@ -40,9 +40,9 @@ class RangeProfileChoiceTest {
         } }
         compose.onNodeWithText("보이스 프로필 생성 가능").assertIsDisplayed()
         compose.onNodeWithText("프로필 생성하기").assertIsNotEnabled()
-        compose.onNodeWithText("계속 측정하기").performClick()
+        compose.onNodeWithText("추가로 분석하기").performClick()
         compose.runOnIdle { assertEquals(0, continues); paused.value = true }
-        compose.onNodeWithText("계속 측정하기").performClick()
+        compose.onNodeWithText("추가로 분석하기").performClick()
         compose.onNodeWithText("프로필 생성하기").performClick()
         compose.runOnIdle { assertEquals(1, continues); assertEquals(1, finishes) }
     }

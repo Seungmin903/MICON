@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -59,7 +60,12 @@ class SavedVoiceReportScreenTest {
 
     @Test fun savedReportMovesPianoIntoMapAndShowsActualArtistResults() {
         show { SavedVoiceReportContent(range, progress) }
-        compose.onNodeWithText("4G(솔) ~ 5G(솔)").assertIsDisplayed()
+        compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
+        compose.onNodeWithTag("ecapa-embedding-card").assertExists()
+        compose.onNodeWithContentDescription("PCA1, PCA2").assertExists()
+        compose.onNodeWithText("첫 번째 가수").assertIsDisplayed()
+        compose.onNodeWithText("두 번째 가수").assertIsDisplayed()
+        compose.onNodeWithText("4G(솔) ~ 5G(솔)").performScrollTo().assertIsDisplayed()
         val map = hasTestTag("range-map-card")
         compose.onNode(hasTestTag("guided-range-keyboard") and hasAnyAncestor(map))
             .performScrollTo().assertIsDisplayed()
@@ -73,10 +79,34 @@ class SavedVoiceReportScreenTest {
         }
         capture("saved-report-map.png")
         removedCardsAreAbsent()
-        compose.onNodeWithText("나와 닮은 가수").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("첫 번째 가수").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("두 번째 가수").performScrollTo().assertIsDisplayed()
         capture("saved-report-artists.png")
+    }
+
+    @Test fun embeddingMapDrawsCatalogMatchesAndUserWithoutExtraCopy() {
+        val embeddingMap = EcapaEmbeddingMap(7, "projection-v1", "catalog-v1",
+            EcapaPcaPoint(0.0, 0.0), listOf(
+                EcapaArtistPoint(1, EcapaPcaPoint(-0.8, -0.6)),
+                EcapaArtistPoint(2, EcapaPcaPoint(0.7, 0.5)),
+                EcapaArtistPoint(3, EcapaPcaPoint(0.3, -0.2))))
+        show { SavedVoiceReportContent(range, progress, embeddingMap) }
+        val plot = compose.onNodeWithTag("ecapa-embedding-plot").performScrollTo().assertIsDisplayed()
+        val bitmap = plot.captureToImage().asAndroidBitmap()
+        val purple = Purple.toArgb()
+        val grey = com.micon.app.ui.theme.Grey.toArgb()
+        var purplePixels = 0
+        var greyPixels = 0
+        for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+            when (bitmap.getPixel(x, y)) {
+                purple -> purplePixels++
+                grey -> greyPixels++
+            }
+        }
+        assertTrue("User and matching artist points must be purple", purplePixels > 20)
+        assertTrue("Catalog artist points must be grey", greyPixels > 10)
+        listOf("ECAPA", "임베딩", "projection-v1", "catalog-v1", "유사도").forEach {
+            compose.onNodeWithText(it, substring = true).assertDoesNotExist()
+        }
+        capture("saved-report-ecapa-embedding.png")
     }
 
     @Test fun pendingLookupKeepsArtistCardWithoutShowingInternalStatusOrStaleResults() {
@@ -115,10 +145,11 @@ class SavedVoiceReportScreenTest {
 
     @Test fun previousAnalysisUsesTheSameReducedCardsAndPianoPlacement() {
         show { PreviousAnalysisReportCards(UserStore.VoiceProfile(lowMidi = 55, highMidi = 67)) }
-        compose.onNodeWithText("4G(솔) ~ 5G(솔)").assertIsDisplayed()
+        compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
+        compose.onNodeWithContentDescription("PCA1, PCA2").assertExists()
+        compose.onNodeWithText("4G(솔) ~ 5G(솔)").performScrollTo().assertIsDisplayed()
         compose.onNode(hasTestTag("report-piano") and hasAnyAncestor(hasTestTag("range-map-card")))
             .performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("나와 닮은 가수").assertExists()
         removedCardsAreAbsent()
     }
 
@@ -137,6 +168,10 @@ class SavedVoiceReportScreenTest {
                 assertTrue(action(layouts))
                 assertFalse(layouts.single().hasVisualOverflow)
             }
+        compose.onNodeWithTag("ecapa-embedding-plot").performScrollTo().assertIsDisplayed().also {
+            val size = it.fetchSemanticsNode().size
+            assertEquals(size.width, size.height)
+        }
         capture("saved-report-large-font.png")
         listOf("전체 음역", "안정 음역", "추천 음역").forEach {
             compose.onNodeWithText(it).performScrollTo().assertIsDisplayed()

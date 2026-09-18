@@ -27,6 +27,8 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     private val pendingFile = File(directory, "pending.json")
     private val reportFile = File(directory, "report.json")
     private val lastSessionFile = File(directory, "last-session-report.json")
+    private val completedTargetsFile = File(directory, "completed-targets.json")
+    private val completedTargetsAdapter = Json.moshi.adapter(CompletedRangeTargets::class.java)
     private val pendingAdapter = Json.moshi.adapter(PendingRange::class.java)
     private val reportAdapter = Json.moshi.adapter(RangeReport::class.java)
     private val submissionAdapter = Json.moshi.adapter(RangeSubmission::class.java)
@@ -64,7 +66,21 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         catch (e: Exception) { atomic.failWrite(output); throw e }
     }
 
-    private fun saveReport(report: RangeReport) {
+    fun completedTargets(report: RangeReport): Set<Int>? = targetHistory()
+        ?.takeIf { it.analysisId == report.analysisId && it.protocolVersion == report.protocolVersion }?.targets
+
+    private fun targetHistory(): CompletedRangeTargets? = runCatching {
+        completedTargetsAdapter.fromJson(readAtomic(completedTargetsFile))
+    }.getOrNull()
+
+    private fun saveReport(report: RangeReport, submission: RangeSubmission) {
+        val previous = targetHistory()?.takeIf { it.analysisId == submission.parentAnalysisId &&
+            it.protocolVersion == submission.protocolVersion }?.targets ?: localReport()
+            ?.takeIf { submission.parentAnalysisId != null && it.analysisId == submission.parentAnalysisId && it.protocolVersion == submission.protocolVersion }
+            ?.completedNoteFallback().orEmpty()
+        val targets = CompletedRangeTargets(report.analysisId ?: submission.sessionId, report.protocolVersion,
+            previous + submission.completedTargets())
+        atomicWrite(completedTargetsFile, completedTargetsAdapter.toJson(targets))
         atomicWrite(reportFile, reportAdapter.toJson(report))
     }
 
@@ -74,14 +90,20 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         repairWav(wav, saved.sampleRate)
         val available = (wav.length() - 44).toDouble() / (saved.sampleRate * 2)
         val submission = saved.submission.recoverAudio(available)
-        savePending(saved.copy(submission = submission))
+        synchronized(this@RangeRepository) {
+            checkCurrentMeasurement(saved)
+            savePending(saved.copy(submission = submission))
+        }
         if (deviceOnly) {
             onState("측정 결과를 정리하고 있어요")
             val report = submission.deviceReport()
-            atomicWrite(lastSessionFile, reportAdapter.toJson(report))
-            if (report.availability == "available") saveReport(report)
-            wav.delete()
-            android.util.AtomicFile(pendingFile).delete()
+            synchronized(this@RangeRepository) {
+                checkCurrentMeasurement(saved)
+                atomicWrite(lastSessionFile, reportAdapter.toJson(report))
+                if (report.availability == "available") saveReport(report, submission)
+                wav.delete()
+                android.util.AtomicFile(pendingFile).delete()
+            }
             return@withContext report
         }
         onState("분석 중…")
@@ -89,17 +111,27 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
             MultipartBody.Part.createFormData("audio", wav.name, wav.asRequestBody("audio/wav".toMediaType())),
             submissionAdapter.toJson(submission).toRequestBody("text/plain; charset=utf-8".toMediaType()))
         check(report.protocolVersion == submission.protocolVersion && report.verification == "model_verified") { "모델 검증 결과를 확인하지 못했습니다." }
-        atomicWrite(lastSessionFile, reportAdapter.toJson(report))
-        if (report.availability == "available") saveReport(report)
-        if (!saved.submission.keepOriginal && !RangeDiagnostics.retainsAudio(appContext, saved.submission.sessionId)) audio(saved.submission.sessionId).delete()
-        android.util.AtomicFile(pendingFile).delete()
+        synchronized(this@RangeRepository) {
+            checkCurrentMeasurement(saved)
+            atomicWrite(lastSessionFile, reportAdapter.toJson(report))
+            if (report.availability == "available") saveReport(report, submission)
+            if (!saved.submission.keepOriginal && !RangeDiagnostics.retainsAudio(appContext, saved.submission.sessionId)) audio(saved.submission.sessionId).delete()
+            android.util.AtomicFile(pendingFile).delete()
+        }
         return@withContext report
+    }
+
+    private fun checkCurrentMeasurement(saved: PendingRange) {
+        check(!closed && pending()?.submission?.sessionId == saved.submission.sessionId) {
+            "새 측정이 시작되어 이전 분석 결과를 반영하지 않았어요."
+        }
     }
 
     @Synchronized fun clear() {
         discardPending()
         android.util.AtomicFile(reportFile).delete()
         android.util.AtomicFile(lastSessionFile).delete()
+        android.util.AtomicFile(completedTargetsFile).delete()
         finalized = false
     }
 

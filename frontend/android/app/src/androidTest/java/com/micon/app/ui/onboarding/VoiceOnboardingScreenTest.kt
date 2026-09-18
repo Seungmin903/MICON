@@ -2,6 +2,7 @@ package com.micon.app.ui.onboarding
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
@@ -17,6 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.RandomAccessFile
 
 @RunWith(AndroidJUnit4::class)
 class VoiceOnboardingScreenTest {
@@ -106,5 +108,54 @@ class VoiceOnboardingScreenTest {
         compose.onNodeWithText("ECAPA", substring = true).assertDoesNotExist()
         compose.onNodeWithText("BYOL", substring = true).assertDoesNotExist()
         compose.onNodeWithTag("onboarding_save").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun finalScreenWaitsForRangeWithoutShowingPreviewAsAResultOrInputError() {
+        compose.setContent { MiconTheme {
+            VoiceOnboardingResultScreen(VoiceOnboardingState("draft", rangePreview = range(), recording = audio(),
+                rangeAnalysisStatus = OnboardingRangeStatus.RUNNING, serviceAvailable = true), false,
+                {}, {}, {}, {}, {}, {}, {}, {})
+        } }
+        compose.onNodeWithTag("onboarding_analysis_wait").assertIsDisplayed()
+        compose.onNodeWithText("음역 분석 결과를 확인하고 있어요.").assertIsDisplayed()
+        compose.onNodeWithText("3옥타브 도 ~ 5옥타브 도").assertDoesNotExist()
+        compose.onNodeWithTag("onboarding_input_error").assertDoesNotExist()
+        compose.onNodeWithText("분석 다시 확인하기").assertDoesNotExist()
+        compose.onNodeWithTag("onboarding_save").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun rangeFailureOffersItsOwnRetryAndRemeasurement() {
+        var retries = 0
+        compose.setContent { MiconTheme {
+            VoiceOnboardingResultScreen(VoiceOnboardingState("draft", rangePreview = range(), recording = audio(),
+                rangeAnalysisStatus = OnboardingRangeStatus.FAILED, rangeAnalysisError = "음역 분석 연결 실패",
+                serviceAvailable = true), false, {}, {}, {}, {}, {}, {}, {}, {}, onRetryRange = { retries++ })
+        } }
+        compose.onNodeWithTag("onboarding_range_error").assertIsDisplayed()
+        compose.onNodeWithTag("onboarding_range_retry").performClick()
+        compose.runOnIdle { assertEquals(1, retries) }
+        compose.onNodeWithText("음역 다시 측정하기").assertIsDisplayed()
+        compose.onNodeWithText("분석 다시 확인하기").assertDoesNotExist()
+        compose.onNodeWithTag("onboarding_save").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun automaticAnalysisReactsWhenDelayedRangeBecomesReady() {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val wav = File.createTempFile("ready-range-audio", ".wav", base.cacheDir)
+        RandomAccessFile(wav, "rw").use { it.setLength(44L + 48000 * 2 * 35) }
+        try {
+            val recording = audio().copy(wav = wav, meta = audio().meta.copy(sampleRate = 48000,
+                takes = listOf(SingTake(0.0, 35.0, 0.0, 35.0)), onboardingDraftId = "draft"))
+            var current by mutableStateOf(VoiceOnboardingState("draft", recording = recording, serviceAvailable = true,
+                rangePreview = range(), rangeAnalysisStatus = OnboardingRangeStatus.RUNNING))
+            var starts = 0
+            compose.setContent { OnboardingAutomaticAnalysis(current) { starts++ } }
+            compose.runOnIdle { assertEquals(0, starts) }
+            compose.runOnIdle { current = current.copy(range = range().copy(verification = "model_verified", backendSessionId = 7),
+                rangePreview = null, rangeAnalysisStatus = OnboardingRangeStatus.READY) }
+            compose.runOnIdle { assertEquals(1, starts) }
+            compose.runOnIdle { current = current.copy(error = "unrelated UI update") }
+            compose.runOnIdle { assertEquals(1, starts) }
+        } finally { wav.delete() }
     }
 }

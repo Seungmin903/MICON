@@ -56,9 +56,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -169,7 +171,8 @@ fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> U
                 BackHeader("목소리 분석", onBack)
                 RetryBlock(state.error ?: "오류", vm::load)
             }
-            Phase.SETUP -> SetupBody(state, onChoose = ::chooseWithPermission, onBack = onBack)
+            Phase.SETUP -> SetupBody(state, onChoose = ::chooseWithPermission, onBack = onBack,
+                compact = onboardingDraftId != null)
             Phase.COUNTDOWN, Phase.RUNNING, Phase.PAUSED -> SingingBody(state, vm)
             Phase.SAVING -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 CircularProgressIndicator(color = Purple)
@@ -202,29 +205,44 @@ fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> U
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun SetupBody(state: SingAnalysisViewModel.UiState, onChoose: (ScopePlan) -> Unit, onBack: () -> Unit) {
+internal fun SetupBody(state: SingAnalysisViewModel.UiState, onChoose: (ScopePlan) -> Unit, onBack: () -> Unit,
+    compact: Boolean = false,
+) {
     Column(Modifier.fillMaxSize()) {
         BackHeader("목소리 분석", onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
             StepBar(2, 3)
-            Spacer(Modifier.height(24.dp))
-            Box(Modifier.size(132.dp).background(Lavender, CircleShape), contentAlignment = Alignment.Center) {
-                VinylArt(state.imageUrl, 108.dp, fallbackText = state.title)
+            Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
+            if (compact) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    VinylArt(state.imageUrl, 64.dp, fallbackText = state.title)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(state.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = InkSoft,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        Text(state.artist, fontSize = 14.sp, color = Grey, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            } else {
+                Box(Modifier.size(132.dp).background(Lavender, CircleShape), contentAlignment = Alignment.Center) {
+                    VinylArt(state.imageUrl, 108.dp, fallbackText = state.title)
+                }
+                Spacer(Modifier.height(18.dp))
+                Text(state.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = InkSoft, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                Spacer(Modifier.height(6.dp))
+                Text("${state.artist} · ${formatSec(state.durationSec)}", fontSize = 14.sp, color = Grey)
+                Spacer(Modifier.height(8.dp))
+                LyricTimingChip(state.lyricTiming)
             }
-            Spacer(Modifier.height(18.dp))
-            Text(state.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = InkSoft, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
-            Spacer(Modifier.height(6.dp))
-            Text("${state.artist} · ${formatSec(state.durationSec)}", fontSize = 14.sp, color = Grey)
-            Spacer(Modifier.height(8.dp))
-            LyricTimingChip(state.lyricTiming)
 
-            Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
-                Spacer(Modifier.height(22.dp))
+            Column(Modifier.fillMaxWidth().padding(horizontal = if (compact) 24.dp else 32.dp)) {
+                Spacer(Modifier.height(if (compact) 12.dp else 22.dp))
                 Text("어디부터 부를까요?", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = InkSoft)
                 Spacer(Modifier.height(10.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    state.plans.forEach { plan -> ScopeCard(plan, onClick = { onChoose(plan) }) }
+                Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+                    state.plans.forEach { plan -> ScopeCard(plan, onClick = { onChoose(plan) }, compact = compact) }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("카드를 누르면 박자 카운트 후 반주가 시작돼요", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -265,25 +283,29 @@ private fun LyricTimingChip(timing: LyricTiming) {
 
 /** 범위 카드. 비활성이면 흐리게 + 사유. 하이라이트는 핑크(연습 구간 칩과 같은 색 의미). */
 @Composable
-private fun ScopeCard(plan: ScopePlan, onClick: () -> Unit) {
+private fun ScopeCard(plan: ScopePlan, onClick: () -> Unit, compact: Boolean = false) {
     val (icon, iconBg, iconTint) = when (plan.scope) {
         SingScope.FULL -> Triple(Icons.Outlined.MusicNote, Lavender, Purple)
         SingScope.SECOND_HALF -> Triple(Icons.Outlined.SkipNext, Lavender, Purple)
         SingScope.HIGHLIGHT -> Triple(Icons.Outlined.Star, PinkBg, Pink)
     }
-    MiconCard(Modifier.fillMaxWidth().alpha(if (plan.enabled) 1f else 0.45f).clickable(enabled = plan.enabled, onClick = onClick), padding = PaddingValues(16.dp)) {
+    MiconCard(Modifier.fillMaxWidth().testTag("scope-${plan.scope.name}")
+        .alpha(if (plan.enabled) 1f else 0.45f).clickable(enabled = plan.enabled, onClick = onClick),
+        padding = PaddingValues(if (compact) 12.dp else 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(iconBg, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(if (compact) 32.dp else 44.dp).background(iconBg, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(icon, null, Modifier.size(24.dp), tint = iconTint)
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(if (compact) 10.dp else 14.dp))
             Column(Modifier.weight(1f)) {
                 Text(plan.displayLabel, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
-                Spacer(Modifier.height(2.dp))
-                if (plan.enabled) {
-                    Text("${formatSec(plan.startSec)}부터 끝까지 · 약 ${formatSec(plan.lengthSec)}", fontSize = 13.sp, color = Grey)
+                if (!compact) {
+                    Spacer(Modifier.height(2.dp))
+                    if (plan.enabled) {
+                        Text("${formatSec(plan.startSec)}부터 끝까지 · 약 ${formatSec(plan.lengthSec)}", fontSize = 13.sp, color = Grey)
+                    }
+                    plan.note?.let { Text(it, fontSize = 12.sp, color = if (plan.enabled) Grey else Red) }
                 }
-                plan.note?.let { Text(it, fontSize = 12.sp, color = if (plan.enabled) Grey else Red) }
             }
             if (plan.enabled) Icon(Icons.Filled.ChevronRight, null, tint = Purple)
         }

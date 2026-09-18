@@ -15,7 +15,7 @@ data class RangeSampling(
 )
 
 object RangeRefinement {
-    fun targets(anchor: Int, sampling: RangeSampling, measured: Set<Int>): List<Int> {
+    fun targets(anchor: Int, sampling: RangeSampling, measured: Set<Int>, reconfirmBoundaries: Boolean = true): List<Int> {
         val high = sampling.upperLastSuccess ?: anchor
         val low = sampling.lowerLastSuccess ?: anchor
         val upper = sampling.upperEnd ?: high
@@ -24,6 +24,6 @@ object RangeRefinement {
         if (high < upper) queue.addAll((high + 1..upper).filter { it !in measured })
         if (low > lower) queue.addAll((low - 1 downTo lower).filter { it !in measured })
         if (lower <= upper) queue.addAll((lower..upper).filter { it !in measured })
-        return queue.filter { it in RangeProtocol.MIN_MIDI..RangeProtocol.MAX_MIDI }
+        return queue.filter { it in RangeProtocol.MIN_MIDI..RangeProtocol.MAX_MIDI && (reconfirmBoundaries || it !in measured) }
     }
 }

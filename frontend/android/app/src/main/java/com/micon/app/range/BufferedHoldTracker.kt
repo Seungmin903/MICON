@@ -5,6 +5,7 @@ import kotlin.math.*
 /** v5: raw audio time, frozen robust reference, and completed (never prefix) records. */
 class BufferedHoldTracker(private val target: Int, private val anchor: Int, private val rmsFloor: Double,
                           private val revised: Boolean = false) {
+    private val startToleranceSemitones = if (revised) 2.0 else 1.0
     data class Record(val referenceStart: Double, val referenceEnd: Double, val referenceMidi: Double,
                       val start: Double, val end: Double, val metrics: RangeMetrics, val endReason: String,
                       val pitchCandidates: List<RangePitchCandidate> = emptyList())
@@ -73,7 +74,7 @@ class BufferedHoldTracker(private val target: Int, private val anchor: Int, priv
         // Missing/invalid samples in stabilization are not invented: at least .15 of
         // the fixed .2 seconds must still have valid in-range evidence.
         if (referenceMidi == null && seedStart != null && !clipped &&
-            (!tracked || low || candidateMidi == null || abs(candidateMidi-target) > 1 + EPS)) {
+            (!tracked || low || candidateMidi == null || abs(candidateMidi-target) > startToleranceSemitones + EPS)) {
             val seedEnd = seedStart!! + .2
             if (right >= seedEnd - EPS) {
                 if (seed.sumOf { it.second } >= .15 - EPS) {
@@ -110,7 +111,7 @@ class BufferedHoldTracker(private val target: Int, private val anchor: Int, priv
         val midi = RangeProtocol.midi(f.f0)
         if (referenceMidi == null) {
             zone = "acquiring"; lastDecision = "acquiring"
-            if (abs(midi - target) > 1.0 + EPS) { reset(); lastDecision = "outside_start"; return }
+            if (abs(midi - target) > startToleranceSemitones + EPS) { reset(); lastDecision = "outside_start"; return }
             if (seedStart == null) seedStart = left
             f.pitchCandidate?.let { candidates.add(it) }
             val seedEnd = seedStart!! + .2

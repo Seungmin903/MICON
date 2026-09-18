@@ -226,7 +226,8 @@ private fun MiconNavHost(
         }
         composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {
-            PreferenceSurveyScreen(onDone = { goMain() }, onSessionExpired = { goLogin() }, onBack = { goLogin() })
+            PreferenceSurveyScreen(onDone = { nav.completeInitialPreferenceSurvey(session) },
+                onSessionExpired = { goLogin() }, onBack = { goLogin() })
         }
         composable(Routes.EDIT_PREFERENCES) {
             if (isGuest || !accessGranted) return@composable
@@ -415,6 +416,15 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
 
     fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
     fun clearDestination() { savedState.remove<String>("loginDestination") }
+}
+
+/** Initial preferences lead directly into voice onboarding; settings edits keep their own return path. */
+internal fun NavHostController.completeInitialPreferenceSurvey(session: NavigationSessionViewModel) {
+    if (currentDestination?.route != Routes.SURVEY) return
+    session.clearDestination()
+    session.guest = false
+    session.verified = true
+    replaceAll(Routes.VOICE_ONBOARDING)
 }
 
 /** Discard all protected history, including saved tab stacks, on account/gate changes. */

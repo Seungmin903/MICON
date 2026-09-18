@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -187,38 +188,44 @@ fun GuidedPitchGauge(
     ringSize: Dp = 84.dp,
     needleColor: Color = if (matched) Teal else Red,
     holdLabel: String = "연속 유지",
+    compact: Boolean = false,
 ) {
     val measurer = rememberTextMeasurer()
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         PitchHoldRing(targetName, holdSeconds, ringSize = ringSize, holdLabel = holdLabel)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(if (compact) 2.dp else 12.dp))
         val labelLayouts = neighborNames.take(5).map { measurer.measure(it, TextStyle(fontSize = 15.sp, color = Grey), softWrap = false, maxLines = 1) }
-        Canvas(Modifier.fillMaxWidth().height(gaugeHeight)) {
-            val cx = size.width / 2
-            val cy = size.height - 24.dp.toPx()
-            val labelHeight = labelLayouts.maxOfOrNull { it.size.height } ?: 0
-            val r = min(size.width / 2 - 36.dp.toPx(), cy - labelHeight - 8.dp.toPx()).coerceAtLeast(1f)
-            drawArc(Lavender, 180f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2))
-            drawLine(Color(0xFFC9C4F0), Offset(cx - r - 20.dp.toPx(), cy), Offset(cx + r + 20.dp.toPx(), cy), 2f)
-            // 반음 눈금(-200 ~ +200 cents → 180° ~ 0°)
-            fun angleOf(cents: Float): Double = PI * (1 - (cents + 200f) / 400f)
-            listOf(-100f, -50f, 0f, 50f, 100f).forEach { c ->
-                val a = angleOf(c)
-                drawLine(Color(0xFFB9B2F2), Offset(cx, cy), Offset(cx + (r * cos(a)).toFloat(), cy - (r * sin(a)).toFloat()), 1.5f)
-            }
-            // 라벨: F3 G♭3 G3 G♯3 A3 (neighborNames 5개)
-            val labelCents = listOf(-200f, -100f, 0f, 100f, 200f)
-            labelLayouts.forEachIndexed { i, layout ->
-                val a = angleOf(labelCents[i])
-                val rr = r + 22.dp.toPx()
-                val px = cx + (rr * cos(a)).toFloat() - layout.size.width / 2f
-                val py = cy - (rr * sin(a)).toFloat() - layout.size.height / 2f
-                drawText(layout, topLeft = Offset(px.coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)),
-                    py.coerceIn(0f, (size.height - layout.size.height).coerceAtLeast(0f))))
-            }
-            centsOffset?.let { c ->
-                val a = angleOf(c.coerceIn(-200f, 200f))
-                drawLine(needleColor, Offset(cx, cy), Offset(cx + (r * 0.98f * cos(a)).toFloat(), cy - (r * 0.98f * sin(a)).toFloat()), 5.dp.toPx(), StrokeCap.Round)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val labelHeight = with(LocalDensity.current) { (labelLayouts.maxOfOrNull { it.size.height } ?: 0).toDp() }
+            val chartHeight = if (compact) minOf(gaugeHeight, (maxWidth / 2 - 36.dp + labelHeight + 32.dp).coerceAtLeast(80.dp))
+                else gaugeHeight
+            Canvas(Modifier.fillMaxWidth().height(chartHeight)) {
+                val cx = size.width / 2
+                val cy = size.height - 24.dp.toPx()
+                val labelHeight = labelLayouts.maxOfOrNull { it.size.height } ?: 0
+                val r = min(size.width / 2 - 36.dp.toPx(), cy - labelHeight - 8.dp.toPx()).coerceAtLeast(1f)
+                drawArc(Lavender, 180f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2))
+                drawLine(Color(0xFFC9C4F0), Offset(cx - r - 20.dp.toPx(), cy), Offset(cx + r + 20.dp.toPx(), cy), 2f)
+                // 반음 눈금(-200 ~ +200 cents → 180° ~ 0°)
+                fun angleOf(cents: Float): Double = PI * (1 - (cents + 200f) / 400f)
+                listOf(-100f, -50f, 0f, 50f, 100f).forEach { c ->
+                    val a = angleOf(c)
+                    drawLine(Color(0xFFB9B2F2), Offset(cx, cy), Offset(cx + (r * cos(a)).toFloat(), cy - (r * sin(a)).toFloat()), 1.5f)
+                }
+                // 라벨: F3 G♭3 G3 G♯3 A3 (neighborNames 5개)
+                val labelCents = listOf(-200f, -100f, 0f, 100f, 200f)
+                labelLayouts.forEachIndexed { i, layout ->
+                    val a = angleOf(labelCents[i])
+                    val rr = r + 22.dp.toPx()
+                    val px = cx + (rr * cos(a)).toFloat() - layout.size.width / 2f
+                    val py = cy - (rr * sin(a)).toFloat() - layout.size.height / 2f
+                    drawText(layout, topLeft = Offset(px.coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)),
+                        py.coerceIn(0f, (size.height - layout.size.height).coerceAtLeast(0f))))
+                }
+                centsOffset?.let { c ->
+                    val a = angleOf(c.coerceIn(-200f, 200f))
+                    drawLine(needleColor, Offset(cx, cy), Offset(cx + (r * 0.98f * cos(a)).toFloat(), cy - (r * 0.98f * sin(a)).toFloat()), 5.dp.toPx(), StrokeCap.Round)
+                }
             }
         }
     }
