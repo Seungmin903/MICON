@@ -84,13 +84,25 @@ public class PracticeService {
 	@Transactional
 	// 기능: complete 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
 	public PracticeResponse.Detail complete(Long userId, Long practiceId, PracticeRequest.Complete request) {
-		requireOwned(userId, practiceId);
+		PracticeResponse.Detail practice = requireOwned(userId, practiceId);
 		if (request.recordingId() != null
 			&& !repository.isUploadedRecordingOwnedBy(request.recordingId(), userId)) {
 			throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
 		}
+		if (request.finalSelectedKey() != null
+			&& !repository.hasReadyInstrumental(practice.songId(), request.finalSelectedKey())) {
+			throw new BusinessException(request.finalSelectedKey() == 0
+				? ErrorCode.PRACTICE_ASSET_NOT_READY
+				: ErrorCode.UNSUPPORTED_PRACTICE_KEY);
+		}
+		if (request.keyChangeCount() != null && request.keyChangeCount() == 0
+			&& request.finalSelectedKey() != null
+			&& request.finalSelectedKey() != practice.initialKey()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "최종 키가 최초 키와 다르면 키 변경 횟수는 1 이상이어야 합니다.");
+		}
 		if (repository.complete(
-			practiceId, userId, request.durationMs(), request.voiceAnalysisId(), request.recordingId()
+			practiceId, userId, request.durationMs(), request.voiceAnalysisId(), request.recordingId(),
+			request.finalSelectedKey(), request.keyChangeCount()
 		) == 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
 		}
@@ -141,10 +153,9 @@ public class PracticeService {
 	}
 
 	// 기능: requireOwned 비즈니스 로직을 수행한다.
-	private void requireOwned(Long userId, Long practiceId) {
-		if (repository.findOwned(practiceId, userId).isEmpty()) {
-			throw new BusinessException(ErrorCode.PRACTICE_NOT_FOUND);
-		}
+	private PracticeResponse.Detail requireOwned(Long userId, Long practiceId) {
+		return repository.findOwned(practiceId, userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.PRACTICE_NOT_FOUND));
 	}
 
 	// 기능: nextIdentifier 저장에 사용할 새 식별자를 생성한다.

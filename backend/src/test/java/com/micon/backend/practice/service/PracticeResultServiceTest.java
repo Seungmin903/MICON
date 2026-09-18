@@ -119,7 +119,7 @@ class PracticeResultServiceTest {
 
 	private PracticeResponse.Detail practice(String status) {
 		return new PracticeResponse.Detail(
-			50L, "10", "연습곡", null, 20L, null, -2, new BigDecimal("1.00"),
+			50L, "10", "연습곡", null, 20L, null, -2, -2, 0, false, new BigDecimal("1.00"),
 			null, null, "FULL_SONG", status, LocalDateTime.now(), LocalDateTime.now(), 120_000, LocalDateTime.now()
 		);
 	}

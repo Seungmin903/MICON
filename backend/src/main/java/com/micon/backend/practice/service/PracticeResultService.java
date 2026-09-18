@@ -78,7 +78,8 @@ public class PracticeResultService {
 			))
 			.orElse(null);
 		return new PracticeResultResponse.Report(
-			practice.practiceId(), practice.songId(), practice.songTitle(), practice.selectedKey(),
+			practice.practiceId(), practice.songId(), practice.songTitle(), practice.initialKey(),
+			practice.selectedKey(), practice.keyChangeCount(), practice.keyChanged(),
 			practice.practiceScope(), practice.sectionId(), practice.durationMs(), result.status(),
 			result.overallScore(), result.pitchScore(), result.sustainScore(), result.rhythmScore(),
 			payload.summaryText(), payload.sections(), weakSection, result.analyzedAt()
