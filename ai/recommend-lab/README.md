@@ -9,7 +9,7 @@
 - 모델별 전체 후보 음색 순위, 게이트 탈락 회색 표시, 복수 탈락 조건과 실제 수치
 - 고정 입력 기본값과 후보 설정 비교, 최종 추천과 Top K 교집합, 벡터 없는 결과 JSON 저장
 - job-id 조회, 컴포넌트 분석 상태와 콜백 수락·HTTP 상태 분리, 실패 코드·사유 표시
-- 요청 목록·job 상세·요청 지도 hover의 회원 ID(백엔드 userId), `회원:5` 정확한 회원 검색
+- 요청 목록·job 상세·요청 지도 hover의 가입 ID(로그인 이메일), 내부 회원번호 보조 표시, 가입 ID 검색 및 `회원:5` 정확한 번호 검색
 - 실패 원문이 만료된 경우 명시하고, 보존된 메타데이터로 확인한 조건 위반은 별도 진단 후보로 표시
 
 지도는 정규화된 구간 평균의 PCA입니다. 이전 t-SNE 그림과 좌표가 같지 않습니다. 새 요청을 같은 좌표계에 transform할 수 있도록 PCA를 선택했습니다. 지도 거리와 실제 구간 비교 추천 점수는 다릅니다. 같은 가수 강조는 display artist 문자열 기준이며 canonical artist 매핑이나 정확도 지표가 아닙니다.
@@ -57,11 +57,11 @@ ai/recommend-lab/.venv/Scripts/python.exe ai/recommend-lab/app.py
 
 ### 회원 ID 확인
 
-회원 ID는 로그인 이메일·닉네임이 아니라 백엔드 `user_id`입니다. sessionId/profileId와 별도로 표시하며, BIGINT 정밀도를 보존하기 위해 API 문자열로 반환합니다. AI job에 임의의 회원 번호를 기록하거나 시간순으로 회원을 추측하지 않습니다. 분석은 `voice_analysis_component_job.ai_job_id` 또는 `voice_analysis_job.ai_job_id` → 같은 session의 `user_id`, 추천은 `recommendation.job_id` → `user_id`로 **해당 job-id를 직접 연결**합니다. job의 session/profile와 DB 연결이 다르거나 회원 연결이 충돌하면 표시하지 않습니다.
+화면의 주 식별자는 **가입 ID(로그인 이메일)**입니다. 현재 가입·로그인 계약이 `email`을 사용하므로, 정확한 job 소유자의 `users.email`을 조회해 `loginId`로 반환합니다. 내부 숫자 `user_id`는 **회원번호**라는 별도 보조 정보이며 sessionId/profileId와도 구분합니다. BIGINT 정밀도를 보존하기 위해 userId는 API 문자열로 반환합니다. AI job에 임의의 회원 번호를 기록하거나 시간순으로 회원을 추측하지 않습니다. 분석은 `voice_analysis_component_job.ai_job_id` 또는 `voice_analysis_job.ai_job_id` → 같은 session의 `user_id`, 추천은 `recommendation.job_id` → `user_id`로 **해당 job-id를 직접 연결**한 후 users를 조회합니다. job의 session/profile, 회원번호 또는 로그인 ID 연결이 충돌하면 표시하지 않습니다. 회원번호만 제공된 이전 snapshot은 가입 ID를 숫자로 대체하지 않고 확인 불가로 표시합니다.
 
-선택 SSH bridge는 기존 백엔드의 `micon-mysql-1` 컨테이너에서 `START TRANSACTION READ ONLY` 내 고정 SELECT만 실행합니다. 기존 운영 진단 접근(`sudo -n python3 -`, 컨테이너 password file)을 사용하는 **로컬 내부 진단용**이며, 비밀번호·SSH key·전체 회원 정보는 응답이나 Git에 포함되지 않습니다. 목록 전체를 일괄 조회하고 결과를 메모리에 30초만 캐시합니다. 연결 실패/삭제/매핑 없음은 `회원 ID 확인 불가`로 구분하고 운영 DB를 수정하지 않습니다. 공유 배포에는 이 관리자 SSH 접근을 그대로 사용하지 말고, 최소 권한 SELECT 계정/승인된 BE 소유자 조회 API 또는 아래 read-only snapshot을 적용하세요. Docker 예시는 SSH client·관리자 key를 포함하지 않습니다.
+선택 SSH bridge는 기존 백엔드의 `micon-mysql-1` 컨테이너에서 `START TRANSACTION READ ONLY` 내 고정 SELECT만 실행합니다. 기존 운영 진단 접근(`sudo -n python3 -`, 컨테이너 password file)을 사용하는 **로컬 내부 진단용**이며, 비밀번호·SSH key·전체 회원 정보는 응답이나 Git에 포함되지 않습니다. 요청 소유자 확인에 필요한 로그인 이메일만 조회하며 이 값은 개인정보이므로 localhost 개발 모드 또는 인증된 팀용 페이지에서만 볼 수 있습니다. 목록 전체를 일괄 조회하고 결과를 메모리에 30초만 캐시합니다. 연결 실패/삭제/매핑 없음은 `가입 ID 확인 불가`로 구분하고 운영 DB를 수정하지 않습니다. 공유 배포에는 이 관리자 SSH 접근을 그대로 사용하지 말고, 최소 권한 SELECT 계정/승인된 BE 소유자 조회 API 또는 아래 read-only snapshot을 적용하세요. Docker 예시는 SSH client·관리자 key를 포함하지 않습니다.
 
-Portable snapshot은 `schemaVersion: 1`, 미래 Unix 초 `validUntilEpoch`, `owners: [{kind: "analysis" 또는 "recommendation", id: 정확한 job-id, userId: 회원 ID 문자열, sessionId/profileId: 확인된 연결 번호}]` 형식입니다. 승인된 백엔드 exporter가 공급하고 read-only mount 및 `LAB_OWNER_MAP`으로 연결하세요. 만료되면 확인 불가가 됩니다(최대 캐시 30초). snapshot에는 원본 음성·이메일·비밀번호를 넣지 않고 Git에 commit하지 않습니다. 저장 테스트 case에는 실제 회원 접수증처럼 ID를 부여하지 않습니다.
+Portable snapshot은 `schemaVersion: 1`, 미래 Unix 초 `validUntilEpoch`, `owners: [{kind: "analysis" 또는 "recommendation", id: 정확한 job-id, userId: 회원번호 문자열, loginId: 가입 로그인 이메일, sessionId/profileId: 확인된 연결 번호}]` 형식입니다. 승인된 백엔드 exporter가 공급하고 read-only mount 및 `LAB_OWNER_MAP`으로 연결하세요. 만료되면 확인 불가가 됩니다(최대 캐시 30초). snapshot은 개인정보인 loginId를 포함하므로 접근·보관·삭제 정책을 적용하고 Git에 commit하지 않습니다. 원본 음성·비밀번호·토큰·불필요한 계정 정보를 넣지 않습니다. 저장 테스트 case에는 실제 회원 접수증처럼 ID를 부여하지 않습니다.
 
 ## 동의받은 고정 입력 case 계약
 

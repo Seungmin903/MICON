@@ -7,8 +7,10 @@ from pathlib import Path
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ownership import OwnerResolver, SnapshotLookup, numeric_id, ownership_query
+from ownership import OwnerResolver, SnapshotLookup, login_identifier, numeric_id, ownership_query
 from repository import Repository
+from fastapi.testclient import TestClient
+from app import create_app
 
 
 class OwnershipTest(unittest.TestCase):
@@ -16,15 +18,18 @@ class OwnershipTest(unittest.TestCase):
         return dict(id="job_owner_test", kind="analysis", sessionId=101, **extra)
 
     def owner(self, **extra):
-        return dict(id="job_owner_test", kind="analysis", sessionId="101", userId="5", source="backend-analysis-job", **extra)
+        return dict(id="job_owner_test", kind="analysis", sessionId="101", userId="5", loginId="singer-test@example.test", source="backend-analysis-job", **extra)
 
     def test_direct_job_lookup_preserves_bigint_and_does_not_infer_session_owner(self):
         lookup = Mock(return_value=[self.owner()])
         rows = [self.row(), dict(id="job_other", kind="analysis", sessionId=101), dict(id="case_synthetic", kind="case")]
         result = OwnerResolver(lookup).enrich(rows)
         self.assertEqual(result[0]["userId"], "5")
+        self.assertEqual(result[0]["loginId"], "singer-test@example.test")
+        self.assertEqual(result[0]["loginIdStatus"], "verified")
         self.assertEqual(result[0]["ownerStatus"], "verified")
         self.assertIsNone(result[1]["userId"])
+        self.assertIsNone(result[1]["loginId"])
         self.assertEqual(result[1]["ownerStatus"], "not-found")
         self.assertEqual(result[2]["ownerStatus"], "not-applicable")
         self.assertEqual(numeric_id("9223372036854775807"), "9223372036854775807")
@@ -44,6 +49,7 @@ class OwnershipTest(unittest.TestCase):
         lookup.side_effect = OSError("private remote failure")
         result = resolver.enrich([self.row()])[0]
         self.assertIsNone(result["userId"])
+        self.assertIsNone(result["loginId"])
         self.assertEqual(result["ownerStatus"], "unavailable")
         self.assertNotIn("private", json.dumps(result))
         resolver.enrich([self.row()])
@@ -54,10 +60,12 @@ class OwnershipTest(unittest.TestCase):
             [self.owner(), dict(self.owner(), userId="12")],
             [dict(self.owner(), sessionId="82")],
             [dict(self.owner(), profileId="8")],
+            [self.owner(), dict(self.owner(), loginId="different@example.test")],
         ]:
             with self.subTest(owners=owners):
                 result = OwnerResolver(lambda rows: owners).enrich([self.row(profileId=10)])[0]
                 self.assertIsNone(result["userId"])
+                self.assertIsNone(result["loginId"])
                 self.assertEqual(result["ownerStatus"], "conflict")
         owners = [self.owner(), dict(self.owner(), source="backend-component-job")]
         self.assertEqual(OwnerResolver(lambda rows: owners).enrich([self.row()])[0]["userId"], "5")
@@ -68,7 +76,9 @@ class OwnershipTest(unittest.TestCase):
         self.assertTrue(query.endswith("COMMIT;"))
         self.assertIn("WHERE j.ai_job_id IN ('job_owner_test')", query)
         self.assertIn("WHERE r.job_id IN ('rec_test')", query)
-        for word in ["UPDATE", "DELETE", "INSERT", "email", "nickname", "vector"]:
+        self.assertIn("'loginId',u.email", query)
+        self.assertIn("LEFT JOIN users u ON u.user_id=r.user_id", query)
+        for word in ["UPDATE", "DELETE", "INSERT", "password", "token", "nickname", "vector"]:
             self.assertNotIn(word, query)
         self.assertIsNone(ownership_query([dict(id="';DROP TABLE users;--", kind="analysis")]))
 
@@ -79,6 +89,7 @@ class OwnershipTest(unittest.TestCase):
             path.write_text(json.dumps(value), encoding="utf-8")
             result = OwnerResolver(SnapshotLookup(path)).enrich([self.row()])[0]
             self.assertEqual(result["userId"], "5")
+            self.assertEqual(result["loginId"], "singer-test@example.test")
             self.assertEqual(result["ownerSource"], ["ownership-snapshot"])
             value["validUntilEpoch"] = time.time()-1
             path.write_text(json.dumps(value), encoding="utf-8")
@@ -96,9 +107,40 @@ class OwnershipTest(unittest.TestCase):
             repo = Repository(directory, owners=OwnerResolver(lookup))
             self.assertEqual(repo.list()[0]["userId"], "5")
             self.assertEqual(repo.job("job_owner_test")["userId"], "5")
+            self.assertEqual(repo.job("job_owner_test")["loginId"], "singer-test@example.test")
             self.assertEqual(lookup.call_count, 1)
             self.assertEqual(path.read_bytes(), before)
         self.assertEqual(OwnerResolver().enrich([self.row()])[0]["ownerStatus"], "not-configured")
+
+    def test_missing_invalid_and_changed_login_id_are_not_numeric_substitutes(self):
+        owner = self.owner()
+        owner.pop("loginId")
+        lookup = Mock(return_value=[owner])
+        clock = Mock(return_value=0)
+        resolver = OwnerResolver(lookup, clock=clock)
+        result = resolver.enrich([self.row()])[0]
+        self.assertEqual(result["userId"], "5")
+        self.assertIsNone(result["loginId"])
+        self.assertEqual(result["loginIdStatus"], "missing")
+        lookup.return_value = [self.owner()]
+        clock.return_value = 31
+        self.assertEqual(resolver.enrich([self.row()])[0]["loginId"], "singer-test@example.test")
+        self.assertEqual(login_identifier(" singer-test@example.test "), "singer-test@example.test")
+        for invalid in [None, 5, "", "a"*256, "test\n@example.test", "test\x00@example.test"]:
+            self.assertIsNone(login_identifier(invalid))
+
+    def test_signup_login_id_requires_team_authentication(self):
+        repo = Mock(spec=Repository)
+        repo.job.return_value = OwnerResolver(lambda rows: [self.owner()]).enrich([self.row()])[0]
+        auth = ("team-test", "test-password-for-lab-only")
+        client = TestClient(create_app({"LAB_USERNAME":auth[0], "LAB_PASSWORD":auth[1]}, repository=repo))
+        response = client.get("/api/jobs/job_owner_test")
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("singer-test@example.test", response.text)
+        repo.job.assert_not_called()
+        response = client.get("/api/jobs/job_owner_test", auth=auth)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["loginId"], "singer-test@example.test")
 
 
 if __name__ == "__main__":

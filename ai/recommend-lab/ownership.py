@@ -1,4 +1,4 @@
-"""Bounded, read-only job -> backend user ID lookup. Never infer by recency."""
+"""Read-only job -> signup login ID and internal member number. No recency guesses."""
 from __future__ import annotations
 
 import json
@@ -22,6 +22,13 @@ def numeric_id(value):
     return str(int(text)) if re.fullmatch(r"[0-9]{1,19}", text) and 0 < int(text) <= 2**63 - 1 else None
 
 
+def login_identifier(value):
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text if 1 <= len(text) <= 255 and not any(ord(char) < 32 or 127 <= ord(char) < 160 for char in text) else None
+
+
 def job_key(row):
     kind, jid = row.get("kind"), row.get("id")
     return (kind, jid) if kind in {"analysis", "recommendation"} and isinstance(jid, str) and SAFE_JOB.fullmatch(jid) else None
@@ -30,14 +37,15 @@ def job_key(row):
 def ownership_query(rows):
     ids = {kind: sorted({r["id"] for r in rows if job_key(r) and r["kind"] == kind}) for kind in ["analysis", "recommendation"]}
     selects = []
-    # Only validated job identifiers enter SQL; no account or email fields are selected.
+    # Only validated job IDs enter SQL. The signup login email is explicitly requested;
+    # no password, tokens, nickname or unrelated account data is selected.
     if ids["analysis"]:
         values = ",".join("'" + jid + "'" for jid in ids["analysis"])
         for table, source in [("voice_analysis_component_job", "backend-component-job"), ("voice_analysis_job", "backend-analysis-job")]:
-            selects.append(f"SELECT JSON_OBJECT('kind','analysis','id',j.ai_job_id,'userId',CAST(s.user_id AS CHAR),'sessionId',CAST(s.session_id AS CHAR),'source','{source}') AS owner FROM {table} j JOIN voice_analysis_session s ON s.session_id=j.session_id WHERE j.ai_job_id IN ({values})")
+            selects.append(f"SELECT JSON_OBJECT('kind','analysis','id',j.ai_job_id,'userId',CAST(s.user_id AS CHAR),'loginId',u.email,'sessionId',CAST(s.session_id AS CHAR),'source','{source}') AS owner FROM {table} j JOIN voice_analysis_session s ON s.session_id=j.session_id LEFT JOIN users u ON u.user_id=s.user_id WHERE j.ai_job_id IN ({values})")
     if ids["recommendation"]:
         values = ",".join("'" + jid + "'" for jid in ids["recommendation"])
-        selects.append(f"SELECT JSON_OBJECT('kind','recommendation','id',r.job_id,'userId',CAST(r.user_id AS CHAR),'profileId',CAST(r.profile_id AS CHAR),'sessionId',CAST(r.source_session_id AS CHAR),'source','backend-recommendation-job') AS owner FROM recommendation r WHERE r.job_id IN ({values})")
+        selects.append(f"SELECT JSON_OBJECT('kind','recommendation','id',r.job_id,'userId',CAST(r.user_id AS CHAR),'loginId',u.email,'profileId',CAST(r.profile_id AS CHAR),'sessionId',CAST(r.source_session_id AS CHAR),'source','backend-recommendation-job') AS owner FROM recommendation r LEFT JOIN users u ON u.user_id=r.user_id WHERE r.job_id IN ({values})")
     return "START TRANSACTION READ ONLY;\n" + "\nUNION ALL\n".join(selects) + ";\nCOMMIT;" if selects else None
 
 
@@ -127,11 +135,14 @@ class OwnerResolver:
                 key = job_key(row)
                 _, status, owners = self.cache.get(key, (now, "not-configured" if key else "not-applicable", []))
                 users = {numeric_id(o["userId"]) for o in owners}
+                logins = {login_identifier(o.get("loginId")) for o in owners} - {None}
                 # Check exact job linkage against retained session/profile metadata too.
                 mismatch = any(numeric_id(row.get(field)) and numeric_id(o.get(field)) and numeric_id(row[field]) != numeric_id(o[field]) for o in owners for field in ["sessionId", "profileId"])
-                if len(users) > 1 or mismatch:
+                if len(users) > 1 or len(logins) > 1 or mismatch:
                     status = "conflict"
                 row["userId"] = next(iter(users)) if status == "verified" and len(users) == 1 else None
+                row["loginId"] = next(iter(logins)) if status == "verified" and len(logins) == 1 else None
+                row["loginIdStatus"] = ("verified" if row["loginId"] else "missing") if status == "verified" else status
                 row["ownerStatus"] = status
                 row["ownerSource"] = sorted({o["source"] for o in owners}) if status == "verified" else []
                 row["ownerReason"] = {
