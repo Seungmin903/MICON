@@ -100,7 +100,7 @@ class AppContainer(context: Context) {
      * 앱 안 음역 계산([LocalRecommendRepository])으로 내려간다. 추천 서버(8788) 직접 호출은 제거했다 — 앱은 백엔드만 본다.
      */
     val recommend: RecommendRepository = BackendRecommendRepository(
-        backend.api, songs, voiceAnalyses, LocalRecommendRepository(songs), isLoggedIn = { TokenManager.isLoggedIn() },
+        backend.api, songs, LocalRecommendRepository(songs), isLoggedIn = { TokenManager.isLoggedIn() },
     )
 }
 

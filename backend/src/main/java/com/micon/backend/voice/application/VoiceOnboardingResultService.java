@@ -7,6 +7,7 @@ import com.micon.backend.preference.repository.PreferenceCatalogRepository;
 import com.micon.backend.voice.api.*;
 import com.micon.backend.voice.domain.*;
 import java.util.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +19,15 @@ public class VoiceOnboardingResultService {
     private final SimilarArtistResultRepository similarities;
     private final PreferenceCatalogRepository catalog;
     private final UserVoiceProfileRepository profiles;
+    private final ApplicationEventPublisher events;
 
     public VoiceOnboardingResultService(VoiceAnalysisSessionRepository sessions,
             VoiceRangeMeasurementRepository ranges, VoiceAnalysisComponentJobRepository components,
             SimilarArtistResultRepository similarities, PreferenceCatalogRepository catalog,
-            UserVoiceProfileRepository profiles) {
+            UserVoiceProfileRepository profiles, ApplicationEventPublisher events) {
         this.sessions = sessions; this.ranges = ranges; this.components = components;
         this.similarities = similarities; this.catalog = catalog; this.profiles = profiles;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +72,7 @@ public class VoiceOnboardingResultService {
         if (profile == null) profile = profiles.save(new UserVoiceProfile(session.getUser(), session, 1));
         else if (!profile.getSession().getId().equals(sessionId)) { profile.replaceWith(session); profile = profiles.save(profile); }
         session.markSaved();
+        events.publishEvent(new VoiceProfileSavedEvent(userId, profile.getId(), profile.getProfileVersion()));
         return new VoiceProfileResponse(profile.getId(), sessionId, profile.getProfileVersion());
     }
 

@@ -45,7 +45,12 @@ data class VoiceAnalysisProgress(
     val canSave get() = saveAllowed && sessionStatus == VoiceSessionStatus.READY_TO_SAVE &&
         rangeStatus == "AVAILABLE" && ecapa == ComponentStatus.COMPLETED && byol == ComponentStatus.COMPLETED
     val analyzing get() = sessionStatus in setOf(VoiceSessionStatus.ANALYZING, VoiceSessionStatus.PARTIAL_READY) &&
-        listOf(ecapa, byol, artistSearch).any { it.processing }
+        listOf(ecapa, byol).any { it.processing }
+    // Artist search can finish after the backend has allowed or completed profile saving.
+    val awaitingArtistResult get() = artistSearch.processing &&
+        ecapa == ComponentStatus.COMPLETED && byol == ComponentStatus.COMPLETED &&
+        sessionStatus in setOf(VoiceSessionStatus.ANALYZING, VoiceSessionStatus.PARTIAL_READY,
+            VoiceSessionStatus.READY_TO_SAVE, VoiceSessionStatus.SAVING, VoiceSessionStatus.SAVED)
     val visibleArtists get() = artists
         .filter { it.artistId > 0 && it.name.isNotBlank() && it.similarity.isFinite() && it.similarity in -1.0..1.0 }
         .sortedByDescending { it.similarity }.distinctBy { it.artistId }.take(5)
@@ -70,6 +75,8 @@ interface VoiceOnboardingGateway {
     suspend fun recover(ownerId: Long, sessionId: Long,
         onProgress: (VoiceAnalysisProgress) -> Unit = {}): VoiceAnalysisProgress? = null
     suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? = null
+    suspend fun awaitArtists(ownerId: Long, result: VoiceAnalysisProgress,
+        onProgress: (VoiceAnalysisProgress) -> Unit = {}): VoiceAnalysisProgress = result
     suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {}
 }
 

@@ -50,7 +50,7 @@ public class PracticeHistoryRepository {
 			.addValue("offset", offset);
 		return jdbcTemplate.query(sql, params, (resultSet, rowNumber) -> new PracticeHistoryResponse.Summary(
 			resultSet.getLong("practice_id"),
-			resultSet.getLong("song_id"),
+			resultSet.getString("song_id"),
 			resultSet.getString("song_title"),
 			resultSet.getString("display_image_url"),
 			resultSet.getInt("selected_key"),

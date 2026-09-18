@@ -21,7 +21,7 @@ class HttpRecommendationResultGatewayTest {
     void stopServer() { if (server != null) server.stop(0); }
 
     @Test
-    void readsAiJobAndNumericSongContract() throws Exception {
+    void readsAiJobAndStringSongContract() throws Exception {
         AtomicReference<String> path = new AtomicReference<>();
         AtomicReference<String> authorization = new AtomicReference<>();
         server = HttpServer.create(new InetSocketAddress(0), 0);
@@ -37,7 +37,7 @@ class HttpRecommendationResultGatewayTest {
         assertThat(authorization.get()).isEqualTo("Bearer service-token");
         assertThat(result.status()).isEqualTo(RecommendationResultGateway.Status.COMPLETE);
         assertThat(result.result().algorithm().scoringVersion()).isEqualTo("score-v2");
-        assertThat(result.result().shelves().getFirst().items().getFirst().songId()).isEqualTo(42L);
+        assertThat(result.result().shelves().getFirst().items().getFirst().songId()).isEqualTo("tj-00042");
         assertThat(result.result().shelves().getFirst().items().getFirst().recommendedKey()).isEqualTo((short) -2);
     }
 
@@ -49,7 +49,7 @@ class HttpRecommendationResultGatewayTest {
                 {"id":"job-123","status":"complete","progress":100,"message":"done","error":null,
                  "result":{"algorithm":{"scoring_version":"score-v2","shelves_version":"shelves-v1"},
                  "shelves":[{"key":"voice","title":"내 목소리","metric":"음색",
-                 "items":[{"position":1,"song_id":42,"axis":"CONSENSUS","label":"유사",
+                 "items":[{"position":1,"song_id":"tj-00042","axis":"CONSENSUS","label":"유사",
                  "timbre_score":0.8,"range_fit":{"score":0.9},"recommended_key":-2,
                  "final_score":0.85,"metrics":{"coverage":0.9},
                  "scoring_version":"score-v2","composition_version":"shelves-v1"}]}]}}

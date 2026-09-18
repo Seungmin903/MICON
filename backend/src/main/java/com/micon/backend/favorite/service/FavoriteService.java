@@ -19,14 +19,14 @@ public class FavoriteService {
 
 	@Transactional
 	// 기능: add 업무 규칙을 검증하고 데이터를 생성하거나 저장한다.
-	public void add(long userId, Long songId) {
+	public void add(long userId, String songId) {
 		validateSong(songId);
 		favoriteRepository.add(userId, songId);
 	}
 
 	@Transactional
 	// 기능: remove 권한과 상태를 확인한 뒤 대상을 삭제하거나 취소한다.
-	public void remove(long userId, Long songId) {
+	public void remove(long userId, String songId) {
 		validateSong(songId);
 		favoriteRepository.remove(userId, songId);
 	}
@@ -39,7 +39,7 @@ public class FavoriteService {
 	}
 
 	// 기능: validateSong 처리에 필요한 업무 조건을 검증한다.
-	private void validateSong(Long songId) {
+	private void validateSong(String songId) {
 		if (!favoriteRepository.songExists(songId)) {
 			throw new SongNotFoundException(songId);
 		}

@@ -44,13 +44,19 @@ class GuidedRangeReportTest {
             }
         } }
         val keyboard = compose.onNodeWithTag("guided-range-keyboard")
-        keyboard.assertContentDescriptionEquals("C2부터 C6까지 고정 건반, 7 개 음 확인, 5 개 음 통과, 목표 C4")
+        keyboard.assertContentDescriptionEquals("2옥타브 도부터 6옥타브 도까지 고정 건반, 7 개 음 확인, 5 개 음 통과. 초록 건반과 체크는 통과한 음, 보라 테두리와 화살표는 지금 부를 음 4옥타브 도")
+        compose.onNodeWithTag("range-current-target").assertTextEquals("▼ 지금 부를 음 · 4옥타브 도")
+        compose.onNodeWithText("✓ 초록 건반은 통과한 음이에요.").assertIsDisplayed()
         val bounds = keyboard.fetchSemanticsNode().boundsInRoot
         keyboard.performTouchInput { click(topLeft + androidx.compose.ui.geometry.Offset(10f, 60f)) }
         assertEquals(60, target.value)
         save("guided-keyboard-sample.png")
+        compose.runOnIdle { target.value = 61 }
+        compose.onNodeWithTag("range-current-target").assertTextEquals("▼ 지금 부를 음 · 4옥타브 도♯")
+        assertEquals(bounds, keyboard.fetchSemanticsNode().boundsInRoot)
+        save("guided-keyboard-passed-black-target.png")
         compose.runOnIdle { target.value = 84 }
-        keyboard.assertContentDescriptionEquals("C2부터 C6까지 고정 건반, 7 개 음 확인, 5 개 음 통과, 목표 C6")
+        keyboard.assertContentDescriptionEquals("2옥타브 도부터 6옥타브 도까지 고정 건반, 7 개 음 확인, 5 개 음 통과. 초록 건반과 체크는 통과한 음, 보라 테두리와 화살표는 지금 부를 음 6옥타브 도")
         assertEquals(bounds, keyboard.fetchSemanticsNode().boundsInRoot)
     }
 

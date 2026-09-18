@@ -80,6 +80,7 @@ class PracticeViewModel(
     mediaHttp: OkHttpClient,
     private val practices: PracticeRepository,
     private val isLoggedIn: () -> Boolean,
+    private val initialKey: Int = 0,
 ) : ViewModel() {
     enum class Phase { LOADING, READY, COUNTDOWN, RUNNING, PAUSED, FINISHED, ERROR }
 
@@ -128,10 +129,11 @@ class PracticeViewModel(
         val shiftedKeyName: String? get() = keyName?.let { shiftKeyName(it, keyShift) }
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(UiState(keyShift = initialKey))
     val state = _state.asStateFlow()
 
     val player = InstrumentalPlayer(appContext, mediaHttp)
+    private var audioReleased = false
     /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). load 에서 채운다. */
     private var instrumentalUrl: String? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -203,9 +205,11 @@ class PracticeViewModel(
     private fun load() {
         viewModelScope.launch {
             try {
+                require(initialKey in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX) { "지원하지 않는 연습 키예요." }
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
                 // 409(준비 안 됨)는 PracticeAssetsNotReadyException 의 서버 메시지를 그대로 화면에 보인다.
-                val assets = repo.practiceAssets(songId, 0)
+                val assets = repo.practiceAssets(songId, initialKey)
+                check(assets.songId == songId && assets.selectedKey == initialKey) { "요청한 곡/키와 반주 정보가 일치하지 않습니다." }
                 val karaoke = assets.targetNotes
                 if (karaoke.isEmpty()) error("음표 데이터(song_note)가 없습니다.")
                 notes = karaoke.toLiveNotes(assets.timeSignature)
@@ -279,6 +283,7 @@ class PracticeViewModel(
             val position = player.positionSec
             try {
                 val assets = repo.practiceAssets(songId, target)
+                check(assets.songId == songId && assets.selectedKey == target) { "요청한 곡/키와 반주 정보가 일치하지 않습니다." }
                 val url = assets.instrumental.playbackUrl ?: error("키 변경 반주의 재생 주소가 없습니다.")
                 instrumentalUrl = url
                 player.load(url)
@@ -567,6 +572,15 @@ class PracticeViewModel(
         }.onFailure { e -> _state.update { it.copy(error = "녹음 재생 실패: ${e.message}") } }
     }
 
+    /** Covers backgrounding, system back and report navigation, including buffered audio/count-in. */
+    fun stopAudioForExit() {
+        if (audioReleased) return
+        pause()
+        player.pause()
+        clicks?.stopTone()
+        stopTake()
+    }
+
     fun stopTake() {
         takePlayer?.runCatching { stop(); release() }
         takePlayer = null
@@ -656,6 +670,8 @@ class PracticeViewModel(
     }
 
     override fun onCleared() {
+        stopAudioForExit()
+        audioReleased = true
         countdownJob?.cancel()
         tickJob?.cancel()
         if (capture.isRunning) capture.stop()

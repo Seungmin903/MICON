@@ -1,25 +1,26 @@
 package com.micon.app.ui.report
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.range.RangeReport
 import com.micon.app.range.RangeNote
 import com.micon.app.range.RangeStabilityPlot
 import com.micon.app.range.continuousRangeMap
-import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.charts.RangeStabilityChart
 import com.micon.app.ui.charts.GuidedRangeKeyboard
 import com.micon.app.ui.charts.GuidedRangeMapChart
@@ -30,6 +31,8 @@ import com.micon.app.ui.charts.GuidedRingProgress
 import com.micon.app.ui.charts.GuidedMetricBar
 import com.micon.app.ui.charts.GuidedRadarHexagon
 import com.micon.app.ui.common.MiconCard
+import com.micon.app.ui.common.RangeNoteNames
+import com.micon.app.ui.common.ReportNoteNames
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.theme.*
 import java.util.Locale
@@ -55,7 +58,7 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
 
 /** The same measured range is shown before and after timbre analysis. */
 @Composable
-fun RangeResultCards(report: RangeReport) {
+fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
             Text("이번에 확인한 음역", fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -67,10 +70,13 @@ fun RangeResultCards(report: RangeReport) {
                 } + " · 측정한 음 " + s.measuredNoteCount + "개", fontSize = 12.sp, color = Grey)
             }
             Text(if (report.lowMidi != null && report.highMidi != null)
-                "${ScoringMath.midiName(report.lowMidi)} ~ ${ScoringMath.midiName(report.highMidi)}" else "확정된 안정 음역이 없어요",
-                fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = Purple)
+                (if (reportTab) ReportNoteNames.range(report.lowMidi, report.highMidi)
+                    else RangeNoteNames.range(report.lowMidi, report.highMidi)) else "확정된 안정 음역이 없어요",
+                modifier = Modifier.fillMaxWidth(), fontSize = 24.sp, lineHeight = 34.sp,
+                fontWeight = FontWeight.SemiBold, color = Purple,
+                style = TextStyle.Default.copy(lineBreak = LineBreak.Heading))
         }
-        MiconCard {
+        MiconCard(Modifier.testTag("range-map-card")) {
             Text("음역대 지도", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             val relative = report.protocolVersion == "guided-range-v4" || com.micon.app.range.RangeProtocol.buffered(report.protocolVersion)
             val rangeMap = report.continuousRangeMap()
@@ -89,9 +95,18 @@ fun RangeResultCards(report: RangeReport) {
             }
             Spacer(Modifier.height(10.dp))
             if (rows.isEmpty()) Text("아직 확인한 구간이 없어요", color = Grey)
-            else GuidedRangeMapChart(rows, axisLow = 36, axisHigh = 84, ticks = listOf(36, 48, 60, 72, 84), labelWidth = 108.dp, noteCells = true)
+            else GuidedRangeMapChart(rows, axisLow = 36, axisHigh = 84,
+                ticks = if (LocalDensity.current.fontScale > 1.3f) listOf(36, 84) else listOf(36, 60, 84),
+                labelWidth = 108.dp, noteCells = true,
+                labelOf = if (reportTab) ReportNoteNames::note else RangeNoteNames::short)
+            if (reportTab) {
+                Spacer(Modifier.height(18.dp))
+                Text("음역", color = Grey, fontSize = 13.sp)
+                Spacer(Modifier.height(6.dp))
+                GuidedRangeKeyboard(report.notes, labelOf = ReportNoteNames::note, noteName = ReportNoteNames::note)
+            }
         }
-        RangeStabilityCard(report)
+        RangeStabilityCard(report, overview = reportTab)
     }
 }
 
@@ -161,12 +176,10 @@ private fun noteIntervals(notes: List<Int>): List<IntRange> {
 }
 
 @Composable
-fun RangeStabilityCard(report: RangeReport) {
+fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
     var selected by remember(report) { mutableStateOf(report.lowMidi ?: report.notes.firstOrNull { it.status != "unmeasured" }?.midi ?: 60) }
-    var showAll by remember(report) { mutableStateOf(false) }
-    var showMap by remember(report) { mutableStateOf(false) }
     val relative = report.protocolVersion in setOf("guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7")
-    val plot = remember(report, showAll) { RangeStabilityPlot.from(report.notes, showAll, relative) }
+    val plot = remember(report) { RangeStabilityPlot.from(report.notes, scoreBased = relative) }
     LaunchedEffect(plot) {
         if (plot.points.none { it.note.midi == selected }) {
             selected = plot.points.firstOrNull { it.ratio != null }?.note?.midi ?: plot.points.first().note.midi
@@ -175,51 +188,32 @@ fun RangeStabilityCard(report: RangeReport) {
     MiconCard {
         Text("음역별 안정성", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(10.dp))
-        RangeStabilityChart(plot, selected, { selected = it })
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("● 통과·반복 확인", color = Purple, fontSize = 12.sp)
-            Text("● 미통과·재현 불안정", color = Red, fontSize = 12.sp)
+        RangeStabilityChart(plot, selected, { selected = it }, overview = overview)
+        if (LocalDensity.current.fontScale > 1.3f) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { RangeStabilityLegend() }
+        } else Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            RangeStabilityLegend()
         }
-        Spacer(Modifier.height(16.dp))
-        plot.points.firstOrNull { it.note.midi == selected }?.note?.let { note ->
+        if (!overview) plot.points.firstOrNull { it.note.midi == selected }?.note?.let { note ->
+            Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth().background(Lavender.copy(alpha = .65f), RoundedCornerShape(12.dp)).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 RangeNoteDetails(note)
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { showMap = !showMap }) { Text(if (showMap) "음별 지도 접기" else "음별 지도 펼치기", fontSize = 12.sp) }
-            TextButton(onClick = { showAll = !showAll }) { Text(if (showAll) "측정 주변만 보기" else "전체 C2~C6 보기", fontSize = 12.sp) }
-        }
-        if (showMap) {
-            Text("✓ 통과  ·  ◎ 반복 확인  ·  △ 미통과/재측정  ·  – 미측정", fontSize = 11.sp, color = Grey)
-            plot.points.map { it.note }.chunked(6).forEach { row ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    row.forEach { note ->
-                        val label = noteStatus(note.status)
-                        val color = when (note.status) {
-                            "passed", "reconfirmed" -> GreenChipText
-                            "unmeasured" -> Grey
-                            else -> Red
-                        }
-                        val symbol = when (note.status) { "passed" -> "✓"; "reconfirmed" -> "◎"; "unmeasured" -> "–"; else -> "△" }
-                        Column(Modifier.weight(1f).background(if (selected == note.midi) Lavender else GreyLight.copy(alpha = .25f), RoundedCornerShape(8.dp))
-                            .clickable { selected = note.midi }.semantics { contentDescription = "${ScoringMath.midiName(note.midi)} $label" }
-                            .padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(ScoringMath.midiName(note.midi), fontSize = 13.sp)
-                            Text(symbol, color = color, fontSize = 18.sp)
-                        }
-                    }
-                    repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
-                }
             }
         }
     }
 }
 
 @Composable
+private fun RangeStabilityLegend() {
+    Text("● 통과·반복 확인", color = Purple, fontSize = 12.sp)
+    Text("● 미통과·재현 불안정", color = Red, fontSize = 12.sp)
+}
+
+@Composable
 private fun RangeNoteDetails(note: RangeNote) {
-    Text("${ScoringMath.midiName(note.midi)} · ${noteStatus(note.status)}", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Text("${RangeNoteNames.full(note.midi)} · ${noteStatus(note.status)}", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+        style = TextStyle.Default.copy(lineBreak = LineBreak.Heading))
     if (note.status in setOf("unmeasured", "insufficient_quality", "needs_review")) {
         Text(when (note.status) {
             "unmeasured" -> "미측정"
@@ -236,7 +230,7 @@ private fun RangeNoteDetails(note: RangeNote) {
                     Text("완충 ${String.format(Locale.ROOT, "%.2f", m.bufferSeconds)}초 · 범위 밖 ${String.format(Locale.ROOT, "%.2f", m.outsideSeconds)}초 · 감점 ${String.format(Locale.ROOT, "%.1f", m.excursionPenalty)}점", fontSize = 12.sp)
                 } else Text("최장 연속 유지 ${String.format(Locale.ROOT, "%.2f", m.continuousHoldSeconds)}초", fontSize = 12.sp)
                 Text("${if (m.referenceRmsCents != null) "시작 높이 대비 흔들림" else "흔들림"} ${String.format(Locale.ROOT, "%.1f", m.referenceRmsCents ?: m.pitchSpreadCents)} cents", fontSize = 12.sp)
-                Text("실제 발성 ${m.actualMidi?.let(ScoringMath::midiName) ?: "—"} · 기록 음 ${ScoringMath.midiName(note.midi)}", fontSize = 12.sp)
+                Text("실제 발성 ${m.actualMidi?.let(RangeNoteNames::full) ?: "—"} · 기록 음 ${RangeNoteNames.full(note.midi)}", fontSize = 12.sp)
             } else {
             Text("목표음 유지율 ${String.format(Locale.ROOT, "%.0f", m.inTuneRatio * 100)}%", color = InkSoft)
             LinearProgressIndicator(progress = { m.inTuneRatio.toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())

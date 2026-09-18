@@ -86,7 +86,7 @@ class TimbreAnalysisLifecycleServiceTest {
 
     private VoiceAnalysisUploadRequest request() {
         return new VoiceAnalysisUploadRequest("0199f9f5-7e6a-7a20-bc91-23b8c1ed0a11",
-                VoiceAnalysisMethod.SONG, 21L, "v4", LocalDateTime.now(), 30_000, 48_000,
+                VoiceAnalysisMethod.SONG, "21", "v4", LocalDateTime.now(), 30_000, 48_000,
                 "HIGHLIGHT", 10_000, 10_200, "inst-v2", "lyrics-v3", List.of());
     }
 }

@@ -76,8 +76,10 @@ public class VoiceAnalysisUploadValidator {
         if (!START_POSITIONS.contains(request.startPositionType())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 녹음 시작 위치입니다.");
         }
-        if (request.method() == VoiceAnalysisMethod.SONG && (request.songId() == null || request.songId() < 1)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "노래 분석에는 숫자형 DB songId가 필요합니다.");
+        if (request.method() == VoiceAnalysisMethod.SONG
+                && (request.songId() == null || request.songId().isBlank() || request.songId().length() > 64)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "노래 분석에는 64자 이하의 문자열 songId가 필요합니다.");
         }
         validateSegments(request.segments(), request.durationMs());
     }

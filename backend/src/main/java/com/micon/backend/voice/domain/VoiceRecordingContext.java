@@ -10,7 +10,7 @@ public class VoiceRecordingContext {
     @JoinColumn(name = "recording_id") private VoiceRecording recording;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "session_id", nullable = false) private VoiceAnalysisSession session;
-    @Column(name = "song_id", nullable = false) private Long songId;
+    @Column(name = "song_id", nullable = false) private String songId;
     @Column(name = "start_position_type", nullable = false, length = 30) private String startPositionType;
     @Column(name = "selected_start_ms", nullable = false) private int selectedStartMs;
     @Column(name = "actual_start_ms", nullable = false) private int actualStartMs;
@@ -19,7 +19,7 @@ public class VoiceRecordingContext {
     @Column(name = "lyrics_version", nullable = false, length = 100) private String lyricsVersion;
     @Column(name = "upload_idempotency_key", nullable = false, length = 100) private String uploadIdempotencyKey;
     protected VoiceRecordingContext() {}
-    public VoiceRecordingContext(VoiceRecording recording, VoiceAnalysisSession session, Long songId,
+    public VoiceRecordingContext(VoiceRecording recording, VoiceAnalysisSession session, String songId,
                                  String startPositionType, int selectedStartMs, int actualStartMs,
                                  int activeRecordingMs, String instrumentalVersion,
                                  String lyricsVersion, String uploadIdempotencyKey) {

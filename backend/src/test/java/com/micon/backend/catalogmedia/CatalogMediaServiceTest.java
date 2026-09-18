@@ -42,15 +42,15 @@ class CatalogMediaServiceTest {
     @Test
     void returnsShortLivedUrlForExactReadyVocalStem() {
         String key = PREFIX + "0156ac758f1192ee/vocals.wav";
-        when(repository.songExists(212L)).thenReturn(true);
-        when(repository.findReadyVocalStem(212L)).thenReturn(Optional.of(new VocalStemRow(
-                10L, 212L, "0156ac758f1192ee", key, "audio/wav", 37_875_760L, "a".repeat(64))));
+        when(repository.songExists("212")).thenReturn(true);
+        when(repository.findReadyVocalStem("212")).thenReturn(Optional.of(new VocalStemRow(
+                10L, "212", "0156ac758f1192ee", key, "audio/wav", 37_875_760L, "a".repeat(64))));
         when(storage.createDownloadUrl(key, Duration.ofMinutes(10)))
                 .thenReturn(URI.create("https://signed.example/vocal"));
 
-        CatalogMediaResponse response = service.vocalStem(212L);
+        CatalogMediaResponse response = service.vocalStem("212");
 
-        assertThat(response.songId()).isEqualTo(212L);
+        assertThat(response.songId()).isEqualTo("212");
         assertThat(response.catalogTrackId()).isEqualTo("0156ac758f1192ee");
         assertThat(response.mediaType()).isEqualTo("VOCAL_STEM");
         assertThat(response.contentUrl()).isEqualTo("https://signed.example/vocal");
@@ -59,35 +59,35 @@ class CatalogMediaServiceTest {
 
     @Test
     void rejectsMissingSongBeforeMediaLookup() {
-        when(repository.songExists(999L)).thenReturn(false);
+        when(repository.songExists("999")).thenReturn(false);
 
-        assertError(999L, ErrorCode.SONG_NOT_FOUND);
-        verify(repository, never()).findReadyVocalStem(999L);
+        assertError("999", ErrorCode.SONG_NOT_FOUND);
+        verify(repository, never()).findReadyVocalStem("999");
         verify(storage, never()).createDownloadUrl(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any());
     }
 
     @Test
     void rejectsMissingOrUnreadyMedia() {
-        when(repository.songExists(212L)).thenReturn(true);
-        when(repository.findReadyVocalStem(212L)).thenReturn(Optional.empty());
+        when(repository.songExists("212")).thenReturn(true);
+        when(repository.findReadyVocalStem("212")).thenReturn(Optional.empty());
 
-        assertError(212L, ErrorCode.CATALOG_MEDIA_NOT_READY);
+        assertError("212", ErrorCode.CATALOG_MEDIA_NOT_READY);
     }
 
     @Test
     void refusesWrongPrefixWithoutSigningIt() {
-        when(repository.songExists(212L)).thenReturn(true);
-        when(repository.findReadyVocalStem(212L)).thenReturn(Optional.of(new VocalStemRow(
-                10L, 212L, "0156ac758f1192ee", "voice-recordings/private.wav",
+        when(repository.songExists("212")).thenReturn(true);
+        when(repository.findReadyVocalStem("212")).thenReturn(Optional.of(new VocalStemRow(
+                10L, "212", "0156ac758f1192ee", "voice-recordings/private.wav",
                 "audio/wav", 100L, "a".repeat(64))));
 
-        assertError(212L, ErrorCode.CATALOG_MEDIA_NOT_READY);
+        assertError("212", ErrorCode.CATALOG_MEDIA_NOT_READY);
         verify(storage, never()).createDownloadUrl(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any());
     }
 
-    private void assertError(long songId, ErrorCode expected) {
+    private void assertError(String songId, ErrorCode expected) {
         assertThatThrownBy(() -> service.vocalStem(songId))
                 .isInstanceOfSatisfying(BusinessException.class,
                         error -> assertThat(error.getErrorCode()).isEqualTo(expected));

@@ -13,7 +13,7 @@ public final class PracticeAssetResponse {
 	}
 
 	public record Detail(
-		Long songId,
+		String songId,
 		String title,
 		int selectedKey,
 		Media instrumental,
@@ -41,7 +41,7 @@ public final class PracticeAssetResponse {
 	}
 
 	public record Instrumental(
-		Long songId,
+		String songId,
 		int selectedKey,
 		Media instrumental,
 		String lyricsSynced
@@ -63,7 +63,7 @@ public final class PracticeAssetResponse {
 	}
 
 	public record Guide(
-		Long songId,
+		String songId,
 		int selectedKey,
 		String dataVersion,
 		List<Section> difficultySections

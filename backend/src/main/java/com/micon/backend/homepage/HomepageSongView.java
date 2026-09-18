@@ -4,7 +4,7 @@ import com.micon.backend.song.api.SongResponse;
 
 /** Thymeleaf 곡 목록 화면에 표시할 값만 가공한 뷰 모델이다. */
 public record HomepageSongView(
-	Long songId,
+	String songId,
 	String title,
 	String artists,
 	String imageUrl,

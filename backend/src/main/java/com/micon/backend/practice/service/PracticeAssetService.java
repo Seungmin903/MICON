@@ -42,7 +42,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: get 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
-	public PracticeAssetResponse.Detail get(Long songId, int selectedKey) {
+	public PracticeAssetResponse.Detail get(String songId, int selectedKey) {
 		SongAssetRow song = repository.findSong(songId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 		if (!song.practiceReady() || song.analysisId() == null) {
@@ -78,7 +78,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: 곡 ID와 선택 키에 해당하는 MR을 조회하고 재생 URL을 발급한다.
-	public PracticeAssetResponse.Instrumental getMr(Long songId, int selectedKey) {
+	public PracticeAssetResponse.Instrumental getMr(String songId, int selectedKey) {
 		SongAssetRow song = repository.findSong(songId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 		MediaRow media = findInstrumental(song.songId(), selectedKey);
@@ -91,7 +91,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: getGuide 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
-	public PracticeAssetResponse.Guide getGuide(Long songId, int selectedKey) {
+	public PracticeAssetResponse.Guide getGuide(String songId, int selectedKey) {
 		PracticeAssetResponse.Detail assets = get(songId, selectedKey);
 		return new PracticeAssetResponse.Guide(
 			assets.songId(),
@@ -104,7 +104,7 @@ public class PracticeAssetService {
 	}
 
 	// 기능: 선택 키에 맞는 MR을 찾고 준비되지 않은 경우 원인에 맞는 오류를 반환한다.
-	private MediaRow findInstrumental(Long songId, int selectedKey) {
+	private MediaRow findInstrumental(String songId, int selectedKey) {
 		return repository.findInstrumental(songId, selectedKey)
 			.orElseThrow(() -> new BusinessException(selectedKey == 0
 				? ErrorCode.PRACTICE_ASSET_NOT_READY
@@ -121,7 +121,7 @@ public class PracticeAssetService {
 		);
 	}
 
-	private BusinessException blocked(Long songId, int selectedKey, String reason, ErrorCode errorCode) {
+	private BusinessException blocked(String songId, int selectedKey, String reason, ErrorCode errorCode) {
 		AccessLog.event("practice_asset_blocked", true, "song_id", songId, "selected_key", selectedKey,
 			"reason", reason);
 		return new BusinessException(errorCode);

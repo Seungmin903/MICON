@@ -94,10 +94,12 @@ object SongCarousel {
 
     /** 딥링크 등으로 목록 없이 들어오면 그 곡 하나만 */
     fun idsFor(songId: Long): List<Long> = ids.takeIf { songId in it } ?: listOf(songId)
+
+    fun imageOf(songId: Long): String? = SongCarouselArt.urls[songId]
 }
 
 /** 위쪽이 커다란 원호로 둥근 시트. 원호 반지름 = 폭 × [SHEET_ARC_R] 이라 화면 가운데가 가장 높다. */
-private val SheetShape = GenericShape { size, _ ->
+internal val TurntableSheetShape = GenericShape { size, _ ->
     val r = size.width * SHEET_ARC_R
     val a = size.width / 2f
     val s = sqrt((r * r - a * a).coerceAtLeast(0f))       // 원호가 좌우 끝에서 꼭대기보다 내려온 높이
@@ -187,7 +189,7 @@ fun SongTurntableScreen(songId: Long, onBack: () -> Unit, onPractice: (Long) -> 
 
             // ---- 검은 시트: 곡명·가수 + 분석 ----
             Column(
-                Modifier.fillMaxWidth().heightIn(min = h).background(SheetColor, SheetShape).clip(SheetShape),
+                Modifier.fillMaxWidth().heightIn(min = h).background(SheetColor, TurntableSheetShape).clip(TurntableSheetShape),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.height(h * 0.075f))

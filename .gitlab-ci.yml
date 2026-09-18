@@ -14,7 +14,7 @@ workflow:
     - if: '$CI_COMMIT_BRANCH == "develop"'
     - when: never
 
-runtime-contract-tests:
+.runtime-contract-tests:
   stage: verify
   timeout: 10 minutes
   script:
@@ -22,8 +22,17 @@ runtime-contract-tests:
     - python -m unittest discover -s backend/contract_tests -v
     - python -m unittest discover -s infra/deploy -p 'test_*.py' -v
     - cd ai/recommend-server && python -m unittest tests.test_catalog_link -v
+runtime-contract-tests:
+  extends: .runtime-contract-tests
   rules:
     - if: '$CI_COMMIT_BRANCH == "develop"'
+
+runtime-contract-tests-mr:
+  extends: .runtime-contract-tests
+  tags:
+    - micon-notify
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
 
 mysql-song-import:
   stage: verify
@@ -102,3 +111,4 @@ notify_mm_mr:
       PY
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always

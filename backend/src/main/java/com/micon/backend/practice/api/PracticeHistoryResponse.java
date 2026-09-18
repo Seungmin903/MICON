@@ -22,7 +22,7 @@ public final class PracticeHistoryResponse {
 
 	public record Summary(
 		Long practiceId,
-		Long songId,
+		String songId,
 		String songTitle,
 		String imageUrl,
 		int selectedKey,

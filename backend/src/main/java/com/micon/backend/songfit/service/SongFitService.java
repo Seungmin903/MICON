@@ -38,14 +38,15 @@ public class SongFitService {
 		this.aiEnabled = aiEnabled;
 	}
 
-	public SongFitResponse getSongFit(Long userId, Long songId, Long analysisId, int keyOffset) {
+	public SongFitResponse getSongFit(Long userId, String songId, Long analysisId, int keyOffset) {
 		if (!songFitQueryRepository.songExists(songId)) {
 			throw new SongNotFoundException(songId);
 		}
 
 		UserRangeRow userRange = songFitQueryRepository.findUserRange(userId, analysisId)
 			.orElseThrow(() -> new VoiceAnalysisNotFoundException(analysisId));
-		if (!"COMPLETED".equals(userRange.status())
+		if (!"SAVED".equals(userRange.sessionStatus())
+			|| !"AVAILABLE".equals(userRange.measurementStatus())
 			|| !isValidRange(userRange.stableLowMidi(), userRange.stableHighMidi())) {
 			return SongFitResponse.unavailable(songId, analysisId, keyOffset, "USER_STABLE_RANGE_UNAVAILABLE");
 		}
@@ -63,7 +64,9 @@ public class SongFitService {
 			recommendation.rangeFitScore(),
 			recommendation.timbreFitScore(),
 			recommendation.rhythmFitScore(),
-			recommendation.algorithmVersion()
+			recommendation.algorithmVersion(),
+			recommendation.timbreAxis(),
+			recommendation.timbreLabel()
 		);
 
 		List<BurdenSection> burdenSections = songFitQueryRepository.findBurdenSections(songId, songRange.analysisId());
@@ -76,7 +79,8 @@ public class SongFitService {
 					recommendation == null ? null : recommendation.recommendedKey(),
 					scores, recommendation == null ? null : recommendation.reasonText(), burdenSections
 				));
-				if (response == null || !songId.equals(response.songId()) || !analysisId.equals(response.analysisId())) {
+				if (response == null || !songId.equals(response.songId()) || !analysisId.equals(response.analysisId())
+					|| response.selectedKeyOffset() != keyOffset) {
 					throw new SongFitEvaluationFailedException();
 				}
 				Integer recommendedKeyOffset = response.recommendedKeyOffset();

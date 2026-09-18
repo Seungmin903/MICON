@@ -29,6 +29,9 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
     override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
         onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
         if (request.ownerId == null) throw VoiceOnboardingNotReady("로그인하면 음색 분석 결과를 확인할 수 있어요.")
+        if (retry == null) VoiceOnboardingInput.problem(request.draftId, request.range, request.recording)?.let {
+            throw VoiceOnboardingNotReady(it)
+        }
         val access = VoiceSessionAccess(request.ownerId)
         val recording = request.recording
         val linkFile = File(recording.wav.parentFile, recording.wav.name + ".submission.json")
@@ -67,13 +70,15 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
     }
 
     private suspend fun awaitResult(sessionId: Long, analysisId: Long?, access: VoiceSessionAccess,
-        linkFile: File?, link: TimbreSubmissionLink?, onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
+        linkFile: File?, link: TimbreSubmissionLink?, onProgress: (VoiceAnalysisProgress) -> Unit,
+        waitForArtists: Boolean = false): VoiceAnalysisProgress {
         repeat(300) {
             val result = try { api.voiceOnboardingResult(sessionId, access).data().toProgress(analysisId) }
             catch (e: CancellationException) { throw e }
             catch (_: Exception) { delay(2_000); return@repeat }
             onProgress(result)
-            if (!result.analyzing && result.sessionStatus !in setOf(VoiceSessionStatus.CREATED,
+            if (!result.analyzing && !(waitForArtists && result.awaitingArtistResult) &&
+                result.sessionStatus !in setOf(VoiceSessionStatus.CREATED,
                     VoiceSessionStatus.RANGE_IN_PROGRESS, VoiceSessionStatus.UPLOADING)) {
                 if (!result.canSave && link != null && linkFile != null) stateStore.write(linkFile,
                     Json.moshi.adapter(TimbreSubmissionLink::class.java).toJson(link.copy(terminalFailure = true)))
@@ -122,6 +127,12 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             progress,
         )
     }
+
+    override suspend fun awaitArtists(ownerId: Long, result: VoiceAnalysisProgress,
+        onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress =
+        if (!result.awaitingArtistResult) result else awaitResult(
+            result.sessionId.toLong(), result.analysisId, VoiceSessionAccess(ownerId),
+            null, null, onProgress, waitForArtists = true)
 
     override suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {
         val analysisId = result.analysisId ?: throw IllegalStateException("취소할 분석 작업을 찾을 수 없습니다.")

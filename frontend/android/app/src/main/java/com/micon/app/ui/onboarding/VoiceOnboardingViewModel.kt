@@ -2,7 +2,9 @@ package com.micon.app.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.micon.app.data.local.UserStore
 import com.micon.app.data.onboarding.*
+import com.micon.app.data.voice.VoiceProfileMapper
 import com.micon.app.data.singanalysis.SavedRecording
 import com.micon.app.range.RangeReport
 import kotlinx.coroutines.CancellationException
@@ -21,6 +23,17 @@ data class VoiceOnboardingState(
     val recovering: Boolean = false,
     val savedReceipt: ProfileSaveReceipt? = null,
 ) {
+    val needsNewRecording get() = progress?.sessionStatus == VoiceSessionStatus.INSUFFICIENT_DATA ||
+        listOf(progress?.ecapa, progress?.byol).any { it == ComponentStatus.INSUFFICIENT_DATA }
+    val analysisInputError get() = if (needsNewRecording) "분석에 쓸 목소리 구간이 부족해요. 노래를 다시 불러 주세요."
+        else VoiceOnboardingInput.problem(draftId, range, recording)
+    val canRetryAnalysis get() = serviceAvailable && !busy && !saving && !saved && !expired && !recovering &&
+        !needsNewRecording && progress?.sessionStatus?.closed != true
+    val canAnalyze get() = canRetryAnalysis && progress?.canSave != true && progress?.analyzing != true &&
+        analysisInputError == null
+    fun canRetry(component: AnalysisComponent) = canRetryAnalysis && progress?.status(component) == ComponentStatus.FAILED &&
+        (component != AnalysisComponent.ARTIST_SEARCH ||
+            (progress?.ecapa == ComponentStatus.COMPLETED && progress.byol == ComponentStatus.COMPLETED))
     val canSave get() = serviceAvailable && range?.availability == "available" && recording != null &&
         progress?.canSave == true && !busy && !saving && !saved && !expired && !recovering
 }
@@ -45,6 +58,7 @@ class VoiceOnboardingViewModel(
     val state = mutableState.asStateFlow()
     private var job: Job? = null
     private var recoveryJob: Job? = null
+    private var artistJob: Job? = null
     private var recoveryGeneration = 0
     private var disposed = false
     private var serverSessionId = state.value.range?.backendSessionId ?: restored.serverSessionId
@@ -55,7 +69,7 @@ class VoiceOnboardingViewModel(
             val draftId = state.value.draftId
             val revision = state.value.revision
             val generation = recoveryGeneration
-            fun current() = !disposed && isCurrentOwner() && state.value.draftId == draftId &&
+            fun current() = !disposed && !state.value.saved && isCurrentOwner() && state.value.draftId == draftId &&
                 state.value.revision == revision && serverSessionId == sessionId && recoveryGeneration == generation
             mutableState.update { it.copy(recovering = true) }
             recoveryJob = viewModelScope.launch {
@@ -67,7 +81,12 @@ class VoiceOnboardingViewModel(
                     persist()
                     checkExpired()
                 }
-                try { gateway.recover(ownerId, sessionId, ::accept)?.let(::accept) }
+                try {
+                    gateway.recover(ownerId, sessionId, ::accept)?.let { recovered ->
+                        accept(recovered)
+                        if (current()) continueArtistSearch(recovered, ::accept)
+                    }
+                }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) {
                     if (current()) mutableState.update { it.copy(error = "이전 분석을 확인하지 못했어요. 잠시 후 다시 확인해 주세요.") }
@@ -81,6 +100,7 @@ class VoiceOnboardingViewModel(
     fun rangeReady(): Boolean {
         if (!isCurrentOwner() || checkExpired()) return false
         val report = persistence.range() ?: return false
+        if (report.availability != "available") return false
         stopRecovery()
         serverSessionId = report.backendSessionId
         mutableState.update { it.copy(range = report, error = null) }
@@ -104,7 +124,17 @@ class VoiceOnboardingViewModel(
             mutableState.update { it.copy(error = VoiceOnboardingNotReady().message) }
             return
         }
-        if (retry != null && before.progress?.status(retry) != ComponentStatus.FAILED) return
+        if (ownerId == null) {
+            mutableState.update { it.copy(error = "로그인하면 음색 분석 결과를 확인할 수 있어요.") }
+            return
+        }
+        if (retry != null) {
+            if (!before.canRetry(retry)) return
+        } else if (!before.canAnalyze) {
+            before.analysisInputError?.let { message -> mutableState.update { it.copy(error = message) } }
+            return
+        }
+        artistJob?.cancel()
         val range = before.range ?: return
         val recording = before.recording ?: return
         val request = VoiceOnboardingRequest(before.draftId, before.revision + 1, ownerId, range, recording)
@@ -123,7 +153,11 @@ class VoiceOnboardingViewModel(
                 persist()
                 checkExpired()
             }
-            try { accept(gateway.analyze(request, retry, ::accept)) }
+            try {
+                val result = gateway.analyze(request, retry, ::accept)
+                accept(result)
+                if (matches(request)) continueArtistSearch(result, ::accept)
+            }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (matches(request)) mutableState.update { it.copy(error =
@@ -172,7 +206,12 @@ class VoiceOnboardingViewModel(
                 if (!matches(request) || checkExpired()) return@launch
                 check(receipt.sessionId == result.sessionId && receipt.version == result.version && receipt.profileId.isNotBlank())
                 // Remote success is authoritative even if refreshing the local cache fails.
-                val cached = runCatching { persistence.saveProfile(SavedVoiceOnboardingProfile(receipt, request.range, result)) }.isSuccess
+                artistJob?.cancel()
+                val latestResult = state.value.progress?.takeIf {
+                    it.sessionId == result.sessionId && it.version == result.version
+                } ?: result
+                val cached = runCatching { persistence.saveProfile(SavedVoiceOnboardingProfile(receipt, request.range, latestResult)) }.isSuccess
+                UserStore.setProfile(VoiceProfileMapper.fromOnboarding(request.range, now()))   // 연습·추천 상세가 바로 새 음역을 본다
                 runCatching { persistence.clearDraft() }
                 mutableState.update { it.copy(saved = true, saving = false, savedReceipt = receipt,
                     error = if (cached) null else "서버에 저장됐지만 기기의 결과를 갱신하지 못했어요.") }
@@ -217,7 +256,7 @@ class VoiceOnboardingViewModel(
         persistence.clearDraft()
     }
 
-    private fun matches(request: VoiceOnboardingRequest) = !disposed && isCurrentOwner() &&
+    private fun matches(request: VoiceOnboardingRequest) = !disposed && !state.value.saved && isCurrentOwner() &&
         state.value.draftId == request.draftId && state.value.revision == request.revision
 
     private fun checkExpired(): Boolean {
@@ -236,8 +275,21 @@ class VoiceOnboardingViewModel(
     private fun stopRecovery() {
         recoveryGeneration++
         recoveryJob?.cancel()
+        artistJob?.cancel()
         mutableState.update { it.copy(recovering = false) }
     }
 
-    override fun onCleared() { disposed = true; recoveryJob?.cancel(); job?.cancel(); onDispose() }
+    private fun continueArtistSearch(result: VoiceAnalysisProgress, accept: (VoiceAnalysisProgress) -> Unit) {
+        if (ownerId == null || !result.awaitingArtistResult) return
+        val current = state.value.progress ?: return
+        if (current.sessionId != result.sessionId || current.version > result.version) return
+        artistJob?.cancel()
+        artistJob = viewModelScope.launch {
+            try { accept(gateway.awaitArtists(ownerId, result, accept)) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Re-entering the report resumes the independent artist lookup. */ }
+        }
+    }
+
+    override fun onCleared() { disposed = true; recoveryJob?.cancel(); artistJob?.cancel(); job?.cancel(); onDispose() }
 }

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record SongFitResponse(
-	Long songId,
+	String songId,
 	Long analysisId,
 	int selectedKeyOffset,
 	String evaluationStatus,
@@ -18,7 +18,7 @@ public record SongFitResponse(
 ) {
 
 	public static SongFitResponse unavailable(
-		Long songId,
+		String songId,
 		Long analysisId,
 		int selectedKeyOffset,
 		String reason
@@ -43,8 +43,14 @@ public record SongFitResponse(
 		BigDecimal range,
 		BigDecimal timbre,
 		BigDecimal rhythm,
-		String algorithmVersion
+		String algorithmVersion,
+		String timbreAxis,
+		String timbreLabel
 	) {
+		public RecommendationScores(BigDecimal overall, BigDecimal range, BigDecimal timbre,
+			BigDecimal rhythm, String algorithmVersion) {
+			this(overall, range, timbre, rhythm, algorithmVersion, null, null);
+		}
 	}
 
 	public record BurdenSection(

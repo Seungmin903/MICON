@@ -30,7 +30,10 @@ public class ArtistSearchDispatcher {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void dispatch(ArtistSearchRequested event) {
-        if (!enabled) return;
+        if (!enabled) {
+            jobs.disabled(event.analysisId());
+            return;
+        }
         ArtistSearchJobService.Prepared prepared;
         try {
             prepared = jobs.prepare(event.analysisId());

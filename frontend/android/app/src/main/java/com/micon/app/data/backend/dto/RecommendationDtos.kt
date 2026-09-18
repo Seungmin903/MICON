@@ -93,6 +93,9 @@ data class SongFitScoresDto(
     val timbre: Double? = null,
     val rhythm: Double? = null,
     val algorithmVersion: String? = null,
+    /** Optional, from a completed recommendation for this same saved profile. */
+    val timbreAxis: String? = null,
+    val timbreLabel: String? = null,
 )
 
 /** SongFitResponse.BurdenSection */
