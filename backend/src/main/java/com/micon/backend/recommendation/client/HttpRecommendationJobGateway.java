@@ -87,7 +87,7 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
     }
 
     private record AiRecommendationRequest(
-            Long profileId, Long sourceSongId, int topK, String mode,
+            Long profileId, String sourceSongId, int topK, String mode,
             List<String> genres, List<String> preferredArtists,
             AiVoiceProfile voiceProfile, JsonNode userEmbedding, String embeddingRef
     ) {}

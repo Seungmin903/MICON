@@ -102,7 +102,7 @@ class RecommendationDispatchServiceTest {
     private RecommendationInput input() {
         return new RecommendationInput(
                 10L,
-                30L,
+                "30",
                 new RecommendationInput.VoiceProfile(
                         null, null, null, null, null, null, null, null,
                         "{\"ecapa\":[0.1]}", null, null, null, null, null),

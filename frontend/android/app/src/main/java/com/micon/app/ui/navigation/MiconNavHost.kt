@@ -19,7 +19,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.micon.app.appContainer
+import com.micon.app.data.onboarding.VoiceProfileSync
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -49,7 +55,7 @@ import com.micon.app.ui.onboarding.SignupScreen
 import com.micon.app.ui.onboarding.SplashScreen
 import com.micon.app.ui.practice.PracticeScreen
 import com.micon.app.ui.recommend.RecommendScreen
-import com.micon.app.ui.recommend.SongTurntableScreen
+import com.micon.app.ui.recommend.SongCarousel
 import com.micon.app.ui.report.QuickAnalysisScreen
 import com.micon.app.ui.report.VoiceReportScreen
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
@@ -57,6 +63,8 @@ import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
+import com.micon.app.ui.songdetail.SongDetailColors
+import com.micon.app.ui.songdetail.SongDetailSystemBars
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
@@ -78,7 +86,13 @@ fun MiconRoot() {
     val accessGranted = sessionVerified || session.guest
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailSystemBars()
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
+    // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
+    val context = LocalContext.current
+    LaunchedEffect(sessionVerified) {
+        if (sessionVerified) TokenManager.getUserId().takeIf { it > 0 }?.let { VoiceProfileSync.restore(context, it, context.appContainer.voiceOnboarding) }
+    }
 
     LaunchedEffect(nav) {
         SessionEvents.events.collect {
@@ -99,8 +113,8 @@ fun MiconRoot() {
     }
 
     Scaffold(
-        containerColor = Color.White,
-        bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute) },
+        containerColor = if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailColors.background else Color.White,
+        bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute, backStack?.arguments?.getString("source")) },
     ) { padding ->
         MiconNavHost(
             nav = nav,
@@ -122,24 +136,36 @@ fun MiconRoot() {
 }
 
 @Composable
-private fun MiconBottomBar(nav: NavHostController, currentRoute: String?) {
-    NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
+private fun MiconBottomBar(nav: NavHostController, currentRoute: String?, source: String?) {
+    MiconTabBar(currentRoute, source) { route ->
+        nav.navigate(route) {
+            popUpTo(nav.graph.startDestinationId) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+}
+
+/** Shared with device previews so their navigation chrome is the real app chrome. */
+@Composable
+internal fun MiconTabBar(currentRoute: String?, source: String? = null, onNavigate: (String) -> Unit = {}) {
+    val detail = currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH
+    val selectedColor = if (detail) SongDetailColors.accent else Purple
+    val muted = if (detail) SongDetailColors.muted else Grey
+    NavigationBar(containerColor = if (detail) SongDetailColors.background else Color.White, tonalElevation = 0.dp) {
         BottomTab.entries.forEach { tab ->
-            val selected = currentRoute == tab.route || (tab == BottomTab.PRACTICE && currentRoute == Routes.SONG) || (tab == BottomTab.FAVORITES && currentRoute == Routes.SETLIST)
+            val selected = currentRoute == tab.route ||
+                (currentRoute == Routes.SONG_MATCH && tab == BottomTab.RECOMMEND) ||
+                (currentRoute == Routes.SONG && tab.route == (source ?: Routes.PRACTICE)) ||
+                (tab == BottomTab.FAVORITES && currentRoute == Routes.SETLIST)
             NavigationBarItem(
                 selected = selected,
-                onClick = {
-                    nav.navigate(tab.route) {
-                        popUpTo(nav.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onClick = { onNavigate(tab.route) },
                 icon = { Icon(tab.icon, contentDescription = tab.label, Modifier.size(26.dp)) },
                 label = { Text(tab.label, fontSize = 12.sp) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Purple, selectedTextColor = Purple,
-                    unselectedIconColor = Grey, unselectedTextColor = Grey,
+                    selectedIconColor = selectedColor, selectedTextColor = selectedColor,
+                    unselectedIconColor = muted, unselectedTextColor = muted,
                     indicatorColor = Color.Transparent,
                 ),
             )
@@ -218,8 +244,15 @@ private fun MiconNavHost(
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
             if (isGuest || !accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
-            // 턴테이블 → 아래로 스크롤하면 검은 시트가 올라오며 곡 분석. 캐러셀로 곡이 바뀌면 그 곡으로 연습에 들어간다.
-            SongTurntableScreen(songId = songId, onBack = { nav.popBackStack() }, onPractice = { nav.navigate(Routes.practice(it)) })
+            // Preserve the old match route, but render exactly the same detail as practice/favorites.
+            val ids = rememberSaveable(songId) { SongCarousel.idsFor(songId).toLongArray() }
+            var currentId by rememberSaveable(songId) { mutableLongStateOf(songId) }
+            LaunchedEffect(currentId) { entry.savedStateHandle["detailSongId"] = currentId }
+            val artwork = remember(ids) { ids.associateWith { SongCarousel.imageOf(it) } }
+            SongDetailScreen(songId = currentId, onBack = { nav.popBackStack() },
+                onPractice = { key -> nav.navigate(Routes.practice(currentId, key)) },
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+                carouselIds = ids.toList(), artwork = artwork, onSongSelected = { currentId = it })
         }
 
         // ---- 탭: 리포트 ----
@@ -269,7 +302,7 @@ private fun MiconNavHost(
         }
         composable(
             Routes.SONG,
-            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
+            arguments = listOf(navArgument("songId") { type = NavType.LongType }, navArgument("source") { type = NavType.StringType; defaultValue = Routes.PRACTICE }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SONG}" }),
         ) { entry ->
             if (!accessGranted) return@composable
@@ -277,19 +310,20 @@ private fun MiconNavHost(
             SongDetailScreen(
                 songId = songId,
                 onBack = { nav.popBackStack() },
-                onPractice = { nav.navigate(Routes.practice(songId)) },
+                onPractice = { key -> nav.navigate(Routes.practice(songId, key)) },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
         composable(
             Routes.PRACTICE_RUN,
-            arguments = listOf(navArgument("songId") { type = NavType.LongType }),
+            arguments = listOf(navArgument("songId") { type = NavType.LongType }, navArgument("selectedKey") { type = NavType.IntType; defaultValue = 0 }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.PRACTICE_RUN}" }),
         ) { entry ->
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getLong("songId") ?: return@composable
-            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) })
+            PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) },
+                initialKey = entry.arguments?.getInt("selectedKey") ?: 0)
         }
 
         // ---- 탭: 평가 ----
@@ -320,12 +354,12 @@ private fun MiconNavHost(
         composable(Routes.FAVORITES) {
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("찜", openLogin = { openLogin() })
-            else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it, Routes.FAVORITES)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
         }
         composable(Routes.SETLIST, arguments = listOf(navArgument("setlistId") { type = NavType.LongType })) { entry ->
             if (isGuest || !accessGranted) return@composable
             val setlistId = entry.arguments?.getLong("setlistId") ?: return@composable
-            SetlistScreen(setlistId = setlistId, onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.song(it)) })
+            SetlistScreen(setlistId = setlistId, onBack = { nav.popBackStack() }, onSongClick = { nav.navigate(Routes.song(it, Routes.FAVORITES)) })
         }
 
         // ---- 설정 ----
@@ -374,7 +408,8 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
     fun rememberDestination(nav: NavHostController) {
         val entry = nav.currentBackStackEntry ?: return
         val destination = loginReturnDestination(entry.destination.route,
-            entry.arguments?.getLong("songId"), entry.arguments?.getLong("setlistId")) ?: return
+            entry.savedStateHandle.get<Long>("detailSongId") ?: entry.arguments?.getLong("songId"),
+            entry.arguments?.getLong("setlistId"), entry.arguments?.getString("source")) ?: return
         savedState["loginDestination"] = destination
     }
 

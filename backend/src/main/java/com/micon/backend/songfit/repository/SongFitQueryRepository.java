@@ -9,17 +9,22 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Repository
 public class SongFitQueryRepository {
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
+	private final ObjectMapper objectMapper;
 
-	public SongFitQueryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+	public SongFitQueryRepository(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.objectMapper = objectMapper;
 	}
 
-	public boolean songExists(Long songId) {
+	public boolean songExists(String songId) {
 		Long count = jdbcTemplate.queryForObject(
 			"SELECT COUNT(*) FROM song WHERE song_id = :songId",
 			Map.of("songId", songId),
@@ -30,7 +35,8 @@ public class SongFitQueryRepository {
 
 	public Optional<UserRangeRow> findUserRange(Long userId, Long analysisId) {
 		String sql = """
-			SELECT vas.status, vrm.full_low_midi AS stable_low_midi,
+			SELECT vas.status AS session_status, vrm.measurement_status,
+			       vrm.full_low_midi AS stable_low_midi,
 			       vrm.full_high_midi AS stable_high_midi
 			FROM user_voice_profile uvp
 			JOIN voice_analysis_session vas ON vas.session_id = uvp.session_id
@@ -41,14 +47,15 @@ public class SongFitQueryRepository {
 			sql,
 			Map.of("analysisId", analysisId, "userId", userId),
 			(resultSet, rowNumber) -> new UserRangeRow(
-				resultSet.getString("status"),
+				resultSet.getString("session_status"),
+				resultSet.getString("measurement_status"),
 				resultSet.getBigDecimal("stable_low_midi"),
 				resultSet.getBigDecimal("stable_high_midi")
 			)
 		).stream().findFirst();
 	}
 
-	public Optional<SongRangeRow> findLatestSongRange(Long songId) {
+	public Optional<SongRangeRow> findLatestSongRange(String songId) {
 		String sql = """
 			SELECT analysis_id, lowest_midi, highest_midi
 			FROM song_analysis
@@ -67,17 +74,20 @@ public class SongFitQueryRepository {
 		).stream().findFirst();
 	}
 
-	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, Long songId) {
+	public Optional<RecommendationRow> findRecommendation(Long userId, Long analysisId, String songId) {
 		String sql = """
-			SELECT rs.recommended_key, rs.overall_score, rs.range_fit_score,
-			       rs.timbre_fit_score, rs.rhythm_fit_score, rs.reason_text,
+			SELECT rs.recommended_key, rs.final_score, rs.timbre_score,
+			       rs.range_fit, rs.reason_text, rs.axis, rs.label,
 			       r.algorithm_version
 			FROM recommendation r
+			JOIN user_voice_profile uvp ON uvp.profile_id = r.profile_id
 			JOIN recommendation_song rs ON rs.recommendation_id = r.recommendation_id
 			WHERE r.user_id = :userId
 			  AND r.profile_id = :analysisId
+			  AND uvp.user_id = :userId
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId
+			  AND r.generated_at >= uvp.updated_at
 			ORDER BY r.generated_at DESC, r.recommendation_id DESC
 			LIMIT 1
 			""";
@@ -86,17 +96,35 @@ public class SongFitQueryRepository {
 			Map.of("userId", userId, "analysisId", analysisId, "songId", songId),
 			(resultSet, rowNumber) -> new RecommendationRow(
 				getNullableInteger(resultSet, "recommended_key"),
-				resultSet.getBigDecimal("overall_score"),
-				resultSet.getBigDecimal("range_fit_score"),
-				resultSet.getBigDecimal("timbre_fit_score"),
-				resultSet.getBigDecimal("rhythm_fit_score"),
+				resultSet.getBigDecimal("final_score"),
+				readDecimal(resultSet.getString("range_fit"), "score"),
+				resultSet.getBigDecimal("timbre_score"),
+				null,
 				resultSet.getString("reason_text"),
-				resultSet.getString("algorithm_version")
+				resultSet.getString("algorithm_version"),
+				resultSet.getString("axis"),
+				resultSet.getString("label")
 			)
 		).stream().findFirst();
 	}
 
-	public List<BurdenSection> findBurdenSections(Long songId, Long songAnalysisId) {
+	private BigDecimal readDecimal(String json, String field) {
+		if (json == null || json.isBlank()) {
+			return null;
+		}
+		try {
+			JsonNode root = objectMapper.readTree(json);
+			if (root != null && root.isTextual()) {
+				root = objectMapper.readTree(root.asText());
+			}
+			JsonNode value = root == null ? null : root.get(field);
+			return value != null && value.isNumber() ? value.decimalValue() : null;
+		} catch (JacksonException exception) {
+			return null;
+		}
+	}
+
+	public List<BurdenSection> findBurdenSections(String songId, Long songAnalysisId) {
 		String sql = """
 			SELECT section_id, section_type, section_name, start_ms, end_ms,
 			       difficulty_type, difficulty_score, description
@@ -127,7 +155,12 @@ public class SongFitQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	public record UserRangeRow(String status, BigDecimal stableLowMidi, BigDecimal stableHighMidi) {
+	public record UserRangeRow(
+		String sessionStatus,
+		String measurementStatus,
+		BigDecimal stableLowMidi,
+		BigDecimal stableHighMidi
+	) {
 	}
 
 	public record SongRangeRow(Long analysisId, BigDecimal lowestMidi, BigDecimal highestMidi) {
@@ -140,7 +173,14 @@ public class SongFitQueryRepository {
 		BigDecimal timbreFitScore,
 		BigDecimal rhythmFitScore,
 		String reasonText,
-		String algorithmVersion
+		String algorithmVersion,
+		String timbreAxis,
+		String timbreLabel
 	) {
+		public RecommendationRow(Integer recommendedKey, BigDecimal overallScore, BigDecimal rangeFitScore,
+			BigDecimal timbreFitScore, BigDecimal rhythmFitScore, String reasonText, String algorithmVersion) {
+			this(recommendedKey, overallScore, rangeFitScore, timbreFitScore, rhythmFitScore,
+				reasonText, algorithmVersion, null, null);
+		}
 	}
 }

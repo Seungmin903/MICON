@@ -23,10 +23,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '13460440cc2fa0cb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '너의 번호를 누르고', '너의 번호를 누르고', 251159, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '13460440cc2fa0cb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '13460440cc2fa0cb', '너의 번호를 누르고', '너의 번호를 누르고', 251159, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '13460440cc2fa0cb');
 UPDATE `song`
 SET `title` = '너의 번호를 누르고', `title_normalized` = '너의 번호를 누르고',
     `duration_ms` = 251159, `status` = 'ACTIVE'
@@ -97,10 +101,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '91bd048b7b3f7c3d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '나는 아픈 건 딱 질색이니까', '나는 아픈 건 딱 질색이니까', 161530, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '91bd048b7b3f7c3d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '91bd048b7b3f7c3d', '나는 아픈 건 딱 질색이니까', '나는 아픈 건 딱 질색이니까', 161530, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '91bd048b7b3f7c3d');
 UPDATE `song`
 SET `title` = '나는 아픈 건 딱 질색이니까', `title_normalized` = '나는 아픈 건 딱 질색이니까',
     `duration_ms` = 161530, `status` = 'ACTIVE'
@@ -171,10 +179,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ff040531b97ac7a2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그라데이션', '그라데이션', 201538, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ff040531b97ac7a2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ff040531b97ac7a2', '그라데이션', '그라데이션', 201538, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ff040531b97ac7a2');
 UPDATE `song`
 SET `title` = '그라데이션', `title_normalized` = '그라데이션',
     `duration_ms` = 201538, `status` = 'ACTIVE'
@@ -249,10 +261,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0a5e4a01872b677c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '너에게 닿기를', '너에게 닿기를', 158674, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0a5e4a01872b677c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0a5e4a01872b677c', '너에게 닿기를', '너에게 닿기를', 158674, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0a5e4a01872b677c');
 UPDATE `song`
 SET `title` = '너에게 닿기를', `title_normalized` = '너에게 닿기를',
     `duration_ms` = 158674, `status` = 'ACTIVE'
@@ -363,10 +379,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '32f71c9fb4531815') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '봄이 좋냐', '봄이 좋냐', 205775, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '32f71c9fb4531815' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '32f71c9fb4531815', '봄이 좋냐', '봄이 좋냐', 205775, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '32f71c9fb4531815');
 UPDATE `song`
 SET `title` = '봄이 좋냐', `title_normalized` = '봄이 좋냐',
     `duration_ms` = 205775, `status` = 'ACTIVE'
@@ -437,10 +457,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '87044bda24661f95') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '봄이좋냐', '봄이좋냐', 205775, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '87044bda24661f95' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '87044bda24661f95', '봄이좋냐', '봄이좋냐', 205775, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '87044bda24661f95');
 UPDATE `song`
 SET `title` = '봄이좋냐', `title_normalized` = '봄이좋냐',
     `duration_ms` = 205775, `status` = 'ACTIVE'
@@ -511,10 +535,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '559659912ca26834') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '부동의 첫사랑', '부동의 첫사랑', 266136, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '559659912ca26834' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '559659912ca26834', '부동의 첫사랑', '부동의 첫사랑', 266136, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '559659912ca26834');
 UPDATE `song`
 SET `title` = '부동의 첫사랑', `title_normalized` = '부동의 첫사랑',
     `duration_ms` = 266136, `status` = 'ACTIVE'
@@ -652,10 +680,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7e4a08a65b34ff46') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑은 은하수 다방에서', '사랑은 은하수 다방에서', 172815, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7e4a08a65b34ff46' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7e4a08a65b34ff46', '사랑은 은하수 다방에서', '사랑은 은하수 다방에서', 172815, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7e4a08a65b34ff46');
 UPDATE `song`
 SET `title` = '사랑은 은하수 다방에서', `title_normalized` = '사랑은 은하수 다방에서',
     `duration_ms` = 172815, `status` = 'ACTIVE'
@@ -756,10 +788,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c740bdeb4e27e9d1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '스토커', '스토커', 252830, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c740bdeb4e27e9d1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c740bdeb4e27e9d1', '스토커', '스토커', 252830, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c740bdeb4e27e9d1');
 UPDATE `song`
 SET `title` = '스토커', `title_normalized` = '스토커',
     `duration_ms` = 252830, `status` = 'ACTIVE'
@@ -832,10 +868,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6c72dbc21d3428f5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '애상', '애상', 228368, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6c72dbc21d3428f5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6c72dbc21d3428f5', '애상', '애상', 228368, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6c72dbc21d3428f5');
 UPDATE `song`
 SET `title` = '애상', `title_normalized` = '애상',
     `duration_ms` = 228368, `status` = 'ACTIVE'
@@ -910,10 +950,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fe7bf9d673252e8d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '일말의 가능성', '일말의 가능성', 242045, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fe7bf9d673252e8d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fe7bf9d673252e8d', '일말의 가능성', '일말의 가능성', 242045, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fe7bf9d673252e8d');
 UPDATE `song`
 SET `title` = '일말의 가능성', `title_normalized` = '일말의 가능성',
     `duration_ms` = 242045, `status` = 'ACTIVE'
@@ -1034,10 +1078,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8c8617b00812b48d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '폰서트', '폰서트', 197950, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8c8617b00812b48d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8c8617b00812b48d', '폰서트', '폰서트', 197950, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8c8617b00812b48d');
 UPDATE `song`
 SET `title` = '폰서트', `title_normalized` = '폰서트',
     `duration_ms` = 197950, `status` = 'ACTIVE'
@@ -1162,10 +1210,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '88db384caaab6502') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '天ノ弱', '天ノ弱', 273370, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '88db384caaab6502' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '88db384caaab6502', '天ノ弱', '天ノ弱', 273370, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '88db384caaab6502');
 UPDATE `song`
 SET `title` = '天ノ弱', `title_normalized` = '天ノ弱',
     `duration_ms` = 273370, `status` = 'ACTIVE'
@@ -1238,10 +1290,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '12bc6ac00ec952af') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '듣는편지', '듣는편지', 204754, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '12bc6ac00ec952af' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '12bc6ac00ec952af', '듣는편지', '듣는편지', 204754, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '12bc6ac00ec952af');
 UPDATE `song`
 SET `title` = '듣는편지', `title_normalized` = '듣는편지',
     `duration_ms` = 204754, `status` = 'ACTIVE'
@@ -1342,10 +1398,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '47bd34c698835b85') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '恋愛裁判', '恋愛裁判', 221739, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '47bd34c698835b85' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '47bd34c698835b85', '恋愛裁判', '恋愛裁判', 221739, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '47bd34c698835b85');
 UPDATE `song`
 SET `title` = '恋愛裁判', `title_normalized` = '恋愛裁判',
     `duration_ms` = 221739, `status` = 'ACTIVE'
@@ -1420,10 +1480,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fc8a60800145da96') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '못해', '못해', 230087, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fc8a60800145da96' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fc8a60800145da96', '못해', '못해', 230087, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fc8a60800145da96');
 UPDATE `song`
 SET `title` = '못해', `title_normalized` = '못해',
     `duration_ms` = 230087, `status` = 'ACTIVE'
@@ -1498,10 +1562,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c59951a2a005d5c2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '살다가 한번쯤', '살다가 한번쯤', 234005, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c59951a2a005d5c2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c59951a2a005d5c2', '살다가 한번쯤', '살다가 한번쯤', 234005, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c59951a2a005d5c2');
 UPDATE `song`
 SET `title` = '살다가 한번쯤', `title_normalized` = '살다가 한번쯤',
     `duration_ms` = 234005, `status` = 'ACTIVE'
@@ -1605,10 +1673,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c99fe0d8785f08c4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Teeth', 'teeth', 205531, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c99fe0d8785f08c4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c99fe0d8785f08c4', 'Teeth', 'teeth', 205531, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c99fe0d8785f08c4');
 UPDATE `song`
 SET `title` = 'Teeth', `title_normalized` = 'teeth',
     `duration_ms` = 205531, `status` = 'ACTIVE'
@@ -1747,10 +1819,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'dbe33ec5648de40e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Dancing Queen', 'dancing queen', 233941, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'dbe33ec5648de40e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'dbe33ec5648de40e', 'Dancing Queen', 'dancing queen', 233941, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'dbe33ec5648de40e');
 UPDATE `song`
 SET `title` = 'Dancing Queen', `title_normalized` = 'dancing queen',
     `duration_ms` = 233941, `status` = 'ACTIVE'
@@ -1870,10 +1946,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '336ea618e8462416') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Lost Stars(Begin Again OST)', 'lost stars(begin again ost)', 267920, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '336ea618e8462416' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '336ea618e8462416', 'Lost Stars(Begin Again OST)', 'lost stars(begin again ost)', 267920, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '336ea618e8462416');
 UPDATE `song`
 SET `title` = 'Lost Stars(Begin Again OST)', `title_normalized` = 'lost stars(begin again ost)',
     `duration_ms` = 267920, `status` = 'ACTIVE'
@@ -1944,10 +2024,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'efd5e88c087be7c3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Hello', 'hello', 295532, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'efd5e88c087be7c3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'efd5e88c087be7c3', 'Hello', 'hello', 295532, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'efd5e88c087be7c3');
 UPDATE `song`
 SET `title` = 'Hello', `title_normalized` = 'hello',
     `duration_ms` = 295532, `status` = 'ACTIVE'
@@ -2083,10 +2167,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '035f943532f9832b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Rolling In the Deep', 'rolling in the deep', 227730, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '035f943532f9832b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '035f943532f9832b', 'Rolling In the Deep', 'rolling in the deep', 227730, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '035f943532f9832b');
 UPDATE `song`
 SET `title` = 'Rolling In the Deep', `title_normalized` = 'rolling in the deep',
     `duration_ms` = 227730, `status` = 'ACTIVE'
@@ -2244,10 +2332,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6c51a0d5177951f5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Someone Like You', 'someone like you', 290099, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6c51a0d5177951f5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6c51a0d5177951f5', 'Someone Like You', 'someone like you', 290099, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6c51a0d5177951f5');
 UPDATE `song`
 SET `title` = 'Someone Like You', `title_normalized` = 'someone like you',
     `duration_ms` = 290099, `status` = 'ACTIVE'
@@ -2365,10 +2457,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '43a30c35a81b2c65') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'When We Were Young', 'when we were young', 290900, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '43a30c35a81b2c65' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '43a30c35a81b2c65', 'When We Were Young', 'when we were young', 290900, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '43a30c35a81b2c65');
 UPDATE `song`
 SET `title` = 'When We Were Young', `title_normalized` = 'when we were young',
     `duration_ms` = 290900, `status` = 'ACTIVE'
@@ -2526,10 +2622,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '98f2475953d26114') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'うっせぇわ', 'うっせぇわ', 202791, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '98f2475953d26114' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '98f2475953d26114', 'うっせぇわ', 'うっせぇわ', 202791, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '98f2475953d26114');
 UPDATE `song`
 SET `title` = 'うっせぇわ', `title_normalized` = 'うっせぇわ',
     `duration_ms` = 202791, `status` = 'ACTIVE'
@@ -2602,10 +2702,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1570151145af2b83') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '私は最強 (ウタ from ONE PIECE FILM RED)', '私は最強 (ウタ from one piece film red)', 269967, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1570151145af2b83' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1570151145af2b83', '私は最強 (ウタ from ONE PIECE FILM RED)', '私は最強 (ウタ from one piece film red)', 269967, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1570151145af2b83');
 UPDATE `song`
 SET `title` = '私は最強 (ウタ from ONE PIECE FILM RED)', `title_normalized` = '私は最強 (ウタ from one piece film red)',
     `duration_ms` = 269967, `status` = 'ACTIVE'
@@ -2837,10 +2941,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'be49264ca448aeee') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '逆光(映画 ''ONE PIECE FILM RED'' OST)', '逆光(映画 ''one piece film red'' ost)', 249916, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'be49264ca448aeee' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'be49264ca448aeee', '逆光(映画 ''ONE PIECE FILM RED'' OST)', '逆光(映画 ''one piece film red'' ost)', 249916, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'be49264ca448aeee');
 UPDATE `song`
 SET `title` = '逆光(映画 ''ONE PIECE FILM RED'' OST)', `title_normalized` = '逆光(映画 ''one piece film red'' ost)',
     `duration_ms` = 249916, `status` = 'ACTIVE'
@@ -2915,10 +3023,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e761bb07005231a0') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '200%', '200%', 195008, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e761bb07005231a0' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e761bb07005231a0', '200%', '200%', 195008, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e761bb07005231a0');
 UPDATE `song`
 SET `title` = '200%', `title_normalized` = '200%',
     `duration_ms` = 195008, `status` = 'ACTIVE'
@@ -2989,10 +3101,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7ca703068f5c485f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Give Love', 'give love', 180032, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7ca703068f5c485f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7ca703068f5c485f', 'Give Love', 'give love', 180032, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7ca703068f5c485f');
 UPDATE `song`
 SET `title` = 'Give Love', `title_normalized` = 'give love',
     `duration_ms` = 180032, `status` = 'ACTIVE'
@@ -3063,10 +3179,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '999b6f8bb69ab39a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '소문의 낙원', '소문의 낙원', 218453, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '999b6f8bb69ab39a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '999b6f8bb69ab39a', '소문의 낙원', '소문의 낙원', 218453, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '999b6f8bb69ab39a');
 UPDATE `song`
 SET `title` = '소문의 낙원', `title_normalized` = '소문의 낙원',
     `duration_ms` = 218453, `status` = 'ACTIVE'
@@ -3147,10 +3267,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '95a7578ee9c6af3d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '후라이의 꿈', '후라이의 꿈', 206739, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '95a7578ee9c6af3d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '95a7578ee9c6af3d', '후라이의 꿈', '후라이의 꿈', 206739, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '95a7578ee9c6af3d');
 UPDATE `song`
 SET `title` = '후라이의 꿈', `title_normalized` = '후라이의 꿈',
     `duration_ms` = 206739, `status` = 'ACTIVE'
@@ -3223,10 +3347,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '75499cbe08f87ff5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'How Far I''ll Go(Moana OST)', 'how far i''ll go(moana ost)', 175009, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '75499cbe08f87ff5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '75499cbe08f87ff5', 'How Far I''ll Go(Moana OST)', 'how far i''ll go(moana ost)', 175009, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '75499cbe08f87ff5');
 UPDATE `song`
 SET `title` = 'How Far I''ll Go(Moana OST)', `title_normalized` = 'how far i''ll go(moana ost)',
     `duration_ms` = 175009, `status` = 'ACTIVE'
@@ -3297,10 +3425,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1036063d8666fe5d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'If I Ain''t Got You', 'if i ain''t got you', 228055, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1036063d8666fe5d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1036063d8666fe5d', 'If I Ain''t Got You', 'if i ain''t got you', 228055, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1036063d8666fe5d');
 UPDATE `song`
 SET `title` = 'If I Ain''t Got You', `title_normalized` = 'if i ain''t got you',
     `duration_ms` = 228055, `status` = 'ACTIVE'
@@ -3434,10 +3566,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f3dc7222532a20bb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '僕が死のうと思ったのは', '僕が死のうと思ったのは', 374015, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f3dc7222532a20bb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f3dc7222532a20bb', '僕が死のうと思ったのは', '僕が死のうと思ったのは', 374015, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f3dc7222532a20bb');
 UPDATE `song`
 SET `title` = '僕が死のうと思ったのは', `title_normalized` = '僕が死のうと思ったのは',
     `duration_ms` = 374015, `status` = 'ACTIVE'
@@ -3658,10 +3794,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2cea0d81bc90267b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '2002', '2002', 186990, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2cea0d81bc90267b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2cea0d81bc90267b', '2002', '2002', 186990, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2cea0d81bc90267b');
 UPDATE `song`
 SET `title` = '2002', `title_normalized` = '2002',
     `duration_ms` = 186990, `status` = 'ACTIVE'
@@ -3810,10 +3950,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ccc88b79058a9bb4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '짧은 치마 (Miniskirt)', '짧은 치마 (miniskirt)', 180524, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ccc88b79058a9bb4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ccc88b79058a9bb4', '짧은 치마 (Miniskirt)', '짧은 치마 (miniskirt)', 180524, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ccc88b79058a9bb4');
 UPDATE `song`
 SET `title` = '짧은 치마 (Miniskirt)', `title_normalized` = '짧은 치마 (miniskirt)',
     `duration_ms` = 180524, `status` = 'ACTIVE'
@@ -3886,10 +4030,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '23d7eaa6f484969b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'hate that i made you love me', 'hate that i made you love me', 197973, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '23d7eaa6f484969b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '23d7eaa6f484969b', 'hate that i made you love me', 'hate that i made you love me', 197973, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '23d7eaa6f484969b');
 UPDATE `song`
 SET `title` = 'hate that i made you love me', `title_normalized` = 'hate that i made you love me',
     `duration_ms` = 197973, `status` = 'ACTIVE'
@@ -4011,10 +4159,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '3ae554db72246f3e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ヒロイン', 'ヒロイン', 273531, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '3ae554db72246f3e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '3ae554db72246f3e', 'ヒロイン', 'ヒロイン', 273531, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '3ae554db72246f3e');
 UPDATE `song`
 SET `title` = 'ヒロイン', `title_normalized` = 'ヒロイン',
     `duration_ms` = 273531, `status` = 'ACTIVE'
@@ -4202,10 +4354,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'db9f15f9c4da6e0d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '水平線', '水平線', 312107, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'db9f15f9c4da6e0d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'db9f15f9c4da6e0d', '水平線', '水平線', 312107, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'db9f15f9c4da6e0d');
 UPDATE `song`
 SET `title` = '水平線', `title_normalized` = '水平線',
     `duration_ms` = 312107, `status` = 'ACTIVE'
@@ -4364,10 +4520,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '786543c89560dcd4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '花束', '花束', 288206, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '786543c89560dcd4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '786543c89560dcd4', '花束', '花束', 288206, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '786543c89560dcd4');
 UPDATE `song`
 SET `title` = '花束', `title_normalized` = '花束',
     `duration_ms` = 288206, `status` = 'ACTIVE'
@@ -4554,10 +4714,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4ca21d029a953354') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '高嶺の花子さん', '高嶺の花子さん', 296635, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4ca21d029a953354' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4ca21d029a953354', '高嶺の花子さん', '高嶺の花子さん', 296635, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4ca21d029a953354');
 UPDATE `song`
 SET `title` = '高嶺の花子さん', `title_normalized` = '高嶺の花子さん',
     `duration_ms` = 296635, `status` = 'ACTIVE'
@@ -4755,10 +4919,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1628613c5a7223dc') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '리무진', '리무진', 172053, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1628613c5a7223dc' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1628613c5a7223dc', '리무진', '리무진', 172053, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1628613c5a7223dc');
 UPDATE `song`
 SET `title` = '리무진', `title_normalized` = '리무진',
     `duration_ms` = 172053, `status` = 'ACTIVE'
@@ -4831,10 +4999,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '64436fb873811b80') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Beautiful Things', 'beautiful things', 180315, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '64436fb873811b80' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '64436fb873811b80', 'Beautiful Things', 'beautiful things', 180315, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '64436fb873811b80');
 UPDATE `song`
 SET `title` = 'Beautiful Things', `title_normalized` = 'beautiful things',
     `duration_ms` = 180315, `status` = 'ACTIVE'
@@ -4961,10 +5133,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e8c11c436ccbe27f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'GHOST TOWN', 'ghost town', 194688, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e8c11c436ccbe27f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e8c11c436ccbe27f', 'GHOST TOWN', 'ghost town', 194688, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e8c11c436ccbe27f');
 UPDATE `song`
 SET `title` = 'GHOST TOWN', `title_normalized` = 'ghost town',
     `duration_ms` = 194688, `status` = 'ACTIVE'
@@ -5099,10 +5275,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ae83359015f1e441') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Halo', 'halo', 261747, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ae83359015f1e441' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ae83359015f1e441', 'Halo', 'halo', 261747, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ae83359015f1e441');
 UPDATE `song`
 SET `title` = 'Halo', `title_normalized` = 'halo',
     `duration_ms` = 261747, `status` = 'ACTIVE'
@@ -5175,10 +5355,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '42d8961a6e5882b7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love On Top', 'love on top', 267413, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '42d8961a6e5882b7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '42d8961a6e5882b7', 'Love On Top', 'love on top', 267413, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '42d8961a6e5882b7');
 UPDATE `song`
 SET `title` = 'Love On Top', `title_normalized` = 'love on top',
     `duration_ms` = 267413, `status` = 'ACTIVE'
@@ -5360,10 +5544,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd7f6ecf54b384937') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Just The Two Of Us', 'just the two of us', 232815, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd7f6ecf54b384937' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd7f6ecf54b384937', 'Just The Two Of Us', 'just the two of us', 232815, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd7f6ecf54b384937');
 UPDATE `song`
 SET `title` = 'Just The Two Of Us', `title_normalized` = 'just the two of us',
     `duration_ms` = 232815, `status` = 'ACTIVE'
@@ -5436,10 +5624,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c4561e735c4e7301') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Piano Man', 'piano man', 339963, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c4561e735c4e7301' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c4561e735c4e7301', 'Piano Man', 'piano man', 339963, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c4561e735c4e7301');
 UPDATE `song`
 SET `title` = 'Piano Man', `title_normalized` = 'piano man',
     `duration_ms` = 339963, `status` = 'ACTIVE'
@@ -5587,10 +5779,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f8c21e9bcf5ffb30') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '꽃피는 봄이오면', '꽃피는 봄이오면', 284107, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f8c21e9bcf5ffb30' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f8c21e9bcf5ffb30', '꽃피는 봄이오면', '꽃피는 봄이오면', 284107, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f8c21e9bcf5ffb30');
 UPDATE `song`
 SET `title` = '꽃피는 봄이오면', `title_normalized` = '꽃피는 봄이오면',
     `duration_ms` = 284107, `status` = 'ACTIVE'
@@ -5705,10 +5901,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'aeeabc22046a9691') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑..그 놈', '사랑..그 놈', 272033, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'aeeabc22046a9691' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'aeeabc22046a9691', '사랑..그 놈', '사랑..그 놈', 272033, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'aeeabc22046a9691');
 UPDATE `song`
 SET `title` = '사랑..그 놈', `title_normalized` = '사랑..그 놈',
     `duration_ms` = 272033, `status` = 'ACTIVE'
@@ -5818,10 +6018,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6a06da3507868325') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '오늘만 I LOVE YOU', '오늘만 i love you', 256360, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6a06da3507868325' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6a06da3507868325', '오늘만 I LOVE YOU', '오늘만 i love you', 256360, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6a06da3507868325');
 UPDATE `song`
 SET `title` = '오늘만 I LOVE YOU', `title_normalized` = '오늘만 i love you',
     `duration_ms` = 256360, `status` = 'ACTIVE'
@@ -5960,10 +6164,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '771bd1d809f9d9e6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Marry You', 'marry you', 230005, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '771bd1d809f9d9e6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '771bd1d809f9d9e6', 'Marry You', 'marry you', 230005, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '771bd1d809f9d9e6');
 UPDATE `song`
 SET `title` = 'Marry You', `title_normalized` = 'marry you',
     `duration_ms` = 230005, `status` = 'ACTIVE'
@@ -6085,10 +6293,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2419b3d33ba7a8ed') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Too Good to Say Goodbye', 'too good to say goodbye', 285002, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2419b3d33ba7a8ed' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2419b3d33ba7a8ed', 'Too Good to Say Goodbye', 'too good to say goodbye', 285002, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2419b3d33ba7a8ed');
 UPDATE `song`
 SET `title` = 'Too Good to Say Goodbye', `title_normalized` = 'too good to say goodbye',
     `duration_ms` = 285002, `status` = 'ACTIVE'
@@ -6237,10 +6449,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '95d65d95f79daa5b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'When I Was Your Man', 'when i was your man', 214053, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '95d65d95f79daa5b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '95d65d95f79daa5b', 'When I Was Your Man', 'when i was your man', 214053, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '95d65d95f79daa5b');
 UPDATE `song`
 SET `title` = 'When I Was Your Man', `title_normalized` = 'when i was your man',
     `duration_ms` = 214053, `status` = 'ACTIVE'
@@ -6360,10 +6576,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ce3130fde0fa62f4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Ray', 'ray', 300234, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ce3130fde0fa62f4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ce3130fde0fa62f4', 'Ray', 'ray', 300234, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ce3130fde0fa62f4');
 UPDATE `song`
 SET `title` = 'Ray', `title_normalized` = 'ray',
     `duration_ms` = 300234, `status` = 'ACTIVE'
@@ -6438,10 +6658,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ac5cc94d8aa8378f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Call Me Maybe', 'call me maybe', 194641, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ac5cc94d8aa8378f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ac5cc94d8aa8378f', 'Call Me Maybe', 'call me maybe', 194641, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ac5cc94d8aa8378f');
 UPDATE `song`
 SET `title` = 'Call Me Maybe', `title_normalized` = 'call me maybe',
     `duration_ms` = 194641, `status` = 'ACTIVE'
@@ -6574,10 +6798,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '360f3baeef27d22c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'My Heart Will Go On', 'my heart will go on', 280532, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '360f3baeef27d22c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '360f3baeef27d22c', 'My Heart Will Go On', 'my heart will go on', 280532, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '360f3baeef27d22c');
 UPDATE `song`
 SET `title` = 'My Heart Will Go On', `title_normalized` = 'my heart will go on',
     `duration_ms` = 280532, `status` = 'ACTIVE'
@@ -6650,10 +6878,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd4d0ad946bc204e2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Dangerously', 'dangerously', 199573, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd4d0ad946bc204e2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd4d0ad946bc204e2', 'Dangerously', 'dangerously', 199573, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd4d0ad946bc204e2');
 UPDATE `song`
 SET `title` = 'Dangerously', `title_normalized` = 'dangerously',
     `duration_ms` = 199573, `status` = 'ACTIVE'
@@ -6780,10 +7012,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '98e044117dd6218c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'One Call Away', 'one call away', 192296, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '98e044117dd6218c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '98e044117dd6218c', 'One Call Away', 'one call away', 192296, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '98e044117dd6218c');
 UPDATE `song`
 SET `title` = 'One Call Away', `title_normalized` = 'one call away',
     `duration_ms` = 192296, `status` = 'ACTIVE'
@@ -6903,10 +7139,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2405c503e29924d2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'A Thousand Years(Twilight Saga _ Breaking Dawn Part 1 OST)', 'a thousand years(twilight saga _ breaking dawn part 1 ost)', 285524, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2405c503e29924d2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2405c503e29924d2', 'A Thousand Years(Twilight Saga _ Breaking Dawn Part 1 OST)', 'a thousand years(twilight saga _ breaking dawn part 1 ost)', 285524, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2405c503e29924d2');
 UPDATE `song`
 SET `title` = 'A Thousand Years(Twilight Saga _ Breaking Dawn Part 1 OST)', `title_normalized` = 'a thousand years(twilight saga _ breaking dawn part 1 ost)',
     `duration_ms` = 285524, `status` = 'ACTIVE'
@@ -6979,10 +7219,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e79455475c2333af') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Bad', 'bad', 190369, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e79455475c2333af' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e79455475c2333af', 'Bad', 'bad', 190369, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e79455475c2333af');
 UPDATE `song`
 SET `title` = 'Bad', `title_normalized` = 'bad',
     `duration_ms` = 190369, `status` = 'ACTIVE'
@@ -7121,10 +7365,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '076e6232e79727bd') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ACAI', 'acai', 172002, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '076e6232e79727bd' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '076e6232e79727bd', 'ACAI', 'acai', 172002, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '076e6232e79727bd');
 UPDATE `song`
 SET `title` = 'ACAI', `title_normalized` = 'acai',
     `duration_ms` = 172002, `status` = 'ACTIVE'
@@ -7197,10 +7445,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '085354dfc961e70a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'REDRED', 'redred', 163074, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '085354dfc961e70a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '085354dfc961e70a', 'REDRED', 'redred', 163074, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '085354dfc961e70a');
 UPDATE `song`
 SET `title` = 'REDRED', `title_normalized` = 'redred',
     `duration_ms` = 163074, `status` = 'ACTIVE'
@@ -7271,10 +7523,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '95d8c34569eabbe1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'YOUNGCREATORCREW', 'youngcreatorcrew', 176988, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '95d8c34569eabbe1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '95d8c34569eabbe1', 'YOUNGCREATORCREW', 'youngcreatorcrew', 176988, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '95d8c34569eabbe1');
 UPDATE `song`
 SET `title` = 'YOUNGCREATORCREW', `title_normalized` = 'youngcreatorcrew',
     `duration_ms` = 176988, `status` = 'ACTIVE'
@@ -7347,10 +7603,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4e16db64239be663') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Bling-Bang-Bang-Born(アニメ ''マッシュル-MASHLE- 神覚者候補選抜試験編'' OP)', 'bling-bang-bang-born(アニメ ''マッシュル-mashle- 神覚者候補選抜試験編'' op)', 168147, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4e16db64239be663' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4e16db64239be663', 'Bling-Bang-Bang-Born(アニメ ''マッシュル-MASHLE- 神覚者候補選抜試験編'' OP)', 'bling-bang-bang-born(アニメ ''マッシュル-mashle- 神覚者候補選抜試験編'' op)', 168147, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4e16db64239be663');
 UPDATE `song`
 SET `title` = 'Bling-Bang-Bang-Born(アニメ ''マッシュル-MASHLE- 神覚者候補選抜試験編'' OP)', `title_normalized` = 'bling-bang-bang-born(アニメ ''マッシュル-mashle- 神覚者候補選抜試験編'' op)',
     `duration_ms` = 168147, `status` = 'ACTIVE'
@@ -7421,10 +7681,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fdabe7d3fa7dc829') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'かわいいだけじゃだめですか?', 'かわいいだけじゃだめですか?', 251310, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fdabe7d3fa7dc829' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fdabe7d3fa7dc829', 'かわいいだけじゃだめですか?', 'かわいいだけじゃだめですか?', 251310, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fdabe7d3fa7dc829');
 UPDATE `song`
 SET `title` = 'かわいいだけじゃだめですか?', `title_normalized` = 'かわいいだけじゃだめですか?',
     `duration_ms` = 251310, `status` = 'ACTIVE'
@@ -7734,10 +7998,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '53e6355004139684') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '귀엽기만 하면 안 되나요?', '귀엽기만 하면 안 되나요?', 250358, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '53e6355004139684' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '53e6355004139684', '귀엽기만 하면 안 되나요?', '귀엽기만 하면 안 되나요?', 250358, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '53e6355004139684');
 UPDATE `song`
 SET `title` = '귀엽기만 하면 안 되나요?', `title_normalized` = '귀엽기만 하면 안 되나요?',
     `duration_ms` = 250358, `status` = 'ACTIVE'
@@ -7915,10 +8183,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '559320e934a6cd5b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Here With Me', 'here with me', 242509, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '559320e934a6cd5b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '559320e934a6cd5b', 'Here With Me', 'here with me', 242509, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '559320e934a6cd5b');
 UPDATE `song`
 SET `title` = 'Here With Me', `title_normalized` = 'here with me',
     `duration_ms` = 242509, `status` = 'ACTIVE'
@@ -8026,10 +8298,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f3d256b865e7eeb4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '10,000 Hours', '10,000 hours', 214100, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f3d256b865e7eeb4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f3d256b865e7eeb4', '10,000 Hours', '10,000 hours', 214100, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f3d256b865e7eeb4');
 UPDATE `song`
 SET `title` = '10,000 Hours', `title_normalized` = '10,000 hours',
     `duration_ms` = 214100, `status` = 'ACTIVE'
@@ -8148,10 +8424,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6be63db2b71bfab5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Titanium', 'titanium', 244657, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6be63db2b71bfab5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6be63db2b71bfab5', 'Titanium', 'titanium', 244657, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6be63db2b71bfab5');
 UPDATE `song`
 SET `title` = 'Titanium', `title_normalized` = 'titanium',
     `duration_ms` = 244657, `status` = 'ACTIVE'
@@ -8226,10 +8506,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9cd3b329a3877519') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ヴァンパイア', 'ヴァンパイア', 178235, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9cd3b329a3877519' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9cd3b329a3877519', 'ヴァンパイア', 'ヴァンパイア', 178235, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9cd3b329a3877519');
 UPDATE `song`
 SET `title` = 'ヴァンパイア', `title_normalized` = 'ヴァンパイア',
     `duration_ms` = 178235, `status` = 'ACTIVE'
@@ -8304,10 +8588,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2e2b92a25e0b7316') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '심(心)', '심(心)', 257027, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2e2b92a25e0b7316' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2e2b92a25e0b7316', '심(心)', '심(心)', 257027, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2e2b92a25e0b7316');
 UPDATE `song`
 SET `title` = '심(心)', `title_normalized` = '심(心)',
     `duration_ms` = 257027, `status` = 'ACTIVE'
@@ -8416,10 +8704,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2af5532d0d701eba') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Perfect', 'perfect', 263360, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2af5532d0d701eba' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2af5532d0d701eba', 'Perfect', 'perfect', 263360, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2af5532d0d701eba');
 UPDATE `song`
 SET `title` = 'Perfect', `title_normalized` = 'perfect',
     `duration_ms` = 263360, `status` = 'ACTIVE'
@@ -8546,10 +8838,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9a28a5d97fe0ca6b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Shape of You', 'shape of you', 235009, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9a28a5d97fe0ca6b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9a28a5d97fe0ca6b', 'Shape of You', 'shape of you', 235009, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9a28a5d97fe0ca6b');
 UPDATE `song`
 SET `title` = 'Shape of You', `title_normalized` = 'shape of you',
     `duration_ms` = 235009, `status` = 'ACTIVE'
@@ -8716,10 +9012,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e866c6861d8f6995') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '나비소녀(Don''t Go)', '나비소녀(don''t go)', 214380, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e866c6861d8f6995' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e866c6861d8f6995', '나비소녀(Don''t Go)', '나비소녀(don''t go)', 214380, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e866c6861d8f6995');
 UPDATE `song`
 SET `title` = '나비소녀(Don''t Go)', `title_normalized` = '나비소녀(don''t go)',
     `duration_ms` = 214380, `status` = 'ACTIVE'
@@ -8790,10 +9090,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8d1cd3b88712e738') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '남자답게', '남자답게', 230973, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8d1cd3b88712e738' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8d1cd3b88712e738', '남자답게', '남자답게', 230973, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8d1cd3b88712e738');
 UPDATE `song`
 SET `title` = '남자답게', `title_normalized` = '남자답게',
     `duration_ms` = 230973, `status` = 'ACTIVE'
@@ -8897,10 +9201,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '29fe1f31fd87dee5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Lemon Tree', 'lemon tree', 191031, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '29fe1f31fd87dee5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '29fe1f31fd87dee5', 'Lemon Tree', 'lemon tree', 191031, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '29fe1f31fd87dee5');
 UPDATE `song`
 SET `title` = 'Lemon Tree', `title_normalized` = 'lemon tree',
     `duration_ms` = 191031, `status` = 'ACTIVE'
@@ -9030,10 +9338,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fc3b1e4b64b05925') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Fly Me To The Moon', 'fly me to the moon', 147191, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fc3b1e4b64b05925' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fc3b1e4b64b05925', 'Fly Me To The Moon', 'fly me to the moon', 147191, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fc3b1e4b64b05925');
 UPDATE `song`
 SET `title` = 'Fly Me To The Moon', `title_normalized` = 'fly me to the moon',
     `duration_ms` = 147191, `status` = 'ACTIVE'
@@ -9108,10 +9420,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cd03ea02e49caaa5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'My Way', 'my way', 276253, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cd03ea02e49caaa5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cd03ea02e49caaa5', 'My Way', 'my way', 276253, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cd03ea02e49caaa5');
 UPDATE `song`
 SET `title` = 'My Way', `title_normalized` = 'my way',
     `duration_ms` = 276253, `status` = 'ACTIVE'
@@ -9240,10 +9556,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e4cf52a5bdbe4e8a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Heartbreaker', 'heartbreaker', 200280, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e4cf52a5bdbe4e8a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e4cf52a5bdbe4e8a', 'Heartbreaker', 'heartbreaker', 200280, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e4cf52a5bdbe4e8a');
 UPDATE `song`
 SET `title` = 'Heartbreaker', `title_normalized` = 'heartbreaker',
     `duration_ms` = 200280, `status` = 'ACTIVE'
@@ -9382,10 +9702,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2bdbe818061aced8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '니가 뭔데 (Who You_)', '니가 뭔데 (who you_)', 201429, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2bdbe818061aced8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2bdbe818061aced8', '니가 뭔데 (Who You_)', '니가 뭔데 (who you_)', 201429, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2bdbe818061aced8');
 UPDATE `song`
 SET `title` = '니가 뭔데 (Who You_)', `title_normalized` = '니가 뭔데 (who you_)',
     `duration_ms` = 201429, `status` = 'ACTIVE'
@@ -9456,10 +9780,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b7b5b77d911353ba') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '무제(Untitled, 2014)', '무제(untitled, 2014)', 228961, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b7b5b77d911353ba' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b7b5b77d911353ba', '무제(Untitled, 2014)', '무제(untitled, 2014)', 228961, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b7b5b77d911353ba');
 UPDATE `song`
 SET `title` = '무제(Untitled, 2014)', `title_normalized` = '무제(untitled, 2014)',
     `duration_ms` = 228961, `status` = 'ACTIVE'
@@ -9565,10 +9893,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'dd120259ccbd3de4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '삐딱하게(Crooked)', '삐딱하게(crooked)', 224853, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'dd120259ccbd3de4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'dd120259ccbd3de4', '삐딱하게(Crooked)', '삐딱하게(crooked)', 224853, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'dd120259ccbd3de4');
 UPDATE `song`
 SET `title` = '삐딱하게(Crooked)', `title_normalized` = '삐딱하게(crooked)',
     `duration_ms` = 224853, `status` = 'ACTIVE'
@@ -9639,10 +9971,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0d37739c106fcbf8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Falling Slowly(Once OST)', 'falling slowly(once ost)', 292813, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0d37739c106fcbf8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0d37739c106fcbf8', 'Falling Slowly(Once OST)', 'falling slowly(once ost)', 292813, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0d37739c106fcbf8');
 UPDATE `song`
 SET `title` = 'Falling Slowly(Once OST)', `title_normalized` = 'falling slowly(once ost)',
     `duration_ms` = 292813, `status` = 'ACTIVE'
@@ -9715,10 +10051,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bdc549065a5910a6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '촛불하나', '촛불하나', 211253, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bdc549065a5910a6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bdc549065a5910a6', '촛불하나', '촛불하나', 211253, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bdc549065a5910a6');
 UPDATE `song`
 SET `title` = '촛불하나', `title_normalized` = '촛불하나',
     `duration_ms` = 211253, `status` = 'ACTIVE'
@@ -9872,10 +10212,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1c96c83ba513f44d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Last Night on Earth', 'last night on earth', 237006, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1c96c83ba513f44d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1c96c83ba513f44d', 'Last Night on Earth', 'last night on earth', 237006, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1c96c83ba513f44d');
 UPDATE `song`
 SET `title` = 'Last Night on Earth', `title_normalized` = 'last night on earth',
     `duration_ms` = 237006, `status` = 'ACTIVE'
@@ -9987,10 +10331,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a6d45dc82956b8fe') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '캔디', '캔디', 217195, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a6d45dc82956b8fe' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a6d45dc82956b8fe', '캔디', '캔디', 217195, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a6d45dc82956b8fe');
 UPDATE `song`
 SET `title` = '캔디', `title_normalized` = '캔디',
     `duration_ms` = 217195, `status` = 'ACTIVE'
@@ -10115,10 +10463,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b08d028692934883') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Sign of the Times', 'sign of the times', 341809, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b08d028692934883' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b08d028692934883', 'Sign of the Times', 'sign of the times', 341809, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b08d028692934883');
 UPDATE `song`
 SET `title` = 'Sign of the Times', `title_normalized` = 'sign of the times',
     `duration_ms` = 341809, `status` = 'ACTIVE'
@@ -10250,10 +10602,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '3e76842046b592b6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Lemon Tang', 'lemon tang', 163120, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '3e76842046b592b6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '3e76842046b592b6', 'Lemon Tang', 'lemon tang', 163120, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '3e76842046b592b6');
 UPDATE `song`
 SET `title` = 'Lemon Tang', `title_normalized` = 'lemon tang',
     `duration_ms` = 163120, `status` = 'ACTIVE'
@@ -10324,10 +10680,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '550927e4ce45e5c0') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'RUDE!', 'rude!', 200000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '550927e4ce45e5c0' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '550927e4ce45e5c0', 'RUDE!', 'rude!', 200000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '550927e4ce45e5c0');
 UPDATE `song`
 SET `title` = 'RUDE!', `title_normalized` = 'rude!',
     `duration_ms` = 200000, `status` = 'ACTIVE'
@@ -10398,10 +10758,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c73c7a630f200fe2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'STYLE', 'style', 209699, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c73c7a630f200fe2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c73c7a630f200fe2', 'STYLE', 'style', 209699, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c73c7a630f200fe2');
 UPDATE `song`
 SET `title` = 'STYLE', `title_normalized` = 'style',
     `duration_ms` = 209699, `status` = 'ACTIVE'
@@ -10472,10 +10836,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'acd303fa70762643') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' CM)', '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' cm)', 187188, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'acd303fa70762643' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'acd303fa70762643', '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' CM)', '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' cm)', 187188, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'acd303fa70762643');
 UPDATE `song`
 SET `title` = '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' CM)', `title_normalized` = '拝啓, 少年よ(''ベネッセ 進研ゼミ 高校講座'' cm)',
     `duration_ms` = 187188, `status` = 'ACTIVE'
@@ -10548,10 +10916,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '035e80044482ab25') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Golden(KPop Demon Hunters OST)', 'golden(kpop demon hunters ost)', 193933, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '035e80044482ab25' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '035e80044482ab25', 'Golden(KPop Demon Hunters OST)', 'golden(kpop demon hunters ost)', 193933, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '035e80044482ab25');
 UPDATE `song`
 SET `title` = 'Golden(KPop Demon Hunters OST)', `title_normalized` = 'golden(kpop demon hunters ost)',
     `duration_ms` = 193933, `status` = 'ACTIVE'
@@ -10622,10 +10994,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b07e4d04e2ddd775') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '시든 꽃에 물을 주듯', '시든 꽃에 물을 주듯', 203175, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b07e4d04e2ddd775' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b07e4d04e2ddd775', '시든 꽃에 물을 주듯', '시든 꽃에 물을 주듯', 203175, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b07e4d04e2ddd775');
 UPDATE `song`
 SET `title` = '시든 꽃에 물을 주듯', `title_normalized` = '시든 꽃에 물을 주듯',
     `duration_ms` = 203175, `status` = 'ACTIVE'
@@ -10698,10 +11074,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e5dfd8e0c081daab') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Into the Unknown(Frozen2(겨울왕국2) OST)', 'into the unknown(frozen2(겨울왕국2) ost)', 199877, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e5dfd8e0c081daab' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e5dfd8e0c081daab', 'Into the Unknown(Frozen2(겨울왕국2) OST)', 'into the unknown(frozen2(겨울왕국2) ost)', 199877, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e5dfd8e0c081daab');
 UPDATE `song`
 SET `title` = 'Into the Unknown(Frozen2(겨울왕국2) OST)', `title_normalized` = 'into the unknown(frozen2(겨울왕국2) ost)',
     `duration_ms` = 199877, `status` = 'ACTIVE'
@@ -10772,10 +11152,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1abbf83743249770') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Let It Go(Frozen(겨울왕국) OST)', 'let it go(frozen(겨울왕국) ost)', 231874, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1abbf83743249770' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1abbf83743249770', 'Let It Go(Frozen(겨울왕국) OST)', 'let it go(frozen(겨울왕국) ost)', 231874, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1abbf83743249770');
 UPDATE `song`
 SET `title` = 'Let It Go(Frozen(겨울왕국) OST)', `title_normalized` = 'let it go(frozen(겨울왕국) ost)',
     `duration_ms` = 231874, `status` = 'ACTIVE'
@@ -10848,10 +11232,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9b59c7169a0180fa') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑을 했다 (LOVE SCENARIO)', '사랑을 했다 (love scenario)', 215028, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9b59c7169a0180fa' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9b59c7169a0180fa', '사랑을 했다 (LOVE SCENARIO)', '사랑을 했다 (love scenario)', 215028, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9b59c7169a0180fa');
 UPDATE `song`
 SET `title` = '사랑을 했다 (LOVE SCENARIO)', `title_normalized` = '사랑을 했다 (love scenario)',
     `duration_ms` = 215028, `status` = 'ACTIVE'
@@ -10922,10 +11310,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e5b3f5517be40073') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Believer', 'believer', 202815, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e5b3f5517be40073' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e5b3f5517be40073', 'Believer', 'believer', 202815, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e5b3f5517be40073');
 UPDATE `song`
 SET `title` = 'Believer', `title_normalized` = 'believer',
     `duration_ms` = 202815, `status` = 'ACTIVE'
@@ -11046,10 +11438,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7830b829966fcee8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'NIGHT DANCER', 'night dancer', 211603, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7830b829966fcee8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7830b829966fcee8', 'NIGHT DANCER', 'night dancer', 211603, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7830b829966fcee8');
 UPDATE `song`
 SET `title` = 'NIGHT DANCER', `title_normalized` = 'night dancer',
     `duration_ms` = 211603, `status` = 'ACTIVE'
@@ -11256,10 +11652,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6009f135c22e9002') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '가을 아침', '가을 아침', 218885, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6009f135c22e9002' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6009f135c22e9002', '가을 아침', '가을 아침', 218885, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6009f135c22e9002');
 UPDATE `song`
 SET `title` = '가을 아침', `title_normalized` = '가을 아침',
     `duration_ms` = 218885, `status` = 'ACTIVE'
@@ -11332,10 +11732,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '25869b7e722ba742') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '비밀의 화원', '비밀의 화원', 224792, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '25869b7e722ba742' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '25869b7e722ba742', '비밀의 화원', '비밀의 화원', 224792, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '25869b7e722ba742');
 UPDATE `song`
 SET `title` = '비밀의 화원', `title_normalized` = '비밀의 화원',
     `duration_ms` = 224792, `status` = 'ACTIVE'
@@ -11459,10 +11863,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '985af1bb71d9737e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '좋은 날', '좋은 날', 235584, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '985af1bb71d9737e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '985af1bb71d9737e', '좋은 날', '좋은 날', 235584, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '985af1bb71d9737e');
 UPDATE `song`
 SET `title` = '좋은 날', `title_normalized` = '좋은 날',
     `duration_ms` = 235584, `status` = 'ACTIVE'
@@ -11590,10 +11998,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '30ca88a9afec55f4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'BANG BANG', 'bang bang', 178051, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '30ca88a9afec55f4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '30ca88a9afec55f4', 'BANG BANG', 'bang bang', 178051, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '30ca88a9afec55f4');
 UPDATE `song`
 SET `title` = 'BANG BANG', `title_normalized` = 'bang bang',
     `duration_ms` = 178051, `status` = 'ACTIVE'
@@ -11664,10 +12076,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '99e52f2b91325bdb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I AM', 'i am', 183856, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '99e52f2b91325bdb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '99e52f2b91325bdb', 'I AM', 'i am', 183856, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '99e52f2b91325bdb');
 UPDATE `song`
 SET `title` = 'I AM', `title_normalized` = 'i am',
     `duration_ms` = 183856, `status` = 'ACTIVE'
@@ -11738,10 +12154,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ad5107d7deffc601') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '응급실(쾌걸춘향OST)', '응급실(쾌걸춘향ost)', 226548, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ad5107d7deffc601' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ad5107d7deffc601', '응급실(쾌걸춘향OST)', '응급실(쾌걸춘향ost)', 226548, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ad5107d7deffc601');
 UPDATE `song`
 SET `title` = '응급실(쾌걸춘향OST)', `title_normalized` = '응급실(쾌걸춘향ost)',
     `duration_ms` = 226548, `status` = 'ACTIVE'
@@ -11812,10 +12232,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f9acc5053a2cee8f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I''m Yours', 'i''m yours', 245493, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f9acc5053a2cee8f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f9acc5053a2cee8f', 'I''m Yours', 'i''m yours', 245493, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f9acc5053a2cee8f');
 UPDATE `song`
 SET `title` = 'I''m Yours', `title_normalized` = 'i''m yours',
     `duration_ms` = 245493, `status` = 'ACTIVE'
@@ -11956,10 +12380,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd60b85d01822be5b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Part of your world(The little mermaid OST)', 'part of your world(the little mermaid ost)', 195493, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd60b85d01822be5b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd60b85d01822be5b', 'Part of your world(The little mermaid OST)', 'part of your world(the little mermaid ost)', 195493, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd60b85d01822be5b');
 UPDATE `song`
 SET `title` = 'Part of your world(The little mermaid OST)', `title_normalized` = 'part of your world(the little mermaid ost)',
     `duration_ms` = 195493, `status` = 'ACTIVE'
@@ -12030,10 +12458,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd3be6c28572db4ce') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Take Me Home Country Road', 'take me home country road', 195500, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd3be6c28572db4ce' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd3be6c28572db4ce', 'Take Me Home Country Road', 'take me home country road', 195500, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd3be6c28572db4ce');
 UPDATE `song`
 SET `title` = 'Take Me Home Country Road', `title_normalized` = 'take me home country road',
     `duration_ms` = 195500, `status` = 'ACTIVE'
@@ -12104,10 +12536,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8f48e06088e6989b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'All of Me', 'all of me', 269630, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8f48e06088e6989b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8f48e06088e6989b', 'All of Me', 'all of me', 269630, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8f48e06088e6989b');
 UPDATE `song`
 SET `title` = 'All of Me', `title_normalized` = 'all of me',
     `duration_ms` = 269630, `status` = 'ACTIVE'
@@ -12247,10 +12683,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c571c7b0d26d2799') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Beauty And A Beat', 'beauty and a beat', 228322, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c571c7b0d26d2799' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c571c7b0d26d2799', 'Beauty And A Beat', 'beauty and a beat', 228322, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c571c7b0d26d2799');
 UPDATE `song`
 SET `title` = 'Beauty And A Beat', `title_normalized` = 'beauty and a beat',
     `duration_ms` = 228322, `status` = 'ACTIVE'
@@ -12323,10 +12763,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '90f7fbd29d28fe9a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Baby', 'baby', 216627, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '90f7fbd29d28fe9a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '90f7fbd29d28fe9a', 'Baby', 'baby', 216627, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '90f7fbd29d28fe9a');
 UPDATE `song`
 SET `title` = 'Baby', `title_normalized` = 'baby',
     `duration_ms` = 216627, `status` = 'ACTIVE'
@@ -12397,10 +12841,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7c06097f43fa005b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love Yourself', 'love yourself', 233813, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7c06097f43fa005b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7c06097f43fa005b', 'Love Yourself', 'love yourself', 233813, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7c06097f43fa005b');
 UPDATE `song`
 SET `title` = 'Love Yourself', `title_normalized` = 'love yourself',
     `duration_ms` = 233813, `status` = 'ACTIVE'
@@ -12536,10 +12984,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5c45080913a5a553') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Off My Face', 'off my face', 156544, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5c45080913a5a553' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5c45080913a5a553', 'Off My Face', 'off my face', 156544, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5c45080913a5a553');
 UPDATE `song`
 SET `title` = 'Off My Face', `title_normalized` = 'off my face',
     `duration_ms` = 156544, `status` = 'ACTIVE'
@@ -12654,10 +13106,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'dd0242f638e16215') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'シルエット(NARUTO-ナルト- 16th OP)', 'シルエット(naruto-ナルト- 16th op)', 240280, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'dd0242f638e16215' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'dd0242f638e16215', 'シルエット(NARUTO-ナルト- 16th OP)', 'シルエット(naruto-ナルト- 16th op)', 240280, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'dd0242f638e16215');
 UPDATE `song`
 SET `title` = 'シルエット(NARUTO-ナルト- 16th OP)', `title_normalized` = 'シルエット(naruto-ナルト- 16th op)',
     `duration_ms` = 240280, `status` = 'ACTIVE'
@@ -12732,10 +13188,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e799cb7552ff7949') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'KING', 'king', 140005, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e799cb7552ff7949' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e799cb7552ff7949', 'KING', 'king', 140005, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e799cb7552ff7949');
 UPDATE `song`
 SET `title` = 'KING', `title_normalized` = 'king',
     `duration_ms` = 140005, `status` = 'ACTIVE'
@@ -12808,10 +13268,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cd1f788639f23d55') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '酔いどれ知らず', '酔いどれ知らず', 134966, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cd1f788639f23d55' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cd1f788639f23d55', '酔いどれ知らず', '酔いどれ知らず', 134966, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cd1f788639f23d55');
 UPDATE `song`
 SET `title` = '酔いどれ知らず', `title_normalized` = '酔いどれ知らず',
     `duration_ms` = 134966, `status` = 'ACTIVE'
@@ -12884,10 +13348,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1b73bcf9042fd76c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love', 'love', 255361, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1b73bcf9042fd76c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1b73bcf9042fd76c', 'Love', 'love', 255361, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1b73bcf9042fd76c');
 UPDATE `song`
 SET `title` = 'Love', `title_normalized` = 'love',
     `duration_ms` = 255361, `status` = 'ACTIVE'
@@ -13005,10 +13473,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '845c8feb395e9c9a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '404(New Era)', '404(new era)', 179583, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '845c8feb395e9c9a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '845c8feb395e9c9a', '404(New Era)', '404(new era)', 179583, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '845c8feb395e9c9a');
 UPDATE `song`
 SET `title` = '404(New Era)', `title_normalized` = '404(new era)',
     `duration_ms` = 179583, `status` = 'ACTIVE'
@@ -13079,10 +13551,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5d89317980d5e8f5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'AIZO(TVアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' OP)', 'aizo(tvアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' op)', 215888, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5d89317980d5e8f5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5d89317980d5e8f5', 'AIZO(TVアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' OP)', 'aizo(tvアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' op)', 215888, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5d89317980d5e8f5');
 UPDATE `song`
 SET `title` = 'AIZO(TVアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' OP)', `title_normalized` = 'aizo(tvアニメ ''呪術廻戦'' 第3期 ''死滅回游 前編'' op)',
     `duration_ms` = 215888, `status` = 'ACTIVE'
@@ -13153,10 +13629,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fbcaa05b99da0a21') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '白日(ドラマ''イノセンス 冤罪弁護士'' OST)', '白日(ドラマ''イノセンス 冤罪弁護士'' ost)', 279464, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fbcaa05b99da0a21' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fbcaa05b99da0a21', '白日(ドラマ''イノセンス 冤罪弁護士'' OST)', '白日(ドラマ''イノセンス 冤罪弁護士'' ost)', 279464, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fbcaa05b99da0a21');
 UPDATE `song`
 SET `title` = '白日(ドラマ''イノセンス 冤罪弁護士'' OST)', `title_normalized` = '白日(ドラマ''イノセンス 冤罪弁護士'' ost)',
     `duration_ms` = 279464, `status` = 'ACTIVE'
@@ -13229,10 +13709,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd8add5453d60568d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '逆夢(映画''呪術廻戦 0'' ED)', '逆夢(映画''呪術廻戦 0'' ed)', 319332, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd8add5453d60568d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd8add5453d60568d', '逆夢(映画''呪術廻戦 0'' ED)', '逆夢(映画''呪術廻戦 0'' ed)', 319332, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd8add5453d60568d');
 UPDATE `song`
 SET `title` = '逆夢(映画''呪術廻戦 0'' ED)', `title_normalized` = '逆夢(映画''呪術廻戦 0'' ed)',
     `duration_ms` = 319332, `status` = 'ACTIVE'
@@ -13307,10 +13791,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'dec036b00b711807') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love Is An Open Door(Frozen(겨울왕국) OST)', 'love is an open door(frozen(겨울왕국) ost)', 125225, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'dec036b00b711807' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'dec036b00b711807', 'Love Is An Open Door(Frozen(겨울왕국) OST)', 'love is an open door(frozen(겨울왕국) ost)', 125225, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'dec036b00b711807');
 UPDATE `song`
 SET `title` = 'Love Is An Open Door(Frozen(겨울왕국) OST)', `title_normalized` = 'love is an open door(frozen(겨울왕국) ost)',
     `duration_ms` = 125225, `status` = 'ACTIVE'
@@ -13383,10 +13871,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e6a040b06d4dcaa6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Defying Gravity(Wicked OST)', 'defying gravity(wicked ost)', 351527, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e6a040b06d4dcaa6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e6a040b06d4dcaa6', 'Defying Gravity(Wicked OST)', 'defying gravity(wicked ost)', 351527, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e6a040b06d4dcaa6');
 UPDATE `song`
 SET `title` = 'Defying Gravity(Wicked OST)', `title_normalized` = 'defying gravity(wicked ost)',
     `duration_ms` = 351527, `status` = 'ACTIVE'
@@ -13461,10 +13953,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c4b0a9a9fb9291bb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Shallow(A Star Is Born OST)', 'shallow(a star is born ost)', 217213, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c4b0a9a9fb9291bb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c4b0a9a9fb9291bb', 'Shallow(A Star Is Born OST)', 'shallow(a star is born ost)', 217213, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c4b0a9a9fb9291bb');
 UPDATE `song`
 SET `title` = 'Shallow(A Star Is Born OST)', `title_normalized` = 'shallow(a star is born ost)',
     `duration_ms` = 217213, `status` = 'ACTIVE'
@@ -13537,10 +14033,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6b8bb724cd5312a9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Die With A Smile', 'die with a smile', 251716, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6b8bb724cd5312a9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6b8bb724cd5312a9', 'Die With A Smile', 'die with a smile', 251716, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6b8bb724cd5312a9');
 UPDATE `song`
 SET `title` = 'Die With A Smile', `title_normalized` = 'die with a smile',
     `duration_ms` = 251716, `status` = 'ACTIVE'
@@ -13665,10 +14165,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '94c1c50890bb27b9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Always Remember Us This Way(A Star Is Born OST)', 'always remember us this way(a star is born ost)', 208968, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '94c1c50890bb27b9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '94c1c50890bb27b9', 'Always Remember Us This Way(A Star Is Born OST)', 'always remember us this way(a star is born ost)', 208968, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '94c1c50890bb27b9');
 UPDATE `song`
 SET `title` = 'Always Remember Us This Way(A Star Is Born OST)', `title_normalized` = 'always remember us this way(a star is born ost)',
     `duration_ms` = 208968, `status` = 'ACTIVE'
@@ -13739,10 +14243,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8e0426da9ec56e01') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'From The Start', 'from the start', 169552, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8e0426da9ec56e01' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8e0426da9ec56e01', 'From The Start', 'from the start', 169552, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8e0426da9ec56e01');
 UPDATE `song`
 SET `title` = 'From The Start', `title_normalized` = 'from the start',
     `duration_ms` = 169552, `status` = 'ACTIVE'
@@ -13868,10 +14376,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fe840d52a8558982') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'うたたね', 'うたたね', 181116, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fe840d52a8558982' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fe840d52a8558982', 'うたたね', 'うたたね', 181116, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fe840d52a8558982');
 UPDATE `song`
 SET `title` = 'うたたね', `title_normalized` = 'うたたね',
     `duration_ms` = 181116, `status` = 'ACTIVE'
@@ -13944,10 +14456,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e5e3892590aae280') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '偽愛とハイボール', '偽愛とハイボール', 261201, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e5e3892590aae280' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e5e3892590aae280', '偽愛とハイボール', '偽愛とハイボール', 261201, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e5e3892590aae280');
 UPDATE `song`
 SET `title` = '偽愛とハイボール', `title_normalized` = '偽愛とハイボール',
     `duration_ms` = 261201, `status` = 'ACTIVE'
@@ -14124,10 +14640,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f50c48e1e29d258c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Someone You Loved', 'someone you loved', 182805, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f50c48e1e29d258c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f50c48e1e29d258c', 'Someone You Loved', 'someone you loved', 182805, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f50c48e1e29d258c');
 UPDATE `song`
 SET `title` = 'Someone You Loved', `title_normalized` = 'someone you loved',
     `duration_ms` = 182805, `status` = 'ACTIVE'
@@ -14244,10 +14764,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c1b4f63bff74d441') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '눈', '눈', 207006, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c1b4f63bff74d441' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c1b4f63bff74d441', '눈', '눈', 207006, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c1b4f63bff74d441');
 UPDATE `song`
 SET `title` = '눈', `title_normalized` = '눈',
     `duration_ms` = 207006, `status` = 'ACTIVE'
@@ -14318,10 +14842,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2ad2f7de2e2180b8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '紅蓮華(鬼滅の刃 OP)', '紅蓮華(鬼滅の刃 op)', 235241, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2ad2f7de2e2180b8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2ad2f7de2e2180b8', '紅蓮華(鬼滅の刃 OP)', '紅蓮華(鬼滅の刃 op)', 235241, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2ad2f7de2e2180b8');
 UPDATE `song`
 SET `title` = '紅蓮華(鬼滅の刃 OP)', `title_normalized` = '紅蓮華(鬼滅の刃 op)',
     `duration_ms` = 235241, `status` = 'ACTIVE'
@@ -14394,10 +14922,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd9533f662d03261a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Despacito', 'despacito', 228345, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd9533f662d03261a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd9533f662d03261a', 'Despacito', 'despacito', 228345, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd9533f662d03261a');
 UPDATE `song`
 SET `title` = 'Despacito', `title_normalized` = 'despacito',
     `duration_ms` = 228345, `status` = 'ACTIVE'
@@ -14468,10 +15000,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a6d28fa9d98667e7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '세글자(루루공주 삽입곡)', '세글자(루루공주 삽입곡)', 232316, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a6d28fa9d98667e7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a6d28fa9d98667e7', '세글자(루루공주 삽입곡)', '세글자(루루공주 삽입곡)', 232316, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a6d28fa9d98667e7');
 UPDATE `song`
 SET `title` = '세글자(루루공주 삽입곡)', `title_normalized` = '세글자(루루공주 삽입곡)',
     `duration_ms` = 232316, `status` = 'ACTIVE'
@@ -14542,10 +15078,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4effb93e862e5230') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I See the Light(Tangled(라푼젤) OST)', 'i see the light(tangled(라푼젤) ost)', 220694, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4effb93e862e5230' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4effb93e862e5230', 'I See the Light(Tangled(라푼젤) OST)', 'i see the light(tangled(라푼젤) ost)', 220694, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4effb93e862e5230');
 UPDATE `song`
 SET `title` = 'I See the Light(Tangled(라푼젤) OST)', `title_normalized` = 'i see the light(tangled(라푼젤) ost)',
     `duration_ms` = 220694, `status` = 'ACTIVE'
@@ -14618,10 +15158,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5cab1a30f53006ca') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'When Will My Life Begin(Tangled OST)', 'when will my life begin(tangled ost)', 152439, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5cab1a30f53006ca' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5cab1a30f53006ca', 'When Will My Life Begin(Tangled OST)', 'when will my life begin(tangled ost)', 152439, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5cab1a30f53006ca');
 UPDATE `song`
 SET `title` = 'When Will My Life Begin(Tangled OST)', `title_normalized` = 'when will my life begin(tangled ost)',
     `duration_ms` = 152439, `status` = 'ACTIVE'
@@ -14694,10 +15238,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6f77f8bafe8b74cc') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Beggin''', 'beggin''', 219456, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6f77f8bafe8b74cc' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6f77f8bafe8b74cc', 'Beggin''', 'beggin''', 219456, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6f77f8bafe8b74cc');
 UPDATE `song`
 SET `title` = 'Beggin''', `title_normalized` = 'beggin''',
     `duration_ms` = 219456, `status` = 'ACTIVE'
@@ -14770,10 +15318,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8a7eb214cb35355c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Payphone', 'payphone', 231515, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8a7eb214cb35355c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8a7eb214cb35355c', 'Payphone', 'payphone', 231515, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8a7eb214cb35355c');
 UPDATE `song`
 SET `title` = 'Payphone', `title_normalized` = 'payphone',
     `duration_ms` = 231515, `status` = 'ACTIVE'
@@ -14844,10 +15396,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd3d84a5303436853') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Sugar', 'sugar', 235044, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd3d84a5303436853' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd3d84a5303436853', 'Sugar', 'sugar', 235044, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd3d84a5303436853');
 UPDATE `song`
 SET `title` = 'Sugar', `title_normalized` = 'sugar',
     `duration_ms` = 235044, `status` = 'ACTIVE'
@@ -15007,10 +15563,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ce8e23ed05a39e96') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Sunday Morning', 'sunday morning', 246190, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ce8e23ed05a39e96' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ce8e23ed05a39e96', 'Sunday Morning', 'sunday morning', 246190, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ce8e23ed05a39e96');
 UPDATE `song`
 SET `title` = 'Sunday Morning', `title_normalized` = 'sunday morning',
     `duration_ms` = 246190, `status` = 'ACTIVE'
@@ -15150,10 +15710,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8acf0e2c30cb910d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'This Love', 'this love', 204777, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8acf0e2c30cb910d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8acf0e2c30cb910d', 'This Love', 'this love', 204777, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8acf0e2c30cb910d');
 UPDATE `song`
 SET `title` = 'This Love', `title_normalized` = 'this love',
     `duration_ms` = 204777, `status` = 'ACTIVE'
@@ -15283,10 +15847,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8da565cf893d57c1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Better Than Yesterday', 'better than yesterday', 447483, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8da565cf893d57c1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8da565cf893d57c1', 'Better Than Yesterday', 'better than yesterday', 447483, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8da565cf893d57c1');
 UPDATE `song`
 SET `title` = 'Better Than Yesterday', `title_normalized` = 'better than yesterday',
     `duration_ms` = 447483, `status` = 'ACTIVE'
@@ -15503,10 +16071,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '25f564019ce8f3ec') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Bk Love', 'bk love', 263497, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '25f564019ce8f3ec' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '25f564019ce8f3ec', 'Bk Love', 'bk love', 263497, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '25f564019ce8f3ec');
 UPDATE `song`
 SET `title` = 'Bk Love', `title_normalized` = 'bk love',
     `duration_ms` = 263497, `status` = 'ACTIVE'
@@ -15657,10 +16229,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5eedc1796381591c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'One Love', 'one love', 261581, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5eedc1796381591c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5eedc1796381591c', 'One Love', 'one love', 261581, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5eedc1796381591c');
 UPDATE `song`
 SET `title` = 'One Love', `title_normalized` = 'one love',
     `duration_ms` = 261581, `status` = 'ACTIVE'
@@ -15737,10 +16313,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '306f41e8176f58d3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바라보기(미녀의탄생OST)', '바라보기(미녀의탄생ost)', 218488, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '306f41e8176f58d3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '306f41e8176f58d3', '바라보기(미녀의탄생OST)', '바라보기(미녀의탄생ost)', 218488, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '306f41e8176f58d3');
 UPDATE `song`
 SET `title` = '바라보기(미녀의탄생OST)', `title_normalized` = '바라보기(미녀의탄생ost)',
     `duration_ms` = 218488, `status` = 'ACTIVE'
@@ -15815,10 +16395,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '29804907aaaaf8ba') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사계(하루살이)', '사계(하루살이)', 256747, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '29804907aaaaf8ba' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '29804907aaaaf8ba', '사계(하루살이)', '사계(하루살이)', 256747, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '29804907aaaaf8ba');
 UPDATE `song`
 SET `title` = '사계(하루살이)', `title_normalized` = '사계(하루살이)',
     `duration_ms` = 256747, `status` = 'ACTIVE'
@@ -15893,10 +16477,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '167a97877e449cc3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '어디에도', '어디에도', 331233, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '167a97877e449cc3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '167a97877e449cc3', '어디에도', '어디에도', 331233, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '167a97877e449cc3');
 UPDATE `song`
 SET `title` = '어디에도', `title_normalized` = '어디에도',
     `duration_ms` = 331233, `status` = 'ACTIVE'
@@ -15973,10 +16561,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9b93a5dcc40bd1eb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '입술의 말', '입술의 말', 270942, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9b93a5dcc40bd1eb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9b93a5dcc40bd1eb', '입술의 말', '입술의 말', 270942, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9b93a5dcc40bd1eb');
 UPDATE `song`
 SET `title` = '입술의 말', `title_normalized` = '입술의 말',
     `duration_ms` = 270942, `status` = 'ACTIVE'
@@ -16049,10 +16641,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2b3a2c11fa2b3d6d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '행복하지 말아요', '행복하지 말아요', 358873, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2b3a2c11fa2b3d6d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2b3a2c11fa2b3d6d', '행복하지 말아요', '행복하지 말아요', 358873, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2b3a2c11fa2b3d6d');
 UPDATE `song`
 SET `title` = '행복하지 말아요', `title_normalized` = '행복하지 말아요',
     `duration_ms` = 358873, `status` = 'ACTIVE'
@@ -16125,10 +16721,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '98d7cc0beba5bd2d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I Love U, Oh Thank U', 'i love u, oh thank u', 252587, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '98d7cc0beba5bd2d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '98d7cc0beba5bd2d', 'I Love U, Oh Thank U', 'i love u, oh thank u', 252587, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '98d7cc0beba5bd2d');
 UPDATE `song`
 SET `title` = 'I Love U, Oh Thank U', `title_normalized` = 'i love u, oh thank u',
     `duration_ms` = 252587, `status` = 'ACTIVE'
@@ -16199,10 +16799,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '77fa6fd1829f95ed') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '너에게 쓰는 편지', '너에게 쓰는 편지', 209154, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '77fa6fd1829f95ed' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '77fa6fd1829f95ed', '너에게 쓰는 편지', '너에게 쓰는 편지', 209154, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '77fa6fd1829f95ed');
 UPDATE `song`
 SET `title` = '너에게 쓰는 편지', `title_normalized` = '너에게 쓰는 편지',
     `duration_ms` = 209154, `status` = 'ACTIVE'
@@ -16273,10 +16877,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd6b0f093c7557259') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '죽을만큼 아파서', '죽을만큼 아파서', 270942, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd6b0f093c7557259' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd6b0f093c7557259', '죽을만큼 아파서', '죽을만큼 아파서', 270942, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd6b0f093c7557259');
 UPDATE `song`
 SET `title` = '죽을만큼 아파서', `title_normalized` = '죽을만큼 아파서',
     `duration_ms` = 270942, `status` = 'ACTIVE'
@@ -16351,10 +16959,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '91feed321b23b461') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '내 생애 가장 행복한 시간', '내 생애 가장 행복한 시간', 258485, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '91feed321b23b461' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '91feed321b23b461', '내 생애 가장 행복한 시간', '내 생애 가장 행복한 시간', 258485, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '91feed321b23b461');
 UPDATE `song`
 SET `title` = '내 생애 가장 행복한 시간', `title_normalized` = '내 생애 가장 행복한 시간',
     `duration_ms` = 258485, `status` = 'ACTIVE'
@@ -16425,10 +17037,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e48ce3be9c3c66ed') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Bubble Love', 'bubble love', 219925, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e48ce3be9c3c66ed' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e48ce3be9c3c66ed', 'Bubble Love', 'bubble love', 219925, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e48ce3be9c3c66ed');
 UPDATE `song`
 SET `title` = 'Bubble Love', `title_normalized` = 'bubble love',
     `duration_ms` = 219925, `status` = 'ACTIVE'
@@ -16561,10 +17177,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c50887a05550da23') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'AK47', 'ak47', 160531, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c50887a05550da23' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c50887a05550da23', 'AK47', 'ak47', 160531, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c50887a05550da23');
 UPDATE `song`
 SET `title` = 'AK47', `title_normalized` = 'ak47',
     `duration_ms` = 160531, `status` = 'ACTIVE'
@@ -16635,10 +17255,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0225119da4bd68d2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'A Whole New World(Aladdin OST)', 'a whole new world(aladdin ost)', 177389, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0225119da4bd68d2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0225119da4bd68d2', 'A Whole New World(Aladdin OST)', 'a whole new world(aladdin ost)', 177389, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0225119da4bd68d2');
 UPDATE `song`
 SET `title` = 'A Whole New World(Aladdin OST)', `title_normalized` = 'a whole new world(aladdin ost)',
     `duration_ms` = 177389, `status` = 'ACTIVE'
@@ -16709,10 +17333,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a975a148f4c2d8d2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Billie Jean', 'billie jean', 294227, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a975a148f4c2d8d2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a975a148f4c2d8d2', 'Billie Jean', 'billie jean', 294227, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a975a148f4c2d8d2');
 UPDATE `song`
 SET `title` = 'Billie Jean', `title_normalized` = 'billie jean',
     `duration_ms` = 294227, `status` = 'ACTIVE'
@@ -16873,10 +17501,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6bd928fb034590bb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '나의 모든 이들에게,', '나의 모든 이들에게,', 161280, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6bd928fb034590bb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6bd928fb034590bb', '나의 모든 이들에게,', '나의 모든 이들에게,', 161280, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6bd928fb034590bb');
 UPDATE `song`
 SET `title` = '나의 모든 이들에게,', `title_normalized` = '나의 모든 이들에게,',
     `duration_ms` = 161280, `status` = 'ACTIVE'
@@ -16947,10 +17579,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7da11f919ab87f72') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Can''t Take My Eyes Off You', 'can''t take my eyes off you', 223867, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7da11f919ab87f72' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7da11f919ab87f72', 'Can''t Take My Eyes Off You', 'can''t take my eyes off you', 223867, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7da11f919ab87f72');
 UPDATE `song`
 SET `title` = 'Can''t Take My Eyes Off You', `title_normalized` = 'can''t take my eyes off you',
     `duration_ms` = 223867, `status` = 'ACTIVE'
@@ -17078,10 +17714,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f58e35e931054ec4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'インフェルノ(炎炎ノ消防隊 OP)', 'インフェルノ(炎炎ノ消防隊 op)', 221228, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f58e35e931054ec4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f58e35e931054ec4', 'インフェルノ(炎炎ノ消防隊 OP)', 'インフェルノ(炎炎ノ消防隊 op)', 221228, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f58e35e931054ec4');
 UPDATE `song`
 SET `title` = 'インフェルノ(炎炎ノ消防隊 OP)', `title_normalized` = 'インフェルノ(炎炎ノ消防隊 op)',
     `duration_ms` = 221228, `status` = 'ACTIVE'
@@ -17154,10 +17794,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b87b99452c7075ea') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ケセラセラ(ドラマ ''日曜の夜ぐらいは…'' OST)', 'ケセラセラ(ドラマ ''日曜の夜ぐらいは...'' ost)', 276921, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b87b99452c7075ea' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b87b99452c7075ea', 'ケセラセラ(ドラマ ''日曜の夜ぐらいは…'' OST)', 'ケセラセラ(ドラマ ''日曜の夜ぐらいは...'' ost)', 276921, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b87b99452c7075ea');
 UPDATE `song`
 SET `title` = 'ケセラセラ(ドラマ ''日曜の夜ぐらいは…'' OST)', `title_normalized` = 'ケセラセラ(ドラマ ''日曜の夜ぐらいは...'' ost)',
     `duration_ms` = 276921, `status` = 'ACTIVE'
@@ -17234,10 +17878,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e2c4b69b53e3d163') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ダンスホール(めざましテレビ OST)', 'ダンスホール(めざましテレビ ost)', 219556, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e2c4b69b53e3d163' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e2c4b69b53e3d163', 'ダンスホール(めざましテレビ OST)', 'ダンスホール(めざましテレビ ost)', 219556, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e2c4b69b53e3d163');
 UPDATE `song`
 SET `title` = 'ダンスホール(めざましテレビ OST)', `title_normalized` = 'ダンスホール(めざましテレビ ost)',
     `duration_ms` = 219556, `status` = 'ACTIVE'
@@ -17312,10 +17960,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '07ba3536a0eba42c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ライラック(アニメ ''忘却バッテリー'' OST)', 'ライラック(アニメ ''忘却バッテリー'' ost)', 288334, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '07ba3536a0eba42c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '07ba3536a0eba42c', 'ライラック(アニメ ''忘却バッテリー'' OST)', 'ライラック(アニメ ''忘却バッテリー'' ost)', 288334, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '07ba3536a0eba42c');
 UPDATE `song`
 SET `title` = 'ライラック(アニメ ''忘却バッテリー'' OST)', `title_normalized` = 'ライラック(アニメ ''忘却バッテリー'' ost)',
     `duration_ms` = 288334, `status` = 'ACTIVE'
@@ -17390,10 +18042,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'edc7c7d32cf34aa3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '僕のこと', '僕のこと', 328597, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'edc7c7d32cf34aa3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'edc7c7d32cf34aa3', '僕のこと', '僕のこと', 328597, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'edc7c7d32cf34aa3');
 UPDATE `song`
 SET `title` = '僕のこと', `title_normalized` = '僕のこと',
     `duration_ms` = 328597, `status` = 'ACTIVE'
@@ -17655,10 +18311,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4ffba37b9d1cd174') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '青と夏(映画''青夏 きみに恋した30日'' OST)', '青と夏(映画''青夏 きみに恋した30日'' ost)', 273043, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4ffba37b9d1cd174' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4ffba37b9d1cd174', '青と夏(映画''青夏 きみに恋した30日'' OST)', '青と夏(映画''青夏 きみに恋した30日'' ost)', 273043, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4ffba37b9d1cd174');
 UPDATE `song`
 SET `title` = '青と夏(映画''青夏 きみに恋した30日'' OST)', `title_normalized` = '青と夏(映画''青夏 きみに恋した30日'' ost)',
     `duration_ms` = 273043, `status` = 'ACTIVE'
@@ -17733,10 +18393,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a7089b5c458ae01e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Welcome to the Black Parade', 'welcome to the black parade', 314427, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a7089b5c458ae01e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a7089b5c458ae01e', 'Welcome to the Black Parade', 'welcome to the black parade', 314427, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a7089b5c458ae01e');
 UPDATE `song`
 SET `title` = 'Welcome to the Black Parade', `title_normalized` = 'welcome to the black parade',
     `duration_ms` = 314427, `status` = 'ACTIVE'
@@ -17890,10 +18554,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a31fcfc96f838f6c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Speechless(Aladdin OST)', 'speechless(aladdin ost)', 209258, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a31fcfc96f838f6c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a31fcfc96f838f6c', 'Speechless(Aladdin OST)', 'speechless(aladdin ost)', 209258, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a31fcfc96f838f6c');
 UPDATE `song`
 SET `title` = 'Speechless(Aladdin OST)', `title_normalized` = 'speechless(aladdin ost)',
     `duration_ms` = 209258, `status` = 'ACTIVE'
@@ -17964,10 +18632,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bcaf7bf791ffdeb6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Candy', 'candy', 217118, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bcaf7bf791ffdeb6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bcaf7bf791ffdeb6', 'Candy', 'candy', 217118, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bcaf7bf791ffdeb6');
 UPDATE `song`
 SET `title` = 'Candy', `title_normalized` = 'candy',
     `duration_ms` = 217118, `status` = 'ACTIVE'
@@ -18115,10 +18787,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ba4e720f2ea272e2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Walking with You', 'walking with you', 228566, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ba4e720f2ea272e2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ba4e720f2ea272e2', 'Walking with You', 'walking with you', 228566, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ba4e720f2ea272e2');
 UPDATE `song`
 SET `title` = 'Walking with You', `title_normalized` = 'walking with you',
     `duration_ms` = 228566, `status` = 'ACTIVE'
@@ -18284,10 +18960,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7c56d5fb281660b5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '愛とか恋とか', '愛とか恋とか', 232316, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7c56d5fb281660b5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7c56d5fb281660b5', '愛とか恋とか', '愛とか恋とか', 232316, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7c56d5fb281660b5');
 UPDATE `song`
 SET `title` = '愛とか恋とか', `title_normalized` = '愛とか恋とか',
     `duration_ms` = 232316, `status` = 'ACTIVE'
@@ -18457,10 +19137,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ca705f29fad979ba') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'KISS KISS KISS', 'kiss kiss kiss', 218796, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ca705f29fad979ba' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ca705f29fad979ba', 'KISS KISS KISS', 'kiss kiss kiss', 218796, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ca705f29fad979ba');
 UPDATE `song`
 SET `title` = 'KISS KISS KISS', `title_normalized` = 'kiss kiss kiss',
     `duration_ms` = 218796, `status` = 'ACTIVE'
@@ -18531,10 +19215,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2cb6a8bcdd80e0c2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Don''t Look Back in Anger', 'don''t look back in anger', 289560, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2cb6a8bcdd80e0c2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2cb6a8bcdd80e0c2', 'Don''t Look Back in Anger', 'don''t look back in anger', 289560, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2cb6a8bcdd80e0c2');
 UPDATE `song`
 SET `title` = 'Don''t Look Back in Anger', `title_normalized` = 'don''t look back in anger',
     `duration_ms` = 289560, `status` = 'ACTIVE'
@@ -18663,10 +19351,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '799ce18564b01b04') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Wonderwall', 'wonderwall', 258773, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '799ce18564b01b04' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '799ce18564b01b04', 'Wonderwall', 'wonderwall', 258773, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '799ce18564b01b04');
 UPDATE `song`
 SET `title` = 'Wonderwall', `title_normalized` = 'wonderwall',
     `duration_ms` = 258773, `status` = 'ACTIVE'
@@ -18790,10 +19482,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '551e15ac712d7874') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '115万キロのフィルム', '115万キロのフィルム', 323628, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '551e15ac712d7874' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '551e15ac712d7874', '115万キロのフィルム', '115万キロのフィルム', 323628, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '551e15ac712d7874');
 UPDATE `song`
 SET `title` = '115万キロのフィルム', `title_normalized` = '115万キロのフィルム',
     `duration_ms` = 323628, `status` = 'ACTIVE'
@@ -18993,10 +19689,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '371aaf60a523e605') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Cry Baby(東京リベンジャーズ OP)', 'cry baby(東京リベンジャーズ op)', 240292, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '371aaf60a523e605' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '371aaf60a523e605', 'Cry Baby(東京リベンジャーズ OP)', 'cry baby(東京リベンジャーズ op)', 240292, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '371aaf60a523e605');
 UPDATE `song`
 SET `title` = 'Cry Baby(東京リベンジャーズ OP)', `title_normalized` = 'cry baby(東京リベンジャーズ op)',
     `duration_ms` = 240292, `status` = 'ACTIVE'
@@ -19067,10 +19767,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c3d5f5d811665d1f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Pretender', 'pretender', 335586, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c3d5f5d811665d1f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c3d5f5d811665d1f', 'Pretender', 'pretender', 335586, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c3d5f5d811665d1f');
 UPDATE `song`
 SET `title` = 'Pretender', `title_normalized` = 'pretender',
     `duration_ms` = 335586, `status` = 'ACTIVE'
@@ -19300,10 +20004,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'dc98340d2964fad8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'TATTOO(ドラマ ''ペンディングトレインー8時23分、明日 君と'' OST)', 'tattoo(ドラマ ''ペンディングトレインー8時23分、明日 君と'' ost)', 296101, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'dc98340d2964fad8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'dc98340d2964fad8', 'TATTOO(ドラマ ''ペンディングトレインー8時23分、明日 君と'' OST)', 'tattoo(ドラマ ''ペンディングトレインー8時23分、明日 君と'' ost)', 296101, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'dc98340d2964fad8');
 UPDATE `song`
 SET `title` = 'TATTOO(ドラマ ''ペンディングトレインー8時23分、明日 君と'' OST)', `title_normalized` = 'tattoo(ドラマ ''ペンディングトレインー8時23分、明日 君と'' ost)',
     `duration_ms` = 296101, `status` = 'ACTIVE'
@@ -19374,10 +20082,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0e4e8df6988f1c77') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '宿命', '宿命', 282784, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0e4e8df6988f1c77' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0e4e8df6988f1c77', '宿命', '宿命', 282784, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0e4e8df6988f1c77');
 UPDATE `song`
 SET `title` = '宿命', `title_normalized` = '宿命',
     `duration_ms` = 282784, `status` = 'ACTIVE'
@@ -19553,10 +20265,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bdf7c1aa40cdeb0c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'What Makes You Beautiful', 'what makes you beautiful', 200341, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bdf7c1aa40cdeb0c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bdf7c1aa40cdeb0c', 'What Makes You Beautiful', 'what makes you beautiful', 200341, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bdf7c1aa40cdeb0c');
 UPDATE `song`
 SET `title` = 'What Makes You Beautiful', `title_normalized` = 'what makes you beautiful',
     `duration_ms` = 200341, `status` = 'ACTIVE'
@@ -19687,10 +20403,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bbce7565b174055d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Counting Stars', 'counting stars', 258043, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bbce7565b174055d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bbce7565b174055d', 'Counting Stars', 'counting stars', 258043, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bbce7565b174055d');
 UPDATE `song`
 SET `title` = 'Counting Stars', `title_normalized` = 'counting stars',
     `duration_ms` = 258043, `status` = 'ACTIVE'
@@ -19847,10 +20567,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '83448059852ec6dd') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Henceforth', 'henceforth', 232142, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '83448059852ec6dd' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '83448059852ec6dd', 'Henceforth', 'henceforth', 232142, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '83448059852ec6dd');
 UPDATE `song`
 SET `title` = 'Henceforth', `title_normalized` = 'henceforth',
     `duration_ms` = 232142, `status` = 'ACTIVE'
@@ -19931,10 +20655,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e996efa555dabffe') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'アスノヨゾラ哨戒班', 'アスノヨゾラ哨戒班', 175102, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e996efa555dabffe' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e996efa555dabffe', 'アスノヨゾラ哨戒班', 'アスノヨゾラ哨戒班', 175102, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e996efa555dabffe');
 UPDATE `song`
 SET `title` = 'アスノヨゾラ哨戒班', `title_normalized` = 'アスノヨゾラ哨戒班',
     `duration_ms` = 175102, `status` = 'ACTIVE'
@@ -20007,10 +20735,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '180b880e2ca0c9d6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Good Day', 'good day', 264475, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '180b880e2ca0c9d6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '180b880e2ca0c9d6', 'Good Day', 'good day', 264475, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '180b880e2ca0c9d6');
 UPDATE `song`
 SET `title` = 'Good Day', `title_normalized` = 'good day',
     `duration_ms` = 264475, `status` = 'ACTIVE'
@@ -20080,10 +20812,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '042bdea019b998ad') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Sunflower(Spider-Man_ Into the Spider-Verse OST)', 'sunflower(spider-man_ into the spider-verse ost)', 159649, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '042bdea019b998ad' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '042bdea019b998ad', 'Sunflower(Spider-Man_ Into the Spider-Verse OST)', 'sunflower(spider-man_ into the spider-verse ost)', 159649, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '042bdea019b998ad');
 UPDATE `song`
 SET `title` = 'Sunflower(Spider-Man_ Into the Spider-Verse OST)', `title_normalized` = 'sunflower(spider-man_ into the spider-verse ost)',
     `duration_ms` = 159649, `status` = 'ACTIVE'
@@ -20156,10 +20892,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2aef571e90cc76f8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Circles', 'circles', 215353, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2aef571e90cc76f8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2aef571e90cc76f8', 'Circles', 'circles', 215353, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2aef571e90cc76f8');
 UPDATE `song`
 SET `title` = 'Circles', `title_normalized` = 'circles',
     `duration_ms` = 215353, `status` = 'ACTIVE'
@@ -20284,10 +21024,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2dd555e9046e4532') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Bohemian Rhapsody', 'bohemian rhapsody', 354395, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2dd555e9046e4532' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2dd555e9046e4532', 'Bohemian Rhapsody', 'bohemian rhapsody', 354395, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2dd555e9046e4532');
 UPDATE `song`
 SET `title` = 'Bohemian Rhapsody', `title_normalized` = 'bohemian rhapsody',
     `duration_ms` = 354395, `status` = 'ACTIVE'
@@ -20431,10 +21175,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'aeac8f458cabf4f3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고민중독', '고민중독', 175891, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'aeac8f458cabf4f3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'aeac8f458cabf4f3', '고민중독', '고민중독', 175891, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'aeac8f458cabf4f3');
 UPDATE `song`
 SET `title` = '고민중독', `title_normalized` = '고민중독',
     `duration_ms` = 175891, `status` = 'ACTIVE'
@@ -20547,10 +21295,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2421eb3f836965ed') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Creep', 'creep', 240001, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2421eb3f836965ed' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2421eb3f836965ed', 'Creep', 'creep', 240001, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2421eb3f836965ed');
 UPDATE `song`
 SET `title` = 'Creep', `title_normalized` = 'creep',
     `duration_ms` = 240001, `status` = 'ACTIVE'
@@ -20667,10 +21419,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fba99fe8df02dacf') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'なんでもないや(Movie ver.)(映画''君の名は。'' OST)', 'なんでもないや(movie ver.)(映画''君の名は。'' ost)', 539609, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fba99fe8df02dacf' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fba99fe8df02dacf', 'なんでもないや(Movie ver.)(映画''君の名は。'' OST)', 'なんでもないや(movie ver.)(映画''君の名は。'' ost)', 539609, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fba99fe8df02dacf');
 UPDATE `song`
 SET `title` = 'なんでもないや(Movie ver.)(映画''君の名は。'' OST)', `title_normalized` = 'なんでもないや(movie ver.)(映画''君の名は。'' ost)',
     `duration_ms` = 539609, `status` = 'ACTIVE'
@@ -20755,10 +21511,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '911af6e76376c844') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '前前前世(Movie ver.)(映画''君の名は。'' OST)', '前前前世(movie ver.)(映画''君の名は。'' ost)', 292328, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '911af6e76376c844' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '911af6e76376c844', '前前前世(Movie ver.)(映画''君の名は。'' OST)', '前前前世(movie ver.)(映画''君の名は。'' ost)', 292328, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '911af6e76376c844');
 UPDATE `song`
 SET `title` = '前前前世(Movie ver.)(映画''君の名は。'' OST)', `title_normalized` = '前前前世(movie ver.)(映画''君の名は。'' ost)',
     `duration_ms` = 292328, `status` = 'ACTIVE'
@@ -20831,10 +21591,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '718f5d1bda2aa9f3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Deja Vu', 'deja vu', 72934, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '718f5d1bda2aa9f3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '718f5d1bda2aa9f3', 'Deja Vu', 'deja vu', 72934, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '718f5d1bda2aa9f3');
 UPDATE `song`
 SET `title` = 'Deja Vu', `title_normalized` = 'deja vu',
     `duration_ms` = 72934, `status` = 'ACTIVE'
@@ -20905,10 +21669,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '15e174dc7f553f3d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'LOVE ATTACK', 'love attack', 181603, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '15e174dc7f553f3d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '15e174dc7f553f3d', 'LOVE ATTACK', 'love attack', 181603, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '15e174dc7f553f3d');
 UPDATE `song`
 SET `title` = 'LOVE ATTACK', `title_normalized` = 'love attack',
     `duration_ms` = 181603, `status` = 'ACTIVE'
@@ -20979,10 +21747,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '04c7ba3b4844b66b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Pretty Girl', 'pretty girl', 209978, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '04c7ba3b4844b66b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '04c7ba3b4844b66b', 'Pretty Girl', 'pretty girl', 209978, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '04c7ba3b4844b66b');
 UPDATE `song`
 SET `title` = 'Pretty Girl', `title_normalized` = 'pretty girl',
     `duration_ms` = 209978, `status` = 'ACTIVE'
@@ -21053,10 +21825,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '06a3366ab625a04f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Reality', 'reality', 286059, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '06a3366ab625a04f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '06a3366ab625a04f', 'Reality', 'reality', 286059, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '06a3366ab625a04f');
 UPDATE `song`
 SET `title` = 'Reality', `title_normalized` = 'reality',
     `duration_ms` = 286059, `status` = 'ACTIVE'
@@ -21131,10 +21907,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd0681cd25823b7f4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I Really Want to Stay at Your House(Cyberpunk OST)', 'i really want to stay at your house(cyberpunk ost)', 246677, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd0681cd25823b7f4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd0681cd25823b7f4', 'I Really Want to Stay at Your House(Cyberpunk OST)', 'i really want to stay at your house(cyberpunk ost)', 246677, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd0681cd25823b7f4');
 UPDATE `song`
 SET `title` = 'I Really Want to Stay at Your House(Cyberpunk OST)', `title_normalized` = 'i really want to stay at your house(cyberpunk ost)',
     `duration_ms` = 246677, `status` = 'ACTIVE'
@@ -21207,10 +21987,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f6f84b3543eae9ba') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Painkiller', 'painkiller', 216000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f6f84b3543eae9ba' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f6f84b3543eae9ba', 'Painkiller', 'painkiller', 216000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f6f84b3543eae9ba');
 UPDATE `song`
 SET `title` = 'Painkiller', `title_normalized` = 'painkiller',
     `duration_ms` = 216000, `status` = 'ACTIVE'
@@ -21339,10 +22123,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '045b254d2b7cf556') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Lay Me Down', 'lay me down', 234240, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '045b254d2b7cf556' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '045b254d2b7cf556', 'Lay Me Down', 'lay me down', 234240, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '045b254d2b7cf556');
 UPDATE `song`
 SET `title` = 'Lay Me Down', `title_normalized` = 'lay me down',
     `duration_ms` = 234240, `status` = 'ACTIVE'
@@ -21413,10 +22201,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '350882b965053e5d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I''m Not The Only One', 'i''m not the only one', 239607, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '350882b965053e5d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '350882b965053e5d', 'I''m Not The Only One', 'i''m not the only one', 239607, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '350882b965053e5d');
 UPDATE `song`
 SET `title` = 'I''m Not The Only One', `title_normalized` = 'i''m not the only one',
     `duration_ms` = 239607, `status` = 'ACTIVE'
@@ -21536,10 +22328,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4b3e2d2b3585d6e2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '한여름밤의 꿀', '한여름밤의 꿀', 237331, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4b3e2d2b3585d6e2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4b3e2d2b3585d6e2', '한여름밤의 꿀', '한여름밤의 꿀', 237331, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4b3e2d2b3585d6e2');
 UPDATE `song`
 SET `title` = '한여름밤의 꿀', `title_normalized` = '한여름밤의 꿀',
     `duration_ms` = 237331, `status` = 'ACTIVE'
@@ -21678,10 +22474,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a98e5b536819b93f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '아는사람 얘기', '아는사람 얘기', 206625, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a98e5b536819b93f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a98e5b536819b93f', '아는사람 얘기', '아는사람 얘기', 206625, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a98e5b536819b93f');
 UPDATE `song`
 SET `title` = '아는사람 얘기', `title_normalized` = '아는사람 얘기',
     `duration_ms` = 206625, `status` = 'ACTIVE'
@@ -21837,10 +22637,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b3d0a2b7c6793261') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'The Phantom Of The Opera', 'the phantom of the opera', 302533, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b3d0a2b7c6793261' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b3d0a2b7c6793261', 'The Phantom Of The Opera', 'the phantom of the opera', 302533, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b3d0a2b7c6793261');
 UPDATE `song`
 SET `title` = 'The Phantom Of The Opera', `title_normalized` = 'the phantom of the opera',
     `duration_ms` = 302533, `status` = 'ACTIVE'
@@ -21919,10 +22723,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '91ebe5c9d69dec32') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Timeless', 'timeless', 234742, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '91ebe5c9d69dec32' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '91ebe5c9d69dec32', 'Timeless', 'timeless', 234742, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '91ebe5c9d69dec32');
 UPDATE `song`
 SET `title` = 'Timeless', `title_normalized` = 'timeless',
     `duration_ms` = 234742, `status` = 'ACTIVE'
@@ -21993,10 +22801,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '58e5f3499aca5e1f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '내 사람 _ Partner For Life', '내 사람 _ partner for life', 298163, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '58e5f3499aca5e1f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '58e5f3499aca5e1f', '내 사람 _ Partner For Life', '내 사람 _ partner for life', 298163, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '58e5f3499aca5e1f');
 UPDATE `song`
 SET `title` = '내 사람 _ Partner For Life', `title_normalized` = '내 사람 _ partner for life',
     `duration_ms` = 298163, `status` = 'ACTIVE'
@@ -22067,10 +22879,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4b78c04e27dc26d2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑하자(태양의후예OST)', '사랑하자(태양의후예ost)', 226128, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4b78c04e27dc26d2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4b78c04e27dc26d2', '사랑하자(태양의후예OST)', '사랑하자(태양의후예ost)', 226128, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4b78c04e27dc26d2');
 UPDATE `song`
 SET `title` = '사랑하자(태양의후예OST)', `title_normalized` = '사랑하자(태양의후예ost)',
     `duration_ms` = 226128, `status` = 'ACTIVE'
@@ -22145,10 +22961,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '525a091f0bd0873a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '아리랑', '아리랑', 290534, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '525a091f0bd0873a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '525a091f0bd0873a', '아리랑', '아리랑', 290534, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '525a091f0bd0873a');
 UPDATE `song`
 SET `title` = '아리랑', `title_normalized` = '아리랑',
     `duration_ms` = 290534, `status` = 'ACTIVE'
@@ -22278,10 +23098,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7f446ecc7ce7171b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'There''s Nothing Holdin'' Me Back', 'there''s nothing holdin'' me back', 237389, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7f446ecc7ce7171b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7f446ecc7ce7171b', 'There''s Nothing Holdin'' Me Back', 'there''s nothing holdin'' me back', 237389, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7f446ecc7ce7171b');
 UPDATE `song`
 SET `title` = 'There''s Nothing Holdin'' Me Back', `title_normalized` = 'there''s nothing holdin'' me back',
     `duration_ms` = 237389, `status` = 'ACTIVE'
@@ -22425,10 +23249,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cd7bb95c2bb0c63b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Chandelier', 'chandelier', 215787, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cd7bb95c2bb0c63b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cd7bb95c2bb0c63b', 'Chandelier', 'chandelier', 215787, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cd7bb95c2bb0c63b');
 UPDATE `song`
 SET `title` = 'Chandelier', `title_normalized` = 'chandelier',
     `duration_ms` = 215787, `status` = 'ACTIVE'
@@ -22568,10 +23396,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1d85e9ace354f8fd') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Snowman', 'snowman', 168149, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1d85e9ace354f8fd' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1d85e9ace354f8fd', 'Snowman', 'snowman', 168149, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1d85e9ace354f8fd');
 UPDATE `song`
 SET `title` = 'Snowman', `title_normalized` = 'snowman',
     `duration_ms` = 168149, `status` = 'ACTIVE'
@@ -22691,10 +23523,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fb5c1fcc08c6f23c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '회전목마', '회전목마', 285547, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fb5c1fcc08c6f23c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fb5c1fcc08c6f23c', '회전목마', '회전목마', 285547, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fb5c1fcc08c6f23c');
 UPDATE `song`
 SET `title` = '회전목마', `title_normalized` = '회전목마',
     `duration_ms` = 285547, `status` = 'ACTIVE'
@@ -22769,10 +23605,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6924621fe7a86ab6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '참 다행이야', '참 다행이야', 281786, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6924621fe7a86ab6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6924621fe7a86ab6', '참 다행이야', '참 다행이야', 281786, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6924621fe7a86ab6');
 UPDATE `song`
 SET `title` = '참 다행이야', `title_normalized` = '참 다행이야',
     `duration_ms` = 281786, `status` = 'ACTIVE'
@@ -22881,10 +23721,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8fdd7a28a474a61b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'サクラミツツキ(銀魂 OP)', 'サクラミツツキ(銀魂 op)', 219136, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8fdd7a28a474a61b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8fdd7a28a474a61b', 'サクラミツツキ(銀魂 OP)', 'サクラミツツキ(銀魂 op)', 219136, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8fdd7a28a474a61b');
 UPDATE `song`
 SET `title` = 'サクラミツツキ(銀魂 OP)', `title_normalized` = 'サクラミツツキ(銀魂 op)',
     `duration_ms` = 219136, `status` = 'ACTIVE'
@@ -22957,10 +23801,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0156ac758f1192ee') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'サムライハート (Some Like it Hot)(銀魂 ED)', 'サムライハート (some like it hot)(銀魂 ed)', 214715, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0156ac758f1192ee' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0156ac758f1192ee', 'サムライハート (Some Like it Hot)(銀魂 ED)', 'サムライハート (some like it hot)(銀魂 ed)', 214715, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0156ac758f1192ee');
 UPDATE `song`
 SET `title` = 'サムライハート (Some Like it Hot)(銀魂 ED)', `title_normalized` = 'サムライハート (some like it hot)(銀魂 ed)',
     `duration_ms` = 214715, `status` = 'ACTIVE'
@@ -23037,10 +23885,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f3743d9552ec9bec') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '내 머리가 나빠서(드라마''꽃보다남자''OST)', '내 머리가 나빠서(드라마''꽃보다남자''ost)', 263040, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f3743d9552ec9bec' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f3743d9552ec9bec', '내 머리가 나빠서(드라마''꽃보다남자''OST)', '내 머리가 나빠서(드라마''꽃보다남자''ost)', 263040, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f3743d9552ec9bec');
 UPDATE `song`
 SET `title` = '내 머리가 나빠서(드라마''꽃보다남자''OST)', `title_normalized` = '내 머리가 나빠서(드라마''꽃보다남자''ost)',
     `duration_ms` = 263040, `status` = 'ACTIVE'
@@ -23113,10 +23965,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '31bce260f2313cf1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'She''s Gone', 'she''s gone', 393009, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '31bce260f2313cf1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '31bce260f2313cf1', 'She''s Gone', 'she''s gone', 393009, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '31bce260f2313cf1');
 UPDATE `song`
 SET `title` = 'She''s Gone', `title_normalized` = 'she''s gone',
     `duration_ms` = 393009, `status` = 'ACTIVE'
@@ -23242,10 +24098,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4c69e4a6cead848e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Until I Found You', 'until i found you', 178005, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4c69e4a6cead848e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4c69e4a6cead848e', 'Until I Found You', 'until i found you', 178005, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4c69e4a6cead848e');
 UPDATE `song`
 SET `title` = 'Until I Found You', `title_normalized` = 'until i found you',
     `duration_ms` = 178005, `status` = 'ACTIVE'
@@ -23348,10 +24208,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a3d49f7490c4db41') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Englishman In New York', 'englishman in new york', 269003, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a3d49f7490c4db41' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a3d49f7490c4db41', 'Englishman In New York', 'englishman in new york', 269003, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a3d49f7490c4db41');
 UPDATE `song`
 SET `title` = 'Englishman In New York', `title_normalized` = 'englishman in new york',
     `duration_ms` = 269003, `status` = 'ACTIVE'
@@ -23479,10 +24343,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '15c326bac826680c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그땐 그땐 그땐', '그땐 그땐 그땐', 266449, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '15c326bac826680c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '15c326bac826680c', '그땐 그땐 그땐', '그땐 그땐 그땐', 266449, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '15c326bac826680c');
 UPDATE `song`
 SET `title` = '그땐 그땐 그땐', `title_normalized` = '그땐 그땐 그땐',
     `duration_ms` = 266449, `status` = 'ACTIVE'
@@ -23648,10 +24516,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9a72d935bbe8e15b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '땡땡땡', '땡땡땡', 210782, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9a72d935bbe8e15b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9a72d935bbe8e15b', '땡땡땡', '땡땡땡', 210782, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9a72d935bbe8e15b');
 UPDATE `song`
 SET `title` = '땡땡땡', `title_normalized` = '땡땡땡',
     `duration_ms` = 210782, `status` = 'ACTIVE'
@@ -23815,10 +24687,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '88f27112e8861f8b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Always(태양의후예OST)', 'always(태양의후예ost)', 221843, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '88f27112e8861f8b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '88f27112e8861f8b', 'Always(태양의후예OST)', 'always(태양의후예ost)', 221843, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '88f27112e8861f8b');
 UPDATE `song`
 SET `title` = 'Always(태양의후예OST)', `title_normalized` = 'always(태양의후예ost)',
     `duration_ms` = 221843, `status` = 'ACTIVE'
@@ -23889,10 +24765,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7f088a7e100e6779') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '검은 행복', '검은 행복', 245013, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7f088a7e100e6779' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7f088a7e100e6779', '검은 행복', '검은 행복', 245013, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7f088a7e100e6779');
 UPDATE `song`
 SET `title` = '검은 행복', `title_normalized` = '검은 행복',
     `duration_ms` = 245013, `status` = 'ACTIVE'
@@ -23963,10 +24843,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cf373c3a167d4423') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'HOT LIMIT', 'hot limit', 226998, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cf373c3a167d4423' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cf373c3a167d4423', 'HOT LIMIT', 'hot limit', 226998, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cf373c3a167d4423');
 UPDATE `song`
 SET `title` = 'HOT LIMIT', `title_normalized` = 'hot limit',
     `duration_ms` = 226998, `status` = 'ACTIVE'
@@ -24159,10 +25043,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a26b052ec437e726') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'W / X / Y', 'w / x / y', 279100, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a26b052ec437e726' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a26b052ec437e726', 'W / X / Y', 'w / x / y', 279100, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a26b052ec437e726');
 UPDATE `song`
 SET `title` = 'W / X / Y', `title_normalized` = 'w / x / y',
     `duration_ms` = 279100, `status` = 'ACTIVE'
@@ -24424,10 +25312,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4e20f117997e630d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Cruel Summer', 'cruel summer', 179392, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4e20f117997e630d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4e20f117997e630d', 'Cruel Summer', 'cruel summer', 179392, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4e20f117997e630d');
 UPDATE `song`
 SET `title` = 'Cruel Summer', `title_normalized` = 'cruel summer',
     `duration_ms` = 179392, `status` = 'ACTIVE'
@@ -24566,10 +25458,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '356d4cb53989dd09') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love Story', 'love story', 240427, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '356d4cb53989dd09' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '356d4cb53989dd09', 'Love Story', 'love story', 240427, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '356d4cb53989dd09');
 UPDATE `song`
 SET `title` = 'Love Story', `title_normalized` = 'love story',
     `duration_ms` = 240427, `status` = 'ACTIVE'
@@ -24709,10 +25605,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '518e0820a783de22') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Love Story (Taylor’s Version)', 'love story (taylor’s version)', 240427, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '518e0820a783de22' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '518e0820a783de22', 'Love Story (Taylor’s Version)', 'love story (taylor’s version)', 240427, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '518e0820a783de22');
 UPDATE `song`
 SET `title` = 'Love Story (Taylor’s Version)', `title_normalized` = 'love story (taylor’s version)',
     `duration_ms` = 240427, `status` = 'ACTIVE'
@@ -24852,10 +25752,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '722f7bdf9971141c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Zombie', 'zombie', 306440, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '722f7bdf9971141c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '722f7bdf9971141c', 'Zombie', 'zombie', 306440, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '722f7bdf9971141c');
 UPDATE `song`
 SET `title` = 'Zombie', `title_normalized` = 'zombie',
     `duration_ms` = 306440, `status` = 'ACTIVE'
@@ -24963,10 +25867,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0299fc538554a469') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'STAY', 'stay', 141806, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0299fc538554a469' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0299fc538554a469', 'STAY', 'stay', 141806, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0299fc538554a469');
 UPDATE `song`
 SET `title` = 'STAY', `title_normalized` = 'stay',
     `duration_ms` = 141806, `status` = 'ACTIVE'
@@ -25092,10 +26000,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '04a5ec148c61b058') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그녀를 찾아주세요', '그녀를 찾아주세요', 260064, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '04a5ec148c61b058' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '04a5ec148c61b058', '그녀를 찾아주세요', '그녀를 찾아주세요', 260064, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '04a5ec148c61b058');
 UPDATE `song`
 SET `title` = '그녀를 찾아주세요', `title_normalized` = '그녀를 찾아주세요',
     `duration_ms` = 260064, `status` = 'ACTIVE'
@@ -25219,10 +26131,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b88f7b62eab89534') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑의 바보', '사랑의 바보', 261675, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b88f7b62eab89534' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b88f7b62eab89534', '사랑의 바보', '사랑의 바보', 261675, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b88f7b62eab89534');
 UPDATE `song`
 SET `title` = '사랑의 바보', `title_normalized` = '사랑의 바보',
     `duration_ms` = 261675, `status` = 'ACTIVE'
@@ -25297,10 +26213,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5e149c47a9b9ae59') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑아(내남자의여자OST)', '사랑아(내남자의여자ost)', 241012, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5e149c47a9b9ae59' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5e149c47a9b9ae59', '사랑아(내남자의여자OST)', '사랑아(내남자의여자ost)', 241012, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5e149c47a9b9ae59');
 UPDATE `song`
 SET `title` = '사랑아(내남자의여자OST)', `title_normalized` = '사랑아(내남자의여자ost)',
     `duration_ms` = 241012, `status` = 'ACTIVE'
@@ -25373,10 +26293,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'aba864a5312bec8a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'I Love You So', 'i love you so', 160009, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'aba864a5312bec8a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'aba864a5312bec8a', 'I Love You So', 'i love you so', 160009, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'aba864a5312bec8a');
 UPDATE `song`
 SET `title` = 'I Love You So', `title_normalized` = 'i love you so',
     `duration_ms` = 160009, `status` = 'ACTIVE'
@@ -25473,10 +26397,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1676a97451b56172') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑한만큼', '사랑한만큼', 281413, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1676a97451b56172' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1676a97451b56172', '사랑한만큼', '사랑한만큼', 281413, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1676a97451b56172');
 UPDATE `song`
 SET `title` = '사랑한만큼', `title_normalized` = '사랑한만큼',
     `duration_ms` = 281413, `status` = 'ACTIVE'
@@ -25549,10 +26477,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ae75d1c45bc27f61') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑합니다', '사랑합니다', 228947, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ae75d1c45bc27f61' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ae75d1c45bc27f61', '사랑합니다', '사랑합니다', 228947, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ae75d1c45bc27f61');
 UPDATE `song`
 SET `title` = '사랑합니다', `title_normalized` = '사랑합니다',
     `duration_ms` = 228947, `status` = 'ACTIVE'
@@ -25625,10 +26557,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7cfc52146fb86055') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Unravel(東京喰種 OP)', 'unravel(東京喰種 op)', 243600, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7cfc52146fb86055' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7cfc52146fb86055', 'Unravel(東京喰種 OP)', 'unravel(東京喰種 op)', 243600, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7cfc52146fb86055');
 UPDATE `song`
 SET `title` = 'Unravel(東京喰種 OP)', `title_normalized` = 'unravel(東京喰種 op)',
     `duration_ms` = 243600, `status` = 'ACTIVE'
@@ -25707,10 +26643,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8158fc8b2570792f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Dance Monkey', 'dance monkey', 215005, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8158fc8b2570792f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8158fc8b2570792f', 'Dance Monkey', 'dance monkey', 215005, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8158fc8b2570792f');
 UPDATE `song`
 SET `title` = 'Dance Monkey', `title_normalized` = 'dance monkey',
     `duration_ms` = 215005, `status` = 'ACTIVE'
@@ -25846,10 +26786,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7ecbc773c89f9268') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '晩餐歌', '晩餐歌', 220009, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7ecbc773c89f9268' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7ecbc773c89f9268', '晩餐歌', '晩餐歌', 220009, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7ecbc773c89f9268');
 UPDATE `song`
 SET `title` = '晩餐歌', `title_normalized` = '晩餐歌',
     `duration_ms` = 220009, `status` = 'ACTIVE'
@@ -26056,10 +27000,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8e3f476ebcebf3c7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '첫 만남은 계획대로 되지 않아', '첫 만남은 계획대로 되지 않아', 152404, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8e3f476ebcebf3c7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8e3f476ebcebf3c7', '첫 만남은 계획대로 되지 않아', '첫 만남은 계획대로 되지 않아', 152404, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8e3f476ebcebf3c7');
 UPDATE `song`
 SET `title` = '첫 만남은 계획대로 되지 않아', `title_normalized` = '첫 만남은 계획대로 되지 않아',
     `duration_ms` = 152404, `status` = 'ACTIVE'
@@ -26132,10 +27080,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '94cc7ff5ac131d5d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '파도', '파도', 252761, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '94cc7ff5ac131d5d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '94cc7ff5ac131d5d', '파도', '파도', 252761, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '94cc7ff5ac131d5d');
 UPDATE `song`
 SET `title` = '파도', `title_normalized` = '파도',
     `duration_ms` = 252761, `status` = 'ACTIVE'
@@ -26259,10 +27211,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '3bca1c7131881d64') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'シュガーソングと ビターステップ(血界戦線 ED)', 'シュガーソングと ビターステップ(血界戦線 ed)', 262966, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '3bca1c7131881d64' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '3bca1c7131881d64', 'シュガーソングと ビターステップ(血界戦線 ED)', 'シュガーソングと ビターステップ(血界戦線 ed)', 262966, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '3bca1c7131881d64');
 UPDATE `song`
 SET `title` = 'シュガーソングと ビターステップ(血界戦線 ED)', `title_normalized` = 'シュガーソングと ビターステップ(血界戦線 ed)',
     `duration_ms` = 262966, `status` = 'ACTIVE'
@@ -26339,10 +27295,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8a8bfda47a43f32d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '울어', '울어', 222460, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8a8bfda47a43f32d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8a8bfda47a43f32d', '울어', '울어', 222460, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8a8bfda47a43f32d');
 UPDATE `song`
 SET `title` = '울어', `title_normalized` = '울어',
     `duration_ms` = 222460, `status` = 'ACTIVE'
@@ -26479,10 +27439,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6d1f5854628dc9a1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'しわあわせ', 'しわあわせ', 270501, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6d1f5854628dc9a1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6d1f5854628dc9a1', 'しわあわせ', 'しわあわせ', 270501, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6d1f5854628dc9a1');
 UPDATE `song`
 SET `title` = 'しわあわせ', `title_normalized` = 'しわあわせ',
     `duration_ms` = 270501, `status` = 'ACTIVE'
@@ -26694,10 +27658,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0df072acb5f7e15a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '怪獣の花唄', '怪獣の花唄', 222881, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0df072acb5f7e15a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0df072acb5f7e15a', '怪獣の花唄', '怪獣の花唄', 222881, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0df072acb5f7e15a');
 UPDATE `song`
 SET `title` = '怪獣の花唄', `title_normalized` = '怪獣の花唄',
     `duration_ms` = 222881, `status` = 'ACTIVE'
@@ -26927,10 +27895,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2081da9e08ff0037') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' OST)', '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' ost)', 256035, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2081da9e08ff0037' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2081da9e08ff0037', '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' OST)', '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' ost)', 256035, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2081da9e08ff0037');
 UPDATE `song`
 SET `title` = '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' OST)', `title_normalized` = '恋風邪にのせて(''彼とオオカミちゃんには騙されない'' ost)',
     `duration_ms` = 256035, `status` = 'ACTIVE'
@@ -27005,10 +27977,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a6b795e492c3f8d0') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '踊り子', '踊り子', 228461, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a6b795e492c3f8d0' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a6b795e492c3f8d0', '踊り子', '踊り子', 228461, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a6b795e492c3f8d0');
 UPDATE `song`
 SET `title` = '踊り子', `title_normalized` = '踊り子',
     `duration_ms` = 228461, `status` = 'ACTIVE'
@@ -27226,10 +28202,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '90d7bd912525480b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '화장을 고치고', '화장을 고치고', 250387, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '90d7bd912525480b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '90d7bd912525480b', '화장을 고치고', '화장을 고치고', 250387, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '90d7bd912525480b');
 UPDATE `song`
 SET `title` = '화장을 고치고', `title_normalized` = '화장을 고치고',
     `duration_ms` = 250387, `status` = 'ACTIVE'
@@ -27332,10 +28312,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ed4dcc6b1a0f1308') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'My Love', 'my love', 231840, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ed4dcc6b1a0f1308' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ed4dcc6b1a0f1308', 'My Love', 'my love', 231840, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ed4dcc6b1a0f1308');
 UPDATE `song`
 SET `title` = 'My Love', `title_normalized` = 'my love',
     `duration_ms` = 231840, `status` = 'ACTIVE'
@@ -27480,10 +28464,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f36371a908fbad12') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'See You Again(폴워커추모엔딩곡)', 'see you again(폴워커추모엔딩곡)', 229622, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f36371a908fbad12' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f36371a908fbad12', 'See You Again(폴워커추모엔딩곡)', 'see you again(폴워커추모엔딩곡)', 229622, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f36371a908fbad12');
 UPDATE `song`
 SET `title` = 'See You Again(폴워커추모엔딩곡)', `title_normalized` = 'see you again(폴워커추모엔딩곡)',
     `duration_ms` = 229622, `status` = 'ACTIVE'
@@ -27554,10 +28542,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'eeb9a1a01e12f1c4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Drowning', 'drowning', 244987, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'eeb9a1a01e12f1c4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'eeb9a1a01e12f1c4', 'Drowning', 'drowning', 244987, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'eeb9a1a01e12f1c4');
 UPDATE `song`
 SET `title` = 'Drowning', `title_normalized` = 'drowning',
     `duration_ms` = 244987, `status` = 'ACTIVE'
@@ -27632,10 +28624,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '547d7e11d71c22f1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Endless Rain', 'endless rain', 396458, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '547d7e11d71c22f1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '547d7e11d71c22f1', 'Endless Rain', 'endless rain', 396458, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '547d7e11d71c22f1');
 UPDATE `song`
 SET `title` = 'Endless Rain', `title_normalized` = 'endless rain',
     `duration_ms` = 396458, `status` = 'ACTIVE'
@@ -27750,10 +28746,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c808b44ce0a77a05') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '캐치 캐치', '캐치 캐치', 188662, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c808b44ce0a77a05' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c808b44ce0a77a05', '캐치 캐치', '캐치 캐치', 188662, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c808b44ce0a77a05');
 UPDATE `song`
 SET `title` = '캐치 캐치', `title_normalized` = '캐치 캐치',
     `duration_ms` = 188662, `status` = 'ACTIVE'
@@ -27824,10 +28824,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '81a6a8d5c3e3be90') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'アイドル(推しの子 OP)', 'アイドル(推しの子 op)', 225768, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '81a6a8d5c3e3be90' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '81a6a8d5c3e3be90', 'アイドル(推しの子 OP)', 'アイドル(推しの子 op)', 225768, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '81a6a8d5c3e3be90');
 UPDATE `song`
 SET `title` = 'アイドル(推しの子 OP)', `title_normalized` = 'アイドル(推しの子 op)',
     `duration_ms` = 225768, `status` = 'ACTIVE'
@@ -27898,10 +28902,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0c213cdc53988e5e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '다시 돌아온 계절(멋진신세계OST)', '다시 돌아온 계절(멋진신세계ost)', 216021, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0c213cdc53988e5e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0c213cdc53988e5e', '다시 돌아온 계절(멋진신세계OST)', '다시 돌아온 계절(멋진신세계ost)', 216021, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0c213cdc53988e5e');
 UPDATE `song`
 SET `title` = '다시 돌아온 계절(멋진신세계OST)', `title_normalized` = '다시 돌아온 계절(멋진신세계ost)',
     `duration_ms` = 216021, `status` = 'ACTIVE'
@@ -27972,10 +28980,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a3ff5752b36f0a73') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'blue', 'blue', 214355, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a3ff5752b36f0a73' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a3ff5752b36f0a73', 'blue', 'blue', 214355, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a3ff5752b36f0a73');
 UPDATE `song`
 SET `title` = 'blue', `title_normalized` = 'blue',
     `duration_ms` = 214355, `status` = 'ACTIVE'
@@ -28078,10 +29090,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6911038c57f93230') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Rewrite The Stars(The Greatest Showman OST)', 'rewrite the stars(the greatest showman ost)', 216171, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6911038c57f93230' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6911038c57f93230', 'Rewrite The Stars(The Greatest Showman OST)', 'rewrite the stars(the greatest showman ost)', 216171, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6911038c57f93230');
 UPDATE `song`
 SET `title` = 'Rewrite The Stars(The Greatest Showman OST)', `title_normalized` = 'rewrite the stars(the greatest showman ost)',
     `duration_ms` = 216171, `status` = 'ACTIVE'
@@ -28156,10 +29172,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8d45e833875681d7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '好きだから。', '好きだから。', 299387, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8d45e833875681d7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8d45e833875681d7', '好きだから。', '好きだから。', 299387, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8d45e833875681d7');
 UPDATE `song`
 SET `title` = '好きだから。', `title_normalized` = '好きだから。',
     `duration_ms` = 299387, `status` = 'ACTIVE'
@@ -28447,10 +29467,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '23d2e5ef6ac70082') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'マリーゴールド', 'マリーゴールド', 313284, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '23d2e5ef6ac70082' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '23d2e5ef6ac70082', 'マリーゴールド', 'マリーゴールド', 313284, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '23d2e5ef6ac70082');
 UPDATE `song`
 SET `title` = 'マリーゴールド', `title_normalized` = 'マリーゴールド',
     `duration_ms` = 313284, `status` = 'ACTIVE'
@@ -28676,10 +29700,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f81ce8ac10bf9349') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '愛を伝えたいだとか', '愛を伝えたいだとか', 255187, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f81ce8ac10bf9349' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f81ce8ac10bf9349', '愛を伝えたいだとか', '愛を伝えたいだとか', 255187, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f81ce8ac10bf9349');
 UPDATE `song`
 SET `title` = '愛を伝えたいだとか', `title_normalized` = '愛を伝えたいだとか',
     `duration_ms` = 255187, `status` = 'ACTIVE'
@@ -28903,10 +29931,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6575ba2a070a6b68') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'きゅうくらりん', 'きゅうくらりん', 217091, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6575ba2a070a6b68' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6575ba2a070a6b68', 'きゅうくらりん', 'きゅうくらりん', 217091, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6575ba2a070a6b68');
 UPDATE `song`
 SET `title` = 'きゅうくらりん', `title_normalized` = 'きゅうくらりん',
     `duration_ms` = 217091, `status` = 'ACTIVE'
@@ -28983,10 +30015,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4df548ffe9d4ae10') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'テレキャスタービーボーイ', 'テレキャスタービーボーイ', 201457, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4df548ffe9d4ae10' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4df548ffe9d4ae10', 'テレキャスタービーボーイ', 'テレキャスタービーボーイ', 201457, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4df548ffe9d4ae10');
 UPDATE `song`
 SET `title` = 'テレキャスタービーボーイ', `title_normalized` = 'テレキャスタービーボーイ',
     `duration_ms` = 201457, `status` = 'ACTIVE'
@@ -29247,10 +30283,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0f5ff14345c55fe4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'いますぐ輪廻', 'いますぐ輪廻', 122509, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0f5ff14345c55fe4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0f5ff14345c55fe4', 'いますぐ輪廻', 'いますぐ輪廻', 122509, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0f5ff14345c55fe4');
 UPDATE `song`
 SET `title` = 'いますぐ輪廻', `title_normalized` = 'いますぐ輪廻',
     `duration_ms` = 122509, `status` = 'ACTIVE'
@@ -29325,10 +30365,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '203d8f17dd1699ce') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'プロポーズ', 'プロポーズ', 177772, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '203d8f17dd1699ce' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '203d8f17dd1699ce', 'プロポーズ', 'プロポーズ', 177772, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '203d8f17dd1699ce');
 UPDATE `song`
 SET `title` = 'プロポーズ', `title_normalized` = 'プロポーズ',
     `duration_ms` = 177772, `status` = 'ACTIVE'
@@ -29575,10 +30619,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5b9d6f3dc376bfd9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ロキ', 'ロキ', 229973, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5b9d6f3dc376bfd9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5b9d6f3dc376bfd9', 'ロキ', 'ロキ', 229973, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5b9d6f3dc376bfd9');
 UPDATE `song`
 SET `title` = 'ロキ', `title_normalized` = 'ロキ',
     `duration_ms` = 229973, `status` = 'ACTIVE'
@@ -29655,10 +30703,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b1d9686478784fb5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '青のすみか(アニメ ''呪術廻戦 第2期'' OP)', '青のすみか(アニメ ''呪術廻戦 第2期'' op)', 237145, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b1d9686478784fb5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b1d9686478784fb5', '青のすみか(アニメ ''呪術廻戦 第2期'' OP)', '青のすみか(アニメ ''呪術廻戦 第2期'' op)', 237145, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b1d9686478784fb5');
 UPDATE `song`
 SET `title` = '青のすみか(アニメ ''呪術廻戦 第2期'' OP)', `title_normalized` = '青のすみか(アニメ ''呪術廻戦 第2期'' op)',
     `duration_ms` = 237145, `status` = 'ACTIVE'
@@ -29737,10 +30789,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'abebfbedf8fd04de') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'メズマライザー', 'メズマライザー', 156967, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'abebfbedf8fd04de' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'abebfbedf8fd04de', 'メズマライザー', 'メズマライザー', 156967, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'abebfbedf8fd04de');
 UPDATE `song`
 SET `title` = 'メズマライザー', `title_normalized` = 'メズマライザー',
     `duration_ms` = 156967, `status` = 'ACTIVE'
@@ -29815,10 +30871,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd3d8cbcb36f33ff5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'レイン(鋼の錬金術師 FULLMETAL ALCHEMIST OP)', 'レイン(鋼の錬金術師 fullmetal alchemist op)', 259495, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd3d8cbcb36f33ff5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd3d8cbcb36f33ff5', 'レイン(鋼の錬金術師 FULLMETAL ALCHEMIST OP)', 'レイン(鋼の錬金術師 fullmetal alchemist op)', 259495, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd3d8cbcb36f33ff5');
 UPDATE `song`
 SET `title` = 'レイン(鋼の錬金術師 FULLMETAL ALCHEMIST OP)', `title_normalized` = 'レイン(鋼の錬金術師 fullmetal alchemist op)',
     `duration_ms` = 259495, `status` = 'ACTIVE'
@@ -29891,10 +30951,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4145d433d4fd6f97') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '貴方の恋人になりたい', '貴方の恋人になりたい', 235706, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4145d433d4fd6f97' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4145d433d4fd6f97', '貴方の恋人になりたい', '貴方の恋人になりたい', 235706, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4145d433d4fd6f97');
 UPDATE `song`
 SET `title` = '貴方の恋人になりたい', `title_normalized` = '貴方の恋人になりたい',
     `duration_ms` = 235706, `status` = 'ACTIVE'
@@ -30086,10 +31150,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '133c3c7fb55f698e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'フォニイ', 'フォニイ', 190044, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '133c3c7fb55f698e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '133c3c7fb55f698e', 'フォニイ', 'フォニイ', 190044, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '133c3c7fb55f698e');
 UPDATE `song`
 SET `title` = 'フォニイ', `title_normalized` = 'フォニイ',
     `duration_ms` = 190044, `status` = 'ACTIVE'
@@ -30160,10 +31228,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8b1d24bd246b5a88') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'シャルル', 'シャルル', 233639, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8b1d24bd246b5a88' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8b1d24bd246b5a88', 'シャルル', 'シャルル', 233639, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8b1d24bd246b5a88');
 UPDATE `song`
 SET `title` = 'シャルル', `title_normalized` = 'シャルル',
     `duration_ms` = 233639, `status` = 'ACTIVE'
@@ -30234,10 +31306,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9850a21639f92faf') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '悪魔の子(進撃の巨人 ED)', '悪魔の子(進撃の巨人 ed)', 229947, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9850a21639f92faf' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9850a21639f92faf', '悪魔の子(進撃の巨人 ED)', '悪魔の子(進撃の巨人 ed)', 229947, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9850a21639f92faf');
 UPDATE `song`
 SET `title` = '悪魔の子(進撃の巨人 ED)', `title_normalized` = '悪魔の子(進撃の巨人 ed)',
     `duration_ms` = 229947, `status` = 'ACTIVE'
@@ -30308,10 +31384,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '84e565acf262151f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '神っぽいな', '神っぽいな', 203718, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '84e565acf262151f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '84e565acf262151f', '神っぽいな', '神っぽいな', 203718, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '84e565acf262151f');
 UPDATE `song`
 SET `title` = '神っぽいな', `title_normalized` = '神っぽいな',
     `duration_ms` = 203718, `status` = 'ACTIVE'
@@ -30382,10 +31462,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8ac8bc55c065ff73') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ただ君に晴れ', 'ただ君に晴れ', 199819, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8ac8bc55c065ff73' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8ac8bc55c065ff73', 'ただ君に晴れ', 'ただ君に晴れ', 199819, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8ac8bc55c065ff73');
 UPDATE `song`
 SET `title` = 'ただ君に晴れ', `title_normalized` = 'ただ君に晴れ',
     `duration_ms` = 199819, `status` = 'ACTIVE'
@@ -30574,10 +31658,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6f95a554d9c80fd3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'お返事まだカナ？ おじさん構文！', 'お返事まだカナ? おじさん構文!', 188000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6f95a554d9c80fd3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6f95a554d9c80fd3', 'お返事まだカナ？ おじさん構文！', 'お返事まだカナ? おじさん構文!', 188000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6f95a554d9c80fd3');
 UPDATE `song`
 SET `title` = 'お返事まだカナ？ おじさん構文！', `title_normalized` = 'お返事まだカナ? おじさん構文!',
     `duration_ms` = 188000, `status` = 'ACTIVE'
@@ -30650,10 +31738,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c6ac99ab6a9faed9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ロストワンの号哭', 'ロストワンの号哭', 216000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c6ac99ab6a9faed9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c6ac99ab6a9faed9', 'ロストワンの号哭', 'ロストワンの号哭', 216000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c6ac99ab6a9faed9');
 UPDATE `song`
 SET `title` = 'ロストワンの号哭', `title_normalized` = 'ロストワンの号哭',
     `duration_ms` = 216000, `status` = 'ACTIVE'
@@ -30734,10 +31826,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bdfce934379d239d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '悪ノ召使', '悪ノ召使', 310057, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bdfce934379d239d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bdfce934379d239d', '悪ノ召使', '悪ノ召使', 310057, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bdfce934379d239d');
 UPDATE `song`
 SET `title` = '悪ノ召使', `title_normalized` = '悪ノ召使',
     `duration_ms` = 310057, `status` = 'ACTIVE'
@@ -30812,10 +31908,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '68027bde732faf2c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '残酷な天使のテーゼ(新世紀エヴァンゲリオン OP)', '残酷な天使のテーゼ(新世紀エヴァンゲリオン op)', 244307, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '68027bde732faf2c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '68027bde732faf2c', '残酷な天使のテーゼ(新世紀エヴァンゲリオン OP)', '残酷な天使のテーゼ(新世紀エヴァンゲリオン op)', 244307, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '68027bde732faf2c');
 UPDATE `song`
 SET `title` = '残酷な天使のテーゼ(新世紀エヴァンゲリオン OP)', `title_normalized` = '残酷な天使のテーゼ(新世紀エヴァンゲリオン op)',
     `duration_ms` = 244307, `status` = 'ACTIVE'
@@ -30892,10 +31992,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b51aaef87ca9b0d9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '이별했대', '이별했대', 263059, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b51aaef87ca9b0d9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b51aaef87ca9b0d9', '이별했대', '이별했대', 263059, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b51aaef87ca9b0d9');
 UPDATE `song`
 SET `title` = '이별했대', `title_normalized` = '이별했대',
     `duration_ms` = 263059, `status` = 'ACTIVE'
@@ -31023,10 +32127,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f639d79b5ec01380') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '시작(이태원클라쓰OST)', '시작(이태원클라쓰ost)', 203744, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f639d79b5ec01380' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f639d79b5ec01380', '시작(이태원클라쓰OST)', '시작(이태원클라쓰ost)', 203744, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f639d79b5ec01380');
 UPDATE `song`
 SET `title` = '시작(이태원클라쓰OST)', `title_normalized` = '시작(이태원클라쓰ost)',
     `duration_ms` = 203744, `status` = 'ACTIVE'
@@ -31097,10 +32205,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '3699f598828f925a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼', '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼', 280981, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '3699f598828f925a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '3699f598828f925a', '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼', '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼', 280981, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '3699f598828f925a');
 UPDATE `song`
 SET `title` = '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼', `title_normalized` = '거꾸로 강을 거슬러 오르는 저 힘찬 연어들처럼',
     `duration_ms` = 280981, `status` = 'ACTIVE'
@@ -31208,10 +32320,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '27c4baad6c2daab8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '무정 부르스', '무정 부르스', 245841, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '27c4baad6c2daab8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '27c4baad6c2daab8', '무정 부르스', '무정 부르스', 245841, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '27c4baad6c2daab8');
 UPDATE `song`
 SET `title` = '무정 부르스', `title_normalized` = '무정 부르스',
     `duration_ms` = 245841, `status` = 'ACTIVE'
@@ -31301,10 +32417,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c80c697bcd3a007f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '땡벌', '땡벌', 196185, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c80c697bcd3a007f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c80c697bcd3a007f', '땡벌', '땡벌', 196185, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c80c697bcd3a007f');
 UPDATE `song`
 SET `title` = '땡벌', `title_normalized` = '땡벌',
     `duration_ms` = 196185, `status` = 'ACTIVE'
@@ -31404,10 +32524,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1c816479857a9757') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '백일몽(쎄시봉OST)', '백일몽(쎄시봉ost)', 164525, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1c816479857a9757' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1c816479857a9757', '백일몽(쎄시봉OST)', '백일몽(쎄시봉ost)', 164525, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1c816479857a9757');
 UPDATE `song`
 SET `title` = '백일몽(쎄시봉OST)', `title_normalized` = '백일몽(쎄시봉ost)',
     `duration_ms` = 164525, `status` = 'ACTIVE'
@@ -31480,10 +32604,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b3f574c838de0e04') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '어른아이', '어른아이', 223969, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b3f574c838de0e04' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b3f574c838de0e04', '어른아이', '어른아이', 223969, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b3f574c838de0e04');
 UPDATE `song`
 SET `title` = '어른아이', `title_normalized` = '어른아이',
     `duration_ms` = 223969, `status` = 'ACTIVE'
@@ -31612,10 +32740,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8d5205594e05b40f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '친구라도 될 걸 그랬어', '친구라도 될 걸 그랬어', 281259, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8d5205594e05b40f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8d5205594e05b40f', '친구라도 될 걸 그랬어', '친구라도 될 걸 그랬어', 281259, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8d5205594e05b40f');
 UPDATE `song`
 SET `title` = '친구라도 될 걸 그랬어', `title_normalized` = '친구라도 될 걸 그랬어',
     `duration_ms` = 281259, `status` = 'ACTIVE'
@@ -31737,10 +32869,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cb239137f10233cb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '비행기', '비행기', 213217, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cb239137f10233cb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cb239137f10233cb', '비행기', '비행기', 213217, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cb239137f10233cb');
 UPDATE `song`
 SET `title` = '비행기', `title_normalized` = '비행기',
     `duration_ms` = 213217, `status` = 'ACTIVE'
@@ -31874,10 +33010,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '038b4f9e788ef653') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '빙고', '빙고', 194804, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '038b4f9e788ef653' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '038b4f9e788ef653', '빙고', '빙고', 194804, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '038b4f9e788ef653');
 UPDATE `song`
 SET `title` = '빙고', `title_normalized` = '빙고',
     `duration_ms` = 194804, `status` = 'ACTIVE'
@@ -32010,10 +33150,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4c22cf30d2a6c99d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Antifreeze', 'antifreeze', 243987, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4c22cf30d2a6c99d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4c22cf30d2a6c99d', 'Antifreeze', 'antifreeze', 243987, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4c22cf30d2a6c99d');
 UPDATE `song`
 SET `title` = 'Antifreeze', `title_normalized` = 'antifreeze',
     `duration_ms` = 243987, `status` = 'ACTIVE'
@@ -32125,10 +33269,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a7912da689e1281c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Ling Ling(유미의세포들OST)', 'ling ling(유미의세포들ost)', 230000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a7912da689e1281c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a7912da689e1281c', 'Ling Ling(유미의세포들OST)', 'ling ling(유미의세포들ost)', 230000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a7912da689e1281c');
 UPDATE `song`
 SET `title` = 'Ling Ling(유미의세포들OST)', `title_normalized` = 'ling ling(유미의세포들ost)',
     `duration_ms` = 230000, `status` = 'ACTIVE'
@@ -32203,10 +33351,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '56a725b754942e69') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '기다린 만큼, 더(또오해영OST)', '기다린 만큼, 더(또오해영ost)', 268109, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '56a725b754942e69' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '56a725b754942e69', '기다린 만큼, 더(또오해영OST)', '기다린 만큼, 더(또오해영ost)', 268109, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '56a725b754942e69');
 UPDATE `song`
 SET `title` = '기다린 만큼, 더(또오해영OST)', `title_normalized` = '기다린 만큼, 더(또오해영ost)',
     `duration_ms` = 268109, `status` = 'ACTIVE'
@@ -32279,10 +33431,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '847efdd05a1150e6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '밤편지', '밤편지', 214100, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '847efdd05a1150e6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '847efdd05a1150e6', '밤편지', '밤편지', 214100, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '847efdd05a1150e6');
 UPDATE `song`
 SET `title` = '밤편지', `title_normalized` = '밤편지',
     `duration_ms` = 214100, `status` = 'ACTIVE'
@@ -32355,10 +33511,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd6c0e7323dcc4047') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '...사랑했잖아...(2024)', '...사랑했잖아...(2024)', 240350, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd6c0e7323dcc4047' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd6c0e7323dcc4047', '...사랑했잖아...(2024)', '...사랑했잖아...(2024)', 240350, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd6c0e7323dcc4047');
 UPDATE `song`
 SET `title` = '...사랑했잖아...(2024)', `title_normalized` = '...사랑했잖아...(2024)',
     `duration_ms` = 240350, `status` = 'ACTIVE'
@@ -32485,10 +33645,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '13f93adf8469ac0a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '너라는 별', '너라는 별', 177093, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '13f93adf8469ac0a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '13f93adf8469ac0a', '너라는 별', '너라는 별', 177093, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '13f93adf8469ac0a');
 UPDATE `song`
 SET `title` = '너라는 별', `title_normalized` = '너라는 별',
     `duration_ms` = 177093, `status` = 'ACTIVE'
@@ -32599,10 +33763,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '64e54cfb61bcfff6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '암연(여자OST)', '암연(여자ost)', 271105, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '64e54cfb61bcfff6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '64e54cfb61bcfff6', '암연(여자OST)', '암연(여자ost)', 271105, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '64e54cfb61bcfff6');
 UPDATE `song`
 SET `title` = '암연(여자OST)', `title_normalized` = '암연(여자ost)',
     `duration_ms` = 271105, `status` = 'ACTIVE'
@@ -32677,10 +33845,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2f256de653267682') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '밤편지', '밤편지', 179958, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2f256de653267682' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2f256de653267682', '밤편지', '밤편지', 179958, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2f256de653267682');
 UPDATE `song`
 SET `title` = '밤편지', `title_normalized` = '밤편지',
     `duration_ms` = 179958, `status` = 'ACTIVE'
@@ -32753,10 +33925,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '2a346628e445402d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '우리 사랑은 필름 같았으면 해요', '우리 사랑은 필름 같았으면 해요', 243334, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '2a346628e445402d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '2a346628e445402d', '우리 사랑은 필름 같았으면 해요', '우리 사랑은 필름 같았으면 해요', 243334, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '2a346628e445402d');
 UPDATE `song`
 SET `title` = '우리 사랑은 필름 같았으면 해요', `title_normalized` = '우리 사랑은 필름 같았으면 해요',
     `duration_ms` = 243334, `status` = 'ACTIVE'
@@ -32869,10 +34045,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a9ccd797ae80eae6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '위하여(We Higher)', '위하여(we higher)', 322525, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a9ccd797ae80eae6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a9ccd797ae80eae6', '위하여(We Higher)', '위하여(we higher)', 322525, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a9ccd797ae80eae6');
 UPDATE `song`
 SET `title` = '위하여(We Higher)', `title_normalized` = '위하여(we higher)',
     `duration_ms` = 322525, `status` = 'ACTIVE'
@@ -32943,10 +34123,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd8974053c91c03bc') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '빗속을 둘이서', '빗속을 둘이서', 205044, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd8974053c91c03bc' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd8974053c91c03bc', '빗속을 둘이서', '빗속을 둘이서', 205044, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd8974053c91c03bc');
 UPDATE `song`
 SET `title` = '빗속을 둘이서', `title_normalized` = '빗속을 둘이서',
     `duration_ms` = 205044, `status` = 'ACTIVE'
@@ -33045,10 +34229,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ca55bd0cb47f8318') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '오라버니', '오라버니', 215248, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ca55bd0cb47f8318' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ca55bd0cb47f8318', '오라버니', '오라버니', 215248, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ca55bd0cb47f8318');
 UPDATE `song`
 SET `title` = '오라버니', `title_normalized` = '오라버니',
     `duration_ms` = 215248, `status` = 'ACTIVE'
@@ -33170,10 +34358,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '29c9bec4b7c7d23c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '우리서로사랑하지는말자', '우리서로사랑하지는말자', 242999, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '29c9bec4b7c7d23c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '29c9bec4b7c7d23c', '우리서로사랑하지는말자', '우리서로사랑하지는말자', 242999, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '29c9bec4b7c7d23c');
 UPDATE `song`
 SET `title` = '우리서로사랑하지는말자', `title_normalized` = '우리서로사랑하지는말자',
     `duration_ms` = 242999, `status` = 'ACTIVE'
@@ -33305,10 +34497,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f58aaed95a4885b7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Officially Missing You', 'officially missing you', 210367, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f58aaed95a4885b7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f58aaed95a4885b7', 'Officially Missing You', 'officially missing you', 210367, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f58aaed95a4885b7');
 UPDATE `song`
 SET `title` = 'Officially Missing You', `title_normalized` = 'officially missing you',
     `duration_ms` = 210367, `status` = 'ACTIVE'
@@ -33463,10 +34659,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cefc0cee6f26ed20') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '서울의 달', '서울의 달', 344816, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cefc0cee6f26ed20' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cefc0cee6f26ed20', '서울의 달', '서울의 달', 344816, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cefc0cee6f26ed20');
 UPDATE `song`
 SET `title` = '서울의 달', `title_normalized` = '서울의 달',
     `duration_ms` = 344816, `status` = 'ACTIVE'
@@ -33570,10 +34770,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b7944d178019fbe9') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '잘못된 만남', '잘못된 만남', 257730, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b7944d178019fbe9' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b7944d178019fbe9', '잘못된 만남', '잘못된 만남', 257730, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b7944d178019fbe9');
 UPDATE `song`
 SET `title` = '잘못된 만남', `title_normalized` = '잘못된 만남',
     `duration_ms` = 257730, `status` = 'ACTIVE'
@@ -33646,10 +34850,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '86dd215e65289694') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '금지된 사랑', '금지된 사랑', 271627, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '86dd215e65289694' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '86dd215e65289694', '금지된 사랑', '금지된 사랑', 271627, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '86dd215e65289694');
 UPDATE `song`
 SET `title` = '금지된 사랑', `title_normalized` = '금지된 사랑',
     `duration_ms` = 271627, `status` = 'ACTIVE'
@@ -33760,10 +34968,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f636bd6b9dfd99fa') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '거리에서', '거리에서', 345429, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f636bd6b9dfd99fa' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f636bd6b9dfd99fa', '거리에서', '거리에서', 345429, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f636bd6b9dfd99fa');
 UPDATE `song`
 SET `title` = '거리에서', `title_normalized` = '거리에서',
     `duration_ms` = 345429, `status` = 'ACTIVE'
@@ -33874,10 +35086,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fe4b56d064ba3397') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그날들', '그날들', 322539, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fe4b56d064ba3397' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fe4b56d064ba3397', '그날들', '그날들', 322539, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fe4b56d064ba3397');
 UPDATE `song`
 SET `title` = '그날들', `title_normalized` = '그날들',
     `duration_ms` = 322539, `status` = 'ACTIVE'
@@ -33997,10 +35213,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0e0a063df5042eeb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그녀가 처음 울던 날', '그녀가 처음 울던 날', 175533, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0e0a063df5042eeb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0e0a063df5042eeb', '그녀가 처음 울던 날', '그녀가 처음 울던 날', 175533, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0e0a063df5042eeb');
 UPDATE `song`
 SET `title` = '그녀가 처음 울던 날', `title_normalized` = '그녀가 처음 울던 날',
     `duration_ms` = 175533, `status` = 'ACTIVE'
@@ -34095,10 +35315,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '79d6265a08f32fd8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '너무 아픈 사랑은 사랑이 아니었음을', '너무 아픈 사랑은 사랑이 아니었음을', 372483, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '79d6265a08f32fd8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '79d6265a08f32fd8', '너무 아픈 사랑은 사랑이 아니었음을', '너무 아픈 사랑은 사랑이 아니었음을', 372483, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '79d6265a08f32fd8');
 UPDATE `song`
 SET `title` = '너무 아픈 사랑은 사랑이 아니었음을', `title_normalized` = '너무 아픈 사랑은 사랑이 아니었음을',
     `duration_ms` = 372483, `status` = 'ACTIVE'
@@ -34242,10 +35466,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd4550cd4640ec6dc') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '먼지가 되어', '먼지가 되어', 207960, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd4550cd4640ec6dc' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd4550cd4640ec6dc', '먼지가 되어', '먼지가 되어', 207960, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd4550cd4640ec6dc');
 UPDATE `song`
 SET `title` = '먼지가 되어', `title_normalized` = '먼지가 되어',
     `duration_ms` = 207960, `status` = 'ACTIVE'
@@ -34342,10 +35570,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1f10cd627171d688') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바람이 불어오는 곳', '바람이 불어오는 곳', 203744, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1f10cd627171d688' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1f10cd627171d688', '바람이 불어오는 곳', '바람이 불어오는 곳', 203744, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1f10cd627171d688');
 UPDATE `song`
 SET `title` = '바람이 불어오는 곳', `title_normalized` = '바람이 불어오는 곳',
     `duration_ms` = 203744, `status` = 'ACTIVE'
@@ -34452,10 +35684,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'b49ccadbfdfa1c2a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '이등병의 편지', '이등병의 편지', 288576, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'b49ccadbfdfa1c2a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'b49ccadbfdfa1c2a', '이등병의 편지', '이등병의 편지', 288576, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'b49ccadbfdfa1c2a');
 UPDATE `song`
 SET `title` = '이등병의 편지', `title_normalized` = '이등병의 편지',
     `duration_ms` = 288576, `status` = 'ACTIVE'
@@ -34528,10 +35764,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'cade7a52212f85bb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '일어나', '일어나', 271339, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'cade7a52212f85bb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'cade7a52212f85bb', '일어나', '일어나', 271339, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'cade7a52212f85bb');
 UPDATE `song`
 SET `title` = '일어나', `title_normalized` = '일어나',
     `duration_ms` = 271339, `status` = 'ACTIVE'
@@ -34649,10 +35889,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '93f2179a498a4bf7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '잊어야 한다는 마음으로', '잊어야 한다는 마음으로', 255524, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '93f2179a498a4bf7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '93f2179a498a4bf7', '잊어야 한다는 마음으로', '잊어야 한다는 마음으로', 255524, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '93f2179a498a4bf7');
 UPDATE `song`
 SET `title` = '잊어야 한다는 마음으로', `title_normalized` = '잊어야 한다는 마음으로',
     `duration_ms` = 255524, `status` = 'ACTIVE'
@@ -34761,10 +36005,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'e0ef290167785b15') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '혼자 남은 밤', '혼자 남은 밤', 280533, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'e0ef290167785b15' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'e0ef290167785b15', '혼자 남은 밤', '혼자 남은 밤', 280533, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'e0ef290167785b15');
 UPDATE `song`
 SET `title` = '혼자 남은 밤', `title_normalized` = '혼자 남은 밤',
     `duration_ms` = 280533, `status` = 'ACTIVE'
@@ -34859,10 +36107,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'adfdcd5a7b389617') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '봄 내음보다 너를', '봄 내음보다 너를', 227323, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'adfdcd5a7b389617' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'adfdcd5a7b389617', '봄 내음보다 너를', '봄 내음보다 너를', 227323, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'adfdcd5a7b389617');
 UPDATE `song`
 SET `title` = '봄 내음보다 너를', `title_normalized` = '봄 내음보다 너를',
     `duration_ms` = 227323, `status` = 'ACTIVE'
@@ -34988,10 +36240,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '374259c347f6c255') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '취중고백', '취중고백', 228241, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '374259c347f6c255' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '374259c347f6c255', '취중고백', '취중고백', 228241, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '374259c347f6c255');
 UPDATE `song`
 SET `title` = '취중고백', `title_normalized` = '취중고백',
     `duration_ms` = 228241, `status` = 'ACTIVE'
@@ -35108,10 +36364,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '67ddfb634d408984') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '끝사랑', '끝사랑', 252157, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '67ddfb634d408984' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '67ddfb634d408984', '끝사랑', '끝사랑', 252157, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '67ddfb634d408984');
 UPDATE `song`
 SET `title` = '끝사랑', `title_normalized` = '끝사랑',
     `duration_ms` = 252157, `status` = 'ACTIVE'
@@ -35212,10 +36472,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd932d378d2c0d544') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '보고싶다', '보고싶다', 244129, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd932d378d2c0d544' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd932d378d2c0d544', '보고싶다', '보고싶다', 244129, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd932d378d2c0d544');
 UPDATE `song`
 SET `title` = '보고싶다', `title_normalized` = '보고싶다',
     `duration_ms` = 244129, `status` = 'ACTIVE'
@@ -35322,10 +36586,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ff3d6b1fff69aa91') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '남행열차', '남행열차', 197594, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ff3d6b1fff69aa91' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ff3d6b1fff69aa91', '남행열차', '남행열차', 197594, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ff3d6b1fff69aa91');
 UPDATE `song`
 SET `title` = '남행열차', `title_normalized` = '남행열차',
     `duration_ms` = 197594, `status` = 'ACTIVE'
@@ -35425,10 +36693,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c8662fb659e0546e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '애모', '애모', 237718, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c8662fb659e0546e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c8662fb659e0546e', '애모', '애모', 237718, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c8662fb659e0546e');
 UPDATE `song`
 SET `title` = '애모', `title_normalized` = '애모',
     `duration_ms` = 237718, `status` = 'ACTIVE'
@@ -35518,10 +36790,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '0273c5b49bfc4d87') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '귀거래사(죽도록사랑해 삽입곡)', '귀거래사(죽도록사랑해 삽입곡)', 211307, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '0273c5b49bfc4d87' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '0273c5b49bfc4d87', '귀거래사(죽도록사랑해 삽입곡)', '귀거래사(죽도록사랑해 삽입곡)', 211307, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '0273c5b49bfc4d87');
 UPDATE `song`
 SET `title` = '귀거래사(죽도록사랑해 삽입곡)', `title_normalized` = '귀거래사(죽도록사랑해 삽입곡)',
     `duration_ms` = 211307, `status` = 'ACTIVE'
@@ -35596,10 +36872,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '69236a22244e23e4') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '아모르 파티', '아모르 파티', 218326, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '69236a22244e23e4' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '69236a22244e23e4', '아모르 파티', '아모르 파티', 218326, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '69236a22244e23e4');
 UPDATE `song`
 SET `title` = '아모르 파티', `title_normalized` = '아모르 파티',
     `duration_ms` = 218326, `status` = 'ACTIVE'
@@ -35722,10 +37002,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '19aadad2c740981d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Honey', 'honey', 251368, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '19aadad2c740981d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '19aadad2c740981d', 'Honey', 'honey', 251368, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '19aadad2c740981d');
 UPDATE `song`
 SET `title` = 'Honey', `title_normalized` = 'honey',
     `duration_ms` = 251368, `status` = 'ACTIVE'
@@ -35798,10 +37082,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4a56a807c5721882') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '이름 모를 소녀', '이름 모를 소녀', 242881, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4a56a807c5721882' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4a56a807c5721882', '이름 모를 소녀', '이름 모를 소녀', 242881, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4a56a807c5721882');
 UPDATE `song`
 SET `title` = '이름 모를 소녀', `title_normalized` = '이름 모를 소녀',
     `duration_ms` = 242881, `status` = 'ACTIVE'
@@ -35886,10 +37174,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '786ed1e05a872f00') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '하얀 나비', '하얀 나비', 240176, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '786ed1e05a872f00' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '786ed1e05a872f00', '하얀 나비', '하얀 나비', 240176, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '786ed1e05a872f00');
 UPDATE `song`
 SET `title` = '하얀 나비', `title_normalized` = '하얀 나비',
     `duration_ms` = 240176, `status` = 'ACTIVE'
@@ -35987,10 +37279,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '942d80b36edb55bb') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '슬퍼하지 마', '슬퍼하지 마', 246039, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '942d80b36edb55bb' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '942d80b36edb55bb', '슬퍼하지 마', '슬퍼하지 마', 246039, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '942d80b36edb55bb');
 UPDATE `song`
 SET `title` = '슬퍼하지 마', `title_normalized` = '슬퍼하지 마',
     `duration_ms` = 246039, `status` = 'ACTIVE'
@@ -36094,10 +37390,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1de38231c42f41de') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '존재의 이유', '존재의 이유', 284907, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1de38231c42f41de' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1de38231c42f41de', '존재의 이유', '존재의 이유', 284907, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1de38231c42f41de');
 UPDATE `song`
 SET `title` = '존재의 이유', `title_normalized` = '존재의 이유',
     `duration_ms` = 284907, `status` = 'ACTIVE'
@@ -36212,10 +37512,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a061b42c501de559') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '미안해서 미안해', '미안해서 미안해', 216990, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a061b42c501de559' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a061b42c501de559', '미안해서 미안해', '미안해서 미안해', 216990, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a061b42c501de559');
 UPDATE `song`
 SET `title` = '미안해서 미안해', `title_normalized` = '미안해서 미안해',
     `duration_ms` = 216990, `status` = 'ACTIVE'
@@ -36286,10 +37590,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '66d15c32ac8f47da') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑비', '사랑비', 239909, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '66d15c32ac8f47da' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '66d15c32ac8f47da', '사랑비', '사랑비', 239909, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '66d15c32ac8f47da');
 UPDATE `song`
 SET `title` = '사랑비', `title_normalized` = '사랑비',
     `duration_ms` = 239909, `status` = 'ACTIVE'
@@ -36415,10 +37723,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '132f1d740646d1c3') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '다시 사랑한다면 (니글니글 버터플라이)', '다시 사랑한다면 (니글니글 버터플라이)', 242451, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '132f1d740646d1c3' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '132f1d740646d1c3', '다시 사랑한다면 (니글니글 버터플라이)', '다시 사랑한다면 (니글니글 버터플라이)', 242451, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '132f1d740646d1c3');
 UPDATE `song`
 SET `title` = '다시 사랑한다면 (니글니글 버터플라이)', `title_normalized` = '다시 사랑한다면 (니글니글 버터플라이)',
     `duration_ms` = 242451, `status` = 'ACTIVE'
@@ -36523,10 +37835,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '81ab1ab7927457d2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '붕붕', '붕붕', 234104, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '81ab1ab7927457d2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '81ab1ab7927457d2', '붕붕', '붕붕', 234104, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '81ab1ab7927457d2');
 UPDATE `song`
 SET `title` = '붕붕', `title_normalized` = '붕붕',
     `duration_ms` = 234104, `status` = 'ACTIVE'
@@ -36597,10 +37913,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '807095a162be21b0') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'ON to the next', 'on to the next', 274000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '807095a162be21b0' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '807095a162be21b0', 'ON to the next', 'on to the next', 274000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '807095a162be21b0');
 UPDATE `song`
 SET `title` = 'ON to the next', `title_normalized` = 'on to the next',
     `duration_ms` = 274000, `status` = 'ACTIVE'
@@ -36673,10 +37993,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '890f444e44ca273f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'TICK TOCK', 'tick tock', 230000, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '890f444e44ca273f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '890f444e44ca273f', 'TICK TOCK', 'tick tock', 230000, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '890f444e44ca273f');
 UPDATE `song`
 SET `title` = 'TICK TOCK', `title_normalized` = 'tick tock',
     `duration_ms` = 230000, `status` = 'ACTIVE'
@@ -36746,10 +38070,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6a7d0f8a91934a5f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바코드', '바코드', 223063, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6a7d0f8a91934a5f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6a7d0f8a91934a5f', '바코드', '바코드', 223063, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6a7d0f8a91934a5f');
 UPDATE `song`
 SET `title` = '바코드', `title_normalized` = '바코드',
     `duration_ms` = 223063, `status` = 'ACTIVE'
@@ -36822,10 +38150,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '99f31f4bb72afc0f') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '슬픔의 심로', '슬픔의 심로', 216027, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '99f31f4bb72afc0f' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '99f31f4bb72afc0f', '슬픔의 심로', '슬픔의 심로', 216027, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '99f31f4bb72afc0f');
 UPDATE `song`
 SET `title` = '슬픔의 심로', `title_normalized` = '슬픔의 심로',
     `duration_ms` = 216027, `status` = 'ACTIVE'
@@ -36954,10 +38286,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '76be1d65d99a24ad') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '내 사랑 내곁에', '내 사랑 내곁에', 265137, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '76be1d65d99a24ad' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '76be1d65d99a24ad', '내 사랑 내곁에', '내 사랑 내곁에', 265137, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '76be1d65d99a24ad');
 UPDATE `song`
 SET `title` = '내 사랑 내곁에', `title_normalized` = '내 사랑 내곁에',
     `duration_ms` = 265137, `status` = 'ACTIVE'
@@ -37053,10 +38389,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '683a39452261c325') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그녀와의 이별', '그녀와의 이별', 243357, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '683a39452261c325' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '683a39452261c325', '그녀와의 이별', '그녀와의 이별', 243357, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '683a39452261c325');
 UPDATE `song`
 SET `title` = '그녀와의 이별', `title_normalized` = '그녀와의 이별',
     `duration_ms` = 243357, `status` = 'ACTIVE'
@@ -37165,10 +38505,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9810c515ee27adfc') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '멍', '멍', 207808, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9810c515ee27adfc' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9810c515ee27adfc', '멍', '멍', 207808, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9810c515ee27adfc');
 UPDATE `song`
 SET `title` = '멍', `title_normalized` = '멍',
     `duration_ms` = 207808, `status` = 'ACTIVE'
@@ -37275,10 +38619,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8d3bf46856449bc2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '토요일 밤에', '토요일 밤에', 202757, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8d3bf46856449bc2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8d3bf46856449bc2', '토요일 밤에', '토요일 밤에', 202757, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8d3bf46856449bc2');
 UPDATE `song`
 SET `title` = '토요일 밤에', `title_normalized` = '토요일 밤에',
     `duration_ms` = 202757, `status` = 'ACTIVE'
@@ -37375,10 +38723,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6d4ae1f7291e5e03') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '같은 시간 속의 너', '같은 시간 속의 너', 256360, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6d4ae1f7291e5e03' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6d4ae1f7291e5e03', '같은 시간 속의 너', '같은 시간 속의 너', 256360, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6d4ae1f7291e5e03');
 UPDATE `song`
 SET `title` = '같은 시간 속의 너', `title_normalized` = '같은 시간 속의 너',
     `duration_ms` = 256360, `status` = 'ACTIVE'
@@ -37489,10 +38841,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '4857729bbfecd204') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '귀로', '귀로', 266553, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '4857729bbfecd204' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '4857729bbfecd204', '귀로', '귀로', 266553, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '4857729bbfecd204');
 UPDATE `song`
 SET `title` = '귀로', `title_normalized` = '귀로',
     `duration_ms` = 266553, `status` = 'ACTIVE'
@@ -37589,10 +38945,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '795a813fb735a231') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바람기억', '바람기억', 308245, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '795a813fb735a231' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '795a813fb735a231', '바람기억', '바람기억', 308245, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '795a813fb735a231');
 UPDATE `song`
 SET `title` = '바람기억', `title_normalized` = '바람기억',
     `duration_ms` = 308245, `status` = 'ACTIVE'
@@ -37700,10 +39060,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '375b578079a61980') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '기대', '기대', 278400, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '375b578079a61980' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '375b578079a61980', '기대', '기대', 278400, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '375b578079a61980');
 UPDATE `song`
 SET `title` = '기대', `title_normalized` = '기대',
     `duration_ms` = 278400, `status` = 'ACTIVE'
@@ -37829,10 +39193,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a1fb32ceacd6c276') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '나였으면(황태자의첫사랑OST)', '나였으면(황태자의첫사랑ost)', 260694, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a1fb32ceacd6c276' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a1fb32ceacd6c276', '나였으면(황태자의첫사랑OST)', '나였으면(황태자의첫사랑ost)', 260694, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a1fb32ceacd6c276');
 UPDATE `song`
 SET `title` = '나였으면(황태자의첫사랑OST)', `title_normalized` = '나였으면(황태자의첫사랑ost)',
     `duration_ms` = 260694, `status` = 'ACTIVE'
@@ -37903,10 +39271,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'd1d2ae4389d12a4e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Wu', 'wu', 191785, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'd1d2ae4389d12a4e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'd1d2ae4389d12a4e', 'Wu', 'wu', 191785, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'd1d2ae4389d12a4e');
 UPDATE `song`
 SET `title` = 'Wu', `title_normalized` = 'wu',
     `duration_ms` = 191785, `status` = 'ACTIVE'
@@ -38026,10 +39398,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1f63a37a1b3a35f6') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고장난 벽시계', '고장난 벽시계', 184867, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1f63a37a1b3a35f6' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1f63a37a1b3a35f6', '고장난 벽시계', '고장난 벽시계', 184867, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1f63a37a1b3a35f6');
 UPDATE `song`
 SET `title` = '고장난 벽시계', `title_normalized` = '고장난 벽시계',
     `duration_ms` = 184867, `status` = 'ACTIVE'
@@ -38124,10 +39500,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c284cd1ce5188925') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고향역', '고향역', 172107, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c284cd1ce5188925' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c284cd1ce5188925', '고향역', '고향역', 172107, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c284cd1ce5188925');
 UPDATE `song`
 SET `title` = '고향역', `title_normalized` = '고향역',
     `duration_ms` = 172107, `status` = 'ACTIVE'
@@ -38213,10 +39593,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8898bf0d4ac8e253') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사내', '사내', 223040, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8898bf0d4ac8e253' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8898bf0d4ac8e253', '사내', '사내', 223040, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8898bf0d4ac8e253');
 UPDATE `song`
 SET `title` = '사내', `title_normalized` = '사내',
     `duration_ms` = 223040, `status` = 'ACTIVE'
@@ -38321,10 +39705,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a483cfbb247a587d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑', '사랑', 196069, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a483cfbb247a587d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a483cfbb247a587d', '사랑', '사랑', 196069, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a483cfbb247a587d');
 UPDATE `song`
 SET `title` = '사랑', `title_normalized` = '사랑',
     `duration_ms` = 196069, `status` = 'ACTIVE'
@@ -38425,10 +39813,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8751f8668eeaf68a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '영영', '영영', 216886, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8751f8668eeaf68a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8751f8668eeaf68a', '영영', '영영', 216886, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8751f8668eeaf68a');
 UPDATE `song`
 SET `title` = '영영', `title_normalized` = '영영',
     `duration_ms` = 216886, `status` = 'ACTIVE'
@@ -38524,10 +39916,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '33b7de0b77998124') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '테스형!', '테스형!', 278442, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '33b7de0b77998124' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '33b7de0b77998124', '테스형!', '테스형!', 278442, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '33b7de0b77998124');
 UPDATE `song`
 SET `title` = '테스형!', `title_normalized` = '테스형!',
     `duration_ms` = 278442, `status` = 'ACTIVE'
@@ -38631,10 +40027,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '387a9012b7346cf8') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '홍시 (울 엄마)', '홍시 (울 엄마)', 260133, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '387a9012b7346cf8' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '387a9012b7346cf8', '홍시 (울 엄마)', '홍시 (울 엄마)', 260133, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '387a9012b7346cf8');
 UPDATE `song`
 SET `title` = '홍시 (울 엄마)', `title_normalized` = '홍시 (울 엄마)',
     `duration_ms` = 260133, `status` = 'ACTIVE'
@@ -38737,10 +40137,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '298a45b358d17e86') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '당신이 좋아', '당신이 좋아', 190044, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '298a45b358d17e86' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '298a45b358d17e86', '당신이 좋아', '당신이 좋아', 190044, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '298a45b358d17e86');
 UPDATE `song`
 SET `title` = '당신이 좋아', `title_normalized` = '당신이 좋아',
     `duration_ms` = 190044, `status` = 'ACTIVE'
@@ -38842,10 +40246,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '148680ded1217a41') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '둥지', '둥지', 206720, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '148680ded1217a41' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '148680ded1217a41', '둥지', '둥지', 206720, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '148680ded1217a41');
 UPDATE `song`
 SET `title` = '둥지', `title_normalized` = '둥지',
     `duration_ms` = 206720, `status` = 'ACTIVE'
@@ -38955,10 +40363,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5771ab287ca125dd') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '빈잔', '빈잔', 170202, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5771ab287ca125dd' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5771ab287ca125dd', '빈잔', '빈잔', 170202, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5771ab287ca125dd');
 UPDATE `song`
 SET `title` = '빈잔', `title_normalized` = '빈잔',
     `duration_ms` = 170202, `status` = 'ACTIVE'
@@ -39048,10 +40460,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'f6441e3faca46632') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그대만 있다면(여름날우리 X 너드커넥션(Nerd Connection))', '그대만 있다면(여름날우리 x 너드커넥션(nerd connection))', 250573, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'f6441e3faca46632' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'f6441e3faca46632', '그대만 있다면(여름날우리 X 너드커넥션(Nerd Connection))', '그대만 있다면(여름날우리 x 너드커넥션(nerd connection))', 250573, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'f6441e3faca46632');
 UPDATE `song`
 SET `title` = '그대만 있다면(여름날우리 X 너드커넥션(Nerd Connection))', `title_normalized` = '그대만 있다면(여름날우리 x 너드커넥션(nerd connection))',
     `duration_ms` = 250573, `status` = 'ACTIVE'
@@ -39124,10 +40540,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bef7b592aafb53ef') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '좋은 밤 좋은 꿈', '좋은 밤 좋은 꿈', 265963, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bef7b592aafb53ef' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bef7b592aafb53ef', '좋은 밤 좋은 꿈', '좋은 밤 좋은 꿈', 265963, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bef7b592aafb53ef');
 UPDATE `song`
 SET `title` = '좋은 밤 좋은 꿈', `title_normalized` = '좋은 밤 좋은 꿈',
     `duration_ms` = 265963, `status` = 'ACTIVE'
@@ -39202,10 +40622,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8c8f8211e85db1ee') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '기억을 걷는 시간', '기억을 걷는 시간', 313458, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8c8f8211e85db1ee' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8c8f8211e85db1ee', '기억을 걷는 시간', '기억을 걷는 시간', 313458, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8c8f8211e85db1ee');
 UPDATE `song`
 SET `title` = '기억을 걷는 시간', `title_normalized` = '기억을 걷는 시간',
     `duration_ms` = 313458, `status` = 'ACTIVE'
@@ -39348,10 +40772,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c3504f131f9bd6f2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '형(兄)', '형(兄)', 252563, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c3504f131f9bd6f2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c3504f131f9bd6f2', '형(兄)', '형(兄)', 252563, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c3504f131f9bd6f2');
 UPDATE `song`
 SET `title` = '형(兄)', `title_normalized` = '형(兄)',
     `duration_ms` = 252563, `status` = 'ACTIVE'
@@ -39463,10 +40891,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '10a83d2e7ebecc35') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '만남', '만남', 242730, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '10a83d2e7ebecc35' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '10a83d2e7ebecc35', '만남', '만남', 242730, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '10a83d2e7ebecc35');
 UPDATE `song`
 SET `title` = '만남', `title_normalized` = '만남',
     `duration_ms` = 242730, `status` = 'ACTIVE'
@@ -39561,10 +40993,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '46efd7d53036ffa1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바램', '바램', 279963, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '46efd7d53036ffa1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '46efd7d53036ffa1', '바램', '바램', 279963, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '46efd7d53036ffa1');
 UPDATE `song`
 SET `title` = '바램', `title_normalized` = '바램',
     `duration_ms` = 279963, `status` = 'ACTIVE'
@@ -39685,10 +41121,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '304b0735c07eb49d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '그래 늦지 않았어', '그래 늦지 않았어', 249533, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '304b0735c07eb49d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '304b0735c07eb49d', '그래 늦지 않았어', '그래 늦지 않았어', 249533, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '304b0735c07eb49d');
 UPDATE `song`
 SET `title` = '그래 늦지 않았어', `title_normalized` = '그래 늦지 않았어',
     `duration_ms` = 249533, `status` = 'ACTIVE'
@@ -39799,10 +41239,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '80c44c067d61f38b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '바다에 누워', '바다에 누워', 201213, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '80c44c067d61f38b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '80c44c067d61f38b', '바다에 누워', '바다에 누워', 201213, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '80c44c067d61f38b');
 UPDATE `song`
 SET `title` = '바다에 누워', `title_normalized` = '바다에 누워',
     `duration_ms` = 201213, `status` = 'ACTIVE'
@@ -39915,10 +41359,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '58457444c55d64cd') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '지나오다', '지나오다', 285049, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '58457444c55d64cd' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '58457444c55d64cd', '지나오다', '지나오다', 285049, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '58457444c55d64cd');
 UPDATE `song`
 SET `title` = '지나오다', `title_normalized` = '지나오다',
     `duration_ms` = 285049, `status` = 'ACTIVE'
@@ -40032,10 +41480,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '7c4cf3d802e04d6a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑과 전쟁', '사랑과 전쟁', 256288, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '7c4cf3d802e04d6a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '7c4cf3d802e04d6a', '사랑과 전쟁', '사랑과 전쟁', 256288, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '7c4cf3d802e04d6a');
 UPDATE `song`
 SET `title` = '사랑과 전쟁', `title_normalized` = '사랑과 전쟁',
     `duration_ms` = 256288, `status` = 'ACTIVE'
@@ -40108,10 +41560,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'fc3b18939026132e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '8282', '8282', 218672, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'fc3b18939026132e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'fc3b18939026132e', '8282', '8282', 218672, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'fc3b18939026132e');
 UPDATE `song`
 SET `title` = '8282', `title_normalized` = '8282',
     `duration_ms` = 218672, `status` = 'ACTIVE'
@@ -40184,10 +41640,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '3f521050796bf27b') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '모르시나요(아이리스Ⅱ OST)', '모르시나요(아이리스ii ost)', 305659, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '3f521050796bf27b' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '3f521050796bf27b', '모르시나요(아이리스Ⅱ OST)', '모르시나요(아이리스ii ost)', 305659, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '3f521050796bf27b');
 UPDATE `song`
 SET `title` = '모르시나요(아이리스Ⅱ OST)', `title_normalized` = '모르시나요(아이리스ii ost)',
     `duration_ms` = 305659, `status` = 'ACTIVE'
@@ -40260,10 +41720,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '12851a16810a6ca2') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '이 사랑(태양의후예OST)', '이 사랑(태양의후예ost)', 229820, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '12851a16810a6ca2' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '12851a16810a6ca2', '이 사랑(태양의후예OST)', '이 사랑(태양의후예ost)', 229820, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '12851a16810a6ca2');
 UPDATE `song`
 SET `title` = '이 사랑(태양의후예OST)', `title_normalized` = '이 사랑(태양의후예ost)',
     `duration_ms` = 229820, `status` = 'ACTIVE'
@@ -40336,10 +41800,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '922b51783f35638d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고백(Go Back)', '고백(go back)', 402007, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '922b51783f35638d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '922b51783f35638d', '고백(Go Back)', '고백(go back)', 402007, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '922b51783f35638d');
 UPDATE `song`
 SET `title` = '고백(Go Back)', `title_normalized` = '고백(go back)',
     `duration_ms` = 402007, `status` = 'ACTIVE'
@@ -40420,10 +41888,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9fa7c1b325c0f6fe') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고백(Go Back)', '고백(go back)', 227103, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9fa7c1b325c0f6fe' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9fa7c1b325c0f6fe', '고백(Go Back)', '고백(go back)', 227103, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9fa7c1b325c0f6fe');
 UPDATE `song`
 SET `title` = '고백(Go Back)', `title_normalized` = '고백(go back)',
     `duration_ms` = 227103, `status` = 'ACTIVE'
@@ -40494,10 +41966,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9c1669346b794e5a') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '죽일 놈(Guilty)', '죽일 놈(guilty)', 223969, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9c1669346b794e5a' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9c1669346b794e5a', '죽일 놈(Guilty)', '죽일 놈(guilty)', 223969, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9c1669346b794e5a');
 UPDATE `song`
 SET `title` = '죽일 놈(Guilty)', `title_normalized` = '죽일 놈(guilty)',
     `duration_ms` = 223969, `status` = 'ACTIVE'
@@ -40568,10 +42044,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '083b26069fb8b6f1') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '날 봐, 귀순', '날 봐, 귀순', 166638, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '083b26069fb8b6f1' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '083b26069fb8b6f1', '날 봐, 귀순', '날 봐, 귀순', 166638, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '083b26069fb8b6f1');
 UPDATE `song`
 SET `title` = '날 봐, 귀순', `title_normalized` = '날 봐, 귀순',
     `duration_ms` = 166638, `status` = 'ACTIVE'
@@ -40687,10 +42167,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8a3945303a2aa03d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '청소', '청소', 236577, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8a3945303a2aa03d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8a3945303a2aa03d', '청소', '청소', 236577, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8a3945303a2aa03d');
 UPDATE `song`
 SET `title` = '청소', `title_normalized` = '청소',
     `duration_ms` = 236577, `status` = 'ACTIVE'
@@ -40805,10 +42289,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a89ed76cb433a17e') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '당신을 위하여', '당신을 위하여', 243477, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a89ed76cb433a17e' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a89ed76cb433a17e', '당신을 위하여', '당신을 위하여', 243477, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a89ed76cb433a17e');
 UPDATE `song`
 SET `title` = '당신을 위하여', `title_normalized` = '당신을 위하여',
     `duration_ms` = 243477, `status` = 'ACTIVE'
@@ -40925,10 +42413,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '5ce9bd795c515fc7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '떠나가요 떠나지마요', '떠나가요 떠나지마요', 260676, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '5ce9bd795c515fc7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '5ce9bd795c515fc7', '떠나가요 떠나지마요', '떠나가요 떠나지마요', 260676, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '5ce9bd795c515fc7');
 UPDATE `song`
 SET `title` = '떠나가요 떠나지마요', `title_normalized` = '떠나가요 떠나지마요',
     `duration_ms` = 260676, `status` = 'ACTIVE'
@@ -41046,10 +42538,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '1e24b6960b949a7d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'Congratulations', 'congratulations', 229667, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '1e24b6960b949a7d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '1e24b6960b949a7d', 'Congratulations', 'congratulations', 229667, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '1e24b6960b949a7d');
 UPDATE `song`
 SET `title` = 'Congratulations', `title_normalized` = 'congratulations',
     `duration_ms` = 229667, `status` = 'ACTIVE'
@@ -41180,10 +42676,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'a98507ad7e8ad829') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'HAPPY', 'happy', 189928, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'a98507ad7e8ad829' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'a98507ad7e8ad829', 'HAPPY', 'happy', 189928, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'a98507ad7e8ad829');
 UPDATE `song`
 SET `title` = 'HAPPY', `title_normalized` = 'happy',
     `duration_ms` = 189928, `status` = 'ACTIVE'
@@ -41315,10 +42815,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6845be21e7e44f6d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '예뻤어', '예뻤어', 283701, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6845be21e7e44f6d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6845be21e7e44f6d', '예뻤어', '예뻤어', 283701, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6845be21e7e44f6d');
 UPDATE `song`
 SET `title` = '예뻤어', `title_normalized` = '예뻤어',
     `duration_ms` = 283701, `status` = 'ACTIVE'
@@ -41460,10 +42964,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '9dae4f9ce034368c') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '한 페이지가 될 수 있게', '한 페이지가 될 수 있게', 205822, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '9dae4f9ce034368c' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '9dae4f9ce034368c', '한 페이지가 될 수 있게', '한 페이지가 될 수 있게', 205822, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '9dae4f9ce034368c');
 UPDATE `song`
 SET `title` = '한 페이지가 될 수 있게', `title_normalized` = '한 페이지가 될 수 있게',
     `duration_ms` = 205822, `status` = 'ACTIVE'
@@ -41603,10 +43111,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'c15d93eb416285e7') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '고백', '고백', 323535, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'c15d93eb416285e7' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'c15d93eb416285e7', '고백', '고백', 323535, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'c15d93eb416285e7');
 UPDATE `song`
 SET `title` = '고백', `title_normalized` = '고백',
     `duration_ms` = 323535, `status` = 'ACTIVE'
@@ -41734,10 +43246,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '8a953eb2369f6f48') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '주문(MIROTIC)', '주문(mirotic)', 208467, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '8a953eb2369f6f48' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '8a953eb2369f6f48', '주문(MIROTIC)', '주문(mirotic)', 208467, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '8a953eb2369f6f48');
 UPDATE `song`
 SET `title` = '주문(MIROTIC)', `title_normalized` = '주문(mirotic)',
     `duration_ms` = 208467, `status` = 'ACTIVE'
@@ -41880,10 +43396,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'bba430f17c19add5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '풍선(Balloons)', '풍선(balloons)', 229239, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'bba430f17c19add5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'bba430f17c19add5', '풍선(Balloons)', '풍선(balloons)', 229239, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'bba430f17c19add5');
 UPDATE `song`
 SET `title` = '풍선(Balloons)', `title_normalized` = '풍선(balloons)',
     `duration_ms` = 229239, `status` = 'ACTIVE'
@@ -41998,10 +43518,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '15dd2a60f20c304d') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT 'She''s Gone', 'she''s gone', 233465, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '15dd2a60f20c304d' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '15dd2a60f20c304d', 'She''s Gone', 'she''s gone', 233465, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '15dd2a60f20c304d');
 UPDATE `song`
 SET `title` = 'She''s Gone', `title_normalized` = 'she''s gone',
     `duration_ms` = 233465, `status` = 'ACTIVE'
@@ -42145,10 +43669,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '94fc504418fb0fa5') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '돌아올 순 없나요(아이리스OST)', '돌아올 순 없나요(아이리스ost)', 220288, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '94fc504418fb0fa5' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '94fc504418fb0fa5', '돌아올 순 없나요(아이리스OST)', '돌아올 순 없나요(아이리스ost)', 220288, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '94fc504418fb0fa5');
 UPDATE `song`
 SET `title` = '돌아올 순 없나요(아이리스OST)', `title_normalized` = '돌아올 순 없나요(아이리스ost)',
     `duration_ms` = 220288, `status` = 'ACTIVE'
@@ -42221,10 +43749,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = '6be919df503d2483') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '별이될께', '별이될께', 210112, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = '6be919df503d2483' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT '6be919df503d2483', '별이될께', '별이될께', 210112, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, '6be919df503d2483');
 UPDATE `song`
 SET `title` = '별이될께', `title_normalized` = '별이될께',
     `duration_ms` = 210112, `status` = 'ACTIVE'
@@ -42340,10 +43872,14 @@ SET @song_id = (
            ))
     ORDER BY (`sm`.`catalog_track_id` = 'ab2744b8990ce902') DESC LIMIT 1
 );
-INSERT INTO `song` (`title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
-SELECT '사랑 참...', '사랑 참...', 207761, 'ACTIVE', FALSE
+SET @song_id = COALESCE(@song_id, (
+    SELECT `s`.`song_id` FROM `song` AS `s`
+    WHERE `s`.`song_id` = 'ab2744b8990ce902' LIMIT 1
+));
+INSERT INTO `song` (`song_id`, `title`, `title_normalized`, `duration_ms`, `status`, `practice_ready`)
+SELECT 'ab2744b8990ce902', '사랑 참...', '사랑 참...', 207761, 'ACTIVE', FALSE
 WHERE @song_id IS NULL;
-SET @song_id = COALESCE(@song_id, LAST_INSERT_ID());
+SET @song_id = COALESCE(@song_id, 'ab2744b8990ce902');
 UPDATE `song`
 SET `title` = '사랑 참...', `title_normalized` = '사랑 참...',
     `duration_ms` = 207761, `status` = 'ACTIVE'

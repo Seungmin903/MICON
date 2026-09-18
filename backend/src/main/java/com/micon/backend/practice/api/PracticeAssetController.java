@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +34,7 @@ public class PracticeAssetController {
 	@GetMapping("/{songId}/practice-assets")
 	// 기능: getPracticeAssets 조회 요청을 검증하고 서비스 결과를 HTTP 응답으로 반환한다.
 	public ApiResponse<PracticeAssetResponse.Detail> getPracticeAssets(
-		@PathVariable("songId") @Min(1) Long songId,
+		@PathVariable("songId") @NotBlank @Size(max = 64) String songId,
 		@Parameter(description = "원키 기준 반음 조절값(-6~+5)")
 		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-6) @Max(5) int selectedKey
 	) {
@@ -43,7 +45,7 @@ public class PracticeAssetController {
 	@GetMapping("/{songId}/mr")
 	// 기능: 곡 ID와 선택 키로 재생 가능한 MR을 조회한다.
 	public ApiResponse<PracticeAssetResponse.Instrumental> getMr(
-		@PathVariable("songId") @Min(1) Long songId,
+		@PathVariable("songId") @NotBlank @Size(max = 64) String songId,
 		@Parameter(description = "원키 기준 반음 조절값(-6~+5)")
 		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-6) @Max(5) int selectedKey
 	) {
@@ -54,7 +56,7 @@ public class PracticeAssetController {
 	@GetMapping("/{songId}/practice-guide")
 	// 기능: getPracticeGuide 조회 요청을 검증하고 서비스 결과를 HTTP 응답으로 반환한다.
 	public ApiResponse<PracticeAssetResponse.Guide> getPracticeGuide(
-		@PathVariable("songId") @Min(1) Long songId,
+		@PathVariable("songId") @NotBlank @Size(max = 64) String songId,
 		@Parameter(description = "원키 기준 반음 조절값(-6~+5)")
 		@RequestParam(name = "selectedKey", defaultValue = "0") @Min(-6) @Max(5) int selectedKey
 	) {

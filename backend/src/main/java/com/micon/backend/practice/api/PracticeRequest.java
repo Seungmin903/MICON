@@ -4,8 +4,10 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /** 연습 세션 생성·완료·상태 변경에 사용하는 요청 DTO와 검증 규칙을 정의한다. */
@@ -16,7 +18,7 @@ public final class PracticeRequest {
 	}
 
 	public record Create(
-		@NotNull @Min(1) Long songId,
+		@NotBlank @Size(max = 64) String songId,
 		@Min(1) Long recordingId,
 		Long sectionId,
 		@Min(-6) @Max(5) Integer selectedKey,

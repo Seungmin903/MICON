@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -57,7 +58,7 @@ public class ArtistSearchJobService {
         this.contractVersion = contractVersion;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Prepared prepare(long analysisId) {
         VoiceAnalysisJob analysis = analyses.findById(analysisId)
                 .orElseThrow(() -> new IllegalStateException("voice analysis job was not found"));
@@ -77,48 +78,62 @@ public class ArtistSearchJobService {
         }
 
         long sessionId = analysis.getSession().getId();
-        Map<String, ArtistSearchJobGateway.ModelResult> models = new LinkedHashMap<>();
-        models.put("ECAPA", model(sessionId, "ECAPA", 192));
-        models.put("SINGER_BYOL", model(sessionId, "SINGER_BYOL", 1000));
         analysis.getSession().beginArtistSearch();
-
-        var command = new ArtistSearchJobGateway.Command(
-                job.getRequestId(), analysisId, sessionId, COMPONENT, List.of(COMPONENT),
-                job.getAttemptNo(), job.getRequestedResultVersion(), job.getRequestedTopK(), models,
-                job.getCatalogVersion(), job.getScoringVersion(), callbackUrl, contractVersion);
-        return new Prepared(job.getId(), true, command);
+        return new Prepared(job.getId(), true, command(analysis, job, sessionId));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RetryPrepared prepareRetry(long userId, long analysisId) {
         VoiceAnalysisJob analysis = analyses.findOwnedForUpdate(analysisId, userId)
                 .orElseThrow(() -> new com.micon.backend.common.exception.BusinessException(
                         com.micon.backend.common.exception.ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
+        if (!"COMPLETED".equals(analysis.getStatus())) {
+            throw new com.micon.backend.common.exception.BusinessException(
+                    com.micon.backend.common.exception.ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+        }
         VoiceAnalysisComponentJob job = jobs.findByAnalysisJobIdAndComponentType(analysisId, COMPONENT)
-                .orElseThrow(() -> new com.micon.backend.common.exception.BusinessException(
-                        com.micon.backend.common.exception.ErrorCode.VOICE_ANALYSIS_NOT_FOUND));
-        try { job.retry(LocalDateTime.now()); }
+                .orElse(null);
+        if (job == null) {
+            job = new VoiceAnalysisComponentJob(analysis, COMPONENT, 1, UUID.randomUUID().toString());
+            job.configureArtistSearch(analysis.getSession().getResultVersion(), topK,
+                    activeCatalogVersion(), scoringVersion);
+            job = jobs.saveAndFlush(job);
+            analysis.getSession().beginArtistSearch();
+            return new RetryPrepared(job.getId(), null,
+                    command(analysis, job, analysis.getSession().getId()));
+        }
+        boolean freshDispatch = job.getAiJobId() == null || job.getAiJobId().isBlank();
+        try {
+            if (freshDispatch) job.retryForFreshDispatch(LocalDateTime.now());
+            else job.retry(LocalDateTime.now());
+        }
         catch (IllegalStateException exception) {
             throw new com.micon.backend.common.exception.BusinessException(
                     com.micon.backend.common.exception.ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
         }
+        if (freshDispatch) {
+            job.configureArtistSearch(analysis.getSession().getResultVersion(), topK,
+                    activeCatalogVersion(), scoringVersion);
+        }
         analysis.getSession().beginArtistSearch();
-        return new RetryPrepared(job.getId(), job.getAiJobId());
+        return new RetryPrepared(job.getId(), job.getAiJobId(),
+                freshDispatch
+                        ? command(analysis, job, analysis.getSession().getId()) : null);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void queued(long jobId, ArtistSearchJobGateway.Result result) {
         VoiceAnalysisComponentJob job = job(jobId);
         job.queued(result.jobId(), LocalDateTime.now());
         job.getSession().beginArtistSearch();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatchUnknown(long jobId, String reason) {
         job(jobId).dispatchUnknown(limit(reason), LocalDateTime.now());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failed(long jobId, String code, String reason) {
         VoiceAnalysisComponentJob job = job(jobId);
         LocalDateTime now = LocalDateTime.now();
@@ -126,10 +141,33 @@ public class ArtistSearchJobService {
         job.getSession().failArtistSearch(now);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failSession(long analysisId) {
         analyses.findById(analysisId).ifPresent(analysis ->
                 analysis.getSession().failArtistSearch(LocalDateTime.now()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void disabled(long analysisId) {
+        VoiceAnalysisJob analysis = analyses.findById(analysisId)
+                .orElseThrow(() -> new IllegalStateException("voice analysis job was not found"));
+        VoiceAnalysisComponentJob job = jobs.findByAnalysisJobIdAndComponentType(analysisId, COMPONENT)
+                .orElseGet(() -> jobs.save(new VoiceAnalysisComponentJob(
+                        analysis, COMPONENT, 1, UUID.randomUUID().toString())));
+        LocalDateTime now = LocalDateTime.now();
+        job.fail("ARTIST_SEARCH_DISABLED", "닮은 가수 검색 기능이 비활성화되어 있습니다.", now);
+        analysis.getSession().failArtistSearch(now);
+    }
+
+    private ArtistSearchJobGateway.Command command(VoiceAnalysisJob analysis,
+            VoiceAnalysisComponentJob job, long sessionId) {
+        Map<String, ArtistSearchJobGateway.ModelResult> models = new LinkedHashMap<>();
+        models.put("ECAPA", model(sessionId, "ECAPA", 192));
+        models.put("SINGER_BYOL", model(sessionId, "SINGER_BYOL", 1000));
+        return new ArtistSearchJobGateway.Command(
+                job.getRequestId(), analysis.getId(), sessionId, COMPONENT, List.of(COMPONENT),
+                job.getAttemptNo(), job.getRequestedResultVersion(), job.getRequestedTopK(), models,
+                job.getCatalogVersion(), job.getScoringVersion(), callbackUrl, contractVersion);
     }
 
     private ArtistSearchJobGateway.ModelResult model(long sessionId, String modelKey, int dimension) {
@@ -171,5 +209,6 @@ public class ArtistSearchJobService {
 
     public record Prepared(long jobId, boolean shouldDispatch,
                            ArtistSearchJobGateway.Command command) { }
-    public record RetryPrepared(long jobId, String aiJobId) { }
+    public record RetryPrepared(long jobId, String aiJobId,
+                                ArtistSearchJobGateway.Command freshCommand) { }
 }

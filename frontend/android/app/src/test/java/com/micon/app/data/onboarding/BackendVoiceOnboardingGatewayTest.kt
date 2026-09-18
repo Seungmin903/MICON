@@ -90,15 +90,54 @@ class BackendVoiceOnboardingGatewayTest {
         } finally { server.shutdown() }
     }
 
+    @Test fun `artist lookup continues from ready to saved without a result version change`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        val waiting = VoiceAnalysisProgress("7", 3, ecapa = ComponentStatus.COMPLETED,
+            byol = ComponentStatus.COMPLETED, artistSearch = ComponentStatus.PENDING,
+            sessionStatus = VoiceSessionStatus.READY_TO_SAVE, rangeStatus = "AVAILABLE", saveAllowed = true)
+        try {
+            server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"RUNNING","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2099-09-16T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"},{"component":"ARTIST_SEARCH","status":"QUEUED"}],"artists":[]}"""))
+            server.enqueue(ok(200, """{"sessionId":7,"status":"SAVED","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"COMPLETED","saveAllowed":false,"savedProfileExists":true,"expiresAt":"2099-09-16T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"},{"component":"ARTIST_SEARCH","status":"COMPLETED"}],"artists":[{"artistId":5,"name":"Singer","imageUrl":null,"similarity":0.8}]}"""))
+            val updates = mutableListOf<VoiceAnalysisProgress>()
+            val result = gateway.awaitArtists(42, waiting, updates::add)
+            assertEquals(listOf(ComponentStatus.QUEUED, ComponentStatus.COMPLETED), updates.map { it.artistSearch })
+            assertTrue(updates.first().canSave)
+            assertEquals(VoiceSessionStatus.SAVED, result.sessionStatus)
+            assertEquals(3L, result.version)
+            assertEquals(listOf(5L), result.visibleArtists.map { it.artistId })
+            assertEquals(listOf("/api/v1/voice-analysis-sessions/7/result", "/api/v1/voice-analysis-sessions/7/result"),
+                (1..2).map { server.takeRequest().path })
+        } finally { server.shutdown() }
+    }
+
+    @Test fun `artist lookup stops on no result or backend failure without a component job`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        val waiting = VoiceAnalysisProgress("7", 3, ecapa = ComponentStatus.COMPLETED,
+            byol = ComponentStatus.COMPLETED, artistSearch = ComponentStatus.PENDING,
+            sessionStatus = VoiceSessionStatus.SAVED, rangeStatus = "AVAILABLE")
+        try {
+            for ((backendStatus, expected) in listOf("NO_RESULT" to ComponentStatus.COMPLETED, "FAILED" to ComponentStatus.FAILED)) {
+                server.enqueue(ok(200, """{"sessionId":7,"status":"SAVED","resultVersion":3,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","artistSearchStatus":"$backendStatus","saveAllowed":false,"savedProfileExists":true,"expiresAt":"2099-09-16T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
+                val result = gateway.awaitArtists(42, waiting) {}
+                assertEquals(expected, result.artistSearch)
+                assertFalse(result.awaitingArtistResult)
+            }
+            assertEquals(2, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
     @Test fun `member submits range and song then saves ready profile`() = runBlocking {
         val server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
         val gateway = BackendVoiceOnboardingGateway(
             BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
-        val wav = File.createTempFile("voice-onboarding", ".wav").apply {
-            writeBytes(byteArrayOf('R'.code.toByte(), 'I'.code.toByte(), 'F'.code.toByte(), 'F'.code.toByte(),
-                0, 0, 0, 0, 'W'.code.toByte(), 'A'.code.toByte(), 'V'.code.toByte(), 'E'.code.toByte(), 1))
-        }
+        val wav = File.createTempFile("voice-onboarding", ".wav")
         try {
             server.enqueue(ok(201, """{"sessionId":7,"status":"CREATED","rangeStatus":"PENDING","timbreStatus":"PENDING","artistSearchStatus":"PENDING","resultVersion":0,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-15T00:00:00"}"""))
             server.enqueue(ok(200, """{"sessionId":7,"status":"RANGE_IN_PROGRESS","rangeStatus":"AVAILABLE","timbreStatus":"PENDING","artistSearchStatus":"PENDING","resultVersion":1,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-15T00:00:00"}"""))
@@ -106,11 +145,7 @@ class BackendVoiceOnboardingGatewayTest {
             server.enqueue(ok(200, """{"sessionId":7,"status":"READY_TO_SAVE","resultVersion":2,"rangeStatus":"AVAILABLE","timbreStatus":"AVAILABLE","saveAllowed":true,"savedProfileExists":false,"expiresAt":"2026-09-15T00:00:00","components":[{"component":"ECAPA","status":"COMPLETED"},{"component":"SINGER_BYOL","status":"COMPLETED"}],"artists":[]}"""))
             server.enqueue(ok(201, """{"profileId":3,"sessionId":7,"profileVersion":1}"""))
 
-            val recording = SavedRecording(SingRecordingMeta("recording", songId = 1, title = "Song", artist = "Artist",
-                scope = "FULL", planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 35.0,
-                sungStartSec = 0.0, sungEndSec = 35.0, endedEarly = false, recordedAt = 0,
-                sampleRate = 48000, durationSec = 35.0, takes = listOf(SingTake(0.0, 35.0, 0.0, 35.0)),
-                lyricTiming = "SYNCED", wavFileName = wav.name, onboardingDraftId = "draft"), wav, wav)
+            val recording = onboardingRecording(wav, "draft")
             val range = RangeReport(RangeProtocol.VERSION, listOf(RangeNote(48, "passed")), 48, 72,
                 emptyList(), "completed", "FOUND", "FOUND", "available", verification = "device_measured")
             val request = VoiceOnboardingRequest("draft", 1, 42, range, recording)
@@ -127,6 +162,26 @@ class BackendVoiceOnboardingGatewayTest {
                 "/api/v1/voice-analysis-sessions/7/result",
                 "/api/v1/voice-analysis-sessions/7/profile"),
                 (1..5).map { server.takeRequest().path })
+        } finally { wav.delete(); server.shutdown() }
+    }
+
+    @Test fun `invalid input creates neither a session nor a model job`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(
+            BackendClient(server.url("/api/v1/").toString(), false, tokens).api, TestSubmissionStateStore())
+        val wav = File.createTempFile("voice-onboarding", ".wav")
+        try {
+            val recording = onboardingRecording(wav, "draft", seconds = 121.0)
+            val range = RangeReport(RangeProtocol.VERSION, emptyList(), 48, 72,
+                emptyList(), "completed", "FOUND", "FOUND", "available")
+            try {
+                gateway.analyze(VoiceOnboardingRequest("draft", 1, 42, range, recording)) {}
+                fail("Invalid audio must be rejected before any request")
+            } catch (expected: VoiceOnboardingNotReady) {
+                assertTrue(expected.message!!.contains("2분"))
+            }
+            assertEquals(0, server.requestCount)
         } finally { wav.delete(); server.shutdown() }
     }
 

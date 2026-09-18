@@ -36,10 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +56,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.data.voice.VoiceAnalysisStatus
 import com.micon.app.ui.rememberAppContainer
-import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.charts.BpmGaugeRow
 import com.micon.app.ui.charts.PhraseSegments
 import com.micon.app.ui.charts.PianoRangeChart
@@ -67,6 +69,7 @@ import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconLogo
 import com.micon.app.ui.common.PrimaryButton
+import com.micon.app.ui.common.ReportNoteNames
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.theme.GreenBar
 import com.micon.app.ui.theme.Grey
@@ -109,10 +112,13 @@ fun VoiceReportScreen(
         }
     }
     val saved by androidx.compose.runtime.produceState<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null, owner) {
-        value = if (owner == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val store = com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner)
-            store.savedProfile() ?: runCatching { container.voiceOnboarding.latestSaved(owner) }.getOrNull()
-                ?.also(store::saveProfile)
+        value = null
+        if (owner != null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val repository = com.micon.app.data.onboarding.SavedVoiceReportRepository(
+                VoiceOnboardingStore(context.applicationContext, owner), container.voiceOnboarding)
+            repository.refresh(owner) { profile ->
+                if (TokenManager.getUserId() == owner) value = profile
+            }
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -120,17 +126,13 @@ fun VoiceReportScreen(
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
             Spacer(Modifier.height(16.dp))
-            Text("저장한 목소리 프로필이 있으면 음역과 분석 결과를 여기서 다시 확인할 수 있어요.",
-                color = Grey, fontSize = 13.sp)
-            Spacer(Modifier.height(16.dp))
             val current = saved
             if (current != null) {
-                VoiceReportContent(current.range, current.progress,
-                    songFit = { ReportFitCard(owner != null, current.receipt) })
+                SavedVoiceReportContent(current.range, current.progress)
             } else if (owner != null && previousAnalysis != null) {
                 Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(12.dp))
-                ReportCards(checkNotNull(previousAnalysis), loggedIn = true)
+                PreviousAnalysisReportCards(checkNotNull(previousAnalysis))
             } else EmptyReport()
             Spacer(Modifier.height(24.dp))
         }
@@ -198,77 +200,50 @@ private fun EmptyReport() {
 }
 
 @Composable
-private fun ReportCards(p: UserStore.VoiceProfile, loggedIn: Boolean) {
+internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         MiconCard {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("나의 음역대", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("나의 음역대", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
                 Text(
-                    "${ScoringMath.midiName(p.lowMidi)} - ${ScoringMath.midiName(p.highMidi)}",
-                    fontSize = 34.sp, fontWeight = FontWeight.SemiBold, color = Ink, fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.weight(1.4f), textAlign = TextAlign.Center,
+                    ReportNoteNames.range(p.lowMidi, p.highMidi),
+                    fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold, color = Ink,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = TextStyle.Default.copy(lineBreak = LineBreak.Heading),
                 )
             }
         }
 
-        MiconCard {
+        MiconCard(Modifier.testTag("range-map-card")) {
             CardTitle("음역대 지도")
             Spacer(Modifier.height(10.dp))
             RangeMapChart(
                 rows = listOf(
                     RangeRow("전체 음역", p.lowMidi, p.highMidi, PurpleMid, fadeTail = true),
-                    RangeRow("편안한 음역", p.comfortLow, p.comfortHigh, GreenBar),
-                    RangeRow("추천곡 음역", p.recommendLow, p.recommendHigh, Orange),
+                    RangeRow("안정 음역", p.comfortLow, p.comfortHigh, GreenBar),
+                    RangeRow("추천 음역", p.recommendLow, p.recommendHigh, Orange),
                 ),
                 axisLow = p.lowMidi, axisHigh = p.highMidi,
-                ticks = listOf(p.lowMidi, p.lowMidi + 7, p.lowMidi + 12, p.lowMidi + 19, p.highMidi).distinct(),
+                ticks = (if (LocalDensity.current.fontScale > 1.3f) listOf(p.lowMidi, p.highMidi)
+                    else listOf(p.lowMidi, (p.lowMidi + p.highMidi) / 2, p.highMidi)).distinct(),
+                labelWidth = 108.dp,
+                labelOf = ReportNoteNames::note,
             )
+            Spacer(Modifier.height(18.dp))
+            Text("음역", fontSize = 13.sp, color = Grey)
+            Spacer(Modifier.height(6.dp))
+            PianoRangeChart(p.comfortLow, p.comfortHigh, modifier = Modifier.testTag("report-piano"),
+                caption = "안정 음역 ${ReportNoteNames.range(p.comfortLow, p.comfortHigh)}",
+                labelOf = ReportNoteNames::note)
         }
 
         MiconCard {
             CardTitle("음역별 안정성")
             Spacer(Modifier.height(10.dp))
-            StabilityLineChart(p.stability, p.stabilityLabels)
+            StabilityLineChart(p.stability, p.stabilityLabels.map(ReportNoteNames::fromScientific))
         }
 
-        MiconCard {
-            CardTitle("내 목소리에 맞는 음악")
-            Spacer(Modifier.height(12.dp))
-            Text("음역", fontSize = 13.sp, color = Grey)
-            Spacer(Modifier.height(6.dp))
-            PianoRangeChart(p.comfortLow, p.comfortHigh, caption = "편안한 음역 ${ScoringMath.midiName(p.comfortLow)}~${ScoringMath.midiName(p.comfortHigh)}")
-            Spacer(Modifier.height(18.dp))
-            Text("적정 템포 / 가사 밀도", fontSize = 13.sp, color = Grey)
-            Spacer(Modifier.height(6.dp))
-            BpmGaugeRow(p.bpmRange, Modifier.fillMaxWidth())
-            Spacer(Modifier.height(18.dp))
-            Text("프레이즈 길이", fontSize = 13.sp, color = Grey)
-            Spacer(Modifier.height(8.dp))
-            PhraseSegments(p.phraseLevel, modifier = Modifier.padding(horizontal = 12.dp))
-            Spacer(Modifier.height(18.dp))
-            Text("추천 장르 / 분위기", fontSize = 13.sp, color = Grey)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { p.genres.forEach { SoftChip(it) } }
-        }
-
-        ReportFitCard(loggedIn)
-
-        MiconCard {
-            CardTitle("종합 보컬 특성")
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadarHexagon(p.traits, p.traitLabels, Modifier.weight(1f).size(190.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    p.strengths.forEachIndexed { i, s ->
-                        Row(Modifier.background(Lavender, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (i == 0) Icons.Filled.MusicNote else Icons.Filled.Air, null, Modifier.size(18.dp), tint = Purple)
-                            Spacer(Modifier.width(8.dp))
-                            Text(s, fontSize = 14.sp, color = Purple, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-        }
+        SimilarArtistsCard(showEmpty = true)
     }
 }
 

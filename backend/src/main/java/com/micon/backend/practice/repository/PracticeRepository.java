@@ -22,7 +22,7 @@ public class PracticeRepository {
 	}
 
 	// 기능: findPracticeReadySong 조건으로 데이터베이스를 조회한다.
-	public Optional<SongRow> findPracticeReadySong(Long songId) {
+	public Optional<SongRow> findPracticeReadySong(String songId) {
 		String sql = """
 				SELECT s.song_id, s.duration_ms,
 				       CASE
@@ -57,7 +57,7 @@ public class PracticeRepository {
 				WHERE s.song_id = :songId
 				""";
 		return jdbcTemplate.query(sql, Map.of("songId", songId), (resultSet, rowNumber) -> new SongRow(
-			resultSet.getLong("song_id"),
+			resultSet.getString("song_id"),
 			resultSet.getObject("duration_ms", Long.class),
 			resultSet.getBoolean("practice_ready")
 		)).stream().findFirst();
@@ -78,7 +78,7 @@ public class PracticeRepository {
 	}
 
 	// 기능: sectionBelongsToSong에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
-	public boolean sectionBelongsToSong(Long sectionId, Long songId) {
+	public boolean sectionBelongsToSong(Long sectionId, String songId) {
 		String sql = "SELECT COUNT(*) FROM song_section WHERE section_id = :sectionId AND song_id = :songId";
 		Long count = jdbcTemplate.queryForObject(sql,
 			Map.of("sectionId", sectionId, "songId", songId), Long.class);
@@ -86,7 +86,7 @@ public class PracticeRepository {
 	}
 
 	// 기능: hasReadyInstrumental 조건으로 데이터베이스를 조회한다.
-	public boolean hasReadyInstrumental(Long songId, int selectedKey) {
+	public boolean hasReadyInstrumental(String songId, int selectedKey) {
 		String sql = """
 				SELECT COUNT(*)
 				FROM song_media
@@ -105,7 +105,7 @@ public class PracticeRepository {
 	public void create(
 		Long practiceId,
 		Long userId,
-		Long songId,
+		String songId,
 		Long sectionId,
 		Long recordingId,
 		int selectedKey,
@@ -152,7 +152,7 @@ public class PracticeRepository {
 		return jdbcTemplate.query(sql, Map.of("practiceId", practiceId, "userId", userId),
 			(resultSet, rowNumber) -> new PracticeResponse.Detail(
 				resultSet.getLong("practice_id"),
-				resultSet.getLong("song_id"),
+				resultSet.getString("song_id"),
 				resultSet.getString("song_title"),
 				resultSet.getObject("section_id", Long.class),
 				resultSet.getObject("recording_id", Long.class),
@@ -243,7 +243,7 @@ public class PracticeRepository {
 		return count != null && count > 0;
 	}
 
-	public record SongRow(Long songId, Long durationMs, boolean practiceReady) {
+	public record SongRow(String songId, Long durationMs, boolean practiceReady) {
 	}
 
 }

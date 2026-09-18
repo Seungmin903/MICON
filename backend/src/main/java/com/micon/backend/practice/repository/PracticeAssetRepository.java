@@ -19,7 +19,7 @@ public class PracticeAssetRepository {
 	}
 
 	// 기능: findSong 조건으로 데이터베이스를 조회한다.
-	public Optional<SongAssetRow> findSong(Long songId) {
+	public Optional<SongAssetRow> findSong(String songId) {
 		String sql = """
 				SELECT s.song_id, s.title,
 				       CASE
@@ -57,7 +57,7 @@ public class PracticeAssetRepository {
 				WHERE s.song_id = :songId
 				""";
 		return jdbcTemplate.query(sql, Map.of("songId", songId), (resultSet, rowNumber) -> new SongAssetRow(
-			resultSet.getLong("song_id"),
+			resultSet.getString("song_id"),
 			resultSet.getString("title"),
 			resultSet.getBoolean("practice_ready"),
 			resultSet.getString("lyrics_plain"),
@@ -72,7 +72,7 @@ public class PracticeAssetRepository {
 	}
 
 	// 기능: findInstrumental 조건으로 데이터베이스를 조회한다.
-	public Optional<MediaRow> findInstrumental(Long songId, int selectedKey) {
+	public Optional<MediaRow> findInstrumental(String songId, int selectedKey) {
 		String sql = """
 				SELECT media_id, file_path, mime_type, file_bytes, sha256
 				FROM song_media
@@ -110,7 +110,7 @@ public class PracticeAssetRepository {
 	}
 
 	// 기능: findSections 조건으로 데이터베이스를 조회한다.
-	public List<PracticeAssetResponse.Section> findSections(Long songId, Long analysisId) {
+	public List<PracticeAssetResponse.Section> findSections(String songId, Long analysisId) {
 		String sql = """
 				SELECT section_id, section_type, section_name, start_ms, end_ms, sequence_no,
 				       difficulty_type, difficulty_score, confidence, description
@@ -134,7 +134,7 @@ public class PracticeAssetRepository {
 	}
 
 	public record SongAssetRow(
-		Long songId,
+		String songId,
 		String title,
 		boolean practiceReady,
 		String lyricsPlain,

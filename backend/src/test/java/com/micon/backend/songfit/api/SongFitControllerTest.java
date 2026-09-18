@@ -39,9 +39,11 @@ class SongFitControllerTest {
 			new BigDecimal("55"), new BigDecimal("75"), new BigDecimal("100.00")
 		);
 		SongFitResponse response = new SongFitResponse(
-			10L, 20L, 5, "AVAILABLE", fit, fit, -2, null, null, List.of(), null
+			"10", 20L, 5, "AVAILABLE", fit, fit, -2,
+			new SongFitResponse.RecommendationScores(new BigDecimal("0.88"), null, new BigDecimal("0.77"),
+				null, "fit-v1", "ECAPA", "음색 설명"), null, List.of(), null
 		);
-		when(songFitService.getSongFit(7L, 10L, 20L, 5)).thenReturn(response);
+		when(songFitService.getSongFit(7L, "10", 20L, 5)).thenReturn(response);
 
 		mockMvc.perform(get("/songs/10/fit")
 				.param("analysisId", "20")
@@ -51,6 +53,9 @@ class SongFitControllerTest {
 			.andExpect(jsonPath("$.code").value("SUCCESS"))
 			.andExpect(jsonPath("$.data.analysisId").value(20))
 			.andExpect(jsonPath("$.data.selectedKeyOffset").value(5))
-			.andExpect(jsonPath("$.data.selectedKeyFit.score").value(100.00));
+			.andExpect(jsonPath("$.data.selectedKeyFit.score").value(100.00))
+			.andExpect(jsonPath("$.data.recommendationScores.timbreAxis").value("ECAPA"))
+			.andExpect(jsonPath("$.data.recommendationScores.timbreLabel").value("음색 설명"))
+			.andExpect(jsonPath("$.data.recommendationScores.timbre").value(0.77));
 	}
 }

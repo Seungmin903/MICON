@@ -40,18 +40,18 @@ class PracticeServiceTest {
 	@Test
 	void createsSectionPracticeForOwnedUploadedRecording() {
 		var request = new PracticeRequest.Create(
-			10L, 20L, 30L, -2, new BigDecimal("0.80"), PracticeScope.SECTION, null, null
+			"10", 20L, 30L, -2, new BigDecimal("0.80"), PracticeScope.SECTION, null, null
 		);
 		var detail = detail("IN_PROGRESS");
-		when(repository.findPracticeReadySong(10L)).thenReturn(Optional.of(new SongRow(10L, 180_000L, true)));
+		when(repository.findPracticeReadySong("10")).thenReturn(Optional.of(new SongRow("10", 180_000L, true)));
 		when(repository.isUploadedRecordingOwnedBy(20L, 7L)).thenReturn(true);
-		when(repository.hasReadyInstrumental(10L, -2)).thenReturn(true);
-		when(repository.sectionBelongsToSong(30L, 10L)).thenReturn(true);
+		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
+		when(repository.sectionBelongsToSong(30L, "10")).thenReturn(true);
 		when(repository.findOwned(anyLong(), eq(7L))).thenReturn(Optional.of(detail));
 
 		assertThat(service.create(7L, request)).isSameAs(detail);
 		verify(repository).create(
-			anyLong(), eq(7L), eq(10L), eq(30L), eq(20L), eq(-2),
+			anyLong(), eq(7L), eq("10"), eq(30L), eq(20L), eq(-2),
 			eq(new BigDecimal("0.80")), eq(null), eq(null), eq(PracticeScope.SECTION)
 		);
 	}
@@ -59,9 +59,9 @@ class PracticeServiceTest {
 	@Test
 	void rejectsInvalidCustomRange() {
 		var request = new PracticeRequest.Create(
-			10L, 20L, null, 0, null, PracticeScope.CUSTOM, 90_000, 200_000
+			"10", 20L, null, 0, null, PracticeScope.CUSTOM, 90_000, 200_000
 		);
-		when(repository.findPracticeReadySong(10L)).thenReturn(Optional.of(new SongRow(10L, 180_000L, true)));
+		when(repository.findPracticeReadySong("10")).thenReturn(Optional.of(new SongRow("10", 180_000L, true)));
 		when(repository.isUploadedRecordingOwnedBy(20L, 7L)).thenReturn(true);
 
 		assertThatThrownBy(() -> service.create(7L, request))
@@ -121,7 +121,7 @@ class PracticeServiceTest {
 
 	private PracticeResponse.Detail detail(String status) {
 		return new PracticeResponse.Detail(
-			50L, 10L, "연습곡", 30L, 20L, null, -2, new BigDecimal("0.80"),
+			50L, "10", "연습곡", 30L, 20L, null, -2, new BigDecimal("0.80"),
 			null, null, "SECTION", status, LocalDateTime.now(), null, null, LocalDateTime.now()
 		);
 	}

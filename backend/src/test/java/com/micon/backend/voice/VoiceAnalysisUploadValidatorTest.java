@@ -45,7 +45,7 @@ class VoiceAnalysisUploadValidatorTest {
 
     private VoiceAnalysisUploadRequest request(int sampleRate,
                                                List<VoiceAnalysisUploadRequest.Segment> segments) {
-        return new VoiceAnalysisUploadRequest("request-1", VoiceAnalysisMethod.SONG, 1L, "v1",
+        return new VoiceAnalysisUploadRequest("request-1", VoiceAnalysisMethod.SONG, "1", "v1",
                 LocalDateTime.now(), 30_000, sampleRate, "BEGINNING", 0, 0,
                 "inst-v1", "lyrics-v1", segments);
     }

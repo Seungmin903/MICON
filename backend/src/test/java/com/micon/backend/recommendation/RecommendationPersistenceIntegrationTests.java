@@ -47,10 +47,10 @@ class RecommendationPersistenceIntegrationTests {
         RecommendationShelf timbre = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "timbre", "내 음색과 닮은 곡", 2, "timbreScore"));
 
-        insertCatalogSong(101L);
-        insertCatalogSong(102L);
-        songs.save(new RecommendationSong(recommendation, timbre, 102L, 2, 1));
-        songs.save(new RecommendationSong(recommendation, range, 101L, 1, 1));
+        insertCatalogSong("101");
+        insertCatalogSong("102");
+        songs.save(new RecommendationSong(recommendation, timbre, "102", 2, 1));
+        songs.save(new RecommendationSong(recommendation, range, "101", 1, 1));
         songs.flush();
 
         assertThat(shelves.findByRecommendationIdOrderByOrder(recommendation.getId()))
@@ -58,7 +58,7 @@ class RecommendationPersistenceIntegrationTests {
                 .containsExactly("range", "timbre");
         assertThat(songs.findByRecommendationIdOrderByOverallRank(recommendation.getId()))
                 .extracting(song -> song.getId().getSongId())
-                .containsExactly(101L, 102L);
+                .containsExactly("101", "102");
     }
 
     @Test
@@ -69,14 +69,14 @@ class RecommendationPersistenceIntegrationTests {
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
 
         for (int rank = 1; rank <= 50; rank++) {
-            long songId = 1000L + rank;
+            String songId = Integer.toString(1000 + rank);
             insertCatalogSong(songId);
             insertSong(recommendation.getId(), shelf.getId(), songId, rank, rank);
         }
         RecommendationShelf secondShelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "range", "음역 추천", 2, "rangeFit"));
-        insertCatalogSong(1051L);
-        insertSong(recommendation.getId(), secondShelf.getId(), 1051L, 51, 1);
+        insertCatalogSong("1051");
+        insertSong(recommendation.getId(), secondShelf.getId(), "1051", 51, 1);
 
         assertThat(countSongs(recommendation.getId())).isEqualTo(51);
     }
@@ -87,13 +87,13 @@ class RecommendationPersistenceIntegrationTests {
         Recommendation recommendation = fixture.recommendation();
         RecommendationShelf shelf = shelves.saveAndFlush(
                 new RecommendationShelf(recommendation, "overall", "종합 추천", 1, "finalScore"));
-        insertCatalogSong(2001L);
-        insertCatalogSong(2002L);
-        insertSong(recommendation.getId(), shelf.getId(), 2001L, 1, 1);
+        insertCatalogSong("2001");
+        insertCatalogSong("2002");
+        insertSong(recommendation.getId(), shelf.getId(), "2001", 1, 1);
 
-        assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), 2001L, 2, 2))
+        assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), "2001", 2, 2))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), 2002L, 1, 2))
+        assertThatThrownBy(() -> insertSong(recommendation.getId(), shelf.getId(), "2002", 1, 2))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbcTemplate.update(
                 "INSERT INTO recommendation_shelf "
@@ -130,7 +130,7 @@ class RecommendationPersistenceIntegrationTests {
         return new Fixture(recommendation);
     }
 
-    private void insertSong(long recommendationId, long shelfId, long songId, int overallRank, int shelfPosition) {
+    private void insertSong(long recommendationId, long shelfId, String songId, int overallRank, int shelfPosition) {
         jdbcTemplate.update("""
                 INSERT INTO recommendation_song (
                     recommendation_id, song_id, recommendation_shelf_id, overall_rank, shelf_position
@@ -138,7 +138,7 @@ class RecommendationPersistenceIntegrationTests {
                 """, recommendationId, songId, shelfId, overallRank, shelfPosition);
     }
 
-    private void insertCatalogSong(long songId) {
+    private void insertCatalogSong(String songId) {
         jdbcTemplate.update(
                 "INSERT INTO song (song_id, title, status, practice_ready) VALUES (?, ?, 'ACTIVE', TRUE)",
                 songId, "test-song-" + songId);

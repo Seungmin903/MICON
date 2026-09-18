@@ -7,7 +7,7 @@ import com.micon.backend.common.exception.ErrorCode;
 public class SongNotFoundException extends BusinessException {
 
 	// 기능: 조회에 실패한 곡 ID를 포함해 SONG_NOT_FOUND 예외를 생성한다.
-	public SongNotFoundException(Long songId) {
+	public SongNotFoundException(String songId) {
 		super(ErrorCode.SONG_NOT_FOUND, "곡을 찾을 수 없습니다. songId=" + songId);
 	}
 }

@@ -54,8 +54,8 @@ class PracticeResultServiceTest {
 			new PracticeResultService.SummaryPayload("좋은 연습", sections)
 		);
 		when(practiceRepository.findOwned(50L, 7L)).thenReturn(Optional.of(practice));
-		when(practiceRepository.sectionBelongsToSong(31L, 10L)).thenReturn(true);
-		when(practiceRepository.sectionBelongsToSong(32L, 10L)).thenReturn(true);
+		when(practiceRepository.sectionBelongsToSong(31L, "10")).thenReturn(true);
+		when(practiceRepository.sectionBelongsToSong(32L, "10")).thenReturn(true);
 		when(resultRepository.findLatest(50L)).thenReturn(Optional.of(
 			new ResultRow(60L, 50L, "COMPLETED", decimal("70"), decimal("65"),
 				decimal("75"), decimal("72"), storedSummary, LocalDateTime.now(), LocalDateTime.now())
@@ -119,7 +119,7 @@ class PracticeResultServiceTest {
 
 	private PracticeResponse.Detail practice(String status) {
 		return new PracticeResponse.Detail(
-			50L, 10L, "연습곡", null, 20L, null, -2, new BigDecimal("1.00"),
+			50L, "10", "연습곡", null, 20L, null, -2, new BigDecimal("1.00"),
 			null, null, "FULL_SONG", status, LocalDateTime.now(), LocalDateTime.now(), 120_000, LocalDateTime.now()
 		);
 	}

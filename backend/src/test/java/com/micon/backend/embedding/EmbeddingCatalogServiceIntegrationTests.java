@@ -55,7 +55,7 @@ class EmbeddingCatalogServiceIntegrationTests {
         assertThat((Map<String, Object>) snapshot.get("models")).containsKeys("ecapa", "singer_byol");
         List<Map<String, Object>> tracks = (List<Map<String, Object>>) snapshot.get("tracks");
         assertThat(tracks).hasSize(1);
-        assertThat(tracks.getFirst()).containsEntry("song_id", 9001L).containsEntry("catalog_track_id", "POOL_9001");
+        assertThat(tracks.getFirst()).containsEntry("song_id", "9001").containsEntry("catalog_track_id", "POOL_9001");
         Map<String, Map<String, Object>> embeddings =
                 (Map<String, Map<String, Object>>) tracks.getFirst().get("embeddings");
         assertThat(embeddings.get("ecapa")).containsEntry("dimension", 192).containsEntry("rows", 2)

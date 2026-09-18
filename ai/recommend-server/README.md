@@ -93,7 +93,7 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 | `original_key` | 키 안 바꾸고 바로 부를 곡 | 곡 중심음 ↔ 내 중심음 근접 | 최적 키 0, 원키 커버리지 ≥ 0.95 | 제외 |
 | `favorite_artists` | 선호 가수 좋아하면 | 본인 곡 → 가수 임베딩 유사도 | 부담 0 | 제외 |
 | `challenge` (실험, 기본 꺼짐) | 고음 한 단계 도전 | 상한 위 시간 비율 작은 순 | 원키 상한 초과 1~3반음, 그 비율 3~20% | 제외 |
-| `discovery` | 새로운 발견 | 무작위(일자 시드), 가수·장르 중복 없이 | 부담 0 (랩은 조건 없음) | 허용 |
+| `discovery` | 새로운 발견 | 다른 섹션에 뽑히지 않은 나머지 곡. 서버는 일자 시드로 한 번, 앱은 새로고침마다 다시 섞음 | 없음 | 허용 |
 
 곡 프로파일 음표 신뢰도 < 0.55 인 곡(랩·불안정 추출)은 음역 조건이 있는 섹션에서 제외한다. 각 item 의 `shelf` 가 소속 섹션, `metrics` 가 그 섹션의 표시 지표다.
 `metadata.artist_gender` 는 성별 필터용 자리이며 아직 데이터가 없다(null).
@@ -115,6 +115,19 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 게이트 규칙: `genres` 없음 → 전체 언어. `팝`→en, 그 외 장르→ko. 카탈로그 언어는 ISO 639-2(kor/eng/jpn), mul·zxx 는 항상 통과. 값은 `timbre_recommender/composition.py` 상단 상수.
 
 ## 테스트
+
+### 통합 곡 상세의 `/song-fit` 계약
+
+`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 그대로 반환한다.
+기존 `overall`, `range`, `timbre`, `rhythm`, `algorithmVersion` 외에 선택 필드
+`timbreAxis`(`ECAPA` / `SINGER_BYOL` / `CONSENSUS`)와 `timbreLabel`이 포함될 수 있다.
+두 필드가 없는 구버전 요청도 지원하며, `AVAILABLE` / `UNAVAILABLE` 모두 설명과 점수를 변형하지 않는다.
+새 임베딩 추론이나 추천 생성은 실행하지 않는다. `songId`, `analysisId`, `selectedKeyOffset`은 요청과 일치해야 한다.
+
+`burdenSections`는 곡의 주의 구간이다. 앱은 원키 목표 음표와 측정 음역을 비교해
+선택 키의 개인 음역 밖 구간을 별도로 표시한다. 상세는 [통합 계약](../../docs/song-detail-integration.md)을 참고한다.
+
+### 실행
 
 ```powershell
 .venv\Scripts\python.exe -m pytest tests

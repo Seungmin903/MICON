@@ -112,7 +112,7 @@ class DirectVoiceAnalysisServiceTest {
     }
 
     private VoiceAnalysisUploadRequest request(String requestId) {
-        return new VoiceAnalysisUploadRequest(requestId, VoiceAnalysisMethod.SONG, 21L, "v4",
+        return new VoiceAnalysisUploadRequest(requestId, VoiceAnalysisMethod.SONG, "21", "v4",
                 LocalDateTime.now(), 30_000, 48_000, "HIGHLIGHT", 10_000, 10_200,
                 "inst-v2", "lyrics-v3", List.of());
     }

@@ -8,9 +8,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.micon.app.data.onboarding.*
@@ -74,7 +77,8 @@ class StagedVoiceReportScreenTest {
         var progress by mutableStateOf(complete.copy(byol = ComponentStatus.RUNNING))
         var retried: AnalysisComponent? = null
         show { VoiceReportContent(range, progress, retryEnabled = true, onRetry = { retried = it }) }
-        compose.onNodeWithText("분석 중").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("분석 중").assertDoesNotExist()
+        compose.onNodeWithText("노래 음색 분석").assertDoesNotExist()
         compose.onNodeWithText("나와 닮은 가수").assertDoesNotExist()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = progress.copy(byol = ComponentStatus.FAILED) }
@@ -105,7 +109,8 @@ class StagedVoiceReportScreenTest {
     @Test fun artistLookupIsIndependentAndEmptyResultIsExplicit() {
         var progress by mutableStateOf(complete.copy(artistSearch = ComponentStatus.RUNNING, artists = emptyList()))
         show { VoiceReportContent(range, progress) }
-        compose.onNodeWithText("가수 찾기").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("가수 찾기").assertDoesNotExist()
+        compose.onNodeWithText("나와 닮은 가수").assertDoesNotExist()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertExists()
         compose.runOnIdle { progress = progress.copy(artistSearch = ComponentStatus.COMPLETED) }
         compose.onNodeWithText("지금은 닮은 가수를 찾지 못했어요.").performScrollTo().assertIsDisplayed()
@@ -113,9 +118,44 @@ class StagedVoiceReportScreenTest {
 
     @Test fun aPreviousSessionsTimbreNeverAppearsUnderANewRange() {
         show { VoiceReportContent(range.copy(backendSessionId = 8), complete) }
-        compose.onNodeWithText("C3 ~ C5").assertIsDisplayed()
+        compose.onNodeWithText("3옥타브 도 ~ 5옥타브 도").assertIsDisplayed()
         compose.onNodeWithText("테스트 가수").assertDoesNotExist()
         compose.onNodeWithText("음색 분석 결과").assertDoesNotExist()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
+    }
+
+    @Test fun pendingArtistStatesStayHiddenAndFailureStillRetries() {
+        var progress by mutableStateOf(complete.copy(artistSearch = ComponentStatus.PENDING))
+        var retried: AnalysisComponent? = null
+        show { VoiceReportContent(range, progress, retryEnabled = true, onRetry = { retried = it }) }
+        for (status in listOf(ComponentStatus.PENDING, ComponentStatus.QUEUED, ComponentStatus.RUNNING)) {
+            compose.runOnIdle { progress = progress.copy(artistSearch = status) }
+            listOf("나와 닮은 가수", "가수 찾기", "접수 준비 중", "순서 대기 중", "분석 중").forEach {
+                compose.onNodeWithText(it).assertDoesNotExist()
+            }
+            compose.onNodeWithText("내 목소리에 맞는 음악").assertExists()
+        }
+        compose.runOnIdle { progress = progress.copy(artistSearch = ComponentStatus.FAILED) }
+        compose.onNodeWithText("다시 시도").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(AnalysisComponent.ARTIST_SEARCH, retried) }
+    }
+
+    @Test fun koreanRangeWrapsWithoutClippingOnSmallScreenAtLargeFont() {
+        val measured = range.copy(lowMidi = 53, highMidi = 69)
+        compose.setContent { MiconTheme {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.6f)) {
+                Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(24.dp)) {
+                    RangeResultCards(measured)
+                }
+            }
+        } }
+        compose.onNodeWithText("3옥타브 파 ~ 4옥타브 라").assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { action ->
+                val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+                assertTrue(action(layouts))
+                assertFalse(layouts.single().hasVisualOverflow)
+            }
+        capture("staged-korean-range-large-font.png")
     }
 }

@@ -4,7 +4,8 @@ import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.favorite.service.FavoriteService;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 인증된 회원의 찜 목록 조회와 곡 찜·해제 HTTP 요청을 처리한다. */
 @Validated
 @RestController
-@RequestMapping("/users/me/favorites")
+@RequestMapping("/favorites")
 public class FavoriteController {
 
 	private final FavoriteService favoriteService;
@@ -32,7 +33,7 @@ public class FavoriteController {
 	@PutMapping("/{songId}")
 	// 기능: addFavorite 생성·처리 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<Void>> addFavorite(
-		@PathVariable @Min(1) Long songId,
+		@PathVariable @NotBlank @Size(max = 64) String songId,
 		@AuthenticationPrincipal Jwt jwt
 	) {
 		favoriteService.add(userId(jwt), songId);
@@ -42,7 +43,7 @@ public class FavoriteController {
 	@DeleteMapping("/{songId}")
 	// 기능: removeFavorite 삭제·취소 요청을 검증하고 서비스에 위임한다.
 	public ResponseEntity<ApiResponse<Void>> removeFavorite(
-		@PathVariable @Min(1) Long songId,
+		@PathVariable @NotBlank @Size(max = 64) String songId,
 		@AuthenticationPrincipal Jwt jwt
 	) {
 		favoriteService.remove(userId(jwt), songId);

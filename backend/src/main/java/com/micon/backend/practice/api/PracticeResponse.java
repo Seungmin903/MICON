@@ -12,7 +12,7 @@ public final class PracticeResponse {
 
 	public record Detail(
 		Long practiceId,
-		Long songId,
+		String songId,
 		String songTitle,
 		Long sectionId,
 		Long recordingId,

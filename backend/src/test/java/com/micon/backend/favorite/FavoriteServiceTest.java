@@ -26,11 +26,11 @@ class FavoriteServiceTest {
 		);
 		jdbcTemplate = new JdbcTemplate(dataSource);
 		jdbcTemplate.execute("DROP ALL OBJECTS");
-		jdbcTemplate.execute("CREATE TABLE SONG (song_id BIGINT PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
-		jdbcTemplate.execute("CREATE TABLE SONG_METADATA (song_id BIGINT PRIMARY KEY, display_image_url VARCHAR(2048))");
+		jdbcTemplate.execute("CREATE TABLE SONG (song_id VARCHAR(64) PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
+		jdbcTemplate.execute("CREATE TABLE SONG_METADATA (song_id VARCHAR(64) PRIMARY KEY, display_image_url VARCHAR(2048))");
 		jdbcTemplate.execute("CREATE TABLE SINGER (singer_id BIGINT PRIMARY KEY, name VARCHAR(100))");
-		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id BIGINT, display_order INT)");
-		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id BIGINT, prefer_key BIGINT, PRIMARY KEY(user_id, song_id))");
+		jdbcTemplate.execute("CREATE TABLE SONG_SINGER (singer_id BIGINT, song_id VARCHAR(64), display_order INT)");
+		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id VARCHAR(64), prefer_key BIGINT, PRIMARY KEY(user_id, song_id))");
 		jdbcTemplate.update("INSERT INTO SONG VALUES (1, '좋은 날', 233000)");
 		jdbcTemplate.update("INSERT INTO SONG_METADATA VALUES (1, 'https://example.com/good-day.jpg')");
 		jdbcTemplate.update("INSERT INTO SINGER VALUES (10, '아이유')");
@@ -40,25 +40,25 @@ class FavoriteServiceTest {
 
 	@Test
 	void addsListsAndRemovesFavoriteIdempotently() {
-		service.add(7L, 1L);
-		service.add(7L, 1L);
+		service.add(7L, "1");
+		service.add(7L, "1");
 
 		var favorites = service.getFavorites(7L);
 		assertThat(favorites.totalCount()).isEqualTo(1);
 		assertThat(favorites.songs()).singleElement().satisfies(song -> {
-			assertThat(song.songId()).isEqualTo(1L);
+			assertThat(song.songId()).isEqualTo("1");
 			assertThat(song.artists()).containsExactly("아이유");
 		});
 		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM FAVORITE_SONG", Integer.class)).isEqualTo(1);
 
-		service.remove(7L, 1L);
-		service.remove(7L, 1L);
+		service.remove(7L, "1");
+		service.remove(7L, "1");
 		assertThat(service.getFavorites(7L).songs()).isEmpty();
 	}
 
 	@Test
 	void rejectsUnknownSong() {
-		assertThatThrownBy(() -> service.add(7L, 999L))
+		assertThatThrownBy(() -> service.add(7L, "999"))
 			.isInstanceOf(SongNotFoundException.class);
 	}
 }
