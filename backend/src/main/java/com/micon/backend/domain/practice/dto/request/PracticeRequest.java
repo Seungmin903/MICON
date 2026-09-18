@@ -32,8 +32,13 @@ public final class PracticeRequest {
 	public record Complete(
 		@NotNull @PositiveOrZero Integer durationMs,
 		@Min(1) Long voiceAnalysisId,
-		@Min(1) Long recordingId
+		@Min(1) Long recordingId,
+		@Min(-6) @Max(5) Integer finalSelectedKey,
+		@PositiveOrZero Integer keyChangeCount
 	) {
+		public Complete(Integer durationMs, Long voiceAnalysisId, Long recordingId) {
+			this(durationMs, voiceAnalysisId, recordingId, null, null);
+		}
 	}
 
 	public record StatusUpdate(@NotNull ActiveStatus status) {

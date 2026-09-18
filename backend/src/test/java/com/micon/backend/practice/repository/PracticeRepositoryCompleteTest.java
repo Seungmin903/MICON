@@ -30,7 +30,10 @@ class PracticeRepositoryCompleteTest {
 			  status VARCHAR(20) NOT NULL,
 			  ended_at TIMESTAMP NULL,
 			  duration_ms INT NULL,
-			  recording_id BIGINT NULL
+			  recording_id BIGINT NULL,
+			  initial_key SMALLINT NOT NULL DEFAULT 0,
+			  selected_key SMALLINT NOT NULL DEFAULT 0,
+			  key_change_count INT NOT NULL DEFAULT 0
 			)
 			""");
 		repository = new PracticeRepository(new NamedParameterJdbcTemplate(dataSource));
@@ -40,18 +43,20 @@ class PracticeRepositoryCompleteTest {
 	void completesReadyPractice() {
 		insertPractice(10L, "READY");
 
-		int updated = repository.complete(10L, 7L, 12_000, null, null);
+		int updated = repository.complete(10L, 7L, 12_000, null, null, -2, 1);
 
 		assertThat(updated).isEqualTo(1);
 		assertThat(statusOf(10L)).isEqualTo("COMPLETED");
 		assertThat(durationOf(10L)).isEqualTo(12_000);
+		assertThat(selectedKeyOf(10L)).isEqualTo(-2);
+		assertThat(keyChangeCountOf(10L)).isEqualTo(1);
 	}
 
 	@Test
 	void doesNotCompleteTerminalPractice() {
 		insertPractice(20L, "ABORTED");
 
-		int updated = repository.complete(20L, 7L, 12_000, null, null);
+		int updated = repository.complete(20L, 7L, 12_000, null, null, null, null);
 
 		assertThat(updated).isZero();
 		assertThat(statusOf(20L)).isEqualTo("ABORTED");
@@ -77,6 +82,22 @@ class PracticeRepositoryCompleteTest {
 	private Integer durationOf(Long practiceId) {
 		return jdbcTemplate.queryForObject(
 			"SELECT duration_ms FROM practice_session WHERE practice_id = ?",
+			Integer.class,
+			practiceId
+		);
+	}
+
+	private Integer selectedKeyOf(Long practiceId) {
+		return jdbcTemplate.queryForObject(
+			"SELECT selected_key FROM practice_session WHERE practice_id = ?",
+			Integer.class,
+			practiceId
+		);
+	}
+
+	private Integer keyChangeCountOf(Long practiceId) {
+		return jdbcTemplate.queryForObject(
+			"SELECT key_change_count FROM practice_session WHERE practice_id = ?",
 			Integer.class,
 			practiceId
 		);

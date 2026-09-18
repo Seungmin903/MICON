@@ -28,7 +28,8 @@ public class PracticeHistoryRepository {
 	) {
 		String sql = """
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, sm.display_image_url,
-				       ps.selected_key, ps.practice_scope, ps.section_id, ps.status,
+				       ps.initial_key, ps.selected_key, ps.key_change_count,
+				       ps.practice_scope, ps.section_id, ps.status,
 				       ps.started_at, ps.duration_ms, pr.status AS result_status, pr.overall_score
 				FROM practice_session ps
 				JOIN song s ON s.song_id = ps.song_id
@@ -53,7 +54,11 @@ public class PracticeHistoryRepository {
 			resultSet.getString("song_id"),
 			resultSet.getString("song_title"),
 			resultSet.getString("display_image_url"),
+			resultSet.getInt("initial_key"),
 			resultSet.getInt("selected_key"),
+			resultSet.getInt("key_change_count"),
+			resultSet.getInt("key_change_count") > 0
+				|| resultSet.getInt("initial_key") != resultSet.getInt("selected_key"),
 			resultSet.getString("practice_scope"),
 			resultSet.getObject("section_id", Long.class),
 			resultSet.getString("status"),
