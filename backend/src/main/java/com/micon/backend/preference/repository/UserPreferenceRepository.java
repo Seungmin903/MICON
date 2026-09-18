@@ -1,4 +1,4 @@
-package com.micon.backend.preference.repository;
+package com.micon.backend.domain.preference.repository;
 
 import java.util.List;
 import java.util.Map;
