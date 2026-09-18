@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.micon.app.data.SongDetail
 import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.ui.common.*
+import com.micon.app.scoring.ScoringConstants
 import com.micon.app.ui.songdetail.SongDetailColors as Detail
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -98,7 +99,8 @@ private fun RangeTrack(label: String, low: Int, high: Int, axisLow: Int, axisHig
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun SongSettingsCard(state: SongDetailState, onKey: (Int) -> Unit, onRetry: () -> Unit) {
-    val recommended = state.fit?.recommendedKey?.takeIf { it in -6..5 }
+    // 실시간 시프트 범위(±3) 밖의 추천 키는 고를 수 없으므로 표시하지 않는다
+    val recommended = state.fit?.recommendedKey?.takeIf { it in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX }
     val timbre = state.fit?.timbre
     val timbreScore = state.fit?.timbreFit?.takeIf { it.isFinite() && it in 0f..1f }
     MiconCard(Modifier.testTag("song-settings"), color = Detail.card) {

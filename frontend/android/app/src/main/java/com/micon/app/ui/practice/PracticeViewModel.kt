@@ -14,7 +14,6 @@ import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.audio.PitchCapture
 import com.micon.app.data.SongRepository
-import com.micon.app.data.UnsupportedPracticeKeyException
 import com.micon.app.data.PracticeSection
 import com.micon.app.data.backend.AuthSessionExpiredException
 import com.micon.app.data.backend.BackendRequestException
@@ -98,7 +97,6 @@ class PracticeViewModel(
         val artist: String = "",
         val keyName: String? = null,
         val keyShift: Int = 0,
-        val keyBusy: Boolean = false,
         val skipIntro: Boolean = true,
         val autoCalibrate: Boolean = true,
         val headphones: Boolean = false,     // true → /compare sourceType=vocal (분리 생략). 스피커로 들으면 false 가 맞다. 헤드셋이 연결돼 있으면 자동으로 true.
@@ -208,8 +206,8 @@ class PracticeViewModel(
                 require(initialKey in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX) { "지원하지 않는 연습 키예요." }
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
                 // 409(준비 안 됨)는 PracticeAssetsNotReadyException 의 서버 메시지를 그대로 화면에 보인다.
-                val assets = repo.practiceAssets(songId, initialKey)
-                check(assets.songId == songId && assets.selectedKey == initialKey) { "요청한 곡/키와 반주 정보가 일치하지 않습니다." }
+                val assets = repo.practiceAssets(songId, 0)   // 반주는 항상 원키 — 키는 재생기가 실시간으로 옮긴다
+                check(assets.songId == songId && assets.selectedKey == 0) { "요청한 곡과 반주 정보가 일치하지 않습니다." }
                 val karaoke = assets.targetNotes
                 if (karaoke.isEmpty()) error("음표 데이터(song_note)가 없습니다.")
                 notes = karaoke.toLiveNotes(assets.timeSignature)
@@ -229,6 +227,7 @@ class PracticeViewModel(
                     ?: error("반주 재생 주소가 없습니다. 백엔드 practice-assets 응답에 반주 URL(playbackUrl)이 추가되어야 합니다.")
                 instrumentalUrl = url
                 player.load(url)
+                player.keyShift = initialKey     // 곡 상세에서 고른 키로 시작 (반주 실시간 시프트)
                 _state.update {
                     it.copy(
                         phase = Phase.READY, title = detail.summary.title, artist = detail.summary.artist, keyName = assets.keyName ?: detail.analysis?.keyName,
@@ -273,31 +272,20 @@ class PracticeViewModel(
         scorer?.autoCalibrate = value
     }
 
-    /** 반주 키 변경 (READY·PAUSED·FINISHED). 백엔드가 미리 렌더한 키만 가능(없으면 422 → 안내). */
+    /**
+     * 반주 키 변경 (READY·PAUSED·FINISHED). 반주 파일을 새로 받지 않고 재생기가 음높이만 옮기므로
+     * 즉시 반영된다. 백엔드에는 늘 원키(`selectedKey = 0`)만 요청한다.
+     *
+     * 반주와 채점 기준을 **같이** 옮겨야 한다. 반주만 내리면 목표 음정은 원키로 남아 전부 틀린 것으로
+     * 판정된다. 재생 중에 바꾸지 않는 이유는 [InstrumentalPlayer.keyShift] 주석 참고.
+     */
     fun changeKey(next: Int) {
         val target = next.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         val s = _state.value
-        if (target == s.keyShift || s.keyBusy || s.isRunning) return
-        viewModelScope.launch {
-            _state.update { it.copy(keyBusy = true, error = null) }
-            val position = player.positionSec
-            try {
-                val assets = repo.practiceAssets(songId, target)
-                check(assets.songId == songId && assets.selectedKey == target) { "요청한 곡/키와 반주 정보가 일치하지 않습니다." }
-                val url = assets.instrumental.playbackUrl ?: error("키 변경 반주의 재생 주소가 없습니다.")
-                instrumentalUrl = url
-                player.load(url)
-                if (player.awaitReady(15_000)) player.seekTo(position)
-                scorer?.keyShift = target
-                _state.update { it.copy(keyShift = target) }
-            } catch (e: UnsupportedPracticeKeyException) {
-                _state.update { it.copy(error = "이 곡은 키 ${if (target > 0) "+$target" else target} 반주가 아직 준비되지 않았어요.") }
-            } catch (e: Exception) {
-                _state.update { it.copy(error = "키 변경 실패: ${e.message ?: e.toString()}") }
-            } finally {
-                _state.update { it.copy(keyBusy = false) }
-            }
-        }
+        if (target == s.keyShift || s.isRunning) return
+        player.keyShift = target      // 반주
+        scorer?.keyShift = target     // 채점 기준
+        _state.update { it.copy(keyShift = target, error = null) }
     }
 
     // ------------------------------------------------------------------ 재생 제어
@@ -452,24 +440,28 @@ class PracticeViewModel(
         }
     }
 
-    /** 절(구간) 시작 1.5초 앞으로 이동. 어느 단계에서든(카운트다운 제외) 가능. */
+    /**
+     * 절(1절·2절)로 이동. 반주는 그 절이 시작하는 마디의 **한 마디 앞 첫 박**([Section.jumpStart])에서 출발하고,
+     * 재생 중이었다면 [seekTo] 가 한 마디 카운트인까지 준 뒤 들어간다. 어느 단계에서든(카운트다운 제외) 가능.
+     */
     fun jumpToSection(index: Int) {
         val section = sections.sections.getOrNull(index) ?: return
-        seekTo(maxOf(0.0, section.start - SectionMap.JUMP_LEAD_SECONDS))
+        seekTo(section.jumpStart)
     }
 
-    /** 최고음 구간(하이라이트)으로 이동. 시작 시각은 이미 "구절 한 마디 앞" 으로 계산돼 있다. */
+    /** 최고음 구간(하이라이트)으로 이동. 시작 시각은 이미 "구절 마디의 한 마디 앞" 으로 계산돼 있다. */
     fun jumpToHighlight() {
         val h = sections.highlight ?: return
         seekTo(h.start)
     }
 
-    /** 지금 간주 안이면 간주 끝 1.5초 앞으로. 연습 중·일시정지 모두. */
+    /** 지금 간주 안이면 다음 보컬이 시작하는 마디의 한 마디 앞으로. 연습 중·일시정지 모두. */
     fun skipInterlude() {
         val now = _state.value.nowSec
         val interlude = _state.value.interlude ?: sections.interludeAt(now) ?: return
-        if (interlude.end - now <= SectionMap.JUMP_LEAD_SECONDS) return
-        seekTo(interlude.end - SectionMap.JUMP_LEAD_SECONDS)
+        val target = sections.leadBefore(interlude.end)
+        if (target <= now) return                       // 이미 그 마디 안 → 건너뛸 게 없다
+        seekTo(target)
     }
 
     /** 가사 줄을 구간 반복 범위로 지정(다시 누르면 해제). READY·PAUSED 에서만. */
@@ -589,10 +581,16 @@ class PracticeViewModel(
 
     // ------------------------------------------------------------------ 연습 기록 저장 (백엔드 /practices)
 
-    /** 백엔드 세션을 만든다(READY). 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용). */
+    /**
+     * 백엔드 세션을 만든다(READY). 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용).
+     *
+     * 키는 늘 **원키(0)** 로 연다. 서버(`PracticeService.create`)는 `selectedKey` 반음의 반주 파일이 READY 인지 검사하는데,
+     * 우리는 원키 반주 하나만 두고 앱이 실시간으로 옮기므로 0 이외 키는 422 로 거절된다(`hasReadyInstrumental`).
+     * 실제로 부른 키는 완료 때 `finalSelectedKey` 로 보낸다([completePractice], BE V29 `initial_key`/`selected_key`).
+     */
     private suspend fun openPractice(): Long = practiceMutex.withLock {
         practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
-        val created = practices.create(songId, selectedKey = _state.value.keyShift)
+        val created = practices.create(songId, selectedKey = 0)
         practiceId = created.id
         practiceOpen = true
         created.id
@@ -622,8 +620,9 @@ class PracticeViewModel(
             try {
                 val id = openPractice()
                 val totals = scorer.totals()
+                var keyRecorded = true
                 if (practiceOpen) {
-                    completePractice(id, judgedSpanMs())
+                    keyRecorded = completePractice(id, judgedSpanMs())
                     practiceOpen = false
                 }
                 val result = PracticeScoreMapper.result(
@@ -632,7 +631,9 @@ class PracticeViewModel(
                     frames = scorer.frames.toList(), dataVersion = assetsDataVersion,
                 )
                 practices.savePerformance(id, result)
-                _state.update { it.copy(save = Save(SavePhase.SAVED, "연습 기록을 저장했어요.", practiceId = id)) }
+                val message = if (keyRecorded) "연습 기록을 저장했어요."
+                    else "연습 기록을 저장했어요. 키 ${signedKey(_state.value.keyShift)} 정보는 서버가 아직 받지 않아 원키로 남았어요."
+                _state.update { it.copy(save = Save(SavePhase.SAVED, message, practiceId = id)) }
             } catch (e: AuthSessionExpiredException) {
                 _state.update { it.copy(save = Save(SavePhase.GUEST, e.message ?: "로그인이 만료됐어요.")) }
             } catch (e: BackendRequestException) {
@@ -647,9 +648,22 @@ class PracticeViewModel(
      * 연습 완료. 상태변경 API(PATCH status)가 BE 명세에서 제거되어 세션은 READY 그대로 complete 로 간다.
      * BE 가 READY→COMPLETED 를 허용해야 하며(2026-09-16 요청), 아니면 409 INVALID_PRACTICE_STATE 가 그대로 올라온다.
      */
-    private suspend fun completePractice(id: Long, durationMs: Int) {
-        practices.complete(id, durationMs)
+    private suspend fun completePractice(id: Long, durationMs: Int): Boolean {
+        val key = _state.value.keyShift
+        try {
+            // 세션은 원키(0)로 열었으므로 최종 키가 다르면 서버 규칙상 변경 횟수 ≥ 1 이어야 한다(시작 전 1회 고정 = 1).
+            practices.complete(id, durationMs, finalSelectedKey = key, keyChangeCount = if (key != 0) 1 else 0)
+            return true
+        } catch (e: BackendRequestException) {
+            // BE(fix/be/practiceSessionKey)는 최종 키에도 그 반음의 반주 파일이 READY 인지 검사한다. 원키 반주만 있는 곡은
+            // 0 이외 키가 422 UNSUPPORTED_PRACTICE_KEY → 키 정보 없이 완료해 기록 자체는 남긴다. 서버가 검사를 풀면 위 호출이 그대로 통과한다.
+            if (key == 0 || e.status != 422 || e.code != "UNSUPPORTED_PRACTICE_KEY") throw e
+            practices.complete(id, durationMs)
+            return false
+        }
     }
+
+    private fun signedKey(key: Int): String = if (key > 0) "+$key" else key.toString()
 
     /** 판정된 첫 음표부터 마지막 음표까지(곡 시각, ms) — "부른 길이" 로 저장한다. */
     private fun judgedSpanMs(): Int {

@@ -55,7 +55,7 @@ class SongDetailViewModelTest {
         assertTrue(players.isEmpty())
     }
 
-    @Test fun `return refreshes selected key URL and restores position without autoplay`() = runTest {
+    @Test fun `return refreshes original key URL and restores position and key without autoplay`() = runTest {
         val vm = model(); vm.enterScreen(); runCurrent()
         vm.selectKey(-2); runCurrent()
         val old = players.last()
@@ -63,40 +63,38 @@ class SongDetailViewModelTest {
         vm.leaveScreen()
         assertEquals(1, old.releases)
         vm.enterScreen(); runCurrent()
-        assertEquals(listOf(0, -2, -2), songs.requestedKeys)
+        assertEquals(listOf(0, 0), songs.requestedKeys)                 // 키를 바꿔도 서버엔 늘 원키만
         assertEquals(-2, vm.state.value.selectedKey)
+        assertEquals(-2, players.last().keyShift)                       // 새 재생기에도 고른 키가 다시 적용
         assertEquals(12.0, players.last().positionSec, 0.001)
         assertFalse(players.last().playRequested)
         assertFalse(vm.state.value.playing)
         vm.leaveScreen()
     }
 
-    @Test fun `rapid key selection ignores cancelled old response and never double shifts notes`() = runTest {
-        val slow = CompletableDeferred<PracticeAssets>()
-        songs.assets = { key -> if (key == -2) slow.await() else assets(key) }
+    @Test fun `key change shifts the preview locally without refetch and never double shifts notes`() = runTest {
         val vm = model(); vm.enterScreen(); runCurrent()
         vm.toggle()
+        assertTrue(players.single().playRequested)
         vm.selectKey(-2); runCurrent()
-        assertFalse(players.first().playRequested)
+        assertFalse(players.single().playRequested)                    // 키를 바꾸면 미리듣기는 멈춘다
         vm.selectKey(1); runCurrent()
-        slow.complete(assets(-2)); runCurrent()
+        assertEquals(1, players.size)                                   // 재생기를 다시 만들지 않는다
+        assertEquals(1, players.single().keyShift)
         assertEquals(1, vm.state.value.mediaKey)
-        assertEquals(60, vm.state.value.notes.single().midi)
-        assertTrue(players.last().url!!.endsWith("/1.wav"))
-        assertFalse(players.last().playRequested)
+        assertTrue(vm.state.value.playable)
+        assertEquals(listOf(0), songs.requestedKeys)
+        assertEquals(60, vm.state.value.notes.single().midi)          // 음표는 원키 그대로(표시에서만 옮김)
+        assertTrue(players.single().url!!.endsWith("/0.wav"))
         vm.leaveScreen()
     }
 
-    @Test fun `unsupported key never plays original as a fallback`() = runTest {
-        songs.assets = { key -> if (key == -2) throw UnsupportedPracticeKeyException("missing") else assets(key) }
+    @Test fun `key is clamped to the realtime shift range`() = runTest {
         val vm = model(); vm.enterScreen(); runCurrent()
-        vm.selectKey(-2); runCurrent()
-        assertFalse(vm.state.value.playable)
-        assertFalse(vm.state.value.practiceEnabled)
-        assertNotNull(vm.state.value.assetsError)
-        vm.toggle()
-        assertEquals(1, players.size)
-        vm.selectKey(0); runCurrent()
+        vm.selectKey(-6); runCurrent()
+        assertEquals(com.micon.app.scoring.ScoringConstants.KEY_SHIFT_MIN, vm.state.value.selectedKey)
+        vm.selectKey(5); runCurrent()
+        assertEquals(com.micon.app.scoring.ScoringConstants.KEY_SHIFT_MAX, vm.state.value.selectedKey)
         assertTrue(vm.state.value.practiceEnabled)
         vm.leaveScreen()
     }
@@ -154,6 +152,7 @@ class SongDetailViewModelTest {
         override val isReady get() = ready
         override val isPlaying get() = ready && playRequested
         override var playRequested = false
+        override var keyShift = 0
         var releases = 0
         var url: String? = null
         override fun load(url: String) { this.url = url }
