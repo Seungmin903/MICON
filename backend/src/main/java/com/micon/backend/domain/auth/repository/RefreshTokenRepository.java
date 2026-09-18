@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import com.micon.backend.user.domain.UserStatus;
+import com.micon.backend.domain.user.domain.UserStatus;
 
 import jakarta.persistence.LockModeType;
 

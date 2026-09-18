@@ -13,7 +13,7 @@ import com.micon.backend.domain.practice.repository.PracticeAssetRepository.Medi
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository.NoteRow;
 import com.micon.backend.domain.practice.repository.PracticeAssetRepository.SongAssetRow;
 import com.micon.backend.domain.practice.service.PracticeAssetService;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Clock;

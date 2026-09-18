@@ -1,7 +1,7 @@
 package com.micon.backend.embedding;
 
 import com.micon.backend.common.api.ApiResponse;
-import com.micon.backend.voice.application.AiServiceTokenValidator;
+import com.micon.backend.domain.voice.application.AiServiceTokenValidator;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

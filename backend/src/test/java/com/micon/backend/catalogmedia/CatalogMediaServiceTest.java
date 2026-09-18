@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.micon.backend.catalogmedia.CatalogMediaRepository.VocalStemRow;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;

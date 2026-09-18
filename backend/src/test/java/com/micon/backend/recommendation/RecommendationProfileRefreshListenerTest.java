@@ -3,7 +3,7 @@ package com.micon.backend.recommendation;
 import com.micon.backend.domain.recommendation.application.RecommendationDispatchService;
 import com.micon.backend.domain.recommendation.application.RecommendationProfileRefreshListener;
 import com.micon.backend.domain.recommendation.domain.RecommendationMode;
-import com.micon.backend.voice.application.VoiceProfileSavedEvent;
+import com.micon.backend.domain.voice.application.VoiceProfileSavedEvent;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.mock;

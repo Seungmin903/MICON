@@ -6,8 +6,8 @@ import com.micon.backend.domain.recommendation.application.RecommendationCreatio
 import com.micon.backend.domain.recommendation.application.RecommendationDispatchResult;
 import com.micon.backend.domain.recommendation.application.RecommendationDispatchService;
 import com.micon.backend.domain.recommendation.domain.RecommendationMode;
-import com.micon.backend.voice.domain.UserVoiceProfile;
-import com.micon.backend.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.domain.voice.domain.UserVoiceProfile;
+import com.micon.backend.domain.voice.domain.UserVoiceProfileRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

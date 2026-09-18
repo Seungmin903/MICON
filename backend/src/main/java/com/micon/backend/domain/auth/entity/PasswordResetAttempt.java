@@ -1,6 +1,6 @@
 package com.micon.backend.domain.auth.entity;
 
-import com.micon.backend.user.domain.User;
+import com.micon.backend.domain.user.domain.User;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;

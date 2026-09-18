@@ -1,10 +1,10 @@
 package com.micon.backend.voice;
 
-import com.micon.backend.user.domain.User;
-import com.micon.backend.user.domain.UserRepository;
-import com.micon.backend.voice.domain.VoiceRecording;
-import com.micon.backend.voice.domain.VoiceRecordingRepository;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.user.domain.User;
+import com.micon.backend.domain.user.domain.UserRepository;
+import com.micon.backend.domain.voice.domain.VoiceRecording;
+import com.micon.backend.domain.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

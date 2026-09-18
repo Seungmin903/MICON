@@ -1,7 +1,7 @@
 package com.micon.backend.catalogmedia;
 
 import com.micon.backend.common.api.ApiResponse;
-import com.micon.backend.voice.application.AiServiceTokenValidator;
+import com.micon.backend.domain.voice.application.AiServiceTokenValidator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.CacheControl;

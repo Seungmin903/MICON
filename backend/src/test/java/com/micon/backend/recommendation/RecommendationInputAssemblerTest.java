@@ -5,9 +5,10 @@ import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.recommendation.application.RecommendationInput;
 import com.micon.backend.domain.recommendation.application.RecommendationInputAssembler;
 import com.micon.backend.domain.recommendation.application.RecommendationPreferenceReader;
-import com.micon.backend.user.domain.User;
-import com.micon.backend.user.domain.UserStatus;
-import com.micon.backend.voice.domain.*;
+import com.micon.backend.domain.user.domain.User;
+import com.micon.backend.domain.user.domain.UserStatus;
+import com.micon.backend.domain.voice.domain.*;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -21,8 +22,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RecommendationInputAssemblerTest {
-    @Mock UserVoiceProfileRepository profiles;
-    @Mock VoiceRangeMeasurementRepository ranges;
+    @Mock
+    UserVoiceProfileRepository profiles;
+    @Mock
+    VoiceRangeMeasurementRepository ranges;
     @Mock VoiceModelResultRepository models;
     @Mock
     RecommendationPreferenceReader preferences;
