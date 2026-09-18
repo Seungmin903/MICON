@@ -44,7 +44,7 @@ class RemoteSongRepositoryTest {
         assertNull(request.getHeader("Authorization")) // Public search does not require a member token.
         assertEquals(384L, page.totalElements)
         val song = page.items.single()
-        assertEquals(1L, song.id)
+        assertEquals("1", song.id)
         assertEquals("#안녕, 영화처럼", song.artist)
         assertEquals(251158L, song.durationMs)
         assertNull(song.imageUrl)
@@ -52,7 +52,7 @@ class RemoteSongRepositoryTest {
 
     @Test fun `song detail maps analysis and readiness`() = runBlocking {
         server.enqueue(ok("""{"songId":7,"title":"빈잔","artists":["남진"],"albumName":"남진 골든","imageUrl":"https://img/7.jpg","releaseDate":"1982-03-01","durationMs":200000,"originalKey":"E♭ major","bpm":96.5,"genres":["트로트","발라드"],"lowestMidi":50.0,"highestMidi":69.0,"favorite":true,"practiceReady":true}"""))
-        val detail = checkNotNull(repo.detail(7))
+        val detail = checkNotNull(repo.detail("7"))
         assertEquals("/api/v1/songs/7", server.takeRequest().path)
         assertEquals("남진", detail.summary.artist)
         assertEquals("트로트", detail.summary.genre)
@@ -69,9 +69,9 @@ class RemoteSongRepositoryTest {
 
     @Test fun `song without analysis values has null analysis and 404 is null`() = runBlocking {
         server.enqueue(ok("""{"songId":8,"title":"x","artists":[],"genres":[],"favorite":false,"practiceReady":false}"""))
-        assertNull(checkNotNull(repo.detail(8)).analysis)
+        assertNull(checkNotNull(repo.detail("8")).analysis)
         server.enqueue(json(404, """{"code":"SONG_NOT_FOUND","message":"곡을 찾을 수 없습니다.","data":null}"""))
-        assertNull(repo.detail(9))
+        assertNull(repo.detail("9"))
     }
 
     @Test fun `practice assets parse target notes lyrics and sections`() = runBlocking {
@@ -85,7 +85,7 @@ class RemoteSongRepositoryTest {
             "sections":[{"sectionId":2,"sectionType":"VOCAL","sectionName":"보컬 구간","startMs":16280,"endMs":232360,"sequenceNo":2,"difficultyType":"NONE","difficultyScore":null,"confidence":null,"description":null},
                         {"sectionId":1,"sectionType":"INTRO","sectionName":"인트로","startMs":0,"endMs":16280,"sequenceNo":1,"difficultyType":"NONE","difficultyScore":null,"confidence":null,"description":null}]
         }"""))
-        val assets = repo.practiceAssets(1, 0)
+        val assets = repo.practiceAssets("1", 0)
         assertEquals("/api/v1/songs/1/practice-assets?selectedKey=0", server.takeRequest().path)
         assertEquals(2, assets.targetNotes.size)
         assertEquals(62, assets.targetNotes[0].midi)
@@ -100,12 +100,12 @@ class RemoteSongRepositoryTest {
 
     @Test fun `practice assets 409 and 422 become typed exceptions with server message`() = runBlocking {
         server.enqueue(json(409, """{"code":"PRACTICE_ASSET_NOT_READY","message":"연습 데이터가 아직 준비되지 않았습니다.","data":null}"""))
-        try { repo.practiceAssets(1, 0); fail("409 must throw") } catch (e: PracticeAssetsNotReadyException) {
+        try { repo.practiceAssets("1", 0); fail("409 must throw") } catch (e: PracticeAssetsNotReadyException) {
             assertEquals("연습 데이터가 아직 준비되지 않았습니다.", e.message)
         }
         assertNull(repo.karaokeNotesOrNull(server))
         server.enqueue(json(422, """{"code":"UNSUPPORTED_PRACTICE_KEY","message":"지원하지 않는 연습 키입니다.","data":null}"""))
-        try { repo.practiceAssets(1, 3); fail("422 must throw") } catch (e: UnsupportedPracticeKeyException) {
+        try { repo.practiceAssets("1", 3); fail("422 must throw") } catch (e: UnsupportedPracticeKeyException) {
             assertNotNull(e.message)
         }
     }
@@ -113,7 +113,7 @@ class RemoteSongRepositoryTest {
     /** karaokeNotes 의 기본 구현이 409 를 null 로 바꾸는지 (서버에 409 응답을 하나 더 준비해 확인) */
     private suspend fun RemoteSongRepository.karaokeNotesOrNull(server: MockWebServer): List<Any>? {
         server.enqueue(json(409, """{"code":"PRACTICE_ASSET_NOT_READY","message":"준비 중","data":null}"""))
-        return karaokeNotes(1)
+        return karaokeNotes("1")
     }
 
     @Test fun `other errors surface status and code`() = runBlocking {

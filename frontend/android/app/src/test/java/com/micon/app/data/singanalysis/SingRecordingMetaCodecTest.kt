@@ -8,7 +8,7 @@ import org.junit.Test
 
 class SingRecordingMetaCodecTest {
     private fun sample() = SingRecordingMeta(
-        id = "sing-20260911-101500-42", songId = 42L, title = "밤편지", artist = "아이유",
+        id = "sing-20260911-101500-42", songId = "42", title = "밤편지", artist = "아이유",
         scope = SingScope.HIGHLIGHT.name, planSource = PlanSource.HIGHLIGHT.name,
         plannedStartSec = 100.5, plannedEndSec = 240.0, sungStartSec = 100.5, sungEndSec = 172.3, endedEarly = true,
         recordedAt = 1_789_000_000_000L, sampleRate = 16_000, durationSec = 80.25,

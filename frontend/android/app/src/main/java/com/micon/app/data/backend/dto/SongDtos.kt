@@ -14,7 +14,7 @@ data class PageDto<T>(
 )
 
 data class SongSummaryDto(
-    val songId: Long,
+    val songId: String,
     val title: String = "",
     val artists: List<String> = emptyList(),
     val imageUrl: String? = null,
@@ -22,7 +22,7 @@ data class SongSummaryDto(
 )
 
 data class SongDetailDto(
-    val songId: Long,
+    val songId: String,
     val title: String = "",
     val artists: List<String> = emptyList(),
     val albumName: String? = null,
@@ -39,7 +39,7 @@ data class SongDetailDto(
 )
 
 data class PracticeAssetsDto(
-    val songId: Long,
+    val songId: String,
     val title: String = "",
     val selectedKey: Int = 0,
     val instrumental: MediaDto? = null,

@@ -13,11 +13,11 @@ class ScaleAnalysisSubmitterTest {
     private class FakeVoice : VoiceAnalysisRepository {
         var uploads = 0; var creates = 0
         var uploadError: Exception? = null; var createError: Exception? = null
-        var lastMethod: String? = null; var lastSongId: Long? = 1
+        var lastMethod: String? = null; var lastSongId: String? = "1"
         override suspend fun upload(file: File, mimeType: String, attemptNo: Int, onProgress: (Float) -> Unit): Long {
             uploads++; uploadError?.let { throw it }; onProgress(1f); return 57
         }
-        override suspend fun create(recordingId: Long, songId: Long?, method: String): VoiceAnalysis {
+        override suspend fun create(recordingId: Long, songId: String?, method: String): VoiceAnalysis {
             creates++; lastMethod = method; lastSongId = songId; createError?.let { throw it }
             return VoiceAnalysis(9, recordingId, songId, method, VoiceAnalysisStatus.READY, null, null, null, null, null)
         }

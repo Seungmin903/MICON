@@ -50,8 +50,11 @@ _AXES = ("ecapa", "singer_byol")
 
 
 def song_id_of(metadata: Mapping[str, Any] | None) -> str | int | None:
-    """Prefer the explicit DB ID; retain TJ string IDs only for the local demo catalog."""
+    """Preserve opaque V28 DB IDs; retain numeric caches and TJ demo fallback."""
     song_id = (metadata or {}).get("song_id")
+    if (isinstance(song_id, str) and song_id.isascii() and 0 < len(song_id) <= 64
+            and all(c.isalnum() or c in "-_" for c in song_id)):
+        return song_id
     if isinstance(song_id, int) and not isinstance(song_id, bool) and song_id > 0:
         return song_id
     tj_id = (metadata or {}).get("tj_id")

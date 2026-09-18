@@ -1,6 +1,6 @@
 """카탈로그 track_id ↔ 앱 song_id 짝표. BE 활성 임베딩 카탈로그에서 받아 온다.
 
-추천 응답의 song_id 는 앱 SONG.song_id(숫자)여야 하는데 카탈로그는 tj 번호만 안다.
+추천 응답의 song_id 는 앱 SONG.song_id(불투명 문자열)여야 한다. 숫자로 변환하지 않는다.
 MICON_BE_BASE_URL 은 BE 컨테이너 주소여야 한다. 공개 nginx 는 /internal/ 을 404 로 막는다.
 비어 있으면 짝표 없이 동작한다(개발 모드).
 """
@@ -25,6 +25,16 @@ _LAST_ATTEMPT_MONOTONIC: float | None = None
 _CACHE: dict[str, Any] = {"revision": None, "batchId": None, "songIds": {}, "error": None}
 
 
+def _song_id(value: Any) -> str:
+    # Accept a legacy numeric backend during a rolling deployment, but emit strings.
+    if type(value) is int and value > 0:
+        return str(value)
+    if (isinstance(value, str) and value.isascii() and 0 < len(value) <= 64
+            and all(c.isalnum() or c in "-_" for c in value)):
+        return value
+    raise ValueError("Invalid catalog song ID")
+
+
 def _get(url: str, token: str) -> dict[str, Any]:
     headers = {"Accept": "application/json"}
     if token:
@@ -45,7 +55,7 @@ def _refresh(attempted_at: float | None = None) -> dict[str, Any]:
         body = _get(base + PATH, os.environ.get("AI_SERVICE_TOKEN", "").strip())
         data = body.get("data") or body
         mapping = {
-            str(track["catalog_track_id"]): int(track["song_id"])
+            str(track["catalog_track_id"]): _song_id(track["song_id"])
             for track in (data.get("tracks") or [])
             if track.get("catalog_track_id") is not None and track.get("song_id") is not None
         }
@@ -89,13 +99,13 @@ def status() -> dict[str, Any]:
                 "mappedTracks": len(set(_CACHE["songIds"].values())), "error": _CACHE["error"]}
 
 
-def song_ids() -> dict[str, int]:
+def song_ids() -> dict[str, str]:
     with _LOCK:
         return dict(_CACHE["songIds"])
 
 
 def apply(result: dict[str, Any]) -> dict[str, Any]:
-    """추천 결과의 song_id 를 앱 숫자 ID 로 바꾼다. 짝표에 없는 곡은 앱이 열 수 없으므로 뺀다.
+    """추천 결과의 song_id 를 앱 문자열 ID 로 바꾼다. 짝표에 없는 곡은 앱이 열 수 없으므로 뺀다.
 
     짝표가 비어 있으면(BE 미설정·조회 실패) 결과를 그대로 둔다 — 개발 중에는 문자열 song_id 로도 화면을 볼 수 있다.
     """

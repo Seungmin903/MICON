@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .contract import (DIMENSIONS, MAX_MANIFEST_BYTES, artifacts, decode_array, digest, json_bytes,
-                       parse_json, require, validate_models)
+                       parse_json, require, validate_models, valid_song_id)
 from .prepare import read_bounded
 from .validation import fetch_manifest, fetch_track
 
@@ -85,11 +85,11 @@ def validate_snapshot(snapshot: dict, store, models: dict) -> dict:
         require(isinstance(track, dict), "Invalid snapshot track")
         track_id, song_id = track.get("catalog_track_id"), track.get("song_id")
         require(isinstance(track_id, str) and track_id not in ids
-                and type(song_id) is int and song_id > 0 and song_id not in songs, "Invalid snapshot song mapping")
+                and valid_song_id(song_id) and str(song_id) not in songs, "Invalid snapshot song mapping")
         require(isinstance(track.get("embeddings"), dict)
                 and set(track["embeddings"]) == set(DIMENSIONS), "Incomplete snapshot embeddings")
         ids.add(track_id)
-        songs.add(song_id)
+        songs.add(str(song_id))
     return snapshot
 
 
@@ -100,7 +100,7 @@ class LoadedCatalog:
     root: Path
     arrays: dict
 
-    def embeddings(self, song_id: int, model: str):
+    def embeddings(self, song_id: str | int, model: str):
         return self.arrays[song_id][model]
 
 

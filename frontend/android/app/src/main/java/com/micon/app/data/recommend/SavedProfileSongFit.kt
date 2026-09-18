@@ -9,7 +9,7 @@ import com.micon.app.data.recommend.BackendRecommendRepository.Companion.toSongF
 class SavedProfileSongFit(private val api: BackendApi, profileId: String) {
     private val id = profileId.toLongOrNull()?.takeIf { it > 0 }
 
-    suspend fun fit(songId: Long): SongFit? {
+    suspend fun fit(songId: String): SongFit? {
         val profile = id ?: return null
         val result = api.songFit(songId, profile, 0).unwrapData()
         if (result.evaluationStatus != "AVAILABLE" || result.analysisId != profile || result.songId != songId) return null

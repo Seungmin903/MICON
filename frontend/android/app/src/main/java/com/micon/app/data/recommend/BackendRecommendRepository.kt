@@ -46,7 +46,7 @@ class BackendRecommendRepository(
     private val now: () -> Long = System::currentTimeMillis,
 ) : RecommendRepository {
     private val mutex = Mutex()
-    private var catalog: Map<Long, SongSummary> = emptyMap()
+    private var catalog: Map<String, SongSummary> = emptyMap()
     private var profileId: Long? = null
     private var profileAt = 0L
     private var profileSeen: Long? = null   // UserStore.profile.measuredAt. 재측정으로 바뀌면 캐시를 버린다
@@ -150,7 +150,7 @@ class BackendRecommendRepository(
     }
 
     /** 곡 카탈로그(`GET /songs`)를 페이지로 읽어 id→요약 캐시를 만든다. 캐시에 없는 곡은 상세를 한 번 더 읽는다. */
-    private suspend fun catalogFor(ids: Set<Long>): Map<Long, SongSummary> = mutex.withLock {
+    private suspend fun catalogFor(ids: Set<String>): Map<String, SongSummary> = mutex.withLock {
         if (ids.any { it !in catalog }) {
             val loaded = HashMap(catalog)
             var page = 0
@@ -186,7 +186,7 @@ class BackendRecommendRepository(
 
     // ------------------------------------------------------------------ 곡 적합도
 
-    override suspend fun fit(songId: Long): SongFit? {
+    override suspend fun fit(songId: String): SongFit? {
         if (!isLoggedIn()) return local.fit(songId)
         val profile = savedProfileId() ?: return local.fit(songId)
         val dto = try {
@@ -237,7 +237,7 @@ class BackendRecommendRepository(
         }
 
         /** `SongFitResponse`(AVAILABLE) → 앱 적합도. 음역 점수는 겹침 비율 하나뿐이라 coverage 에 넣고 세부 항목은 0. */
-        fun SongFitDto.toSongFit(songId: Long): SongFit? {
+        fun SongFitDto.toSongFit(songId: String): SongFit? {
             val range = selectedKeyFit ?: originalKeyFit ?: return null
             val score = unit(range.score) ?: return null
             val burden = burdenSections.filter { it.endMs > it.startMs }.map { StrainSection(it.startMs / 1000.0, it.endMs / 1000.0, 0) }

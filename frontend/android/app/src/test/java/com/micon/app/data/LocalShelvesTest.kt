@@ -20,14 +20,14 @@ class LocalShelvesTest {
         private val artists = listOf("가수A", "가수B", "한로로", "백아", "가수E")
 
         private fun summary(i: Int) = SongSummary(
-            id = i.toLong(), title = "곡$i", artist = artists[i % artists.size], imageUrl = null, durationMs = null,
+            id = i.toString(), title = "곡$i", artist = artists[i % artists.size], imageUrl = null, durationMs = null,
             genre = genres[i % genres.size], releaseDate = "%04d-01-01".format(1990 + i % 35),
         )
 
         override suspend fun search(query: String, page: Int, size: Int) =
             SongPage((0 until n).map(::summary).drop(page * size).take(size), page, size, n.toLong(), (n + size - 1) / size)
 
-        override suspend fun detail(songId: Long): SongDetail? {
+        override suspend fun detail(songId: String): SongDetail? {
             val i = songId.toInt()
             if (i !in 0 until n) return null
             val low = 55 + i % 5                      // 사용자 안정 음역(55~67) 안팎으로 조금씩 다르게
@@ -35,7 +35,7 @@ class LocalShelvesTest {
         }
 
         /** 음표 없음(409) → 곡 주요 음역으로 계산 */
-        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets = throw PracticeAssetsNotReadyException("not ready")
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw PracticeAssetsNotReadyException("not ready")
 
         private fun analysis(low: Int, high: Int) =
             SongAnalysis("C major", 120, "4/4", low, high, low, high, taskSupport = mapOf("pitch_range" to "pass"))
