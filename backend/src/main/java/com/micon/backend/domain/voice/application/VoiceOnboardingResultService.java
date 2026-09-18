@@ -9,8 +9,6 @@ import com.micon.backend.domain.voice.api.VoiceProfileRequest;
 import com.micon.backend.domain.voice.api.VoiceProfileResponse;
 import com.micon.backend.domain.voice.api.VoiceSessionResponse;
 import com.micon.backend.domain.voice.domain.*;
-import com.micon.backend.voice.api.*;
-import com.micon.backend.voice.domain.*;
 import java.util.*;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;

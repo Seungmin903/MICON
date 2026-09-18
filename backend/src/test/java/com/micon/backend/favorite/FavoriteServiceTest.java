@@ -3,8 +3,8 @@ package com.micon.backend.favorite;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.micon.backend.favorite.repository.FavoriteRepository;
-import com.micon.backend.favorite.service.FavoriteService;
+import com.micon.backend.domain.favorite.repository.FavoriteRepository;
+import com.micon.backend.domain.favorite.service.FavoriteService;
 import com.micon.backend.domain.song.service.SongNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

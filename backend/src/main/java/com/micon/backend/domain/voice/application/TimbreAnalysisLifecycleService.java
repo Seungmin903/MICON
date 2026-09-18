@@ -7,7 +7,7 @@ import com.micon.backend.domain.voice.domain.*;
 import com.micon.backend.domain.voice.api.VoiceAnalysisJobResponse;
 import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
 import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
-import com.micon.backend.voice.domain.*;
+import com.micon.backend.domain.voice.domain.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;

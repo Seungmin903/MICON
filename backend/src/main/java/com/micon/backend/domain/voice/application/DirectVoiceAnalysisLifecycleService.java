@@ -6,7 +6,6 @@ import com.micon.backend.domain.user.domain.UserStatus;
 import com.micon.backend.domain.voice.api.VoiceSessionRequest;
 import com.micon.backend.domain.voice.api.VoiceAnalysisJobResponse;
 import com.micon.backend.domain.voice.domain.*;
-import com.micon.backend.voice.domain.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
