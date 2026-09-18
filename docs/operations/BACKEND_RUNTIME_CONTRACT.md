@@ -35,7 +35,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | MAIL_STARTTLS | false | true/false. 제공자 TLS 방식과 일치; enable=true만으로 TLS 필수 강제가 되었다고 보지 않음 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
-| AI_ARTIST_SEARCH_ENABLED | false | true/false. 음성 분석과 별도로 닮은 가수 작업·callback을 통합 검증한 뒤에만 true |
+| AI_ARTIST_SEARCH_ENABLED | true | 운영 AI·BE 계약 검증이 완료되어 닮은 가수 작업·callback을 활성화. 호스트 준비 시 기존 false도 true로 교정 |
 | AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |
