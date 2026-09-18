@@ -8,6 +8,10 @@
     "R&B",
     "발라드"
   ],
+  "preferred_artists": [
+    "이하이",
+    "한로로"
+  ],
   "preferred_artist_ids": [
     831,
     838
@@ -30,6 +34,10 @@
         ],
         "excluded_count": null
       },
+      "preferred_artists": [
+        "이하이",
+        "한로로"
+      ],
       "preferred_artist_ids": [
         831,
         838
@@ -90,6 +98,7 @@
             "track_id": "b39692dd-8cb2-5bd1-988c-279a585025d0",
             "song_id": "b39692dd-8cb2-5bd1-988c-279a585025d0",
             "title": "내게 오는 길",
+            "artist": "성시경",
             "artist_ids": [
               396
             ],
@@ -154,6 +163,7 @@
             "track_id": "2dca9b6d-b242-5a4e-9e70-5c16bb69317f",
             "song_id": "2dca9b6d-b242-5a4e-9e70-5c16bb69317f",
             "title": "보고 싶다",
+            "artist": "김범수",
             "artist_ids": [
               315
             ],
@@ -218,6 +228,7 @@
             "track_id": "1a6659a9-f721-52fd-92e2-fd8922e4298d",
             "song_id": "1a6659a9-f721-52fd-92e2-fd8922e4298d",
             "title": "다시 태어날 수 있다면",
+            "artist": "박재정",
             "artist_ids": [
               403
             ],
@@ -282,6 +293,7 @@
             "track_id": "972327ad-cc74-58de-9b80-3a312d171365",
             "song_id": "972327ad-cc74-58de-9b80-3a312d171365",
             "title": "빈 집(Empty)",
+            "artist": "첸(CHEN)",
             "artist_ids": [
               516
             ],
@@ -346,6 +358,7 @@
             "track_id": "b29958eb-f9eb-5d57-a7da-bd2ca84a6be7",
             "song_id": "b29958eb-f9eb-5d57-a7da-bd2ca84a6be7",
             "title": "거리에서",
+            "artist": "성시경",
             "artist_ids": [
               396
             ],
@@ -410,6 +423,7 @@
             "track_id": "6789647a-0be9-5808-93ef-b3a34c74a075",
             "song_id": "6789647a-0be9-5808-93ef-b3a34c74a075",
             "title": "한번 더 이별",
+            "artist": "성시경",
             "artist_ids": [
               396
             ],
@@ -474,6 +488,7 @@
             "track_id": "094f16d3-15f9-53f5-91b6-78b62da3af20",
             "song_id": "094f16d3-15f9-53f5-91b6-78b62da3af20",
             "title": "너의 모든 순간(별에서온그대OST)",
+            "artist": "성시경",
             "artist_ids": [
               396
             ],
@@ -538,6 +553,7 @@
             "track_id": "e84db873-dce2-5964-b5c7-1478b2882345",
             "song_id": "e84db873-dce2-5964-b5c7-1478b2882345",
             "title": "더 아름다워져",
+            "artist": "소수빈",
             "artist_ids": [
               507
             ],
@@ -625,6 +641,7 @@
             "track_id": "b66f67b3-8259-5647-92cd-139b992a1537",
             "song_id": "b66f67b3-8259-5647-92cd-139b992a1537",
             "title": "너의 곁으로(파리의연인OST)",
+            "artist": "조성모",
             "artist_ids": [
               549
             ],
@@ -685,6 +702,7 @@
             "track_id": "4a5ab4da-f88c-553f-8a37-ba59184d8a44",
             "song_id": "4a5ab4da-f88c-553f-8a37-ba59184d8a44",
             "title": "다시 사랑한다면(니글니글버터플라이)",
+            "artist": "김필",
             "artist_ids": [
               328
             ],
@@ -745,6 +763,7 @@
             "track_id": "e3cbd863-af5d-5792-aa2b-32c18ff59904",
             "song_id": "e3cbd863-af5d-5792-aa2b-32c18ff59904",
             "title": "나에게 그대만이",
+            "artist": "탑현",
             "artist_ids": [
               468
             ],
@@ -805,6 +824,7 @@
             "track_id": "a8de27c6-522f-5e7e-ac44-8f00c8c6d1d6",
             "song_id": "a8de27c6-522f-5e7e-ac44-8f00c8c6d1d6",
             "title": "기다리는 아픔",
+            "artist": "조용필",
             "artist_ids": [
               439
             ],
@@ -865,6 +885,7 @@
             "track_id": "f9ba02f7-64cd-59f9-9fab-1f8502477028",
             "song_id": "f9ba02f7-64cd-59f9-9fab-1f8502477028",
             "title": "있잖아(연애플레이리스트2 OST)",
+            "artist": "폴킴",
             "artist_ids": [
               406
             ],
@@ -925,6 +946,7 @@
             "track_id": "3d1909b4-cbf2-5e29-b172-0e8220fe4681",
             "song_id": "3d1909b4-cbf2-5e29-b172-0e8220fe4681",
             "title": "홀로",
+            "artist": "이하이",
             "artist_ids": [
               838
             ],
@@ -985,6 +1007,7 @@
             "track_id": "16057a14-0f36-5ea1-b932-c8daa4357726",
             "song_id": "16057a14-0f36-5ea1-b932-c8daa4357726",
             "title": "두 사람",
+            "artist": "우디",
             "artist_ids": [
               394
             ],
@@ -1045,6 +1068,7 @@
             "track_id": "4406e4d3-bab3-5410-aa11-edf90e978eb9",
             "song_id": "4406e4d3-bab3-5410-aa11-edf90e978eb9",
             "title": "밀리언조각 (A Million Pieces)",
+            "artist": "규현",
             "artist_ids": [
               293
             ],
@@ -1112,6 +1136,7 @@
             "track_id": "c7b651be-4a7a-5f26-abf6-0cd6427e423d",
             "song_id": "c7b651be-4a7a-5f26-abf6-0cd6427e423d",
             "title": "Rose",
+            "artist": "이하이",
             "artist_ids": [
               838
             ],
@@ -1172,6 +1197,7 @@
             "track_id": "944e0f1d-92ac-55ff-8b4e-eef4de170092",
             "song_id": "944e0f1d-92ac-55ff-8b4e-eef4de170092",
             "title": "입춘",
+            "artist": "한로로",
             "artist_ids": [
               831
             ],
@@ -1232,6 +1258,7 @@
             "track_id": "6efcc14a-919c-5c83-93d9-f7b41b321546",
             "song_id": "6efcc14a-919c-5c83-93d9-f7b41b321546",
             "title": "한숨",
+            "artist": "이하이",
             "artist_ids": [
               838
             ],
@@ -1292,6 +1319,7 @@
             "track_id": "049938fa-ed91-5574-bbc7-8686a6515fb8",
             "song_id": "049938fa-ed91-5574-bbc7-8686a6515fb8",
             "title": "잔혹한 천사의 테제",
+            "artist": "한로로",
             "artist_ids": [
               831
             ],
@@ -1352,6 +1380,7 @@
             "track_id": "4c8a6118-ed56-564a-bbc0-78e14238fe2c",
             "song_id": "4c8a6118-ed56-564a-bbc0-78e14238fe2c",
             "title": "금붕어",
+            "artist": "한로로",
             "artist_ids": [
               831
             ],
@@ -1412,6 +1441,7 @@
             "track_id": "7f7d0c0d-ec52-54b7-92a8-6113c0095215",
             "song_id": "7f7d0c0d-ec52-54b7-92a8-6113c0095215",
             "title": "0+0",
+            "artist": "한로로",
             "artist_ids": [
               831
             ],
@@ -1472,6 +1502,7 @@
             "track_id": "1a9e75dd-300c-5bb2-bfd8-544ca49447ed",
             "song_id": "1a9e75dd-300c-5bb2-bfd8-544ca49447ed",
             "title": "자처",
+            "artist": "한로로",
             "artist_ids": [
               831
             ],
@@ -1532,6 +1563,7 @@
             "track_id": "bb7e3f2d-12fa-528d-9636-d5c4596c064d",
             "song_id": "bb7e3f2d-12fa-528d-9636-d5c4596c064d",
             "title": "허수아비",
+            "artist": "이하이",
             "artist_ids": [
               838
             ],
@@ -1587,6 +1619,10 @@
             "composition_version": "shelves-v1"
           }
         ],
+        "preferred_artists": [
+          "이하이",
+          "한로로"
+        ],
         "preferred_artist_ids": [
           831,
           838
@@ -1603,6 +1639,7 @@
             "track_id": "ae77e76f-4be6-547c-aecc-6fad6ccd1614",
             "song_id": "ae77e76f-4be6-547c-aecc-6fad6ccd1614",
             "title": "너를 만나",
+            "artist": "폴킴",
             "artist_ids": [
               406
             ],
@@ -1662,6 +1699,7 @@
             "track_id": "6b943e68-b7dc-5320-9702-b4082f702b35",
             "song_id": "6b943e68-b7dc-5320-9702-b4082f702b35",
             "title": "고백",
+            "artist": "장나라",
             "artist_ids": [
               913
             ],
@@ -1721,6 +1759,7 @@
             "track_id": "ebb946e2-d87f-5045-962d-87fe8fa232de",
             "song_id": "ebb946e2-d87f-5045-962d-87fe8fa232de",
             "title": "Tatoo",
+            "artist": "소찬휘",
             "artist_ids": [
               842
             ],
@@ -1780,6 +1819,7 @@
             "track_id": "9efb0c91-c4b1-545e-b5ba-fcb66ba21073",
             "song_id": "9efb0c91-c4b1-545e-b5ba-fcb66ba21073",
             "title": "청혼하지 않을 이유를 못 찾았어",
+            "artist": "이무진",
             "artist_ids": [
               433
             ],
@@ -1839,6 +1879,7 @@
             "track_id": "e5b39327-6193-57fd-b11a-e614f77d5ff0",
             "song_id": "e5b39327-6193-57fd-b11a-e614f77d5ff0",
             "title": "다시 난 사는거야",
+            "artist": "김종서",
             "artist_ids": [
               505
             ],
@@ -1898,6 +1939,7 @@
             "track_id": "a8099166-10e9-5fe9-ae8f-69da44d7f062",
             "song_id": "a8099166-10e9-5fe9-ae8f-69da44d7f062",
             "title": "그날에 나는 맘이 편했을까(전상근 X 룰루랄라프렌즈)",
+            "artist": "전상근",
             "artist_ids": [
               513
             ],
@@ -1957,6 +1999,7 @@
             "track_id": "a16775ac-1a26-551e-b87b-915a729969d2",
             "song_id": "a16775ac-1a26-551e-b87b-915a729969d2",
             "title": "체념",
+            "artist": "야다",
             "artist_ids": [
               393
             ],
@@ -2016,6 +2059,7 @@
             "track_id": "44d4a0c2-314e-56d3-ba81-a0639469bc15",
             "song_id": "44d4a0c2-314e-56d3-ba81-a0639469bc15",
             "title": "나인가요(홍천기OST)",
+            "artist": "백현(EXO)",
             "artist_ids": [
               506
             ],
@@ -2080,6 +2124,7 @@
         "track_id": "b39692dd-8cb2-5bd1-988c-279a585025d0",
         "song_id": "b39692dd-8cb2-5bd1-988c-279a585025d0",
         "title": "내게 오는 길",
+        "artist": "성시경",
         "artist_ids": [
           396
         ],
@@ -2144,6 +2189,7 @@
         "track_id": "2dca9b6d-b242-5a4e-9e70-5c16bb69317f",
         "song_id": "2dca9b6d-b242-5a4e-9e70-5c16bb69317f",
         "title": "보고 싶다",
+        "artist": "김범수",
         "artist_ids": [
           315
         ],
@@ -2208,6 +2254,7 @@
         "track_id": "1a6659a9-f721-52fd-92e2-fd8922e4298d",
         "song_id": "1a6659a9-f721-52fd-92e2-fd8922e4298d",
         "title": "다시 태어날 수 있다면",
+        "artist": "박재정",
         "artist_ids": [
           403
         ],
@@ -2272,6 +2319,7 @@
         "track_id": "972327ad-cc74-58de-9b80-3a312d171365",
         "song_id": "972327ad-cc74-58de-9b80-3a312d171365",
         "title": "빈 집(Empty)",
+        "artist": "첸(CHEN)",
         "artist_ids": [
           516
         ],
@@ -2336,6 +2384,7 @@
         "track_id": "b29958eb-f9eb-5d57-a7da-bd2ca84a6be7",
         "song_id": "b29958eb-f9eb-5d57-a7da-bd2ca84a6be7",
         "title": "거리에서",
+        "artist": "성시경",
         "artist_ids": [
           396
         ],
@@ -2400,6 +2449,7 @@
         "track_id": "6789647a-0be9-5808-93ef-b3a34c74a075",
         "song_id": "6789647a-0be9-5808-93ef-b3a34c74a075",
         "title": "한번 더 이별",
+        "artist": "성시경",
         "artist_ids": [
           396
         ],
@@ -2464,6 +2514,7 @@
         "track_id": "094f16d3-15f9-53f5-91b6-78b62da3af20",
         "song_id": "094f16d3-15f9-53f5-91b6-78b62da3af20",
         "title": "너의 모든 순간(별에서온그대OST)",
+        "artist": "성시경",
         "artist_ids": [
           396
         ],
@@ -2528,6 +2579,7 @@
         "track_id": "e84db873-dce2-5964-b5c7-1478b2882345",
         "song_id": "e84db873-dce2-5964-b5c7-1478b2882345",
         "title": "더 아름다워져",
+        "artist": "소수빈",
         "artist_ids": [
           507
         ],
@@ -2595,5 +2647,5 @@
     ]
   },
   "error": null,
-  "sample_note": "합성 샘플: 카탈로그 곡 0009cc94-3242-5328-be8e-c6f060bb23f7의 임베딩·음역 프로파일을 사용자 입력으로 사용"
+  "sample_note": "합성 샘플: 카탈로그 곡 0009cc94-3242-5328-be8e-c6f060bb23f7(희재(국화꽃향기OST) / 성시경)의 임베딩·음역 프로파일을 사용자 입력으로 사용"
 }

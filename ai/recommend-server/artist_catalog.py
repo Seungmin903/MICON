@@ -1,7 +1,7 @@
 """Version-bound, local-only song -> canonical singer ID snapshot.
 
-Display names stay in the local embedding index for lab visualizations. They are
-not identities and must never be serialized by the AI HTTP API.
+Canonical IDs come from the snapshot; display names remain in responses for
+clients that show recommended songs and artists. Names never determine IDs.
 """
 from __future__ import annotations
 
@@ -109,13 +109,10 @@ def make_snapshot(catalog: CatalogIndex, relations: list[dict[str, Any]], revisi
     return body
 
 
-_NAME_KEYS = {"artist", "artistname", "artistnames", "singername", "singernames", "preferredartists"}
-
-
 def public_response(value: Any, mapping: ArtistCatalog | None = None, catalog: CatalogIndex | None = None) -> Any:
-    """Copy/project current AND restored responses; never expose name fields.
+    """Copy current/restored responses, preserving display names and adding IDs.
 
-    Internal preferences and full request payloads are not public job state.
+    Full request payloads and callback bodies are not public job state.
     Computation paths require a validated mapping; historical GETs can still
     expose their existing song IDs when the snapshot is temporarily unavailable.
     """
@@ -126,12 +123,11 @@ def public_response(value: Any, mapping: ArtistCatalog | None = None, catalog: C
     result = {}
     for key, item in value.items():
         normalized = key.replace("_", "").lower()
-        is_name = ("artist" in normalized or "singer" in normalized) and normalized.endswith(("name", "names"))
-        if normalized in _NAME_KEYS or is_name or key in {"payload", "callbackBody"}:
-            if normalized == "preferredartists" and mapping is not None and catalog is not None:
-                result["preferred_artist_ids"] = mapping.preferred_ids(item, catalog)
+        if key in {"payload", "callbackBody"}:
             continue
         result[key] = public_response(item, mapping, catalog)
+        if normalized == "preferredartists" and mapping is not None and catalog is not None:
+            result["preferred_artist_ids"] = mapping.preferred_ids(item, catalog)
     track_id = value.get("track_id")
     if isinstance(track_id, str):
         artist_id = mapping.by_track.get(track_id) if mapping is not None else None
@@ -141,4 +137,13 @@ def public_response(value: Any, mapping: ArtistCatalog | None = None, catalog: C
             by_song = {mapping.song_ids[tid]: aid for tid, aid in mapping.by_track.items()}
             artist_id = by_song.get(value["song_id"])
         result["artist_ids"] = [artist_id] if artist_id is not None else []
+        if catalog is not None and not isinstance(value.get("artist"), str):
+            # Repair records saved during the withdrawn ID-only transition using
+            # exact track/song identity, without changing scores, titles or keys.
+            song_id = value.get("song_id")
+            track = next((t for t in catalog.tracks if t.track_id == track_id), None)
+            if track is None and mapping is not None and isinstance(song_id, str):
+                track = next((t for t in catalog.tracks if mapping.song_ids[t.track_id] == song_id), None)
+            if track is not None:
+                result["artist"] = track.artist
     return result

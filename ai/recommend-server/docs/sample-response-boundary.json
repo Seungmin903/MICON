@@ -7,6 +7,7 @@
   "genres": [
     "팝"
   ],
+  "preferred_artists": [],
   "preferred_artist_ids": [],
   "result": {
     "algorithm": {
@@ -25,6 +26,7 @@
         ],
         "excluded_count": null
       },
+      "preferred_artists": [],
       "preferred_artist_ids": [],
       "requested_mode": "timbre",
       "catalog_scored": 27
@@ -82,6 +84,7 @@
             "track_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
             "song_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
             "title": "Until I Found You",
+            "artist": "Stephen Sanchez",
             "artist_ids": [
               215
             ],
@@ -169,6 +172,7 @@
             "track_id": "37797d96-3fa3-59b9-929e-bd482111d139",
             "song_id": "37797d96-3fa3-59b9-929e-bd482111d139",
             "title": "Beggin'",
+            "artist": "Maneskin",
             "artist_ids": [
               137
             ],
@@ -236,6 +240,7 @@
             "track_id": "e3e6020d-e86c-5231-b918-ce647af11535",
             "song_id": "e3e6020d-e86c-5231-b918-ce647af11535",
             "title": "Snowman",
+            "artist": "Sia",
             "artist_ids": [
               207
             ],
@@ -300,6 +305,7 @@
         "track_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
         "song_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
         "title": "Until I Found You",
+        "artist": "Stephen Sanchez",
         "artist_ids": [
           215
         ],

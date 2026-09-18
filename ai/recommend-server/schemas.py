@@ -58,7 +58,8 @@ class Recommendation(BaseModel):
     track_id: str = Field(description="카탈로그 내부 id")
     song_id: int | str | None = Field(description="DB song_id는 UUID 등 불투명 문자열. 이전 숫자 ID 캐시도 읽을 수 있다")
     title: str
-    artist_ids: list[CanonicalArtistId] = Field(default_factory=list, description="DB singer_id 목록. 가수명은 BE가 조회")
+    artist: str = Field(description="화면 표시용 가수 이름. ID를 대신하는 식별자는 아님")
+    artist_ids: list[CanonicalArtistId] = Field(default_factory=list, description="DB singer_id 목록. 표시용 artist와 함께 제공")
     metadata: TrackMetadata
     axis: Literal["ECAPA", "SINGER_BYOL", "CONSENSUS"] | None = Field(default=None, description="음색 섹션(voice)에서만. 두 축 할당 결과")
     label: str | None = Field(default=None, description="음색 섹션에서 화면에 그대로 표시하는 문구")
@@ -119,6 +120,7 @@ class Algorithm(BaseModel):
     range_enabled: bool
     range_fallback_reason: str | None = None
     language_gate: LanguageGate
+    preferred_artists: list[str] = []
     preferred_artist_ids: list[CanonicalArtistId] = []
 
 
@@ -144,6 +146,7 @@ class Job(BaseModel):
     message: str
     mode: str
     genres: list[str] = []
+    preferred_artists: list[str] = []
     preferred_artist_ids: list[CanonicalArtistId] = []
     result: RecommendResult | None = None
     error: str | None = None

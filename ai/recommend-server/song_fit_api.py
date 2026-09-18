@@ -186,6 +186,7 @@ def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int
             for key in MODEL_DIMENSIONS
         }
         scores.append({"artistId": artist,
+                       "artistName": min(tracks, key=lambda track: track.track_id).artist,
                        "ecapaScore": round(float(axis["ecapa"]), 4),
                        "singerByolScore": round(float(axis["singer_byol"]), 4),
                        "similarity": round(float(axis["ecapa"] + axis["singer_byol"]) / 2.0, 4)})

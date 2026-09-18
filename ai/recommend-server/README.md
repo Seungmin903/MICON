@@ -116,16 +116,16 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 ## 테스트
 
-### 가수 ID 로컬 스냅샷 및 이름 없는 AI 응답
+### 가수 ID 로컬 스냅샷 및 표시용 가수 이름
 
-AI HTTP 응답과 닮은 가수 콜백은 가수 이름을 반환하지 않는다. 이름/이미지는 BE가 DB에서 조회한다.
-닮은 가수는 `artistId`(실제 `singer.singer_id`)로 집계하고 `rank`, `similarity`,
-`ecapaScore`, `singerByolScore`만 함께 반환한다. 추천 곡 및 상태 카탈로그는
-`artist_ids: [singer_id]`, 선호 가수 진단은 `preferred_artist_ids`를 사용한다.
-`artist`, `artistName`, `singerName`, 문자열 `preferred_artists` 반환은 제거했다.
-기존 저장 추천/검색 job도 GET 시 이름 필드와 내부 요청 payload를 제거한다.
-선호 가수 이름을 받는 기존 **입력** 계약과 내부 채점은 이번 변경에서 유지한다.
-가수명을 받아 직접 표시하던 개발용 클라이언트는 BE 조회 또는 로컬 메타데이터를 사용해야 한다.
+사용자 정정에 따라 **ID만 반환하도록 전환한 작업은 철회했다.** 추천 곡의 `title`·`artist`,
+상태 카탈로그의 가수 이름, 문자열 `preferred_artists`는 기존 표시 계약을 유지한다.
+닮은 가수는 `artistId`(실제 `singer.singer_id`)로 집계하고 `artistName`, `rank`,
+`similarity`, `ecapaScore`, `singerByolScore`를 함께 반환한다.
+추천 곡 및 상태 카탈로그의 `artist_ids: [singer_id]`는 표시용 `artist`에 추가하는 식별 정보다.
+선호 가수 이름 입력과 출력은 유지하며 `preferred_artist_ids`를 보조로 제공한다.
+기존 저장 추천/검색 job도 GET 시 표시 이름을 유지한다. 내부 요청 payload·벡터·callbackBody 비공개는 유지한다.
+ID는 정확한 곡–가수 DB 관계에서 가져오며 표시 이름으로 추측하지 않는다.
 
 임베딩 인덱스의 표시용 이름은 추천 실험실 지도에서 계속 사용한다. 벡터를 다시 추출하지 않는다.
 ID는 같은 인덱스 디렉터리의 `artist_ids.json`에서만 읽으며 검색 중 DB 조회나 이름 기반 ID 추측을 하지 않는다.
@@ -161,7 +161,7 @@ AI 수정과 별도로 BE 검색 활성화, 정체 작업 복구·시간 제한,
 
 ### 통합 곡 상세의 `/song-fit` 계약
 
-`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 반환한다(가수 이름 필드는 제외).
+`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 반환한다(표시용 가수 이름도 유지).
 기존 `overall`, `range`, `timbre`, `rhythm`, `algorithmVersion` 외에 선택 필드
 `timbreAxis`(`ECAPA` / `SINGER_BYOL` / `CONSENSUS`)와 `timbreLabel`이 포함될 수 있다.
 두 필드가 없는 구버전 요청도 지원하며, `AVAILABLE` / `UNAVAILABLE` 모두 설명과 점수를 변형하지 않는다.

@@ -35,6 +35,14 @@
         "language_gate": {
           "$ref": "#/$defs/LanguageGate"
         },
+        "preferred_artists": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Preferred Artists",
+          "type": "array"
+        },
         "preferred_artist_ids": {
           "default": [],
           "items": {
@@ -298,8 +306,13 @@
           "title": "Title",
           "type": "string"
         },
+        "artist": {
+          "description": "화면 표시용 가수 이름. ID를 대신하는 식별자는 아님",
+          "title": "Artist",
+          "type": "string"
+        },
         "artist_ids": {
-          "description": "DB singer_id 목록. 가수명은 BE가 조회",
+          "description": "DB singer_id 목록. 표시용 artist와 함께 제공",
           "items": {
             "exclusiveMinimum": 0,
             "type": "integer"
@@ -441,6 +454,7 @@
         "track_id",
         "song_id",
         "title",
+        "artist",
         "metadata",
         "timbre_score",
         "range_fit",
@@ -628,6 +642,14 @@
         "type": "string"
       },
       "title": "Genres",
+      "type": "array"
+    },
+    "preferred_artists": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Preferred Artists",
       "type": "array"
     },
     "preferred_artist_ids": {

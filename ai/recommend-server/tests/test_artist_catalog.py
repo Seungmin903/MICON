@@ -86,16 +86,16 @@ class ArtistCatalogTests(unittest.TestCase):
         result = song_fit_api.rank_artists({k: v[:1] for k,v in catalog.arrays.items()}, catalog, 5, mapping)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["artistId"], 10)
-        self.assertNotIn("artistName", result[0])
+        self.assertEqual(result[0]["artistName"], "ALIAS_A")
 
     def test_same_name_different_ids_remain_separate_with_id_tie_break(self):
         catalog, mapping = catalog_fixture(self.root, [("a", "SAME_NAME", 20), ("b", "SAME_NAME", 10)])
         result = song_fit_api.rank_artists({k: v[:1] for k,v in catalog.arrays.items()}, catalog, 5, mapping)
         self.assertEqual([x["artistId"] for x in result], [10, 20])
         self.assertEqual([x["rank"] for x in result], [1, 2])
-        self.assertEqual(set(result[0]), {"rank", "artistId", "similarity", "ecapaScore", "singerByolScore"})
+        self.assertEqual(set(result[0]), {"rank", "artistId", "artistName", "similarity", "ecapaScore", "singerByolScore"})
 
-    def test_public_projection_removes_nested_names_and_internal_inputs(self):
+    def test_public_projection_preserves_nested_display_names_and_hides_internal_inputs(self):
         value = {"preferred_artists": ["NAME_A"], "payload": {"artistName": "PRIVATE"},
             "callbackBody": {"artistName": "PRIVATE"}, "shelves": [{"preferredArtists": ["NAME_B"],
             "items": [{"track_id": "a", "artist": "NAME_A", "metadata": {"singer_name": "NAME_A"}}]}],
@@ -104,7 +104,9 @@ class ArtistCatalogTests(unittest.TestCase):
         projected = public_response(value, self.mapping, self.catalog)
         self.assertEqual(projected["preferred_artist_ids"], [10])
         self.assertEqual(projected["shelves"][0]["items"][0]["artist_ids"], [10])
-        self.assertNotIn("NAME_", json.dumps(projected))
+        self.assertEqual(projected["preferred_artists"], ["NAME_A"])
+        self.assertEqual(projected["shelves"][0]["items"][0]["artist"], "NAME_A")
+        self.assertEqual(projected["result"]["sourceArtistName"], "NAME_A")
         self.assertNotIn("PRIVATE", json.dumps(projected))
         self.assertEqual(value, before)
 
@@ -115,7 +117,7 @@ class ArtistCatalogTests(unittest.TestCase):
              mock.patch.object(recommendation_api, "_configuration_status", return_value=({"index_dir": str(self.root)}, [])), \
              mock.patch.object(recommendation_api.CatalogIndex, "load", return_value=self.catalog):
             body = recommendation_api.get_recommendation(jid)
-        self.assertNotIn("NAME_A", json.dumps(body))
+        self.assertEqual(body["result"]["recommendations"][0]["artist"], "NAME_A")
         self.assertEqual(body["result"]["recommendations"][0]["artist_ids"], [10])
 
     def test_historical_ids_use_exact_db_song_id_without_guessing(self):
@@ -125,15 +127,25 @@ class ArtistCatalogTests(unittest.TestCase):
         self.assertEqual(body[0]["artist_ids"], [10])
         self.assertEqual(body[1]["artist_ids"], [])
 
-    def test_voice_job_get_does_not_echo_artist_names(self):
+    def test_withdrawn_id_only_record_recovers_name_by_exact_track_or_song(self):
+        body = public_response([
+            {"track_id": "a", "song_id": "a"},
+            {"track_id": "old", "song_id": "b"},
+            {"track_id": "unknown", "song_id": "unknown"}], self.mapping, self.catalog)
+        self.assertEqual(body[0]["artist"], "NAME_A")
+        self.assertEqual(body[1]["artist"], "NAME_B")
+        self.assertNotIn("artist", body[2])
+
+    def test_voice_job_get_preserves_artist_names(self):
         jid = "job_" + "a"*32
         with mock.patch.dict(analysis_jobs.JOBS, {jid: {"jobId": jid, "meta": {"artistName": "NAME_A"}}}):
-            self.assertNotIn("NAME_A", json.dumps(analysis_jobs.get_job(jid)))
+            self.assertEqual(analysis_jobs.get_job(jid)["meta"]["artistName"], "NAME_A")
 
-    def test_song_fit_does_not_echo_artist_name_fields(self):
+    def test_song_fit_preserves_display_artist_name_fields(self):
         body = song_fit_api.song_fit({"recommendationScores": {"artistName": "NAME_A", "timbre": .8},
             "burdenSections": [{"singer_name": "NAME_A", "sectionId": 1}]})
-        self.assertNotIn("NAME_A", json.dumps(body))
+        self.assertEqual(body["recommendationScores"]["artistName"], "NAME_A")
+        self.assertEqual(body["burdenSections"][0]["singer_name"], "NAME_A")
         self.assertEqual(body["recommendationScores"]["timbre"], .8)
 
 
@@ -195,12 +207,12 @@ class ArtistDeliveryTests(unittest.TestCase):
             song_fit_api.redeliver_artist_search(self.jid, BackgroundTasks())
         self.assertEqual(raised.exception.status_code, 409)
 
-    def test_artist_get_has_no_request_vectors_or_legacy_name_fields(self):
+    def test_artist_get_has_display_names_but_no_request_vectors(self):
         song_fit_api.JOBS[self.jid]["artists"][0]["artistName"] = "NAME_A"
         body = song_fit_api.get_artist_search(self.jid)
         self.assertNotIn("payload", body)
         self.assertNotIn("callbackBody", body)
-        self.assertNotIn("NAME_A", json.dumps(body))
+        self.assertEqual(body["artists"][0]["artistName"], "NAME_A")
 
     def test_insufficient_data_uses_backend_supported_failed_status(self):
         body = song_fit_api._artist_failure(song_fit_api.JOBS[self.jid], "INSUFFICIENT_DATA", "Insufficient input")

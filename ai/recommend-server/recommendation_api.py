@@ -510,6 +510,7 @@ def recommendation_status() -> dict[str, Any]:
                 {
                     "track_id": track.track_id,
                     "title": track.title,
+                    "artist": track.artist,
                     "artist_ids": [artists.by_track[track.track_id]],
                 }
                 for track in catalog.tracks
