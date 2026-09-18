@@ -1,7 +1,7 @@
-package com.micon.backend.favorite.service;
+package com.micon.backend.domain.favorite.service;
 
-import com.micon.backend.favorite.api.FavoriteResponse;
-import com.micon.backend.favorite.repository.FavoriteRepository;
+import com.micon.backend.domain.favorite.api.FavoriteResponse;
+import com.micon.backend.domain.favorite.repository.FavoriteRepository;
 import com.micon.backend.song.service.SongNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
