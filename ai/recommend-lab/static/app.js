@@ -12,6 +12,7 @@ async function api(path, options) {
   return body;
 }
 function badge(status) {const value = String(status || 'UNKNOWN'); return el('span', value, 'status ' + (/FAILED|INSUFFICIENT/i.test(value)? 'failed' : /COMPLETE|REPLAY_READY/i.test(value)? 'complete' : 'pending'));}
+function ownerText(r) {return r.kind==='case'?'테스트 case':r.userId?`회원 ID ${r.userId}`:'회원 ID 확인 불가';}
 function tip(event, text) {
   const box = $('tooltip'); box.textContent = text; box.hidden = false;
   box.style.left = Math.max(8, Math.min(event.clientX+14, window.innerWidth-box.offsetWidth-8))+'px';
@@ -19,15 +20,17 @@ function tip(event, text) {
 }
 function refreshRequestList() {
   const query = $('requestSearch').value.toLowerCase(); $('requests').replaceChildren();
-  const filtered = state.requests.filter(r => [r.id,r.sessionId,r.profileId,r.status,r.title].join(' ').toLowerCase().includes(query));
+  const memberQuery = query.match(/^(?:회원(?:\s*id)?|user(?:\s*id)?)\s*[:#]?\s*(\d+)$/);
+  const filtered = state.requests.filter(r => memberQuery?String(r.userId)===memberQuery[1].replace(/^0+(?=\d)/,''):[r.id,r.userId,ownerText(r),r.sessionId,r.profileId,r.status,r.title].join(' ').toLowerCase().includes(query));
   for(const r of filtered) {
     const card = el('div', undefined, 'request-card' + (state.selected===r.id?' selected':''));
-    card.tabIndex=0; card.setAttribute('role','button');
+    card.tabIndex=0; card.setAttribute('role','button'); card.dataset.userId=r.userId || ''; card.dataset.ownerStatus=r.ownerStatus || '';
     const head = el('div',undefined,'request-head'); const check = el('input'); check.type='checkbox'; check.checked=state.shown.has(r.id); check.disabled=!r.points; check.setAttribute('aria-label',`${r.id} 지도에 표시`);
     check.title = r.replayReason || '지도에 표시';
     check.onclick = e=>e.stopPropagation(); check.onchange=()=>{check.checked?state.shown.add(r.id):state.shown.delete(r.id); drawMaps();};
     head.append(check, el('strong',r.title || `${r.analysisType || '추천'} · ${r.sessionId ? 'S'+r.sessionId : r.profileId ? 'P'+r.profileId : r.kind}`));
-    card.append(head,el('div',r.id,'request-id'),badge(r.status),el('div',r.createdAt || '생성 시각 미상','muted'));
+    const owner=el('div',ownerText(r),r.userId?'request-owner':'muted'); owner.title=r.ownerReason || '';
+    card.append(head,owner,el('div',r.id,'request-id'),badge(r.status),el('div',r.createdAt || '생성 시각 미상','muted'));
     if(!r.replayAvailable) card.append(el('div','상태 조회만 가능','muted'));
     function select(){state.selected=r.id; refreshRequestList(); if(r.kind==='case'){ $('caseSelect').value=r.id; inputChanged(); } else { $('jobId').value=r.id; inspectJob(r.id); if(r.replayAvailable){ $('caseSelect').value=r.id; inputChanged(); } }}
     card.onclick=select; card.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();select();}}; $('requests').append(card);
@@ -42,10 +45,10 @@ async function refreshRequests() {
     const previous=state.requests.find(r=>r.id===state.inspected);
     state.requests=body.requests;
     const current=state.requests.find(r=>r.id===state.inspected);
-    if(current&&previous&&(current.status!==previous.status||current.updatedAt!==previous.updatedAt))inspectJob(state.inspected);
+    if(current&&previous&&(current.status!==previous.status||current.updatedAt!==previous.updatedAt||current.userId!==previous.userId||current.ownerStatus!==previous.ownerStatus))inspectJob(state.inspected);
     for(const id of [...state.shown]) if(!state.requests.some(r=>r.id===id && r.points)) state.shown.delete(id);
     const old=$('caseSelect').value; $('caseSelect').replaceChildren(new Option('재생 입력 선택',''));
-    for(const r of state.requests.filter(r=>r.replayAvailable)) $('caseSelect').add(new Option(`${r.title || r.analysisType || r.kind} · ${r.id}`,r.id));
+    for(const r of state.requests.filter(r=>r.replayAvailable)) $('caseSelect').add(new Option(`${ownerText(r)} · ${r.title || r.analysisType || r.kind} · ${r.id}`,r.id));
     if(state.requests.some(r=>r.id===old && r.replayAvailable)) $('caseSelect').value=old;
     else if(old){$('caseSelect').value=''; inputChanged();}
     refreshRequestList(); drawMaps();
@@ -58,7 +61,7 @@ async function inspectJob(id) {
   try {
     const j=await api('api/jobs/'+encodeURIComponent(id)); if(epoch!==state.jobEpoch)return;
     const detail=$('jobDetail');detail.replaceChildren(badge(j.status));
-    const facts=el('div',undefined,'facts'); facts.append(fact('유형',j.analysisType||j.kind),fact('분석 컴포넌트 상태',j.componentStatus||j.status),fact('실패 코드',j.failureCode),fact('session / profile',`${j.sessionId ?? '-'} / ${j.profileId ?? '-'}`),fact('생성 시각',j.createdAt),fact('갱신 시각',j.updatedAt));detail.append(facts);
+    const facts=el('div',undefined,'facts'); facts.append(fact('회원 ID (백엔드 userId)',j.userId || '확인 불가'),fact('회원 확인 근거',j.ownerReason || '회원 연결 기록 없음'),fact('유형',j.analysisType||j.kind),fact('분석 컴포넌트 상태',j.componentStatus||j.status),fact('실패 코드',j.failureCode),fact('session / profile',`${j.sessionId ?? '-'} / ${j.profileId ?? '-'}`),fact('생성 시각',j.createdAt),fact('갱신 시각',j.updatedAt));detail.append(facts);
     if(j.failureReason)detail.append(el('div',j.failureReason,'failure-reason'));
     if(j.reasonUnavailable)detail.append(el('p',j.reasonUnavailable,'failure-reason'));
     for(const c of j.components){const line=el('div',undefined,'component-row');line.append(el('strong',c.name),badge(c.status),el('span',`콜백 HTTP ${c.callbackHttp ?? '미기록'} · 백엔드 ${c.accepted?'수락':'미수락'} · 시도 ${c.callbackAttempts ?? '-'}`));detail.append(line);if(c.failureReason&&c.failureReason!==j.failureReason)detail.append(el('p',c.failureReason,'failure-reason'));}
@@ -86,13 +89,13 @@ function drawMaps(){
     const g=svg('g'); root.append(g);const v=views[model];g.setAttribute('transform',`translate(${v.x},${v.y}) scale(${v.scale})`);
     for(const p of state.map){const dot=svg('circle',{cx:sx(p[model][0]),cy:sy(p[model][1]),r:3.2,fill:color(p.artist),class:'map-dot'+(state.artist?(p.artist===state.artist?' highlight':' dim'):'')});
       dot.onpointermove=e=>tip(e,`${p.artist}\n${p.title}\n${p.id}`);dot.onpointerleave=()=>{$('tooltip').hidden=true;};dot.onclick=()=>{state.artist=state.artist===p.artist?null:p.artist;drawMaps();};g.append(dot);}
-    for(const r of requests){const x=sx(r.points[model][0]),y=sy(r.points[model][1]);const dot=svg('path',{d:`M${x} ${y-7} L${x+7} ${y} L${x} ${y+7} L${x-7} ${y} Z`,class:'user-point'});dot.onpointermove=e=>tip(e,`요청 ${r.title || r.analysisType || r.kind}\n${r.id}\n${r.status}`);dot.onpointerleave=()=>{$('tooltip').hidden=true;};g.append(dot);const label=svg('text',{x:x+10,y:y+4,class:'user-label'});label.textContent=r.sessionId?'S'+r.sessionId:r.id.slice(0,12);g.append(label);}
+    for(const r of requests){const x=sx(r.points[model][0]),y=sy(r.points[model][1]);const dot=svg('path',{d:`M${x} ${y-7} L${x+7} ${y} L${x} ${y+7} L${x-7} ${y} Z`,class:'user-point'});dot.onpointermove=e=>tip(e,`${ownerText(r)}\n요청 ${r.title || r.analysisType || r.kind}\n${r.id}\n${r.status}`);dot.onpointerleave=()=>{$('tooltip').hidden=true;};g.append(dot);const label=svg('text',{x:x+10,y:y+4,class:'user-label'});label.textContent=(r.userId?'U'+r.userId+' · ':'')+(r.sessionId?'S'+r.sessionId:r.id.slice(0,12));g.append(label);}
     root.onwheel=e=>{e.preventDefault();const rect=root.getBoundingClientRect();const px=(e.clientX-rect.left)/rect.width*600,py=(e.clientY-rect.top)/rect.height*350;const next=Math.min(8,Math.max(.7,v.scale*(e.deltaY<0?1.15:1/1.15)));const ratio=next/v.scale;v.x=px-(px-v.x)*ratio;v.y=py-(py-v.y)*ratio;v.scale=next;g.setAttribute('transform',`translate(${v.x},${v.y}) scale(${v.scale})`);};
     let drag=null;root.onpointerdown=e=>{if(e.target===root||e.target===g)drag={x:e.clientX,y:e.clientY,tx:v.x,ty:v.y};};root.onpointermove=e=>{if(!drag)return;const rect=root.getBoundingClientRect();v.x=drag.tx+(e.clientX-drag.x)/rect.width*600;v.y=drag.ty+(e.clientY-drag.y)/rect.height*350;g.setAttribute('transform',`translate(${v.x},${v.y}) scale(${v.scale})`);};root.onpointerup=root.onpointerleave=()=>{drag=null;};
   }
 }
 function inputChanged(){state.epoch++; state.result=null; $('results').hidden=true;const r=state.requests.find(r=>r.id===$('caseSelect').value);$('run').disabled=!r||state.busy;
-  $('inputInfo').textContent=r?(r.kind==='case'?'동의받아 저장한 고정 입력 case':'분석 원본 진단 · 당시 추천의 취향과 profile 동일성 보장 안 됨'):'';
+  $('inputInfo').textContent=r?(ownerText(r)+' · '+(r.kind==='case'?'동의받아 저장한 고정 입력 case':'분석 원본 진단 · 당시 추천의 취향과 profile 동일성 보장 안 됨')):'';
   $('experimentState').textContent='입력 또는 설정이 변경됐습니다. 실험 실행을 눌러 새 결과를 계산하세요.';
 }
 async function run(){

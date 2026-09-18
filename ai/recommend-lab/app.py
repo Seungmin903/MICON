@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from engine import Engine
 from repository import Repository
+from ownership import OwnerResolver
 
 
 class Settings(BaseModel):
@@ -42,7 +43,7 @@ def create_app(config=None, engine=None, repository=None):
     if not dev and (not username or len(password) < 12):
         raise RuntimeError("LAB_USERNAME 및 12자 이상 LAB_PASSWORD가 필요합니다. 로컬만 LAB_DEV_MODE=1 허용.")
     app = FastAPI(title="MICON Recommend Lab", docs_url=None, redoc_url=None, openapi_url=None)
-    repo = repository or Repository(cfg.get("LAB_ANALYSIS_DIR"), cfg.get("LAB_RECOMMEND_JOBS_DIR"), cfg.get("LAB_CASES_DIR"))
+    repo = repository or Repository(cfg.get("LAB_ANALYSIS_DIR"), cfg.get("LAB_RECOMMEND_JOBS_DIR"), cfg.get("LAB_CASES_DIR"), owners=OwnerResolver.from_config(cfg))
     eng_error = None
     if engine is None and cfg.get("LAB_INDEX_DIR"):
         try:
