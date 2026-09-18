@@ -45,4 +45,3 @@ def profile_from_range(callback):
         mass[int(low)-36:int(high)-36+1] = 1
     return {"schemaVersion": 1, "coreLowMidi": int(low), "coreHighMidi": int(high),
             "medianMidi": (int(low)+int(high))//2, "histogram": mass.tolist(), "reliable": True}
-

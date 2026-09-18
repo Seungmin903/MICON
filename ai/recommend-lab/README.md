@@ -94,4 +94,3 @@ Dockerfile과 compose 예시는 이 폴더 안에 있습니다. 저장소 루트
 현재 운영 AI는 Windows 머신에 있습니다. EC2는 그 로컬 job 폴더를 직접 읽을 수 없습니다. 따라서 팀 배포에서는 승인된 읽기 전용 데이터 연결 또는 동의받은 테스트 snapshot 동기화를 별도로 구성해야 합니다. 이 버전은 공개 수집 API나 무단 원본 복제를 만들지 않습니다. EC2의 AI 도메인·프록시·인증 및 데이터 접근 정책을 확인한 후 연결하세요. Docker image에 원본 음성·case·token을 COPY하지 않으며 필요한 데이터만 read-only mount합니다.
 
 이번 변경에는 Jenkins, 운영 AI, Android, Backend, EC2 nginx 설정 변경이 없습니다. 배포·공유·push·MR·merge는 별도 단계입니다.
-

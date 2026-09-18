@@ -10,4 +10,3 @@ COPY ai/recommend-lab/static ./ai/recommend-lab/static
 USER lab
 EXPOSE 8790
 CMD ["python", "ai/recommend-lab/app.py"]
-
