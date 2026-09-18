@@ -1,7 +1,7 @@
-package com.micon.backend.auth.config;
+package com.micon.backend.domain.auth.config;
 
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.auth.token.ActiveSessionValidator;
+import com.micon.backend.domain.auth.token.ActiveSessionValidator;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.SecurityContext;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,6 +1,6 @@
-package com.micon.backend.auth.token;
+package com.micon.backend.domain.auth.token;
 
-import com.micon.backend.auth.config.AuthProperties;
+import com.micon.backend.domain.auth.config.AuthProperties;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;

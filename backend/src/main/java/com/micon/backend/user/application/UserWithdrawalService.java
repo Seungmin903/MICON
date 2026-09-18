@@ -1,6 +1,6 @@
 package com.micon.backend.user.application;
 
-import com.micon.backend.auth.domain.RefreshTokenRepository;
+import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.domain.AuthType;

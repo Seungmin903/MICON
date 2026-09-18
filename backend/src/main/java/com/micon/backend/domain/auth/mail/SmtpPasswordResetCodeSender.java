@@ -1,6 +1,6 @@
-package com.micon.backend.auth.mail;
+package com.micon.backend.domain.auth.mail;
 
-import com.micon.backend.auth.config.PasswordResetProperties;
+import com.micon.backend.domain.auth.config.PasswordResetProperties;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;

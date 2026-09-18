@@ -1,6 +1,6 @@
-package com.micon.backend.auth.api;
+package com.micon.backend.domain.auth.dto;
 
-import com.micon.backend.auth.token.TokenPair;
+import com.micon.backend.domain.auth.token.TokenPair;
 
 import java.time.Instant;
 

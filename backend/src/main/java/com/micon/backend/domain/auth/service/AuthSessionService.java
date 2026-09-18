@@ -1,11 +1,11 @@
-package com.micon.backend.auth.application;
+package com.micon.backend.domain.auth.service;
 
-import com.micon.backend.auth.config.AuthProperties;
-import com.micon.backend.auth.domain.RefreshToken;
-import com.micon.backend.auth.domain.RefreshTokenRepository;
-import com.micon.backend.auth.token.RefreshTokenHasher;
-import com.micon.backend.auth.token.TokenPair;
-import com.micon.backend.auth.token.TokenProvider;
+import com.micon.backend.domain.auth.config.AuthProperties;
+import com.micon.backend.domain.auth.token.RefreshToken;
+import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
+import com.micon.backend.domain.auth.token.RefreshTokenHasher;
+import com.micon.backend.domain.auth.token.TokenPair;
+import com.micon.backend.domain.auth.token.TokenProvider;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserStatus;
 import com.micon.backend.common.exception.BusinessException;

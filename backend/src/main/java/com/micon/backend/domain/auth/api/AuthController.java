@@ -1,13 +1,19 @@
-package com.micon.backend.auth.api;
+package com.micon.backend.domain.auth.api;
 
-import com.micon.backend.auth.application.EmailAuthService;
-import com.micon.backend.auth.application.AuthSessionService;
-import com.micon.backend.auth.application.PasswordResetService;
-import com.micon.backend.auth.token.TokenPair;
+import com.micon.backend.domain.auth.service.EmailAuthService;
+import com.micon.backend.domain.auth.service.AuthSessionService;
+import com.micon.backend.domain.auth.service.PasswordResetService;
+import com.micon.backend.domain.auth.dto.AuthRequest;
+import com.micon.backend.domain.auth.dto.AuthResponse;
+import com.micon.backend.domain.auth.dto.PasswordResetRequest;
+import com.micon.backend.domain.auth.dto.PasswordResetResponse;
+import com.micon.backend.domain.auth.dto.TokenRefreshResponse;
+import com.micon.backend.domain.auth.token.TokenPair;
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,18 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final EmailAuthService emailAuthService;
     private final AuthSessionService authSessionService;
     private final PasswordResetService passwordResetService;
-
-    public AuthController(EmailAuthService emailAuthService, AuthSessionService authSessionService,
-                          PasswordResetService passwordResetService) {
-        this.emailAuthService = emailAuthService;
-        this.authSessionService = authSessionService;
-        this.passwordResetService = passwordResetService;
-    }
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<AuthResponse>> signUp(@Valid @RequestBody AuthRequest.SignUp request) {

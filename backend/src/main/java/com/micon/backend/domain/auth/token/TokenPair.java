@@ -1,4 +1,4 @@
-package com.micon.backend.auth.token;
+package com.micon.backend.domain.auth.token;
 
 import java.time.Instant;
 

@@ -1,4 +1,4 @@
-package com.micon.backend.auth.config;
+package com.micon.backend.domain.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 @ConfigurationProperties(prefix = "auth")
-public record AuthProperties(Jwt jwt, Duration refreshTokenTtl) {
+public record  AuthProperties(Jwt jwt, Duration refreshTokenTtl) {
 
     public AuthProperties {
         if (jwt == null) {

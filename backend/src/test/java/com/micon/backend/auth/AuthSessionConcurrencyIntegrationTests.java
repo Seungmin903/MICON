@@ -1,6 +1,6 @@
 package com.micon.backend.auth;
 
-import com.micon.backend.auth.domain.RefreshTokenRepository;
+import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
 import com.micon.backend.user.domain.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

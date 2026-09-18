@@ -1,8 +1,8 @@
-package com.micon.backend.auth.application;
+package com.micon.backend.domain.auth.service;
 
-import com.micon.backend.auth.api.AuthRequest;
-import com.micon.backend.auth.api.AuthResponse;
-import com.micon.backend.auth.token.TokenPair;
+import com.micon.backend.domain.auth.dto.AuthRequest;
+import com.micon.backend.domain.auth.dto.AuthResponse;
+import com.micon.backend.domain.auth.token.TokenPair;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.domain.AuthType;

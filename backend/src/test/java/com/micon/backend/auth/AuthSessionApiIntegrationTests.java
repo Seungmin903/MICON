@@ -1,8 +1,8 @@
 package com.micon.backend.auth;
 
-import com.micon.backend.auth.domain.RefreshToken;
-import com.micon.backend.auth.domain.RefreshTokenRepository;
-import com.micon.backend.auth.token.RefreshTokenHasher;
+import com.micon.backend.domain.auth.token.RefreshToken;
+import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
+import com.micon.backend.domain.auth.token.RefreshTokenHasher;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.micon.backend.auth.config;
+package com.micon.backend.domain.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

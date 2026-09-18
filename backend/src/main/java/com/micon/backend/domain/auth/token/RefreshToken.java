@@ -1,4 +1,4 @@
-package com.micon.backend.auth.domain;
+package com.micon.backend.domain.auth.token;
 
 import com.micon.backend.user.domain.User;
 import jakarta.persistence.Column;

@@ -1,4 +1,4 @@
-package com.micon.backend.auth.api;
+package com.micon.backend.domain.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -12,7 +12,9 @@ public final class PasswordResetRequest {
     public record Issue(
             @NotBlank @Email @Size(max = 255) String email
     ) {
-        public Issue { email = email == null ? null : email.trim(); }
+        public Issue {
+            email = email == null ? null : email.trim();
+        }
     }
 
     public record Verify(

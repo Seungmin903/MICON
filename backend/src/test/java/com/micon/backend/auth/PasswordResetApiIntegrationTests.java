@@ -1,6 +1,6 @@
 package com.micon.backend.auth;
 
-import com.micon.backend.auth.mail.PasswordResetCodeSender;
+import com.micon.backend.domain.auth.mail.PasswordResetCodeSender;
 import com.micon.backend.user.domain.User;
 import com.micon.backend.user.domain.UserRepository;
 import jakarta.persistence.EntityManager;

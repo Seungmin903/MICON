@@ -1,11 +1,12 @@
-package com.micon.backend.auth.application;
+package com.micon.backend.domain.auth.service;
 
-import com.micon.backend.auth.api.PasswordResetResponse;
-import com.micon.backend.auth.config.PasswordResetProperties;
-import com.micon.backend.auth.domain.PasswordResetRequestRepository;
-import com.micon.backend.auth.domain.RefreshTokenRepository;
-import com.micon.backend.auth.mail.PasswordResetCodeSender;
-import com.micon.backend.auth.token.RefreshTokenHasher;
+import com.micon.backend.domain.auth.dto.PasswordResetResponse;
+import com.micon.backend.domain.auth.entity.PasswordResetAttempt;
+import com.micon.backend.domain.auth.config.PasswordResetProperties;
+import com.micon.backend.domain.auth.repository.PasswordResetAttemptRepository;
+import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
+import com.micon.backend.domain.auth.mail.PasswordResetCodeSender;
+import com.micon.backend.domain.auth.token.RefreshTokenHasher;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.user.domain.AuthType;
@@ -31,7 +32,7 @@ public class PasswordResetService {
     private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository userRepository;
-    private final PasswordResetRequestRepository requestRepository;
+    private final PasswordResetAttemptRepository requestRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetCodeSender codeSender;
     private final PasswordEncoder passwordEncoder;
@@ -41,7 +42,7 @@ public class PasswordResetService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public PasswordResetService(UserRepository userRepository,
-                                PasswordResetRequestRepository requestRepository,
+                                PasswordResetAttemptRepository requestRepository,
                                 RefreshTokenRepository refreshTokenRepository,
                                 PasswordResetCodeSender codeSender,
                                 PasswordEncoder passwordEncoder,
@@ -73,7 +74,7 @@ public class PasswordResetService {
 
         String code = "%06d".formatted(secureRandom.nextInt(1_000_000));
         LocalDateTime now = now();
-        requestRepository.save(new com.micon.backend.auth.domain.PasswordResetRequest(
+        requestRepository.save(new PasswordResetAttempt(
                 requestId, user, passwordEncoder.encode(code),
                 LocalDateTime.ofInstant(expiresAt, clock.getZone()), now));
         try {
@@ -87,7 +88,7 @@ public class PasswordResetService {
     @Transactional(noRollbackFor = BusinessException.class)
     public PasswordResetResponse.Verified verify(String requestId, String code) {
         LocalDateTime now = now();
-        com.micon.backend.auth.domain.PasswordResetRequest request = requestRepository.findByRequestId(requestId)
+        PasswordResetAttempt request = requestRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_RESET_CODE));
         if (!request.canVerifyAt(now, properties.maxAttempts())) {
             throw new BusinessException(ErrorCode.INVALID_RESET_CODE);
@@ -108,7 +109,7 @@ public class PasswordResetService {
     public void reset(String rawResetToken, String newPassword) {
         validatePasswordBytes(newPassword);
         LocalDateTime now = now();
-        com.micon.backend.auth.domain.PasswordResetRequest request = requestRepository
+        PasswordResetAttempt request = requestRepository
                 .findByResetTokenHash(tokenHasher.hash(rawResetToken))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PASSWORD_RESET_TOKEN));
         if (!request.canResetAt(now) || request.getUser().getStatus() != UserStatus.ACTIVE) {
