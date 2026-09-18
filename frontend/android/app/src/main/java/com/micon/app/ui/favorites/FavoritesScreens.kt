@@ -97,9 +97,9 @@ class FavoritesViewModel(
         val error: String? = null,
         val songs: List<SongSummary> = emptyList(),
         /** 연습 기록이 있는 곡 id — "연습 중" 탭 */
-        val practicedIds: Set<Long> = emptySet(),
+        val practicedIds: Set<String> = emptySet(),
         val setlists: List<Setlist> = emptyList(),
-        val keys: Map<Long, Int?> = emptyMap(),
+        val keys: Map<String, Int?> = emptyMap(),
         val busy: Boolean = false,
         val toast: String? = null,
     )
@@ -126,7 +126,7 @@ class FavoritesViewModel(
     }
 
     /** 하트: 낙관적으로 캐시가 먼저 바뀌고, 해제되면 목록에서도 바로 뺀다. 실패하면 저장소가 되돌리고 토스트로 알린다. */
-    fun toggleLike(songId: Long) {
+    fun toggleLike(songId: String) {
         viewModelScope.launch {
             try {
                 if (!favorites.toggle(songId)) _state.update { it.copy(songs = it.songs.filterNot { s -> s.id == songId }) }
@@ -156,7 +156,7 @@ private enum class Tab(val label: String) { ALL("전체"), PRACTICING("연습 �
 
 /** Figma "노래 찜 목록" / "노래 찜 목록 - 세트리스트" */
 @Composable
-fun FavoritesScreen(onSongClick: (Long) -> Unit, onSetlistClick: (Long) -> Unit, onSettings: () -> Unit) {
+fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
     val vm: FavoritesViewModel = viewModel(factory = viewModelFactory {
         initializer { FavoritesViewModel(container.favorites, container.setlists, container.practices, container.recommend) }
@@ -248,7 +248,7 @@ class SetlistViewModel(
         val loading: Boolean = true,
         val error: String? = null,
         val detail: SetlistDetail? = null,
-        val keys: Map<Long, Int?> = emptyMap(),
+        val keys: Map<String, Int?> = emptyMap(),
         val editing: Boolean = false,
         /** 곡 추가 다이얼로그 후보(찜했지만 아직 없는 곡). null 이면 닫힘 */
         val candidates: List<SongSummary>? = null,
@@ -288,11 +288,11 @@ class SetlistViewModel(
         _state.update { it.copy(deleted = true) }
     }
 
-    fun removeSong(songId: Long) = run("곡을 빼지 못했어요.") {
+    fun removeSong(songId: String) = run("곡을 빼지 못했어요.") {
         _state.update { it.copy(detail = setlists.removeSong(setlistId, songId)) }
     }
 
-    fun addSong(songId: Long) = run("곡을 넣지 못했어요.") {
+    fun addSong(songId: String) = run("곡을 넣지 못했어요.") {
         val detail = setlists.addSong(setlistId, songId)
         _state.update { it.copy(detail = detail, candidates = it.candidates?.filterNot { c -> c.id == songId }) }
     }
@@ -305,7 +305,7 @@ class SetlistViewModel(
 
     fun closeAdd() = _state.update { it.copy(candidates = null) }
 
-    fun toggleLike(songId: Long) {
+    fun toggleLike(songId: String) {
         viewModelScope.launch {
             runCatching { favorites.toggle(songId) }.onFailure { e -> _state.update { it.copy(toast = describeBackendError(e, "찜을 바꾸지 못했어요.")) } }
         }
@@ -325,7 +325,7 @@ class SetlistViewModel(
 
 /** Figma "노래 찜 목록 - 세트리스트 세부" */
 @Composable
-fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (Long) -> Unit) {
+fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> Unit) {
     val container = rememberAppContainer()
     val vm: SetlistViewModel = viewModel(key = "setlist-$setlistId", factory = viewModelFactory {
         initializer { SetlistViewModel(container.setlists, container.favorites, container.recommend, setlistId) }
@@ -436,7 +436,7 @@ private fun ConfirmDialog(title: String, text: String, confirmLabel: String, onD
 
 /** 찜한 곡 중 리스트에 없는 곡. 누르면 바로 추가되고 목록에서 사라진다. */
 @Composable
-private fun AddSongDialog(candidates: List<SongSummary>, onDismiss: () -> Unit, onAdd: (Long) -> Unit) {
+private fun AddSongDialog(candidates: List<SongSummary>, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color.White,

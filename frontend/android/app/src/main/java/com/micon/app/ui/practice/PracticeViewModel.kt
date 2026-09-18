@@ -75,7 +75,7 @@ import kotlin.math.roundToInt
  */
 class PracticeViewModel(
     appContext: Context,
-    val songId: Long,
+    val songId: String,
     private val repo: SongRepository,
     mediaHttp: OkHttpClient,
     private val practices: PracticeRepository,

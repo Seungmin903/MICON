@@ -8,7 +8,7 @@ import android.util.Log
  */
 data class RecommendEvent(
     val userId: String,
-    val songId: Long,
+    val songId: String,
     val timbreAxis: TimbreAxis?,
     /** 추천 목록에서의 위치, 1부터 */
     val position: Int,

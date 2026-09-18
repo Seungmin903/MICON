@@ -99,11 +99,11 @@ interface BackendApi {
     suspend fun songs(@Query("query") query: String, @Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<SongSummaryDto>>>
 
     @GET("songs/{songId}")
-    suspend fun song(@Path("songId") songId: Long): Response<ApiResponse<SongDetailDto>>
+    suspend fun song(@Path("songId") songId: String): Response<ApiResponse<SongDetailDto>>
 
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
-    suspend fun practiceAssets(@Path("songId") songId: Long, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+    suspend fun practiceAssets(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
 
     // ---- 추천·곡 적합도 (RecommendationController · RecommendationQueryController · SongFitController) ----
 
@@ -117,7 +117,7 @@ interface BackendApi {
 
     /** 곡 × 내 음성 분석 적합도. analysisId 는 COMPLETED 음성 분석 id. */
     @GET("songs/{songId}/fit")
-    suspend fun songFit(@Path("songId") songId: Long, @Query("analysisId") analysisId: Long, @Query("keyOffset") keyOffset: Int = 0): Response<ApiResponse<SongFitDto>>
+    suspend fun songFit(@Path("songId") songId: String, @Query("analysisId") analysisId: Long, @Query("keyOffset") keyOffset: Int = 0): Response<ApiResponse<SongFitDto>>
 
     // ---- 설정·음성 데이터 (SettingController · VoiceDataDeletionController) ----
 
@@ -139,10 +139,10 @@ interface BackendApi {
 
     /** 멱등. 없는 곡은 404 SONG_NOT_FOUND. */
     @PUT("favorites/{songId}")
-    suspend fun addFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
+    suspend fun addFavorite(@Path("songId") songId: String): Response<ApiResponse<Any>>
 
     @DELETE("favorites/{songId}")
-    suspend fun removeFavorite(@Path("songId") songId: Long): Response<ApiResponse<Any>>
+    suspend fun removeFavorite(@Path("songId") songId: String): Response<ApiResponse<Any>>
 
     @GET("setlist")
     suspend fun setlists(): Response<ApiResponse<List<SetlistSummaryDto>>>
@@ -162,10 +162,10 @@ interface BackendApi {
 
     /** 찜한 곡만 추가된다(400 SONG_NOT_FAVORITED). 바뀐 상세를 돌려준다. */
     @POST("setlist/{setlistId}/{songId}")
-    suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
+    suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: String): Response<ApiResponse<SetlistDetailDto>>
 
     @DELETE("setlist/{setlistId}/{songId}")
-    suspend fun removeSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: Long): Response<ApiResponse<SetlistDetailDto>>
+    suspend fun removeSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: String): Response<ApiResponse<SetlistDetailDto>>
 
     // ---- 연습 기록 (PracticeController) ----
 

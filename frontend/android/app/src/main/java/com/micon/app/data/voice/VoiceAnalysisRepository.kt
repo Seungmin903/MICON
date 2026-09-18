@@ -35,7 +35,7 @@ enum class VoiceAnalysisStatus {
 data class VoiceAnalysis(
     val id: Long,
     val recordingId: Long?,
-    val songId: Long?,
+    val songId: String?,
     /** SCALE | SONG */
     val method: String?,
     val status: VoiceAnalysisStatus,
@@ -91,7 +91,7 @@ interface VoiceAnalysisRepository {
     suspend fun upload(file: File, mimeType: String = "audio/wav", attemptNo: Int = 1, onProgress: (Float) -> Unit = {}): Long
 
     /** 분석 생성. AI 연동이 꺼져 있으면 503 VOICE_ANALYSIS_DISPATCH_FAILED — 정상적인 "미준비" 상태다. */
-    suspend fun create(recordingId: Long, songId: Long?, method: String = METHOD_SONG): VoiceAnalysis
+    suspend fun create(recordingId: Long, songId: String?, method: String = METHOD_SONG): VoiceAnalysis
 
     suspend fun get(analysisId: Long): VoiceAnalysis
 
@@ -121,7 +121,7 @@ class RemoteVoiceAnalysisRepository(
         return id
     }
 
-    override suspend fun create(recordingId: Long, songId: Long?, method: String): VoiceAnalysis =
+    override suspend fun create(recordingId: Long, songId: String?, method: String): VoiceAnalysis =
         api.createVoiceAnalysis(VoiceAnalysisCreateRequest(recordingId, method, songId)).dataOrThrow().toModel()
 
     override suspend fun get(analysisId: Long): VoiceAnalysis = api.voiceAnalysis(analysisId).dataOrThrow().toModel()

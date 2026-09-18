@@ -19,13 +19,13 @@ class SongDetailViewModelTest {
     private val players = mutableListOf<FakePlayer>()
     private val songs = FakeSongs()
     private val recommend = object : RecommendRepository {
-        override suspend fun fit(songId: Long): SongFit? = null
+        override suspend fun fit(songId: String): SongFit? = null
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
     }
 
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { store.clear(); Dispatchers.resetMain() }
-    private fun model() = SongDetailViewModel(songs, recommend, 7, {
+    private fun model() = SongDetailViewModel(songs, recommend, "7", {
         FakePlayer().also { players += it }
     }, MutableStateFlow<UserStore.VoiceProfile?>(null)).also { store.put("detail", it) }
 
@@ -113,7 +113,7 @@ class SongDetailViewModelTest {
     }
 
     @Test fun `rejects mismatched assets and malformed notes`() = runTest {
-        songs.assets = { assets(it).copy(songId = 999) }
+        songs.assets = { assets(it).copy(songId = "999") }
         val vm = model(); vm.enterScreen(); runCurrent()
         assertFalse(vm.state.value.playable)
         assertTrue(players.isEmpty())
@@ -137,8 +137,8 @@ class SongDetailViewModelTest {
         var assets: suspend (Int) -> PracticeAssets = { SongDetailViewModelTest.assets(it) }
         var details: suspend () -> SongDetail = { detail() }
         val requestedKeys = mutableListOf<Int>()
-        override suspend fun detail(songId: Long) = details()
-        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets {
+        override suspend fun detail(songId: String) = details()
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets {
             requestedKeys += selectedKey
             return assets(selectedKey)
         }
@@ -164,8 +164,8 @@ class SongDetailViewModelTest {
     }
 
     companion object {
-        private fun detail() = SongDetail(SongSummary(7, "테스트", "가수", null, 30_000), emptyList(), null, false, true)
-        private fun assets(key: Int) = PracticeAssets(7, "테스트", key,
+        private fun detail() = SongDetail(SongSummary("7", "테스트", "가수", null, 30_000), emptyList(), null, false, true)
+        private fun assets(key: Int) = PracticeAssets("7", "테스트", key,
             InstrumentalMedia(null, null, "audio/wav", null, null, "http://localhost/$key.wav"),
             null, null, listOf(KaraokeNote(sourceStart = 1.0, sourceEnd = 2.0, midi = 60)), "test", emptyList(),
             keyName = "C major", tempoBpm = 108, timeSignature = "4/4")

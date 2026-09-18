@@ -12,7 +12,7 @@ import com.micon.app.data.backend.unwrapNullable
 data class Setlist(val id: Long, val name: String, val songCount: Int, val createdAt: String?, val updatedAt: String?)
 
 /** 세트리스트 곡(`SetlistResponse.SongItem`). [position] 은 서버 순서(0부터). */
-data class SetlistSong(val songId: Long, val title: String, val artist: String, val imageUrl: String?, val durationMs: Long?, val position: Int)
+data class SetlistSong(val songId: String, val title: String, val artist: String, val imageUrl: String?, val durationMs: Long?, val position: Int)
 
 data class SetlistDetail(val id: Long, val name: String, val songs: List<SetlistSong>, val createdAt: String?, val updatedAt: String?)
 
@@ -28,8 +28,8 @@ interface SetlistRepository {
     suspend fun create(name: String): Setlist
     suspend fun rename(setlistId: Long, name: String): Setlist
     suspend fun delete(setlistId: Long)
-    suspend fun addSong(setlistId: Long, songId: Long): SetlistDetail
-    suspend fun removeSong(setlistId: Long, songId: Long): SetlistDetail
+    suspend fun addSong(setlistId: Long, songId: String): SetlistDetail
+    suspend fun removeSong(setlistId: Long, songId: String): SetlistDetail
 
     companion object { const val NAME_MAX = 100 }
 }
@@ -47,9 +47,9 @@ class RemoteSetlistRepository(private val api: BackendApi) : SetlistRepository {
 
     override suspend fun delete(setlistId: Long) { api.deleteSetlist(setlistId).unwrapNullable() }
 
-    override suspend fun addSong(setlistId: Long, songId: Long): SetlistDetail = api.addSetlistSong(setlistId, songId).unwrapData().toModel()
+    override suspend fun addSong(setlistId: Long, songId: String): SetlistDetail = api.addSetlistSong(setlistId, songId).unwrapData().toModel()
 
-    override suspend fun removeSong(setlistId: Long, songId: Long): SetlistDetail = api.removeSetlistSong(setlistId, songId).unwrapData().toModel()
+    override suspend fun removeSong(setlistId: Long, songId: String): SetlistDetail = api.removeSetlistSong(setlistId, songId).unwrapData().toModel()
 
     private companion object {
         fun SetlistSummaryDto.toModel() = Setlist(setlistId, name, songCount, createdAt, updatedAt)

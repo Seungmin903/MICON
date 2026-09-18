@@ -38,20 +38,20 @@ class RemoteFavoriteRepositoryTest {
         val request = server.takeRequest()
         assertEquals("/api/v1/favorites", request.path)
         assertEquals("Bearer access", request.getHeader("Authorization"))
-        assertEquals(listOf(7L, 1L), songs.map { it.id })
+        assertEquals(listOf("7", "1"), songs.map { it.id })
         assertEquals("#안녕, 영화처럼", songs[1].artist)
-        assertEquals(setOf(7L, 1L), repo.likedIds.value)
+        assertEquals(setOf("7", "1"), repo.likedIds.value)
     }
 
     @Test fun `toggle adds with PUT and removes with DELETE`() = runBlocking {
         server.enqueue(ok("null"))
-        assertTrue(repo.toggle(7))
+        assertTrue(repo.toggle("7"))
         var request = server.takeRequest()
         assertEquals("PUT", request.method); assertEquals("/api/v1/favorites/7", request.path)
-        assertEquals(setOf(7L), repo.likedIds.value)
+        assertEquals(setOf("7"), repo.likedIds.value)
 
         server.enqueue(ok("null"))
-        assertFalse(repo.toggle(7))
+        assertFalse(repo.toggle("7"))
         request = server.takeRequest()
         assertEquals("DELETE", request.method); assertEquals("/api/v1/favorites/7", request.path)
         assertTrue(repo.likedIds.value.isEmpty())
@@ -60,7 +60,7 @@ class RemoteFavoriteRepositoryTest {
     @Test fun `failed toggle reverts the optimistic change and rethrows`() = runBlocking {
         server.enqueue(json(404, """{"code":"SONG_NOT_FOUND","message":"곡을 찾을 수 없습니다.","data":null}"""))
         try {
-            repo.toggle(99)
+            repo.toggle("99")
             fail("expected BackendRequestException")
         } catch (e: BackendRequestException) {
             assertEquals("SONG_NOT_FOUND", e.code)

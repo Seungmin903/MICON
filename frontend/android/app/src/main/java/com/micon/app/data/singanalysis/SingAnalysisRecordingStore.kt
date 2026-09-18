@@ -2,6 +2,7 @@ package com.micon.app.data.singanalysis
 
 import android.content.Context
 import android.util.AtomicFile
+import com.micon.app.data.requireSongId
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,7 +26,7 @@ class SingAnalysisRecordingStore(context: Context, private val keep: Int = DEFAU
     private val dir = (storageDirectory ?: File(context.filesDir, DIR_NAME)).apply { mkdirs() }
     private var closed = false
 
-    fun newId(songId: Long): String = "sing-$songId-${java.util.UUID.randomUUID()}"
+    fun newId(songId: String): String = "sing-${requireSongId(songId)}-${java.util.UUID.randomUUID()}"
 
     fun wavFile(id: String) = File(dir, "$id.wav")
     fun metaFile(id: String) = File(dir, "$id.json")

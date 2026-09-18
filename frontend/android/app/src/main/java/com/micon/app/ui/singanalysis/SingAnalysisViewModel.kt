@@ -55,7 +55,7 @@ import kotlin.math.abs
  */
 class SingAnalysisViewModel(
     appContext: Context,
-    val songId: Long,
+    val songId: String,
     private val repo: SongRepository,
     mediaHttp: OkHttpClient,
     private val store: SingAnalysisRecordingStore,

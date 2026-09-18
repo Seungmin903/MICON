@@ -44,7 +44,7 @@ data class RecommendationShelfDto(
 
 /** RecommendationResponse.Song — 곡 id 만 있고 제목·가수는 없다(앱이 곡 카탈로그에서 채운다). */
 data class RecommendationSongDto(
-    val songId: Long = 0,
+    val songId: String = "",
     val overallRank: Int = 0,
     val position: Int = 0,
     /** ECAPA · SINGER_BYOL · CONSENSUS (voice 섹션), 그 외 null */
@@ -62,7 +62,7 @@ data class RecommendationSongDto(
 
 /** `GET /songs/{songId}/fit?analysisId&keyOffset` → SongFitResponse */
 data class SongFitDto(
-    val songId: Long = 0,
+    val songId: String = "",
     val analysisId: Long? = null,
     val selectedKeyOffset: Int = 0,
     /** AVAILABLE · UNAVAILABLE */

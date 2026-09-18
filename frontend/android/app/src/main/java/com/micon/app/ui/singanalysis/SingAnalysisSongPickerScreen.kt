@@ -8,7 +8,7 @@ import com.micon.app.ui.songlist.SongListScreen
  * 하단 탭은 보이지 않는다(리포트 하위 흐름).
  */
 @Composable
-fun SingAnalysisSongPickerScreen(onBack: () -> Unit, onSongClick: (Long) -> Unit) {
+fun SingAnalysisSongPickerScreen(onBack: () -> Unit, onSongClick: (String) -> Unit) {
     SongListScreen(
         onSongClick = onSongClick,
         backTitle = "목소리 분석 · 곡 선택",

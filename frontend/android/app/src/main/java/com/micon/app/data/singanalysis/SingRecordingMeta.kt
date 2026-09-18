@@ -17,7 +17,7 @@ import com.squareup.moshi.JsonClass
 data class SingRecordingMeta(
     val id: String,
     val schemaVersion: Int = 1,
-    val songId: Long,
+    val songId: String,
     val title: String,
     val artist: String,
     /** [SingScope] 이름 */

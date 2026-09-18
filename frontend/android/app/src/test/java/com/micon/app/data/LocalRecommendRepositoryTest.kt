@@ -13,29 +13,29 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 백엔드 대신 픽스처(엔진 job 14260) 기반 가짜 SongRepository 로 로컬 추천 저장소를 검증한다. 곡 id 는 백엔드 song_id(Long). */
+/** 백엔드 대신 픽스처(엔진 job 14260) 기반 가짜 SongRepository 로 로컬 추천 저장소를 검증한다. 곡 id 는 백엔드 song_id(String). */
 class LocalRecommendRepositoryTest {
 
     private class FakeSongs(private val notes: List<KaraokeNote>) : SongRepository {
-        val analyzed = summary(14260L, "행복하지 말아요")
-        val unanalyzed = summary(1L, "분석 안 된 곡")
+        val analyzed = summary("14260", "행복하지 말아요")
+        val unanalyzed = summary("1", "분석 안 된 곡")
 
         override suspend fun search(query: String, page: Int, size: Int) =
             SongPage(listOf(analyzed, unanalyzed).take(size), page, size, 2, 1)
 
-        override suspend fun detail(songId: Long): SongDetail? = when (songId) {
+        override suspend fun detail(songId: String): SongDetail? = when (songId) {
             analyzed.id -> SongDetail(analyzed, listOf("발라드"), analysis = analysis(53, 74), favorite = false, practiceReady = true)
             unanalyzed.id -> SongDetail(unanalyzed, emptyList(), analysis = null, favorite = false, practiceReady = false)
             else -> null
         }
 
-        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets =
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets =
             if (songId == analyzed.id) PracticeAssets(
                 songId, analyzed.title, selectedKey, InstrumentalMedia(null, null, null, null, null, null),
                 lyricsPlain = null, lyricsSynced = null, targetNotes = notes, dataVersion = "test", sections = emptyList(),
             ) else throw PracticeAssetsNotReadyException("연습 데이터가 아직 준비되지 않았습니다.")
 
-        private fun summary(id: Long, title: String) =
+        private fun summary(id: String, title: String) =
             SongSummary(id, title, "가수", null, null, genre = "발라드", releaseDate = "2010-01-01")
 
         private fun analysis(low: Int, high: Int) =
@@ -51,13 +51,13 @@ class LocalRecommendRepositoryTest {
     @Test
     fun `no profile means not evaluable`() = runBlocking {
         UserStore.setProfile(null)
-        assertNull(repo.fit(14260L))
+        assertNull(repo.fit("14260"))
     }
 
     @Test
     fun `fit is computed from notes and cached for list consistency`() = runBlocking {
         UserStore.setProfile(UserStore.VoiceProfile(comfortLow = 55, comfortHigh = 67))
-        val fit = repo.fit(14260L)
+        val fit = repo.fit("14260")
         assertNotNull(fit)
         fit!!
         assertTrue(fit.recommendedKey!! in RangeFitCalculator.KEY_SHIFTS)
@@ -68,23 +68,23 @@ class LocalRecommendRepositoryTest {
 
         val r = repo.shelves(limit = 5)
         assertTrue(r.personalized)
-        val listed = r.shelves.flatMap { it.items }.first { it.song.id == 14260L }
+        val listed = r.shelves.flatMap { it.items }.first { it.song.id == "14260" }
         assertSame(fit, listed.fit)                     // 목록과 상세가 같은 객체(REC-005)
     }
 
     @Test
     fun `songs without analysis or unknown ids are not evaluable`() = runBlocking {
         UserStore.setProfile(UserStore.VoiceProfile())
-        assertNull(repo.fit(1L))                        // ERR-004
-        assertNull(repo.fit(999L))
+        assertNull(repo.fit("1"))                        // ERR-004
+        assertNull(repo.fit("999"))
     }
 
     @Test
     fun `profile change invalidates the cache`() = runBlocking {
         UserStore.setProfile(UserStore.VoiceProfile(comfortLow = 50, comfortHigh = 60))
-        val low = repo.fit(14260L)!!
+        val low = repo.fit("14260")!!
         UserStore.setProfile(UserStore.VoiceProfile(comfortLow = 60, comfortHigh = 72))
-        val high = repo.fit(14260L)!!
+        val high = repo.fit("14260")!!
         assertTrue(high.recommendedKey!! > low.recommendedKey!!)   // 높은 목소리엔 더 높은 키
     }
 }

@@ -55,7 +55,7 @@ class Recommendation(BaseModel):
     position: int = Field(ge=1, description="섹션 안 위치. 서버가 정한 순서이며 클라이언트는 재정렬하지 않는다")
     shelf: str | None = Field(default=None, description="소속 섹션 key (voice | original_key | favorite_artists | challenge | discovery)")
     track_id: str = Field(description="카탈로그 내부 id")
-    song_id: int | str | None = Field(description="BE 응답은 숫자 DB song_id. 문자열은 로컬 데모에서만 허용")
+    song_id: int | str | None = Field(description="DB song_id는 UUID 등 불투명 문자열. 이전 숫자 ID 캐시도 읽을 수 있다")
     title: str
     artist: str
     metadata: TrackMetadata
