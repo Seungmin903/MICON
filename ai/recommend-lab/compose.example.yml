@@ -1,0 +1,26 @@
+services:
+  recommend-lab:
+    build:
+      context: ../..
+      dockerfile: ai/recommend-lab/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8790:8790"
+    environment:
+      LAB_USERNAME: ${LAB_USERNAME:?Set LAB_USERNAME}
+      LAB_PASSWORD: ${LAB_PASSWORD:?Set strong LAB_PASSWORD}
+      LAB_INDEX_DIR: /data/catalog
+      LAB_CASES_DIR: /data/cases
+      LAB_ANALYSIS_DIR: /data/analysis
+      LAB_RECOMMEND_JOBS_DIR: /data/recommendations
+    volumes:
+      - ${LAB_CATALOG_HOST_DIR:?Set catalog directory}:/data/catalog:ro
+      - ${LAB_CASES_HOST_DIR:?Set consented cases directory}:/data/cases:ro
+      - ${LAB_ANALYSIS_HOST_DIR:?Set approved job data directory}:/data/analysis:ro
+      - ${LAB_RECOMMEND_HOST_DIR:?Set approved recommendation data directory}:/data/recommendations:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
