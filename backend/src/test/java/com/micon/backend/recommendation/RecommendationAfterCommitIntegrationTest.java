@@ -1,11 +1,11 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.*;
-import com.micon.backend.recommendation.client.RecommendationJobGateway;
-import com.micon.backend.recommendation.domain.*;
-import com.micon.backend.user.domain.*;
-import com.micon.backend.voice.application.VoiceProfileSavedEvent;
-import com.micon.backend.voice.domain.*;
+import com.micon.backend.domain.recommendation.application.*;
+import com.micon.backend.domain.recommendation.client.RecommendationJobGateway;
+import com.micon.backend.domain.recommendation.domain.*;
+import com.micon.backend.domain.user.domain.*;
+import com.micon.backend.domain.voice.application.VoiceProfileSavedEvent;
+import com.micon.backend.domain.voice.domain.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,7 +20,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(properties = "ai.recommendation.enabled=true")
+@SpringBootTest(properties = {
+        "ai.recommendation.enabled=true",
+        "ai.recommendation.recovery.initial-delay=1h"
+})
 class RecommendationAfterCommitIntegrationTest {
     @Autowired PlatformTransactionManager manager;
     @Autowired ApplicationEventPublisher events;
