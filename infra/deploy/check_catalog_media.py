@@ -15,6 +15,7 @@ from check_health import NoRedirect
 MAX_JSON_BYTES = 65536
 MAX_MEDIA_BYTES = 1024 * 1024 * 1024
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+SONG_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 class CheckFailure(Exception):
@@ -79,10 +80,17 @@ def validate_storage_url(url, bucket, region, object_key):
     return url
 
 
+def normalized_song_id(song_id):
+    # A rolling deployment can return legacy numeric IDs or V28 string IDs.
+    if type(song_id) is int and song_id > 0:
+        return str(song_id)
+    if isinstance(song_id, str) and SONG_ID_PATTERN.fullmatch(song_id):
+        return song_id
+    raise ValueError("Song ID must be a path-safe catalog identifier")
+
+
 def candidate_endpoint(base_url, song_id):
-    if not isinstance(song_id, int) or isinstance(song_id, bool) or song_id < 1:
-        raise ValueError("Song ID must be a positive integer")
-    return f"{validate_candidate_base(base_url)}/songs/{song_id}/mr?selectedKey=0"
+    return f"{validate_candidate_base(base_url)}/songs/{normalized_song_id(song_id)}/mr?selectedKey=0"
 
 
 def request_candidate(endpoint, timeout):
@@ -155,7 +163,7 @@ def verify_catalog_media(base_url, song_id, bucket, region, allowed_prefix,
     expected_bytes = media.get("fileBytes")
     expected_sha = media.get("sha256")
     if (
-        data.get("songId") != song_id
+        not (type(data.get("songId")) in (int, str) and str(data["songId"]) == normalized_song_id(song_id))
         or data.get("selectedKey") != 0
         or media.get("mimeType") != "audio/ogg"
         or not isinstance(object_key, str)
@@ -187,7 +195,7 @@ def verify_catalog_media(base_url, song_id, bucket, region, allowed_prefix,
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True)
-    parser.add_argument("--song-id", required=True, type=int)
+    parser.add_argument("--song-id", required=True)
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--region", required=True)
     parser.add_argument("--allowed-prefix", required=True)

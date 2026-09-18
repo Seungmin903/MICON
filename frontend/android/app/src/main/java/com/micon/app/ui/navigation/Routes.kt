@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.micon.app.data.requireSongId
 
 /**
  * 화면 경로. Figma 프레임 이름과의 대응은 README "화면 ↔ 패키지" 표 참고.
@@ -44,10 +45,10 @@ object Routes {
     /** 개발용 딥링크 접두 (AndroidManifest 의 micon://app) */
     const val DEEP_LINK = "micon://app"
 
-    fun songMatch(songId: Long) = "match/$songId"
-    fun song(songId: Long, source: String = PRACTICE) = "song/$songId" + if (source == FAVORITES) "?source=$FAVORITES" else ""
-    fun practice(songId: Long, selectedKey: Int = 0) = "practice/$songId" + if (selectedKey != 0) "?selectedKey=$selectedKey" else ""
-    fun singAnalysis(songId: Long) = "report/sing/$songId"
+    fun songMatch(songId: String) = "match/${requireSongId(songId)}"
+    fun song(songId: String, source: String = PRACTICE) = "song/${requireSongId(songId)}" + if (source == FAVORITES) "?source=$FAVORITES" else ""
+    fun practice(songId: String, selectedKey: Int = 0) = "practice/${requireSongId(songId)}" + if (selectedKey != 0) "?selectedKey=$selectedKey" else ""
+    fun singAnalysis(songId: String) = "report/sing/${requireSongId(songId)}"
     fun result(practiceId: Long) = "result/$practiceId"
     fun setlist(setlistId: Long) = "setlist/$setlistId"
 

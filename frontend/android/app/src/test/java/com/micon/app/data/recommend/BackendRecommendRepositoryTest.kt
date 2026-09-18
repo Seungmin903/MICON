@@ -32,20 +32,20 @@ import java.io.File
 /** 백엔드 추천(`RecommendationResponse`)·적합도(`SongFitResponse`) 매핑과 로컬 폴백 규칙을 고정한다. */
 class BackendRecommendRepositoryTest {
     private val catalog = listOf(
-        SongSummary(id = 7, title = "빈잔", artist = "남진", imageUrl = null, durationMs = 200_000),
-        SongSummary(id = 1, title = "너의 번호를 누르고", artist = "#안녕, 영화처럼", imageUrl = null, durationMs = 251_158),
-        SongSummary(id = 3, title = "밤편지", artist = "아이유", imageUrl = null, durationMs = 250_000),
+        SongSummary(id = "7", title = "빈잔", artist = "남진", imageUrl = null, durationMs = 200_000),
+        SongSummary(id = "1", title = "너의 번호를 누르고", artist = "#안녕, 영화처럼", imageUrl = null, durationMs = 251_158),
+        SongSummary(id = "3", title = "밤편지", artist = "아이유", imageUrl = null, durationMs = 250_000),
     )
 
     private class FakeSongs(val items: List<SongSummary>) : SongRepository {
         override suspend fun search(query: String, page: Int, size: Int) = SongPage(items, page, size, items.size.toLong(), 1)
-        override suspend fun detail(songId: Long): SongDetail? = null
-        override suspend fun practiceAssets(songId: Long, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
+        override suspend fun detail(songId: String): SongDetail? = null
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
     }
 
     private class FakeVoice(var latestAnalysis: VoiceAnalysis?) : VoiceAnalysisRepository {
         override suspend fun upload(file: File, mimeType: String, attemptNo: Int, onProgress: (Float) -> Unit): Long = throw UnsupportedOperationException()
-        override suspend fun create(recordingId: Long, songId: Long?, method: String): VoiceAnalysis = throw UnsupportedOperationException()
+        override suspend fun create(recordingId: Long, songId: String?, method: String): VoiceAnalysis = throw UnsupportedOperationException()
         override suspend fun get(analysisId: Long): VoiceAnalysis = throw UnsupportedOperationException()
         override suspend fun latest(): VoiceAnalysis? = latestAnalysis
         override suspend fun report(analysisId: Long): VoiceAnalysisReport = throw UnsupportedOperationException()
@@ -53,7 +53,7 @@ class BackendRecommendRepositoryTest {
 
     /** 로컬 폴백 표식: 섹션 key "local", fit 은 null */
     private object FakeLocal : RecommendRepository {
-        override suspend fun fit(songId: Long): SongFit? = null
+        override suspend fun fit(songId: String): SongFit? = null
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(true, listOf(RecommendShelf("local", "내 음역에 맞는 곡", null, emptyList<RecommendedSong>())))
     }
 
@@ -88,7 +88,7 @@ class BackendRecommendRepositoryTest {
         assertTrue(result.personalized); assertNull(result.note)
         assertEquals(listOf(ShelfKeys.VOICE, ShelfKeys.DISCOVERY), result.shelves.map { it.key })   // challenge 제외, order 순
         val voiceShelf = result.shelves[0]
-        assertEquals(listOf(7L, 1L), voiceShelf.items.map { it.song.id })                             // 카탈로그에 없는 99 는 빠짐
+        assertEquals(listOf("7", "1"), voiceShelf.items.map { it.song.id })                             // 카탈로그에 없는 99 는 빠짐
         val first = voiceShelf.items[0]
         assertEquals("빈잔", first.song.title); assertEquals(1, first.rank)
         assertEquals(-2, first.fit?.recommendedKey)
@@ -138,7 +138,7 @@ class BackendRecommendRepositoryTest {
         val r = repo.shelves()
         assertTrue(r.shelves.isEmpty())
         assertEquals(RecommendShelves.NOTE_LOGIN_REQUIRED, r.note)
-        assertNull(repo.fit(7))
+        assertNull(repo.fit("7"))
         assertEquals(0, server.requestCount)
     }
 
@@ -150,7 +150,7 @@ class BackendRecommendRepositoryTest {
             "recommendedKeyOffset":-3,"recommendationScores":{"overall":81.2,"range":66.67,"timbre":90,"rhythm":null,"algorithmVersion":"fit-v1","timbreAxis":"ECAPA","timbreLabel":"목소리 물성이 가까워요"},
             "reason":"고음 3반음만 내리면 편해요","burdenSections":[{"sectionId":501,"sectionType":"CHORUS","sectionName":"후렴","startMs":60000,"endMs":75000,"difficultyType":"HIGH","difficultyScore":0.8,"description":null}],
             "unavailableReason":null}"""))
-        val fit = checkNotNull(repo.fit(7))
+        val fit = checkNotNull(repo.fit("7"))
         assertEquals("/api/v1/users/me/voice-profile", server.takeRequest().path)                     // 저장 프로필 id 를 먼저 읽는다
         assertEquals("/api/v1/songs/7/fit?analysisId=9&keyOffset=0", server.takeRequest().path)
         assertEquals(-3, fit.recommendedKey)
@@ -169,11 +169,11 @@ class BackendRecommendRepositoryTest {
     @Test fun `fit falls back to local when unavailable or without a saved profile`() = runBlocking {
         server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
         server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"UNAVAILABLE","burdenSections":[],"unavailableReason":"SONG_RANGE_UNAVAILABLE"}"""))
-        assertNull(repo.fit(7))
+        assertNull(repo.fit("7"))
         server.takeRequest(); server.takeRequest()
         server.enqueue(json(404, """{"code":"VOICE_PROFILE_NOT_FOUND","message":"없음","data":null}"""))
         val fresh = BackendRecommendRepository(BackendClient(server.url("/api/v1/").toString(), false, MemoryTokenStore().apply { saveSession(1, "a", "r") }) {}.api, FakeSongs(catalog), FakeLocal, { true })
-        assertNull(fresh.fit(7))
+        assertNull(fresh.fit("7"))
         assertEquals(3, server.requestCount)                                                        // 저장 프로필이 없으면 적합도 API 를 부르지 않는다
     }
 
@@ -191,7 +191,7 @@ class BackendRecommendRepositoryTest {
         for ((song, profile, key) in listOf(Triple(8, 9, 0), Triple(7, 10, 0), Triple(7, 9, -2))) {
             server.enqueue(ok("""{"songId":$song,"analysisId":$profile,"selectedKeyOffset":$key,"evaluationStatus":"AVAILABLE",
                 "originalKeyFit":{"score":0.8},"recommendationScores":{"timbre":0.9},"burdenSections":[]}"""))
-            assertNull(repo.fit(7))
+            assertNull(repo.fit("7"))
         }
     }
 
@@ -199,7 +199,7 @@ class BackendRecommendRepositoryTest {
         server.enqueue(ok("""{"profileId":9,"sessionId":3,"profileVersion":1}"""))
         server.enqueue(ok("""{"songId":7,"analysisId":9,"selectedKeyOffset":0,"evaluationStatus":"AVAILABLE",
             "originalKeyFit":{"score":0.8},"recommendationScores":{"timbre":0.9},"burdenSections":[]}"""))
-        val fit = checkNotNull(repo.fit(7))
+        val fit = checkNotNull(repo.fit("7"))
         assertEquals(0.9f, fit.timbreFit!!, 1e-6f)
         assertNull(fit.timbre)
     }

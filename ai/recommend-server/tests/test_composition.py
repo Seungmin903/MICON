@@ -37,6 +37,10 @@ def _item(track_id: str, ecapa: float, byol: float, *, tj: str | None = "TJ-0000
 
 
 class SongIdAndLanguageTest(unittest.TestCase):
+    def test_uuid_db_id_takes_precedence_over_demo_tj_id(self) -> None:
+        song_id = "e8873464-9cc0-5dbe-b3ac-f561fd55eaa5"
+        self.assertEqual(song_id_of({"song_id": song_id, "tj_id": "TJ-00001"}), song_id)
+
     def test_song_id_uses_last_number_group(self) -> None:
         self.assertEqual(song_id_of({"tj_id": "TJ-00140"}), "tj-00140")
         self.assertEqual(song_id_of({"tj_id": "TJ001-13588"}), "tj-13588")

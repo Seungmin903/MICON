@@ -7,7 +7,7 @@ import com.micon.app.data.backend.dto.KaraokeNote
  * 곡 카탈로그 접근 인터페이스. 화면·ViewModel 은 이 인터페이스만 본다.
  *
  * 구현: [com.micon.app.data.backend.RemoteSongRepository] — 앱 백엔드(Spring, MySQL `micon`) REST.
- * 곡 식별자는 백엔드 `song.song_id`(BIGINT) 하나다. TJ 번호·카탈로그 track_id 는 앱에서 쓰지 않는다(팀 결정 2026-09-10).
+ * 곡 식별자는 백엔드 `song.song_id`(VARCHAR, UUID 등 문자열) 하나다. TJ 번호·카탈로그 track_id 는 앱에서 쓰지 않는다(팀 결정 2026-09-10).
  * 엔드포인트: `GET /songs`, `GET /songs/{id}`, `GET /songs/{id}/practice-assets` (docs/openapi.yaml, backend `SongController`·`PracticeAssetController`).
  */
 interface SongRepository {
@@ -15,16 +15,16 @@ interface SongRepository {
     suspend fun search(query: String = "", page: Int = 0, size: Int = 50): SongPage
 
     /** 곡 상세. 없는 곡(404)은 null. */
-    suspend fun detail(songId: Long): SongDetail?
+    suspend fun detail(songId: String): SongDetail?
 
     /**
      * 연습에 필요한 데이터 한 묶음(반주·목표 음정·가사·구간).
      * 준비되지 않은 곡은 [PracticeAssetsNotReadyException](409), 미리 렌더되지 않은 키는 [UnsupportedPracticeKeyException](422).
      */
-    suspend fun practiceAssets(songId: Long, selectedKey: Int = 0): PracticeAssets
+    suspend fun practiceAssets(songId: String, selectedKey: Int = 0): PracticeAssets
 
     /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
-    suspend fun karaokeNotes(songId: Long): List<KaraokeNote>? =
+    suspend fun karaokeNotes(songId: String): List<KaraokeNote>? =
         try { practiceAssets(songId).targetNotes } catch (_: PracticeAssetsNotReadyException) { null }
 }
 
@@ -40,7 +40,7 @@ data class SongPage(
 /** 목록 항목 (백엔드 `SongResponse.Summary`). 상세에서만 오는 값은 nullable. */
 data class SongSummary(
     /** 백엔드 song.song_id */
-    val id: Long,
+    val id: String,
     val title: String,
     /** 참여 가수 이름을 `, ` 로 이은 표시용 문자열 */
     val artist: String,
@@ -86,7 +86,7 @@ data class SongDetail(
 
 /** `GET /songs/{id}/practice-assets` 응답 (백엔드 `PracticeAssetResponse.Detail`) */
 data class PracticeAssets(
-    val songId: Long,
+    val songId: String,
     val title: String,
     val selectedKey: Int,
     val instrumental: InstrumentalMedia,

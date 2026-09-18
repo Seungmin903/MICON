@@ -8,7 +8,7 @@ import org.junit.Test
 
 class VoiceProfileMapperTest {
     private fun analysis(completedAt: String? = null) =
-        VoiceAnalysis(9, 57, 42, "SONG", VoiceAnalysisStatus.COMPLETED, "VALID", null, null, "2026-09-13T21:00:00", completedAt)
+        VoiceAnalysis(9, 57, "42", "SONG", VoiceAnalysisStatus.COMPLETED, "VALID", null, null, "2026-09-13T21:00:00", completedAt)
 
     private fun range(low: Double?, high: Double?, stableLow: Double? = null, stableHigh: Double? = null, measuredAt: String? = null) =
         VocalRange(low, high, stableLow, stableHigh, null, null, null, null, measuredAt)

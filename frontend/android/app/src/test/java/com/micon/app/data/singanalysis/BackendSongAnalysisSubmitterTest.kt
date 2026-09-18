@@ -24,7 +24,7 @@ class BackendSongAnalysisSubmitterTest {
         var createError: Exception? = null
         var nextRecordingId = 57L
         var nextAnalysisId = 9L
-        var lastCreate: Triple<Long, Long?, String>? = null
+        var lastCreate: Triple<Long, String?, String>? = null
 
         override suspend fun upload(file: File, mimeType: String, attemptNo: Int, onProgress: (Float) -> Unit): Long {
             uploads++
@@ -33,7 +33,7 @@ class BackendSongAnalysisSubmitterTest {
             return nextRecordingId
         }
 
-        override suspend fun create(recordingId: Long, songId: Long?, method: String): VoiceAnalysis {
+        override suspend fun create(recordingId: Long, songId: String?, method: String): VoiceAnalysis {
             creates++
             lastCreate = Triple(recordingId, songId, method)
             createError?.let { throw it }
@@ -45,7 +45,7 @@ class BackendSongAnalysisSubmitterTest {
         override suspend fun report(analysisId: Long) = VoiceAnalysisReport(analysis(analysisId, VoiceAnalysisStatus.COMPLETED), null, null)
 
         private fun analysis(id: Long, status: VoiceAnalysisStatus) =
-            VoiceAnalysis(id, nextRecordingId, 42, "SONG", status, null, null, null, "2026-09-13T21:00:00", null)
+            VoiceAnalysis(id, nextRecordingId, "42", "SONG", status, null, null, null, "2026-09-13T21:00:00", null)
     }
 
     private lateinit var wav: File
@@ -62,7 +62,7 @@ class BackendSongAnalysisSubmitterTest {
 
     private fun recording(serverRecordingId: Long? = null, serverAnalysisId: Long? = null) = SavedRecording(
         SingRecordingMeta(
-            id = "sing-1-42", songId = 42, title = "밤편지", artist = "아이유", scope = SingScope.FULL.name, planSource = PlanSource.SONG_START.name,
+            id = "sing-1-42", songId = "42", title = "밤편지", artist = "아이유", scope = SingScope.FULL.name, planSource = PlanSource.SONG_START.name,
             plannedStartSec = 0.0, plannedEndSec = 200.0, sungStartSec = 0.0, sungEndSec = 3.0, endedEarly = true, recordedAt = 1L,
             sampleRate = 16_000, durationSec = 3.0, lyricTiming = "NONE", wavFileName = wav.name,
             serverRecordingId = serverRecordingId, serverAnalysisId = serverAnalysisId,
@@ -85,7 +85,7 @@ class BackendSongAnalysisSubmitterTest {
         val accepted = result as SubmitResult.Accepted
         assertEquals(9L, accepted.analysisId)
         assertEquals(1, voice.uploads); assertEquals(1, voice.creates)
-        assertEquals(Triple(57L, 42L, "SONG"), voice.lastCreate)
+        assertEquals(Triple(57L, "42", "SONG"), voice.lastCreate)
         assertEquals(listOf(57L, 57L), persisted.map { it.serverRecordingId })
         assertEquals(listOf(null, 9L), persisted.map { it.serverAnalysisId })
         assertTrue(messages.any { it.contains("100%") })

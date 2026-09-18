@@ -29,7 +29,7 @@ class VoiceOnboardingScreenTest {
         48, 72, emptyList(), "completed", "measured", "measured", "available", verification = "device_measured")
 
     private fun audio() = SavedRecording(SingRecordingMeta(
-        id = "recording", songId = 1, title = "Song", artist = "Artist", scope = "FULL",
+        id = "recording", songId = "1", title = "Song", artist = "Artist", scope = "FULL",
         planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 100.0,
         sungStartSec = 0.0, sungEndSec = 35.0, endedEarly = true, recordedAt = 0,
         sampleRate = 16000, durationSec = 35.0, lyricTiming = "SYNCED", wavFileName = "recording.wav"),

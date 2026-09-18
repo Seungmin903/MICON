@@ -12,7 +12,7 @@ interface RecommendRepository {
      * 곡 하나의 적합도. 추천 목록에 없는 곡(검색·연습 탭·찜에서 진입)도 여기로 조회한다.
      * `null` = 평가 불가 — 곡 음역 정보가 없거나(ERR-004) 사용자 음성 프로필이 없을 때.
      */
-    suspend fun fit(songId: Long): SongFit?
+    suspend fun fit(songId: String): SongFit?
 
     /**
      * 추천 섹션 목록(shelves-v1) — 추천 탭이 좌우로 넘기는 페이지 하나가 섹션 하나. 순서·곡은 구현(서버)이 정한 그대로(REC-001).

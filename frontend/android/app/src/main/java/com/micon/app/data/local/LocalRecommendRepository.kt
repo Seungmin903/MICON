@@ -27,9 +27,9 @@ import kotlin.random.Random
 class LocalRecommendRepository(private val songs: SongRepository) : RecommendRepository {
     private val mutex = Mutex()
     private var cachedFor: UserStore.VoiceProfile? = null
-    private val cache = HashMap<Long, SongFit?>()
+    private val cache = HashMap<String, SongFit?>()
 
-    override suspend fun fit(songId: Long): SongFit? {
+    override suspend fun fit(songId: String): SongFit? {
         val profile = UserStore.profile.value ?: return null      // 프로필 없음 → 평가 불가
         mutex.withLock {
             if (cachedFor != profile) { cache.clear(); cachedFor = profile }
@@ -40,7 +40,7 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
         return computed
     }
 
-    private suspend fun compute(songId: Long, profile: UserStore.VoiceProfile): SongFit? {
+    private suspend fun compute(songId: String, profile: UserStore.VoiceProfile): SongFit? {
         val detail = songs.detail(songId) ?: return null
         val a = detail.analysis ?: return null                       // ERR-004: 곡 음역 정보 없음 → 평가 불가
         val coreLow = a.coreLowMidi ?: a.lowestMidi ?: return null
@@ -73,7 +73,7 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
         val profile = UserStore.profile.value ?: return RecommendShelves.empty(RecommendShelves.NOTE_ANALYSIS_REQUIRED)
         val pool = songs.search("", size = POOL_SIZE).items
         val fits = pool.mapNotNull { s -> fit(s.id)?.let { s to it } }
-        val used = HashSet<Long>()
+        val used = HashSet<String>()
         // 섹션끼리 곡을 나눠 갖는다. 개발용 카탈로그는 분석된 곡이 50곡뿐이라, 첫 섹션이 limit 만큼 다 가져가면 뒷 섹션이 빈다.
         val quota = minOf(limit, (fits.size / SHELF_COUNT).coerceAtLeast(MIN_PER_SHELF))
         fun shelf(key: String, title: String, metric: String?, ranked: List<Pair<SongSummary, SongFit>>): RecommendShelf {

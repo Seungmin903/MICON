@@ -110,7 +110,7 @@ import kotlin.math.roundToInt
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
-fun PracticeScreen(songId: Long, onBack: () -> Unit, onOpenResult: (Long) -> Unit, initialKey: Int = 0) {
+fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> Unit, initialKey: Int = 0) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(

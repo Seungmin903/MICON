@@ -92,6 +92,23 @@ class CatalogMediaTests(unittest.TestCase):
         self.assertNotIn("amazonaws", messages[0])
         self.assertNotIn(OBJECT_SHA, messages[0])
 
+    def test_uuid_and_legacy_string_ids_pass_the_same_gate(self):
+        for song_id in ("e8873464-9cc0-5dbe-b3ac-f561fd55eaa5", "1"):
+            with self.subTest(song_id=song_id):
+                payload = request_candidate(candidate_endpoint(self.base_url, 1), 1)
+                payload["data"]["songId"] = song_id
+                self.assertIn(f"/songs/{song_id}/mr", candidate_endpoint(self.base_url, song_id))
+                self.assertTrue(verify_catalog_media(
+                    self.base_url, song_id, "bucket", "ap-northeast-2", "catalog/team/batch/",
+                    candidate_request=lambda *_: payload,
+                    downloader=lambda *_: (len(OBJECT), OBJECT_SHA), report=lambda _: None,
+                ))
+
+    def test_song_id_rejects_path_and_query_injection(self):
+        for song_id in (True, False, 0, -1, "", "../other", "one/two", "one?key=2", "one#fragment", "x" * 65):
+            with self.subTest(song_id=song_id), self.assertRaises(ValueError):
+                candidate_endpoint(self.base_url, song_id)
+
     def test_hash_mismatch_fails_safely(self):
         with self.assertRaisesRegex(CheckFailure, "storage_sha256_mismatch"):
             verify_catalog_media(

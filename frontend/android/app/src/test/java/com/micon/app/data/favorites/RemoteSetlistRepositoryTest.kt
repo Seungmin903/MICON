@@ -43,7 +43,7 @@ class RemoteSetlistRepositoryTest {
         server.enqueue(ok(detail))
         val d = repo.detail(5)
         assertEquals("/api/v1/setlist/5", server.takeRequest().path)
-        assertEquals(listOf(1L, 7L), d.songs.map { it.songId })           // position 0, 1 순
+        assertEquals(listOf("1", "7"), d.songs.map { it.songId })           // position 0, 1 순
         assertEquals("#안녕, 영화처럼", d.songs[0].artist)
     }
 
@@ -68,12 +68,12 @@ class RemoteSetlistRepositoryTest {
         assertEquals("DELETE", request.method); assertEquals("/api/v1/setlist/5", request.path)
 
         server.enqueue(ok(detail))
-        repo.addSong(5, 7)
+        repo.addSong(5, "7")
         request = server.takeRequest()
         assertEquals("POST", request.method); assertEquals("/api/v1/setlist/5/7", request.path)
 
         server.enqueue(ok(detail))
-        repo.removeSong(5, 7)
+        repo.removeSong(5, "7")
         request = server.takeRequest()
         assertEquals("DELETE", request.method); assertEquals("/api/v1/setlist/5/7", request.path)
     }
@@ -81,7 +81,7 @@ class RemoteSetlistRepositoryTest {
     @Test fun `adding an unfavorited song surfaces SONG_NOT_FAVORITED`() = runBlocking {
         server.enqueue(json(400, """{"code":"SONG_NOT_FAVORITED","message":"찜한 곡만 세트리스트에 추가할 수 있습니다.","data":null}"""))
         try {
-            repo.addSong(5, 9)
+            repo.addSong(5, "9")
             fail("expected BackendRequestException")
         } catch (e: BackendRequestException) {
             assertEquals(400, e.status); assertEquals("SONG_NOT_FAVORITED", e.code)

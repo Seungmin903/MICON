@@ -79,8 +79,8 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler { leave() }
                 SingAnalysisSongPickerScreen(onBack = ::leave, onSongClick = { nav.navigate("sing/$it") })
             }
-            composable("sing/{songId}", arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
-                val songId = entry.arguments?.getLong("songId") ?: return@composable
+            composable("sing/{songId}", arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
+                val songId = entry.arguments?.getString("songId") ?: return@composable
                 SingAnalysisScreen(songId, onBack = { nav.popBackStack() }, onBackToReport = ::leave,
                     recordings = store.recordings, onboardingDraftId = state.draftId, onRecordingReady = {
                         vm.recordingReady(it)

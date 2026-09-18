@@ -33,8 +33,8 @@ import kotlin.math.absoluteValue
 
 /** Retains the LP, tonearm, neighbouring records and curved black sheet of the original screen. */
 @Composable
-internal fun SongDetailTurntable(state: SongDetailState, songId: Long, songIds: List<Long>,
-    artwork: Map<Long, String?>, onSongSelected: (Long) -> Unit, onToggle: () -> Unit) {
+internal fun SongDetailTurntable(state: SongDetailState, songId: String, songIds: List<String>,
+    artwork: Map<String, String?>, onSongSelected: (String) -> Unit, onToggle: () -> Unit) {
     val ids = songIds.takeIf { songId in it } ?: listOf(songId)
     val pager = rememberPagerState(initialPage = ids.indexOf(songId).coerceAtLeast(0)) { ids.size }
     val select by rememberUpdatedState(onSongSelected)

@@ -15,7 +15,7 @@ data class DeviceRangeResultRequest(
 )
 data class DeviceRangeNoteDto(val midi: Int, val status: String)
 data class VoiceTimbreMetaRequest(
-    val requestId: String, val method: String = "SONG", val songId: Long,
+    val requestId: String, val method: String = "SONG", val songId: String,
     val guideVersion: String, val recordedAt: String, val durationMs: Int, val sampleRate: Int,
     val startPositionType: String, val selectedStartMs: Int, val actualStartMs: Int,
     val instrumentalVersion: String, val lyricsVersion: String, val segments: List<VoiceSegmentDto>,

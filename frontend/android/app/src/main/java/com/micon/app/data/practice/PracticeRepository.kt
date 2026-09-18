@@ -19,7 +19,7 @@ import com.micon.app.data.backend.unwrapData
 /** 연습 세션 한 건(`PracticeResponse.Detail`). [status] 는 READY·RECORDING·IN_PROGRESS·PAUSED·COMPLETED·ABORTED·FAILED. */
 data class PracticeRecord(
     val id: Long,
-    val songId: Long,
+    val songId: String,
     val songTitle: String?,
     val sectionId: Long?,
     val recordingId: Long?,
@@ -39,7 +39,7 @@ data class PracticeRecord(
 /** 평가 탭 목록 항목(`PracticeHistoryResponse.Summary`). */
 data class PracticeSummary(
     val id: Long,
-    val songId: Long,
+    val songId: String,
     val songTitle: String?,
     val imageUrl: String?,
     val selectedKey: Int,
@@ -90,7 +90,7 @@ data class RetrySection(val sectionId: Long, val selectedKey: Int, val score: Do
 /** 저장된 연습 결과(`PracticeResultResponse.Report`). */
 data class PracticeReport(
     val practiceId: Long,
-    val songId: Long,
+    val songId: String,
     val songTitle: String?,
     val selectedKey: Int,
     val practiceScope: String?,
@@ -129,7 +129,7 @@ data class PracticeReport(
  * [savePerformance] 는 COMPLETED 세션에만 된다. 모두 로그인 필요(비회원 401).
  */
 interface PracticeRepository {
-    suspend fun create(songId: Long, selectedKey: Int, practiceScope: String = "FULL_SONG"): PracticeRecord
+    suspend fun create(songId: String, selectedKey: Int, practiceScope: String = "FULL_SONG"): PracticeRecord
     suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord
     suspend fun cancel(practiceId: Long): PracticeRecord
     suspend fun savePerformance(practiceId: Long, result: PracticeResultInput): PracticeReport
@@ -142,7 +142,7 @@ interface PracticeRepository {
 }
 
 class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository {
-    override suspend fun create(songId: Long, selectedKey: Int, practiceScope: String): PracticeRecord =
+    override suspend fun create(songId: String, selectedKey: Int, practiceScope: String): PracticeRecord =
         api.createPractice(PracticeCreateRequest(songId = songId, selectedKey = selectedKey, practiceScope = practiceScope)).unwrapData().toModel()
 
     override suspend fun complete(practiceId: Long, durationMs: Int): PracticeRecord =

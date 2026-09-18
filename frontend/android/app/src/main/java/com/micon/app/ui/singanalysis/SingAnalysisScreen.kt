@@ -118,7 +118,7 @@ import java.util.Locale
  * - DONE: 저장 완료 + 녹음 정보 + 다시 듣기 · 분석 요청 · 다시 부르기 · 리포트로 돌아가기.
  */
 @Composable
-fun SingAnalysisScreen(songId: Long, onBack: () -> Unit, onBackToReport: () -> Unit,
+fun SingAnalysisScreen(songId: String, onBack: () -> Unit, onBackToReport: () -> Unit,
     recordings: com.micon.app.data.singanalysis.SingAnalysisRecordingStore? = null,
     onboardingDraftId: String? = null, onRecordingReady: ((SavedRecording) -> Unit)? = null,
 ) {

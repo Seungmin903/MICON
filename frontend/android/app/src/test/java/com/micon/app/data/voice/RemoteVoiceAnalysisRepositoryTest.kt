@@ -59,22 +59,22 @@ class RemoteVoiceAnalysisRepositoryTest {
     @Test fun `create sends SONG request and parses status`() = runBlocking {
         server.enqueue(ok("""{"analysisId":9,"recordingId":57,"songId":42,"method":"SONG","status":"ANALYZING","qualityStatus":null,
             "failureCode":null,"failureReason":null,"analysisVersion":"v1","startedAt":"2026-09-13T21:00:00","completedAt":null,"createdAt":"2026-09-13T20:59:58"}""", 201))
-        val analysis = repo.create(57, 42)
+        val analysis = repo.create(57, "42")
         val request = server.takeRequest()
         assertEquals("/api/v1/voice-analyses", request.path)
         val sent = request.body.readUtf8()
         assertTrue(sent.contains("\"recordingId\":57"))
         assertTrue(sent.contains("\"method\":\"SONG\""))
-        assertTrue(sent.contains("\"songId\":42"))
+        assertTrue(sent.contains("\"songId\":\"42\""))
         assertEquals(9L, analysis.id)
         assertEquals(VoiceAnalysisStatus.ANALYZING, analysis.status)
-        assertEquals(42L, analysis.songId)
+        assertEquals("42", analysis.songId)
     }
 
     @Test fun `create failure surfaces backend error code`() = runBlocking {
         server.enqueue(json(503, """{"code":"VOICE_ANALYSIS_DISPATCH_FAILED","message":"음성 분석 작업을 요청하지 못했습니다.","data":null}"""))
         try {
-            repo.create(57, 42)
+            repo.create(57, "42")
             fail("expected VoiceApiException")
         } catch (e: VoiceApiException) {
             assertEquals(503, e.status)

@@ -16,7 +16,7 @@ internal fun onboardingRecording(wav: File, draftId: String = "local-draft", sam
     }
     RandomAccessFile(wav, "rw").use { it.write(header.array()); it.setLength(44L + pcmBytes) }
     return SavedRecording(SingRecordingMeta(
-        id = "recording", songId = 1, title = "Song", artist = "Artist", scope = "FULL",
+        id = "recording", songId = "1", title = "Song", artist = "Artist", scope = "FULL",
         planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 200.0,
         sungStartSec = 0.0, sungEndSec = seconds, endedEarly = true, recordedAt = 0,
         sampleRate = sampleRate, durationSec = seconds, takes = listOf(SingTake(0.0, seconds, 0.0, seconds)),

@@ -76,7 +76,7 @@ class ReportFitViewModel(
     private val favorites: FavoriteRepository,
     private val recommend: RecommendRepository,
     private val loggedIn: Boolean,
-    private val savedProfileFit: (suspend (Long) -> SongFit?)? = null,
+    private val savedProfileFit: (suspend (String) -> SongFit?)? = null,
 ) : ViewModel() {
     data class State(
         val selected: SongSummary? = null,

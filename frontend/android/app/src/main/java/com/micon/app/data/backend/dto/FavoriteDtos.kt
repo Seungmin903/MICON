@@ -31,7 +31,7 @@ data class SetlistDetailDto(
 
 /** SetlistResponse.SongItem */
 data class SetlistSongItemDto(
-    val songId: Long = 0,
+    val songId: String = "",
     val title: String = "",
     val artists: List<String> = emptyList(),
     val imageUrl: String? = null,
