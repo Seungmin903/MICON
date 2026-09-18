@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
  * 설정 화면의 서버 상태. "원본 녹음 저장" 토글은 `GET/PATCH /users/me/settings`(낙관적 반영, 실패 시 되돌림),
  * "음성데이터 삭제" 는 `POST /users/me/voice-data-deletions` 뒤 로컬 음성 프로필·마지막 녹음도 비운다.
  */
-class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() {
+class SettingsViewModel(private val settings: SettingsRepository,
+    private val clearLocalVoiceData: suspend () -> Unit = { UserStore.clearVoiceData() }) : ViewModel() {
     data class State(
         /** 서버 값. 아직 못 읽었으면 null(토글 비활성) */
         val saveOriginalRecording: Boolean? = null,
@@ -60,7 +61,7 @@ class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() 
             try {
                 val result = settings.deleteVoiceData()
                 // 서버 기록이 사라졌으므로 리포트 탭이 보여 주던 로컬 프로필도 비운다.
-                UserStore.setProfile(null)
+                clearLocalVoiceData()
                 val message = if (result.isCompleted) {
                     "음성 데이터를 삭제했어요 (녹음 ${result.deletedRecordingCount}건 · 분석 ${result.deletedAnalysisCount}건)."
                 } else {

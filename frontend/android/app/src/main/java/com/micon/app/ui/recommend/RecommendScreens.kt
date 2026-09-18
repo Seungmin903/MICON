@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +67,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -119,6 +123,11 @@ import com.micon.app.ui.theme.RecommendBackground
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -178,9 +187,22 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
-    init { load() }
+    private var loadJob: Job? = null
+    private var searchJob: Job? = null
+    private var generation = 0L
+    private var visible = false
+
+    init {
+        viewModelScope.launch {
+            UserStore.voiceDataRevision.collect { load(clear = true) }
+        }
+    }
+
+    fun onVisible() { visible = true; load(clear = true) }
+    fun onHidden() { visible = false; generation++; loadJob?.cancel(); searchJob?.cancel() }
 
     fun setQuery(q: String) {
+        searchJob?.cancel()
         _state.value = _state.value.copy(query = q, searchItems = emptyList())
         if (q.isNotBlank()) search(q)
     }
@@ -199,32 +221,55 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
 
     /** 서버 추천이 비었을 때 사용자가 눌러 다시 만든다. 자동으로는 부르지 않는다. */
     fun retry() {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
-            runCatching { recommend.regenerate() }
-            load()
-        }
+        load(clear = true, regenerate = true)
     }
 
     /** 추천 섹션 불러오기. 상태: 로딩 → 성공 | 결과 없음 | 실패 */
-    fun load() {
-        viewModelScope.launch {
+    fun load(clear: Boolean = false, regenerate: Boolean = false) {
+        val request = ++generation
+        val revision = UserStore.voiceDataRevision.value
+        loadJob?.cancel()
+        if (clear) {
+            searchJob?.cancel()
+            _state.value = _state.value.copy(shelves = emptyList(), searchItems = emptyList(), personalized = false, note = null)
+        }
+        if (!visible) return
+        loadJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null, userName = UserStore.nickname)
-            runCatching { recommend.shelves(limit = 30, reshuffle = reshuffle) }   // 필터를 걸어도 화면을 다시 채울 만큼 넉넉히
-                .onSuccess { r -> _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note, loading = false) }
-                .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString()) }
+            try {
+                if (regenerate) recommend.regenerate()
+                // Only poll while this screen is visible; the next visit can resume polling.
+                repeat(60) {
+                    val r = recommend.shelves(limit = 30, reshuffle = reshuffle)
+                    currentCoroutineContext().ensureActive()
+                    if (request != generation || revision != UserStore.voiceDataRevision.value) return@launch
+                    _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note, loading = false)
+                    if (!r.generating) return@launch
+                    delay(2_000)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (request == generation && revision == UserStore.voiceDataRevision.value)
+                    _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+            }
         }
     }
 
     private fun search(q: String) {
-        viewModelScope.launch {
+        val request = generation
+        searchJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            runCatching { songs.search(q, size = 10).items }
-                .onSuccess { found ->
+            try {
+                    val found = songs.search(q, size = 10).items
+                    currentCoroutineContext().ensureActive()
+                    if (request != generation || _state.value.query != q) return@launch
                     val items = found.mapIndexed { i, song -> RecommendedSong(i + 1, song, fit = null, reasons = listOf("검색 결과")) }
                     _state.value = _state.value.copy(searchItems = items, loading = false)
-                }
-                .onFailure { e -> _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString()) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (request == generation && _state.value.query == q)
+                    _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+            }
         }
     }
 
@@ -269,6 +314,19 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit, onAna
     val container = rememberAppContainer()
     val vm: RecommendViewModel = viewModel(factory = viewModelFactory { initializer { RecommendViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(vm, lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> vm.onVisible()
+                Lifecycle.Event.ON_PAUSE -> vm.onHidden()
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) vm.onVisible()
+        onDispose { lifecycle.removeObserver(observer); vm.onHidden() }
+    }
 
     // 온보딩 진입(리포트 탭 VoiceReportScreen 과 같은 배선). 추천 탭은 로그인 사용자만 오므로 owner 가 null 이면 진입하지 않는다.
     val context = LocalContext.current
@@ -379,7 +437,7 @@ fun RecommendScreen(onSongClick: (String) -> Unit, onSettings: () -> Unit, onAna
                 }
             state.shelves.isEmpty() -> {
                 val empty = state.note?.startsWith(RecommendShelves.NOTE_EMPTY) == true
-                EmptyRecommend(searching = false, onAction = if (empty) vm::retry else vm::load,
+                EmptyRecommend(searching = false, onAction = { if (empty) vm.retry() else vm.load() },
                     actionLabel = if (empty) "추천 다시 만들기" else "다시 불러오기",
                     text = state.note ?: "조건에 맞는 추천곡이 없어요", modifier = Modifier.weight(1f))
             }

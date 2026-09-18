@@ -84,6 +84,8 @@ public class SongFitQueryRepository {
 			JOIN recommendation_song rs ON rs.recommendation_id = r.recommendation_id
 			WHERE r.user_id = :userId
 			  AND r.profile_id = :analysisId
+			  AND r.profile_version = uvp.profile_version
+			  AND r.source_session_id = uvp.session_id
 			  AND uvp.user_id = :userId
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId

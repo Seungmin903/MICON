@@ -51,7 +51,8 @@ class BackendRecommendRepository(
     private var profileAt = 0L
     private var profileSeen: Long? = null   // UserStore.profile.measuredAt. 재측정으로 바뀌면 캐시를 버린다
 
-    private class ServerState(val recommendation: RecommendationDto?, val note: String?)
+    private class ServerState(val recommendation: RecommendationDto?, val note: String?,
+        val generating: Boolean = false, val profileMissing: Boolean = false)
 
     override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
         if (!isLoggedIn()) return RecommendShelves.empty(RecommendShelves.NOTE_LOGIN_REQUIRED)
@@ -65,11 +66,13 @@ class BackendRecommendRepository(
             return fallback(limit, reshuffle, e.message)
         }
         val rec = server.recommendation
+        if (server.profileMissing) return RecommendShelves.empty(RecommendShelves.NOTE_ANALYSIS_REQUIRED)
         if (rec != null && rec.status == "COMPLETED") {
             val mapped = mapShelves(rec, limit, reshuffle)
             if (mapped.isNotEmpty()) return RecommendShelves(personalized = true, shelves = mapped)
         }
-        return fallback(limit, reshuffle, server.note ?: noteFor(rec))
+        return fallback(limit, reshuffle, server.note ?: noteFor(rec)).copy(
+            generating = server.generating || rec?.status == "GENERATING")
     }
 
     /**
@@ -97,15 +100,24 @@ class BackendRecommendRepository(
 
     /** 최근 추천을 읽고, 없으면 생성을 요청한다. 생성 요청의 거절 사유는 안내 문구로 바꾼다. */
     private suspend fun fetchOrCreate(): ServerState {
+        val profile = try {
+            api.latestVoiceProfile().unwrapData()
+        } catch (e: BackendRequestException) {
+            if (e.status == 404) return ServerState(null, RecommendShelves.NOTE_ANALYSIS_REQUIRED, profileMissing = true)
+            throw e
+        }
         val latest = try {
             api.latestRecommendation().unwrapData()
         } catch (e: BackendRequestException) {
             if (e.status == 404) null else throw e
         }
-        if (latest != null) return ServerState(latest, null)
+        if (latest != null && latest.profileId == profile.profileId &&
+            latest.sourceSessionId == profile.sessionId && latest.profileVersion == profile.profileVersion) {
+            return ServerState(latest, null)
+        }
         return try {
             api.createRecommendation().unwrapData()
-            ServerState(null, NOTE_GENERATING)
+            ServerState(null, NOTE_GENERATING, generating = true)
         } catch (e: BackendRequestException) {
             ServerState(
                 null,
@@ -115,6 +127,7 @@ class BackendRecommendRepository(
                     "RECOMMENDATION_DISPATCH_FAILED" -> "추천 서버가 아직 준비되지 않았어요."
                     else -> e.message
                 },
+                generating = e.code == "RECOMMENDATION_ALREADY_GENERATING",
             )
         }
     }

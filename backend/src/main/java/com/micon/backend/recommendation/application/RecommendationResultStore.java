@@ -54,6 +54,9 @@ public class RecommendationResultStore {
         if (recommendation.getStatus() != RecommendationStatus.GENERATING) {
             return Outcome.ALREADY_TERMINAL;
         }
+        if (!recommendation.isForCurrentProfile()) {
+            return fail(recommendation, "PROFILE_SUPERSEDED", "A newer voice profile replaced this recommendation input");
+        }
         try {
             validateJob(expectedJobId, job);
             return switch (job.status()) {

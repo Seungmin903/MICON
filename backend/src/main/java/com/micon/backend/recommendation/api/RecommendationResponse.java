@@ -20,7 +20,10 @@ public record RecommendationResponse(
         LocalDateTime generatedAt,
         LocalDateTime completedAt,
         LocalDateTime expiresAt,
-        List<Shelf> shelves
+        List<Shelf> shelves,
+        Long profileId,
+        Long sourceSessionId,
+        Long profileVersion
 ) {
     public record Shelf(String key, String title, String metric, int order, List<Song> items) {}
 

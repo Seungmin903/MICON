@@ -34,6 +34,14 @@ public class Recommendation {
     @JoinColumn(name = "profile_id", nullable = false)
     private UserVoiceProfile voiceProfile;
 
+    // Immutable input identity: the profile row itself is replaced on remeasurement.
+    // NULL marks pre-migration results whose source identity cannot be established.
+    @Column(name = "source_session_id")
+    private Long sourceSessionId;
+
+    @Column(name = "profile_version")
+    private Long profileVersion;
+
     @Column(name = "job_id", unique = true, length = 255)
     private String jobId;
 
@@ -84,6 +92,8 @@ public class Recommendation {
         }
         this.user = user;
         this.voiceProfile = voiceProfile;
+        this.sourceSessionId = voiceProfile.getSession().getId();
+        this.profileVersion = voiceProfile.getProfileVersion();
         this.mode = mode == null ? RecommendationMode.OVERALL : mode;
         this.status = RecommendationStatus.GENERATING;
         this.progress = 0;
@@ -93,6 +103,13 @@ public class Recommendation {
     public Long getId() { return id; }
     public User getUser() { return user; }
     public UserVoiceProfile getVoiceProfile() { return voiceProfile; }
+    public Long getSourceSessionId() { return sourceSessionId; }
+    public Long getProfileVersion() { return profileVersion; }
+    public boolean isForCurrentProfile() {
+        return profileVersion != null && sourceSessionId != null
+                && profileVersion == voiceProfile.getProfileVersion()
+                && Objects.equals(sourceSessionId, voiceProfile.getSession().getId());
+    }
     public String getJobId() { return jobId; }
     public RecommendationMode getMode() { return mode; }
     public RecommendationStatus getStatus() { return status; }

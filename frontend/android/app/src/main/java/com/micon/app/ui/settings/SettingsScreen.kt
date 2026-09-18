@@ -76,7 +76,16 @@ import kotlinx.coroutines.Dispatchers
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
     val context = LocalContext.current
-    val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer { SettingsViewModel(context.appContainer.settings) } })
+    val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer {
+        val owner = com.micon.app.core.auth.TokenManager.getUserId()
+        SettingsViewModel(context.appContainer.settings) {
+            // Invalidate in-flight restores before touching this account's files.
+            if (com.micon.app.core.auth.TokenManager.getUserId() == owner) com.micon.app.data.local.UserStore.clearVoiceData()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                if (owner > 0) com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner).clearVoiceData()
+            }
+        }
+    } })
     val settingsState by settingsVm.state.collectAsStateWithLifecycle()
     var showDeleteVoice by remember { mutableStateOf(false) }
     LaunchedEffect(settingsState.toast) { settingsState.toast?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); settingsVm.consumeToast() } }
