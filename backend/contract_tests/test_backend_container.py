@@ -84,12 +84,18 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("AI_RECOMMENDATION_ENABLED=false", self.runtime_env)
         self.assertIn("AI_RECOMMENDATION_POLLING_ENABLED=false", self.runtime_env)
         self.assertIn("AI_RECOMMENDATION_BASE_URL=http://micon-recommendation:8788", self.runtime_env)
+        self.assertIn("AI_RECOMMENDATION_RECOVERY_INTERVAL=1m", self.runtime_env)
+        self.assertIn("AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY=10s", self.runtime_env)
+        self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INTERVAL 1m", self.host_prep)
+        self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s", self.host_prep)
         self.assertIn("ai.voice-analysis-enabled:false", self.voice_service)
         self.assertIn("ai.recommendation.enabled:false", self.recommendation_service)
         self.assertIn("if (!enabled)", self.voice_service)
         self.assertIn("if (!enabled)", self.recommendation_service)
         self.assertIn("${AI_SONG_FIT_ENABLED:false}", self.application_properties)
         self.assertIn("${AI_RECOMMENDATION_POLLING_ENABLED:false}", self.application_properties)
+        self.assertIn("${AI_RECOMMENDATION_RECOVERY_INTERVAL:1m}", self.application_properties)
+        self.assertIn("${AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY:10s}", self.application_properties)
         self.assertIn("${ai.song-fit-enabled:false}", self.song_fit_service)
 
     def test_every_8788_gateway_uses_the_recommendation_base_url(self):

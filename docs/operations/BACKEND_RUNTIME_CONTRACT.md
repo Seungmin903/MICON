@@ -53,6 +53,8 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_RECOMMENDATION_POLLING_ENABLED | false | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
 | AI_RECOMMENDATION_POLL_INTERVAL | 1500ms | 추천 작업별 상태 조회가 끝난 뒤 다음 폴링까지 기다리는 양의 Spring Duration |
 | AI_RECOMMENDATION_POLL_INITIAL_DELAY | 5s | 애플리케이션 시작 후 첫 추천 폴링까지 기다리는 음수가 아닌 Spring Duration |
+| AI_RECOMMENDATION_RECOVERY_INTERVAL | 1m | 추천 콜백 유실 복구 작업의 실행 간격인 양의 Spring Duration |
+| AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY | 10s | 애플리케이션 시작 후 첫 추천 복구 작업까지 기다리는 음수가 아닌 Spring Duration |
 | VOICE_ANALYSIS_REQUEST_MAX_SIZE | 250MB | multipart 파일 및 전체 요청 제한. 운영 Compose 예제는 기존 의도대로 25MB를 명시하며 프록시·부가정보 크기도 함께 고려. 이전 VOICE_RECORDING_MAX_SIZE 이름은 더 이상 읽지 않음 |
 | VOICE_STORAGE_BUCKET | 빈 값 | 개인 계정 비공개 버킷 `micon-b110-prod-apne2-20260909`. 운영 실행기에 명시 주입; 추적 예제는 빈 값 유지 |
 | VOICE_STORAGE_REGION | ap-northeast-2 | 개인 버킷과 일치하는 서울 리전 |
