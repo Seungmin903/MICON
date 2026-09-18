@@ -1,7 +1,7 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.recommendation.application.RecommendationPreferenceReader;
-import com.micon.backend.recommendation.infrastructure.JdbcRecommendationPreferenceReader;
+import com.micon.backend.domain.recommendation.application.RecommendationPreferenceReader;
+import com.micon.backend.domain.recommendation.infrastructure.JdbcRecommendationPreferenceReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

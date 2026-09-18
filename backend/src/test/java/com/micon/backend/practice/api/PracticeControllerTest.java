@@ -5,9 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.micon.backend.practice.service.PracticeHistoryService;
-import com.micon.backend.practice.service.PracticeResultService;
-import com.micon.backend.practice.service.PracticeService;
+import com.micon.backend.domain.practice.api.PracticeController;
+import com.micon.backend.domain.practice.service.PracticeHistoryService;
+import com.micon.backend.domain.practice.service.PracticeResultService;
+import com.micon.backend.domain.practice.service.PracticeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

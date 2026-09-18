@@ -3,7 +3,7 @@ package com.micon.backend.catalogmedia;
 import com.micon.backend.catalogmedia.CatalogMediaRepository.VocalStemRow;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.voice.storage.VoiceStorage;
+import com.micon.backend.domain.voice.storage.VoiceStorage;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

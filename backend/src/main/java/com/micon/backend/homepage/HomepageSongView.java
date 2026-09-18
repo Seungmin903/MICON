@@ -1,6 +1,6 @@
 package com.micon.backend.homepage;
 
-import com.micon.backend.song.api.SongResponse;
+import com.micon.backend.domain.song.api.SongResponse;
 
 /** Thymeleaf 곡 목록 화면에 표시할 값만 가공한 뷰 모델이다. */
 public record HomepageSongView(

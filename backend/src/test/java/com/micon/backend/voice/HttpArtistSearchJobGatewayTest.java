@@ -3,8 +3,8 @@ package com.micon.backend.voice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.micon.backend.voice.client.ArtistSearchJobGateway;
-import com.micon.backend.voice.client.HttpArtistSearchJobGateway;
+import com.micon.backend.domain.voice.client.ArtistSearchJobGateway;
+import com.micon.backend.domain.voice.client.HttpArtistSearchJobGateway;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
