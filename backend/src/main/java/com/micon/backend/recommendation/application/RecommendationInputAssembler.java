@@ -55,6 +55,8 @@ public class RecommendationInputAssembler {
 
         return new RecommendationInput(
                 savedProfile.getId(),
+                sessionId,
+                savedProfile.getProfileVersion(),
                 savedProfile.getSession().getSongId(),
                 profile,
                 preference.genres(),

@@ -6,6 +6,8 @@ import java.util.Objects;
 
 public record RecommendationInput(
         Long profileId,
+        Long sourceSessionId,
+        long profileVersion,
         String sourceSongId,
         VoiceProfile voiceProfile,
         List<String> genres,

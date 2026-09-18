@@ -36,6 +36,7 @@ data class RecommendShelves(
     val shelves: List<RecommendShelf>,
     /** 서버 추천 대신 기기 계산을 보여 주는 이유(생성 중·미준비 등), 또는 [shelves] 가 빈 이유. null 이면 안내 없음. 화면이 그대로 보인다. */
     val note: String? = null,
+    val generating: Boolean = false,
 ) {
     companion object {
         const val NOTE_LOGIN_REQUIRED = "로그인하면 내 목소리에 맞춘 추천을 받을 수 있어요."

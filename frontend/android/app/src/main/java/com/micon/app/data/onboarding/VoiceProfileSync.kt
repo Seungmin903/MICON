@@ -6,25 +6,36 @@ import com.micon.app.data.voice.VoiceProfileMapper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.micon.app.core.auth.TokenManager
 
 /**
  * 저장된 목소리 프로필을 [UserStore.profile] 에 채운다. 연습·추천 상세와 로컬 적합도 계산이 모두 이 값을 읽는다.
  *
- * 리포트 탭이 읽는 것과 같은 출처다 — 기기 파일([VoiceOnboardingStore.savedProfile]) → 없으면 서버 최신 저장 프로필.
- * 로그인·앱 재실행(세션 확인 직후)과 온보딩 저장 직후에 부른다. 실패하면 profile 은 두고 [UserStore.profileLoadFailed] 만 켠다.
+ * 서버의 최신 저장 프로필이 기준이다. 확정된 404만 캐시를 지우고, 네트워크 실패는 캐시를 보존한다.
+ * 계정/프로필 세대가 바뀌면 이전 요청의 결과를 적용하지 않는다.
  */
 object VoiceProfileSync {
     suspend fun restore(context: Context, ownerId: Long, gateway: VoiceOnboardingGateway) {
+        val revision = UserStore.voiceDataRevision.value
+        fun current() = TokenManager.getUserId() == ownerId && UserStore.voiceDataRevision.value == revision
         try {
             val saved = withContext(Dispatchers.IO) {
                 val store = VoiceOnboardingStore(context.applicationContext, ownerId)
-                store.savedProfile() ?: gateway.latestSaved(ownerId)?.also(store::saveProfile)
+                val cached = store.savedProfile()
+                val remote = gateway.latestSaved(ownerId)
+                synchronized(UserStore) {
+                    if (!current()) return@synchronized null
+                    if (remote == null) store.clearSavedProfile()
+                    val saved = if (remote != null && cached?.receipt?.sessionId == remote.receipt.sessionId)
+                        remote.copy(range = cached.range.copy(backendSessionId = remote.range.backendSessionId)) else remote
+                    saved?.also(store::saveProfile)
+                }
             }
-            UserStore.setProfile(saved?.let { VoiceProfileMapper.fromOnboarding(it.range) })
+            if (current()) UserStore.setProfile(saved?.let { VoiceProfileMapper.fromOnboarding(it.range) })
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            UserStore.setProfileLoadFailed(true)
+            if (current()) UserStore.setProfileLoadFailed(true)
         }
     }
 }

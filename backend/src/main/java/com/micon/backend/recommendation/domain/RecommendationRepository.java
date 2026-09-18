@@ -15,7 +15,20 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
 
     Optional<Recommendation> findFirstByUserIdOrderByGeneratedAtDescIdDesc(Long userId);
 
+    @Query("""
+            select r from Recommendation r
+            where r.user.id = :userId
+              and r.profileVersion = r.voiceProfile.profileVersion
+              and r.sourceSessionId = r.voiceProfile.session.id
+            order by r.generatedAt desc, r.id desc
+            """)
+    List<Recommendation> findCurrentByUserId(@Param("userId") Long userId,
+                                            org.springframework.data.domain.Pageable pageable);
+
     boolean existsByVoiceProfileIdAndStatus(Long profileId, RecommendationStatus status);
+
+    boolean existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndStatus(
+            Long profileId, Long profileVersion, Long sourceSessionId, RecommendationStatus status);
 
     List<Recommendation> findByStatusAndJobIdIsNotNullOrderByGeneratedAt(RecommendationStatus status);
 

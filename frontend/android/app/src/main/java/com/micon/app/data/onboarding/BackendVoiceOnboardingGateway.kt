@@ -95,7 +95,7 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
             ?: throw IllegalStateException("분석 세션을 찾을 수 없습니다.")
         val saved = api.saveVoiceProfile(sessionId,
             VoiceProfileSaveRequest(result.version), VoiceSessionAccess(owner)).data()
-        return ProfileSaveReceipt(saved.sessionId.toString(), result.version, saved.profileId.toString())
+        return ProfileSaveReceipt(saved.sessionId.toString(), result.version, saved.profileId.toString(), saved.profileVersion)
     }
 
     override suspend fun recover(ownerId: Long, sessionId: Long,
@@ -119,10 +119,11 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         if (profileResponse.code() == 404) return null
         val profile = profileResponse.data()
         val result = api.voiceOnboardingResult(profile.sessionId, VoiceSessionAccess(ownerId)).data()
-        val range = result.range?.toReport(profile.sessionId) ?: return null
+        val range = result.range?.toReport(profile.sessionId)
+            ?: throw VoiceOnboardingNotReady("저장된 프로필의 음역 결과를 불러오지 못했어요.")
         val progress = result.toProgress()
         return SavedVoiceOnboardingProfile(
-            ProfileSaveReceipt(profile.sessionId.toString(), result.resultVersion, profile.profileId.toString()),
+            ProfileSaveReceipt(profile.sessionId.toString(), result.resultVersion, profile.profileId.toString(), profile.profileVersion),
             range,
             progress,
         )

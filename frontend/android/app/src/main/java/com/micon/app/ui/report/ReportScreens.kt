@@ -98,6 +98,7 @@ fun VoiceReportScreen(
     onLogin: (() -> Unit)? = null,
 ) {
     val previousAnalysis by UserStore.profile.collectAsStateWithLifecycle()
+    val voiceRevision by UserStore.voiceDataRevision.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val container = rememberAppContainer()
     val owner = if (onLogin == null) com.micon.app.core.auth.TokenManager.getUserId().takeIf { it > 0 } else null
@@ -131,12 +132,18 @@ fun VoiceReportScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(owner, reportRefresh) {
+    LaunchedEffect(owner, reportRefresh, voiceRevision) {
+        val expectedRevision = voiceRevision
+        saved = null
         if (owner != null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val repository = com.micon.app.data.onboarding.SavedVoiceReportRepository(
-                VoiceOnboardingStore(context.applicationContext, owner), container.voiceOnboarding)
+                VoiceOnboardingStore(context.applicationContext, owner), container.voiceOnboarding,
+                isCurrent = { TokenManager.getUserId() == owner && UserStore.voiceDataRevision.value == expectedRevision })
             repository.refresh(owner) { profile ->
-                if (TokenManager.getUserId() == owner) saved = profile
+                if (TokenManager.getUserId() == owner && UserStore.voiceDataRevision.value == expectedRevision) {
+                    saved = profile
+                    if (profile == null) UserStore.setProfile(null)
+                }
             }
         }
     }
