@@ -116,6 +116,19 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 ## 테스트
 
+### 통합 곡 상세의 `/song-fit` 계약
+
+`song_fit_api.py`의 동기 `POST /song-fit`은 BE가 전달한 `recommendationScores`를 그대로 반환한다.
+기존 `overall`, `range`, `timbre`, `rhythm`, `algorithmVersion` 외에 선택 필드
+`timbreAxis`(`ECAPA` / `SINGER_BYOL` / `CONSENSUS`)와 `timbreLabel`이 포함될 수 있다.
+두 필드가 없는 구버전 요청도 지원하며, `AVAILABLE` / `UNAVAILABLE` 모두 설명과 점수를 변형하지 않는다.
+새 임베딩 추론이나 추천 생성은 실행하지 않는다. `songId`, `analysisId`, `selectedKeyOffset`은 요청과 일치해야 한다.
+
+`burdenSections`는 곡의 주의 구간이다. 앱은 원키 목표 음표와 측정 음역을 비교해
+선택 키의 개인 음역 밖 구간을 별도로 표시한다. 상세는 [통합 계약](../../docs/song-detail-integration.md)을 참고한다.
+
+### 실행
+
 ```powershell
 .venv\Scripts\python.exe -m pytest tests
 ```

@@ -34,8 +34,8 @@ object Routes {
     const val VOICE_ONBOARDING = "report/onboarding"
     const val SING_ANALYSIS_PICK = "report/sing"     // 불러서 분석하기 - 곡 선택 (Figma 없음)
     const val SING_ANALYSIS_RUN = "report/sing/{songId}" // 불러서 분석하기 - 범위 선택/부르기/저장 완료
-    const val SONG = "song/{songId}"                 // 노래 연습 - 노래 상세정보 (하단 탭 보임)
-    const val PRACTICE_RUN = "practice/{songId}"     // 노래 연습 - 연습전/연습중
+    const val SONG = "song/{songId}?source={source}" // 공통 곡 상세. 기존 song/{id} 주소도 호환
+    const val PRACTICE_RUN = "practice/{songId}?selectedKey={selectedKey}"
     const val RESULT = "result/{practiceId}"         // 노래 연습 분석 상세 (전체 화면, 백엔드 practiceId)
     const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 세트리스트 세부 (하단 탭 보임)
     const val SETTINGS = "settings"
@@ -45,14 +45,14 @@ object Routes {
     const val DEEP_LINK = "micon://app"
 
     fun songMatch(songId: Long) = "match/$songId"
-    fun song(songId: Long) = "song/$songId"
-    fun practice(songId: Long) = "practice/$songId"
+    fun song(songId: Long, source: String = PRACTICE) = "song/$songId" + if (source == FAVORITES) "?source=$FAVORITES" else ""
+    fun practice(songId: Long, selectedKey: Int = 0) = "practice/$songId" + if (selectedKey != 0) "?selectedKey=$selectedKey" else ""
     fun singAnalysis(songId: Long) = "report/sing/$songId"
     fun result(practiceId: Long) = "result/$practiceId"
     fun setlist(setlistId: Long) = "setlist/$setlistId"
 
     /** 하단 탭을 보이는 경로 (Figma 에서 하단 바가 있는 화면) */
-    val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SETLIST)
+    val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SONG_MATCH, SETLIST)
 }
 
 /** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 리포트(그래프) · 추천(음표 원) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */

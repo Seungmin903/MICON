@@ -43,8 +43,14 @@ public record SongFitResponse(
 		BigDecimal range,
 		BigDecimal timbre,
 		BigDecimal rhythm,
-		String algorithmVersion
+		String algorithmVersion,
+		String timbreAxis,
+		String timbreLabel
 	) {
+		public RecommendationScores(BigDecimal overall, BigDecimal range, BigDecimal timbre,
+			BigDecimal rhythm, String algorithmVersion) {
+			this(overall, range, timbre, rhythm, algorithmVersion, null, null);
+		}
 	}
 
 	public record BurdenSection(
