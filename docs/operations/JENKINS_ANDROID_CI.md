@@ -125,10 +125,10 @@ SSAFY 기본 작업의 저장소 URL에 포함된 기존 토큰으로 Git checko
 1. Jenkins가 Git 저장소를 checkout한다.
 2. JDK를 확인하고 작업 전용 Git LFS 및 Android SDK 37을 준비한다.
 3. 해당 Git 명령에만 LFS 필터를 지정해 `git lfs pull`을 수행한다. 전역 또는 영구 Git 필터 설정은 변경하지 않는다.
-4. LFS 객체 무결성과 `micon_catalog.sqlite`의 SQLite 헤더를 검증한다. 포인터 파일인 상태로 APK를 만들지 않는다.
+4. LFS 객체 무결성을 검증한다. 곡 카탈로그는 백엔드 API를 사용하므로 제거된 `micon_catalog.sqlite`를 요구하지 않는다.
 5. `clean :app:testDebugUnitTest :app:assembleDebug`를 실행한다.
 6. JUnit XML을 Jenkins 테스트 결과로 게시한다.
-7. APK ZIP 무결성, APK 내부 SQLite 헤더, `apksigner verify`를 검사하고 SHA-256을 기록한다.
+7. APK ZIP 무결성, 로컬 카탈로그 미포함, `apksigner verify`를 검사하고 SHA-256을 기록한다.
 8. 성공한 `app-debug.apk`를 fingerprint와 함께 보관한다.
 
 ## 2026-09-07 검증 결과

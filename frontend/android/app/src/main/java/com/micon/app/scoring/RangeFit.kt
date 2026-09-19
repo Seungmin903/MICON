@@ -89,8 +89,8 @@ object RangeFitCalculator {
     private const val W_BASE = 0.70
     private const val W_SOFT = 0.30
 
-    /** 추천 키 계약은 서버와 앱 모두 −6…+5다. 수동 연습 자산 조회 범위와는 별도다. */
-    val KEY_SHIFTS: IntRange = ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX
+    /** 추천 키 계약은 서버와 앱 모두 −6…+5다. 수동 연습의 실시간 시프트 범위(±3)와는 별도다. */
+    val KEY_SHIFTS: IntRange = -6..5
 
     data class Result(val keyShift: Int, val fit: RangeFit)
 

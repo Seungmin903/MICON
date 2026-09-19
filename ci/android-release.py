@@ -112,12 +112,6 @@ def main():
     aapt = tools / ("aapt.exe" if os.name == "nt" else "aapt")
     require(signer.is_file() and aapt.is_file(), "Android Build Tools 36.0.0 are required")
     run(["git", "lfs", "fsck", "--objects"], repo, env, "LFS integrity", 120)
-    catalog = "frontend/android/app/src/main/assets/micon_catalog.sqlite"
-    pointer = run(["git", "show", f"{sha}:{catalog}"], repo, env, "catalog pointer", 30)
-    oid = re.search(r"^oid sha256:([0-9a-f]{64})$", pointer, re.M)
-    require(oid is not None, "Catalog LFS pointer missing")
-    with (repo / catalog).open("rb") as data:
-        require(hashlib.file_digest(data, "sha256").hexdigest() == oid[1], "Catalog checkout hash mismatch")
     # Git credentials are no longer needed during the application build.
     for key in ("GIT_USERNAME", "GIT_PASSWORD", "GIT_ASKPASS", "SSH_ASKPASS"):
         env.pop(key, None)
@@ -136,8 +130,8 @@ def main():
     verify_metadata(badging, signature, code, version, cert)
     with zipfile.ZipFile(apk) as archive:
         require(archive.testzip() is None, "APK archive integrity failed")
-        with archive.open("assets/micon_catalog.sqlite") as data:
-            require(hashlib.file_digest(data, "sha256").hexdigest() == oid[1], "APK catalog hash mismatch")
+        require("assets/micon_catalog.sqlite" not in archive.namelist(),
+                "Removed local catalog must not be bundled in the APK")
     with apk.open("rb") as data:
         checksum = hashlib.file_digest(data, "sha256").hexdigest()
     output = repo / "build/releases" / name.removesuffix(".apk")

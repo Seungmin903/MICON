@@ -45,7 +45,7 @@ git lfs pull
 git lfs fsck
 ```
 
-훅 충돌이 뜨면 `--force`로 덮어쓰지 말고 담당자에게 확인한다. 앱의 `micon_catalog.sqlite`는 LFS 대상이다. 다운로드 인증 실패나 포인터 파일 상태를 해결한 뒤 빌드한다.
+훅 충돌이 뜨면 `--force`로 덮어쓰지 말고 담당자에게 확인한다. 곡 카탈로그는 백엔드 API에서 조회하며 앱에 `micon_catalog.sqlite`를 포함하지 않는다. 저장소의 다른 LFS 객체는 다운로드 인증과 포인터 상태를 확인한 뒤 빌드한다.
 
 V3: `main`/`develop` 직접 push 금지, 브랜치는 `타입/camelCase`, 커밋은 `타입: 설명`(전체 이슈 키 선택), MR은 `[전체 Jira 키] (파트) 요약`. MR 대상은 develop, squash·소스 브랜치 삭제 옵션, 다른 팀원의 리뷰·머지가 필요하다. A0 이슈 자동 생성은 문서상 설계 중이므로 존재하는 이슈 키를 사용한다. 폐기된 `JIRA_GIT_RULES_V*.md`와 `.githooks/`를 다시 커밋하지 않는다.
 

@@ -76,12 +76,7 @@ git -c lfs.storage="$LFS_VERIFY_STORE" \
     -c filter.lfs.smudge='git-lfs smudge -- %f' \
     -c filter.lfs.required=true lfs checkout
 git -c lfs.storage="$LFS_VERIFY_STORE" lfs fsck --objects
-CATALOG=frontend/android/app/src/main/assets/micon_catalog.sqlite
-CATALOG_SHA=$(git show "$SOURCE_SHA:$CATALOG" | sed -n 's/^oid sha256://p')
-printf '%s\n' "$CATALOG_SHA" | grep -Eq '^[0-9a-f]{64}$'
-printf '%s  %s\n' "$CATALOG_SHA" "$CATALOG" | sha256sum -c -
-test "$(head -c 15 "$CATALOG")" = 'SQLite format 3'
-echo '[MICON] Fresh authenticated LFS download and SQLite verified'
+echo '[MICON] Fresh authenticated LFS download verified'
 
 # Do not pass credential environment variables to the Gradle test/build process.
 unset GIT_USERNAME GIT_PASSWORD GIT_ASKPASS SSH_ASKPASS
@@ -95,9 +90,12 @@ grep -F 'API_BASE_URL = "https://j15b110.p.ssafy.io/api/v1/"' app/build/generate
 APK=app/build/outputs/apk/debug/app-debug.apk
 test -s "$APK"
 unzip -tq "$APK"
-test "$(unzip -p "$APK" assets/micon_catalog.sqlite | head -c 15)" = 'SQLite format 3'
+if unzip -Z1 "$APK" | grep -Fxq 'assets/micon_catalog.sqlite'; then
+    echo 'ERROR: removed local catalog must not be bundled in the APK.' >&2
+    exit 1
+fi
 "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$APK"
 sha256sum "$APK"
 printf 'source_sha=%s\nbuild_number=%s\napi_base_url=%s\n' "$SOURCE_SHA" "${BUILD_NUMBER:-local}" "$API_BASE_URL" > app/build/outputs/apk/debug/build-metadata.properties
 sha256sum "$APK" > app/build/outputs/apk/debug/app-debug.apk.sha256
-echo '[MICON] API_BASE_URL injection, APK archive, SQLite asset and signature verified'
+echo '[MICON] API_BASE_URL injection, APK archive, remote catalog packaging and signature verified'
