@@ -45,9 +45,9 @@ public class VoiceAnalysisSession {
 
     public void acceptRange(String measurementStatus) {
         this.rangeStatus = measurementStatus;
-        this.status = "AVAILABLE".equals(measurementStatus) ? "RANGE_IN_PROGRESS" : measurementStatus;
         this.resultVersion++;
         if (this.startedAt == null) this.startedAt = LocalDateTime.now();
+        refreshOverallStatus();
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -55,21 +55,21 @@ public class VoiceAnalysisSession {
         if (isExpired() || "CANCELED".equals(status) || "SAVED".equals(status)) {
             throw new IllegalStateException("session cannot start range analysis");
         }
-        status = "UPLOADING";
         rangeStatus = "UPLOADING";
+        refreshOverallStatus();
         if (startedAt == null) startedAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
 
     public void queueRangeAnalysis() {
-        status = "ANALYZING";
         rangeStatus = "ANALYZING";
+        refreshOverallStatus();
         updatedAt = LocalDateTime.now();
     }
 
     public void failRangeAnalysis(LocalDateTime at) {
         rangeStatus = "FAILED";
-        status = "FAILED";
+        refreshOverallStatus();
         completedAt = at;
         updatedAt = at;
     }
@@ -78,36 +78,36 @@ public class VoiceAnalysisSession {
         if (isExpired() || "CANCELED".equals(status) || "SAVED".equals(status)) {
             throw new IllegalStateException("session cannot start timbre analysis");
         }
-        status = "UPLOADING";
         timbreStatus = "UPLOADING";
+        refreshOverallStatus();
         if (startedAt == null) startedAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
 
     public void acceptTimbreAnalysis() {
-        status = "ANALYZING";
         timbreStatus = "ANALYZING";
+        refreshOverallStatus();
         updatedAt = LocalDateTime.now();
     }
 
     public void completeTimbreAnalysis(LocalDateTime at) {
         timbreStatus = "AVAILABLE";
-        status = "AVAILABLE".equals(rangeStatus) ? "READY_TO_SAVE" : "PARTIAL_READY";
         resultVersion++;
+        refreshOverallStatus();
         completedAt = at;
         updatedAt = at;
     }
 
     public void failTimbreAnalysis(boolean insufficient, LocalDateTime at) {
         timbreStatus = insufficient ? "INSUFFICIENT_DATA" : "FAILED";
-        status = insufficient ? "INSUFFICIENT_DATA" : "FAILED";
+        refreshOverallStatus();
         completedAt = at;
         updatedAt = at;
     }
 
     public void cancelTimbreAnalysis(LocalDateTime at) {
         timbreStatus = "FAILED";
-        status = "CANCELED";
+        refreshOverallStatus();
         completedAt = at;
         updatedAt = at;
     }
@@ -139,5 +139,37 @@ public class VoiceAnalysisSession {
 
     public boolean isExpired() {
         return !expiresAt.isAfter(LocalDateTime.now()) || "EXPIRED".equals(status);
+    }
+
+    /**
+     * 음역과 음색은 독립 작업이므로 한 작업의 완료 순서가 다른 작업의 상태를
+     * 덮어쓰지 않도록 전체 세션 상태를 두 결과 상태에서 다시 계산한다.
+     */
+    private void refreshOverallStatus() {
+        if ("AVAILABLE".equals(rangeStatus) && "AVAILABLE".equals(timbreStatus)) {
+            status = "READY_TO_SAVE";
+            return;
+        }
+        if ("AVAILABLE".equals(rangeStatus) || "AVAILABLE".equals(timbreStatus)) {
+            status = "PARTIAL_READY";
+            return;
+        }
+        if ("FAILED".equals(rangeStatus) || "FAILED".equals(timbreStatus)) {
+            status = "FAILED";
+            return;
+        }
+        if ("INSUFFICIENT_DATA".equals(rangeStatus) || "INSUFFICIENT_DATA".equals(timbreStatus)) {
+            status = "INSUFFICIENT_DATA";
+            return;
+        }
+        if ("UPLOADING".equals(rangeStatus) || "UPLOADING".equals(timbreStatus)) {
+            status = "UPLOADING";
+            return;
+        }
+        if ("ANALYZING".equals(rangeStatus) || "ANALYZING".equals(timbreStatus)) {
+            status = "ANALYZING";
+            return;
+        }
+        status = "CREATED";
     }
 }

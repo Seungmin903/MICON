@@ -32,13 +32,19 @@ public class DirectVoiceAnalysisLifecycleService {
 
     @Transactional
     public PreparedJob createRangePending(long userId, long sessionId, MultipartFile file,
-                                          VoiceSessionRequest.RangeAnalysisUpload request) {
+                                          VoiceSessionRequest.RangeAnalysisUpload request,
+                                          String audioSha256) {
         VoiceAnalysisComponentJob existing = jobs.findByRequestId(request.requestId()).orElse(null);
         if (existing != null) {
             if (!existing.getSession().getId().equals(sessionId)
                     || !existing.getSession().getUser().getId().equals(userId)
                     || !"RANGE".equals(existing.getComponentType())) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST, "이미 다른 분석에 사용된 requestId입니다.");
+            }
+            if (existing.getRecording() == null
+                    || !java.util.Objects.equals(audioSha256, existing.getRecording().getSha256())) {
+                throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                        "같은 requestId에는 동일한 WAV만 재전송할 수 있습니다.");
             }
             return new PreparedJob(existing.getId(), existing.getStatus(), VoiceAnalysisJobResponse.from(existing));
         }
@@ -49,7 +55,8 @@ public class DirectVoiceAnalysisLifecycleService {
                 "만료된 음성 분석 세션입니다.");
         VoiceRecording recording = recordings.saveAndFlush(VoiceRecording.metadataOnly(session.getUser(),
                 (short) request.attemptNo(), file.getContentType(), file.getSize(),
-                request.durationSeconds().multiply(java.math.BigDecimal.valueOf(1000)).intValue(), 16_000));
+                request.durationSeconds().multiply(java.math.BigDecimal.valueOf(1000)).intValue(), sampleRate(request),
+                audioSha256));
         VoiceAnalysisComponentJob saved = jobs.saveAndFlush(new VoiceAnalysisComponentJob(session, recording,
                 "RANGE", request.attemptNo(), request.requestId()));
         session.beginRangeAnalysis();
@@ -89,6 +96,12 @@ public class DirectVoiceAnalysisLifecycleService {
     private String limit(String value) {
         if (value == null) return null;
         return value.length() <= 1000 ? value : value.substring(0, 1000);
+    }
+
+    private int sampleRate(VoiceSessionRequest.RangeAnalysisUpload request) {
+        var value = request.sampling().get("sampleRate");
+        return value != null && value.canConvertToInt() && value.asInt() > 0
+                ? value.asInt() : 16_000;
     }
 
     public record PreparedJob(Long analysisId, String status, VoiceAnalysisJobResponse response) { }

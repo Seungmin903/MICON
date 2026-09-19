@@ -167,7 +167,7 @@ public class VoiceAnalysisComponentCallbackService {
                 || embedding == null || embedding.size() != expectedDimension
                 || embedding.stream().anyMatch(item -> item == null || !Double.isFinite(item))
                 || !validEnergy(embedding)
-                || request.segmentInfo() == null || !request.segmentInfo().isObject()) {
+                || !validSegments(request.segmentInfo())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
                     "모델 키·버전·임베딩 차원·구간 정보가 완료 계약과 일치하지 않습니다.");
         }
@@ -185,10 +185,16 @@ public class VoiceAnalysisComponentCallbackService {
     }
 
     private void completeRange(VoiceAnalysisComponentJob job, VoiceAnalysisComponentCallbackRequest request) {
+        boolean available = "AVAILABLE".equals(request.measurementStatus());
         if (request.measurementId() == null || request.measurementId().isBlank()
                 || !"guided-range-v7".equals(request.protocolVersion())
-                || request.lowMidi() == null || request.highMidi() == null
-                || request.lowMidi().compareTo(request.highMidi()) > 0
+                || (available && (request.lowMidi() == null || request.highMidi() == null))
+                || request.lowMidi() != null && (request.lowMidi().compareTo(java.math.BigDecimal.ZERO) < 0
+                || request.lowMidi().compareTo(java.math.BigDecimal.valueOf(127)) > 0)
+                || request.highMidi() != null && (request.highMidi().compareTo(java.math.BigDecimal.ZERO) < 0
+                || request.highMidi().compareTo(java.math.BigDecimal.valueOf(127)) > 0)
+                || request.lowMidi() != null && request.highMidi() != null
+                && request.lowMidi().compareTo(request.highMidi()) > 0
                 || request.noteResults() == null || request.noteResults().isNull()
                 || !java.util.Set.of("AVAILABLE", "INSUFFICIENT_DATA", "FAILED")
                         .contains(request.measurementStatus())
@@ -201,7 +207,7 @@ public class VoiceAnalysisComponentCallbackService {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK, "이미 저장된 음역 결과가 있습니다.");
         }
         ranges.save(new VoiceRangeMeasurement(job.getSession(), request.measurementId(), request.protocolVersion(),
-                request.lowMidi(), request.highMidi(), write(request.noteResults()), request.measurementStatus(),
+                "SERVER_AI", request.lowMidi(), request.highMidi(), write(request.noteResults()), request.measurementStatus(),
                 request.qualityStatus(), request.processedAt()));
         job.complete("RANGE", value(request.modelVersion(), "guided-range-v7"), request.processedAt());
         job.getSession().acceptRange(request.measurementStatus());
@@ -210,6 +216,13 @@ public class VoiceAnalysisComponentCallbackService {
     private boolean validEnergy(List<Double> embedding) {
         double energy = embedding.stream().mapToDouble(item -> item * item).sum();
         return Double.isFinite(energy) && energy >= 1e-12;
+    }
+
+    private boolean validSegments(JsonNode segmentInfo) {
+        if (segmentInfo == null || !segmentInfo.isObject()) return false;
+        JsonNode validChunkCount = segmentInfo.get("validChunkCount");
+        return validChunkCount != null && validChunkCount.isIntegralNumber()
+                && validChunkCount.asInt() >= 5;
     }
 
     private void aggregate(VoiceAnalysisJob parent, List<VoiceAnalysisComponentJob> children, LocalDateTime at) {

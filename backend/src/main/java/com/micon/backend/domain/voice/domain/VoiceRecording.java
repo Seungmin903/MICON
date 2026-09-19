@@ -88,6 +88,12 @@ public class VoiceRecording {
 
     public static VoiceRecording metadataOnly(User user, short attemptNo, String mediaType,
                                               long fileBytes, int durationMs, int sampleRate) {
+        return metadataOnly(user, attemptNo, mediaType, fileBytes, durationMs, sampleRate, null);
+    }
+
+    public static VoiceRecording metadataOnly(User user, short attemptNo, String mediaType,
+                                              long fileBytes, int durationMs, int sampleRate,
+                                              String sha256) {
         VoiceRecording recording = new VoiceRecording();
         if (user == null || attemptNo < 1 || mediaType == null || mediaType.isBlank()
                 || fileBytes < 1 || durationMs < 1 || sampleRate < 1) {
@@ -100,6 +106,7 @@ public class VoiceRecording {
         recording.fileBytes = fileBytes;
         recording.durationMs = durationMs;
         recording.sampleRate = sampleRate;
+        recording.sha256 = sha256;
         recording.keepOriginal = false;
         recording.uploadStatus = RecordingUploadStatus.UPLOADED;
         recording.createdAt = LocalDateTime.now();
