@@ -67,6 +67,7 @@ import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.common.MiconTextField
 import com.micon.app.ui.common.PillChip
 import com.micon.app.ui.common.RetryBlock
+import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.SongRow
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.common.describeBackendError
@@ -81,6 +82,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 
 /**
  * 찜 탭. 데이터: 백엔드 `GET /users/me/favorites`(찜 곡), `GET /setlists`(세트리스트), `GET /practices`(연습한 곡 → "연습 중" 탭).
@@ -107,18 +111,23 @@ class FavoritesViewModel(
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
-    init { load() }
+    private var loadJob: Job? = null
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             try {
                 val songs = favorites.refresh()
                 val lists = setlists.list()
                 val practiced = runCatching { practices.history(page = 0, size = 50).items.map { it.songId }.toSet() }.getOrDefault(emptySet())
+                ensureActive()
                 _state.update { it.copy(loading = false, songs = songs, setlists = lists, practicedIds = practiced) }
                 val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
+                ensureActive()
                 _state.update { it.copy(keys = keys) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = describeBackendError(e, "찜 목록을 불러오지 못했어요.")) }
             }
@@ -162,6 +171,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
         initializer { FavoritesViewModel(container.favorites, container.setlists, container.practices, container.recommend) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
+    RefreshOnResume(vm::load)
     val context = LocalContext.current
     var tab by remember { mutableStateOf(Tab.ALL) }
     var query by remember { mutableStateOf("") }
