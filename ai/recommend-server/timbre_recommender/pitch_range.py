@@ -35,6 +35,17 @@ COVERAGE_SIGMOID_SCALE = 0.05
 CORE_EXCESS_DECAY_SEMITONES = 4.0
 BASE_RANGE_SCORE_WEIGHT = 0.70
 SOFT_FIT_SCORE_WEIGHT = 0.30
+CENTER_SCORE_WEIGHT = 0.20
+# 앱 음역 측정(guided-range)으로 만든 프로파일. median 이 (하한+상한)//2 라 "주로 부르는 높이"가 아니다.
+# 이 종류에는 중심음 맞추기(center_score)를 쓰지 않고, 점수가 비슷한 키 중 가장 적게 옮기는 키를 고른다.
+GUIDED_RANGE_PROFILE_KIND = "guided_range_measurement"
+GUIDED_KEY_SHIFT_SCORE_TOLERANCE = 0.005
+KEY_SHIFT_POLICY_CENTER = "center-match-v2"
+KEY_SHIFT_POLICY_GUIDED = "guided-min-shift-v1"
+
+
+def _is_guided_range(profile: Mapping[str, Any]) -> bool:
+    return str(profile.get("profileKind", "")) == GUIDED_RANGE_PROFILE_KIND
 
 
 def canonical_json_sha256(path: Path) -> str:
@@ -159,7 +170,8 @@ def _score_at_shift(
     song_span = int(candidate["coreHighMidi"]) - int(candidate["coreLowMidi"])
     span_excess = max(0, song_span - user_span)
     span_fit = float(np.exp(-span_excess / 4.0))
-    base_score = 0.65 * coverage + 0.20 * center_score + 0.15 * span_fit
+    center_weight = 0.0 if _is_guided_range(query) else CENTER_SCORE_WEIGHT
+    base_score = (0.65 + CENTER_SCORE_WEIGHT - center_weight) * coverage + center_weight * center_score + 0.15 * span_fit
     shifted_core_low = int(candidate["coreLowMidi"]) + shift
     shifted_core_high = int(candidate["coreHighMidi"]) + shift
     low_excess = max(0.0, float(observed_low - shifted_core_low))
@@ -196,16 +208,22 @@ def score_range_fit(
     query = _validated_profile(query_profile, label="query")
     candidate = _validated_profile(candidate_profile, label="candidate")
     options = [_score_at_shift(query, candidate, shift) for shift in KEY_SHIFTS]
-    best = sorted(
-        options,
-        key=lambda item: (
-            -item["score"],
-            -item["softFit"],
-            -item["coverage"],
-            abs(item["keyShift"]),
-            item["keyShift"],
-        ),
-    )[0]
+    guided = _is_guided_range(query)
+    if guided:
+        top = max(item["score"] for item in options)
+        near = [item for item in options if item["score"] >= top - GUIDED_KEY_SHIFT_SCORE_TOLERANCE]
+        best = sorted(near, key=lambda item: (abs(item["keyShift"]), -item["score"], item["keyShift"]))[0]
+    else:
+        best = sorted(
+            options,
+            key=lambda item: (
+                -item["score"],
+                -item["softFit"],
+                -item["coverage"],
+                abs(item["keyShift"]),
+                item["keyShift"],
+            ),
+        )[0]
     shift = int(best["keyShift"])
     original_low = int(candidate["coreLowMidi"])
     original_high = int(candidate["coreHighMidi"])
@@ -213,6 +231,7 @@ def score_range_fit(
     result.update(
         {
             "scoringVersion": RANGE_SCORING_VERSION,
+            "keyShiftPolicy": KEY_SHIFT_POLICY_GUIDED if guided else KEY_SHIFT_POLICY_CENTER,
             "score": round(float(best["score"]), 6),
             "baseScore": round(float(best["baseScore"]), 6),
             "coverage": round(float(best["coverage"]), 6),

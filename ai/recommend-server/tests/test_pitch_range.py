@@ -110,6 +110,24 @@ class PitchProfileTestCase(unittest.TestCase):
         self.assertEqual(match["keyShift"], 5)
         self.assertNotEqual(match["keyShift"], 6)
 
+    def test_guided_range_profile_ignores_center_and_prefers_smallest_shift(self) -> None:
+        # 앱 음역 측정 프로파일의 median 은 (하한+상한)//2 라 "주로 부르는 높이"가 아니다.
+        # 곡 core 58–74(median 68), 사용자 창 54–71(중점 62): 중심음 맞추기는 -6 을 고르지만
+        # -1 부터 -6 까지 전부 창 안에 들어가므로(초과 0) 가장 적게 옮기는 -1 이 맞다.
+        candidate = _manual_profile({m: 1.0 for m in range(58, 75)}, core_low=58, median=68, core_high=74)
+        guided = _manual_profile({m: 1.0 for m in range(54, 72)}, core_low=54, median=62, core_high=71)
+        guided["profileKind"] = "guided_range_measurement"
+        observed = dict(guided, profileKind="observed_user_sample")
+
+        self.assertEqual(score_range_fit(observed, candidate)["keyShift"], -6)   # 노래에서 뽑은 프로파일: 기존 동작 유지
+        self.assertEqual(score_range_fit(observed, candidate)["keyShiftPolicy"], "center-match-v2")
+
+        match = score_range_fit(guided, candidate)
+        self.assertEqual(match["keyShift"], -1)
+        self.assertEqual(match["totalCoreExcessSemitones"], 0)
+        self.assertGreater(match["coverage"], 0.99)
+        self.assertEqual(match["keyShiftPolicy"], "guided-min-shift-v1")
+
     def test_low_cross_model_agreement_marks_profile_unreliable(self) -> None:
         profile = summarize_pitch_profile(
             _notes([60, 61, 62, 63]),
