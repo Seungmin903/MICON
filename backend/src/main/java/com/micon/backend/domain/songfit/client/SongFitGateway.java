@@ -1,8 +1,8 @@
 package com.micon.backend.domain.songfit.client;
 
-import com.micon.backend.domain.songfit.api.SongFitResponse;
-import com.micon.backend.domain.songfit.api.SongFitResponse.BurdenSection;
-import com.micon.backend.domain.songfit.api.SongFitResponse.RecommendationScores;
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.BurdenSection;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.RecommendationScores;
 import java.math.BigDecimal;
 import java.util.List;
 

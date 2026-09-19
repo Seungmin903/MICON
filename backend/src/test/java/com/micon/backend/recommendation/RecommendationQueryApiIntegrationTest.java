@@ -1,16 +1,17 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.domain.recommendation.application.RecommendationResultStore;
+import com.micon.backend.domain.recommendation.repository.RecommendationRepository;
+import com.micon.backend.domain.user.repository.UserRepository;
+import com.micon.backend.domain.voice.repository.UserVoiceProfileRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisSessionRepository;
+
+import com.micon.backend.domain.recommendation.service.RecommendationResultStore;
 import com.micon.backend.domain.recommendation.client.RecommendationResultGateway;
-import com.micon.backend.domain.recommendation.domain.Recommendation;
-import com.micon.backend.domain.recommendation.domain.RecommendationMode;
-import com.micon.backend.domain.recommendation.domain.RecommendationRepository;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.voice.domain.UserVoiceProfile;
-import com.micon.backend.domain.voice.domain.UserVoiceProfileRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSessionRepository;
+import com.micon.backend.domain.recommendation.entity.Recommendation;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.voice.entity.UserVoiceProfile;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -2,7 +2,7 @@ package com.micon.backend.song.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import java.util.List;
 
 import com.micon.backend.domain.song.repository.SongQueryRepository;
@@ -53,6 +53,22 @@ class SongQueryRepositoryTest {
 		List<SongResponse.Summary> songs = repository.findPage("", 20, 0);
 
 		assertThat(repository.count("")).isEqualTo(2);
+		assertThat(songs).extracting(SongResponse.Summary::title)
+			.containsExactly("밤편지", "좋은 날");
+	}
+
+	@Test
+	void placesSongsMatchingTheUsersPreferredGenresFirst() {
+		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 30L);
+
+		assertThat(songs).extracting(SongResponse.Summary::title)
+			.containsExactly("좋은 날", "밤편지");
+	}
+
+	@Test
+	void keepsTheDefaultOrderWhenTheUserHasNoPreferredGenres() {
+		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 31L);
+
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("밤편지", "좋은 날");
 	}
@@ -127,6 +143,7 @@ class SongQueryRepositoryTest {
 			)
 			""");
 		jdbcTemplate.execute("CREATE TABLE FAVORITE_SONG (user_id BIGINT, song_id VARCHAR(64), prefer_key BIGINT)");
+		jdbcTemplate.execute("CREATE TABLE USER_GENRE_PREFERENCE (user_id BIGINT, genre_id BIGINT)");
 	}
 
 	private void insertFixtures() {
@@ -153,5 +170,6 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO SONG_NOTE VALUES (200, 100, '[{\"startMs\":1000}]')");
 		jdbcTemplate.update("INSERT INTO SONG_MEDIA VALUES (300, 'tj-00281', 'INSTRUMENTAL', 'READY', 0)");
 		jdbcTemplate.update("INSERT INTO FAVORITE_SONG VALUES (30, 'tj-00281', 0)");
+		jdbcTemplate.update("INSERT INTO USER_GENRE_PREFERENCE VALUES (30, 21)");
 	}
 }

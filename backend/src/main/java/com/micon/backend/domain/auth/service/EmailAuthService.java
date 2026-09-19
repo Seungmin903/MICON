@@ -1,14 +1,15 @@
 package com.micon.backend.domain.auth.service;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.domain.auth.dto.AuthRequest;
 import com.micon.backend.domain.auth.dto.AuthResponse;
 import com.micon.backend.domain.auth.token.TokenPair;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.user.domain.AuthType;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.user.domain.UserStatus;
+import com.micon.backend.domain.user.entity.AuthType;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.user.entity.UserStatus;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

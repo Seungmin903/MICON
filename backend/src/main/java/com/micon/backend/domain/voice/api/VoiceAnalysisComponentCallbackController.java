@@ -1,9 +1,12 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.VoiceAnalysisComponentCallbackRequest;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisComponentCallbackResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.observability.AccessLog;
-import com.micon.backend.domain.voice.application.AiServiceTokenValidator;
-import com.micon.backend.domain.voice.application.VoiceAnalysisComponentCallbackService;
+import com.micon.backend.domain.voice.service.AiServiceTokenValidator;
+import com.micon.backend.domain.voice.service.VoiceAnalysisComponentCallbackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

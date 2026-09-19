@@ -3,7 +3,7 @@ package com.micon.backend.domain.songfit.client;
 import com.micon.backend.common.observability.ObservedAiRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
-import com.micon.backend.domain.songfit.api.SongFitResponse;
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;

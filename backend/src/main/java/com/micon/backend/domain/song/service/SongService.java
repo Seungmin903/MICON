@@ -1,8 +1,8 @@
 package com.micon.backend.domain.song.service;
 
 import com.micon.backend.domain.song.repository.SongQueryRepository;
-import com.micon.backend.domain.song.api.PageResponse;
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.PageResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -27,8 +27,13 @@ public class SongService {
 
 	// 기능: search 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size) {
+		return search(query, page, size, null);
+	}
+
+	/** 로그인 회원은 저장한 선호 장르와 많이 일치하는 곡부터 조회한다. */
+	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId) {
 		long offset = (long) page * size;
-		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(query, size, offset);
+		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(query, size, offset, userId);
 		List<SongResponse.Summary> songs = imageEnrichmentService.enrich(
 			songsWithoutImages,
 			songQueryRepository.findTrackIds(

@@ -1,5 +1,7 @@
 package com.micon.backend.domain.setting.api;
 
+import com.micon.backend.domain.setting.dto.VoiceDataPolicyResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.domain.setting.config.VoiceDataPolicyProperties;
 import org.springframework.web.bind.annotation.GetMapping;

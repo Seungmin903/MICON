@@ -1,8 +1,9 @@
 package com.micon.backend.auth;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.domain.auth.mail.PasswordResetCodeSender;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
+import com.micon.backend.domain.user.entity.User;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

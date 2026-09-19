@@ -1,17 +1,18 @@
 package com.micon.backend.setting;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+import com.micon.backend.domain.voice.repository.VoiceRecordingRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.domain.setting.repository.SettingRepository;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.user.domain.UserStatus;
-import com.micon.backend.domain.voice.application.RecordingUploadService;
-import com.micon.backend.domain.voice.domain.VoiceRecording;
-import com.micon.backend.domain.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.user.entity.UserStatus;
+import com.micon.backend.domain.voice.service.RecordingUploadService;
+import com.micon.backend.domain.voice.entity.VoiceRecording;
 import com.micon.backend.domain.voice.storage.VoiceStorage;
 import com.micon.backend.domain.voice.storage.VoiceStorageProperties;
 import java.util.Optional;

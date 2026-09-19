@@ -20,6 +20,14 @@ class GuestCatalogSecurityIntegrationTests {
     @Autowired MockMvc mockMvc;
 
     @Test
+    void guestCanCheckBackendHealth() throws Exception {
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.status").value("UP"));
+    }
+
+    @Test
     void guestCanBrowseSongCatalog() throws Exception {
         mockMvc.perform(get("/songs"))
                 .andExpect(status().isOk())

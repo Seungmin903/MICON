@@ -5,7 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import com.micon.backend.domain.song.image.SpotifyImageProperties;
 import com.micon.backend.domain.song.image.SpotifySongImageProvider;
 import com.micon.backend.domain.song.image.SpotifyTrackImage;

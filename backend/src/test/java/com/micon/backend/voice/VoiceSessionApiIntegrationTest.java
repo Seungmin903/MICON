@@ -1,5 +1,8 @@
 package com.micon.backend.voice;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisSessionRepository;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -17,11 +20,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
+import com.micon.backend.domain.user.entity.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSessionRepository;
 import java.time.LocalDateTime;
 
 @SpringBootTest(properties = "ai.voice-analysis-enabled=true")

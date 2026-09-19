@@ -2,10 +2,10 @@ package com.micon.backend.recommendation.api;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.domain.recommendation.api.RecommendationController;
-import com.micon.backend.domain.recommendation.api.RecommendationCreateResponse;
-import com.micon.backend.domain.recommendation.application.RecommendationCreationService;
-import com.micon.backend.domain.recommendation.application.RecommendationDispatchResult;
-import com.micon.backend.domain.recommendation.domain.RecommendationStatus;
+import com.micon.backend.domain.recommendation.dto.RecommendationCreateResponse;
+import com.micon.backend.domain.recommendation.service.RecommendationCreationService;
+import com.micon.backend.domain.recommendation.service.RecommendationDispatchResult;
+import com.micon.backend.domain.recommendation.entity.RecommendationStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

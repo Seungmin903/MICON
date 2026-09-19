@@ -2,9 +2,9 @@ package com.micon.backend.voice;
 
 import static org.mockito.Mockito.*;
 
-import com.micon.backend.domain.voice.application.ArtistSearchDispatcher;
-import com.micon.backend.domain.voice.application.ArtistSearchJobService;
-import com.micon.backend.domain.voice.application.ArtistSearchRequested;
+import com.micon.backend.domain.voice.service.ArtistSearchDispatcher;
+import com.micon.backend.domain.voice.service.ArtistSearchJobService;
+import com.micon.backend.domain.voice.service.ArtistSearchRequested;
 import com.micon.backend.domain.voice.client.ArtistSearchJobGateway;
 import org.junit.jupiter.api.Test;
 

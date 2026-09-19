@@ -1,9 +1,12 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.VoiceDataDeletionRequest;
+import com.micon.backend.domain.voice.dto.VoiceDataDeletionResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.voice.application.VoiceDataDeletionService;
+import com.micon.backend.domain.voice.service.VoiceDataDeletionService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

@@ -1,11 +1,13 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.RecordingResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.voice.application.RecordingUploadService;
-import com.micon.backend.domain.voice.application.RecordingQueryService;
-import com.micon.backend.domain.voice.application.VoiceDataDeletionService;
+import com.micon.backend.domain.voice.service.RecordingUploadService;
+import com.micon.backend.domain.voice.service.RecordingQueryService;
+import com.micon.backend.domain.voice.service.VoiceDataDeletionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

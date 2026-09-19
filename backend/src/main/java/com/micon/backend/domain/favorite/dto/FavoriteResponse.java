@@ -1,6 +1,6 @@
 package com.micon.backend.domain.favorite.dto;
 
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import java.util.List;
 
 /** 회원이 찜한 곡 목록과 전체 개수를 담는 응답 DTO다. */

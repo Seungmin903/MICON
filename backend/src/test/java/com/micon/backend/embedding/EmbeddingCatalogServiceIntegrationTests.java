@@ -1,5 +1,7 @@
 package com.micon.backend.embedding;
 
+import com.micon.backend.domain.embedding.service.EmbeddingCatalogService;
+
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
