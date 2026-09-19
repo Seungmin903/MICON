@@ -213,26 +213,36 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
         /** 서버 BigDecimal(0.00~100.00)에 맞춰 소수 둘째 자리로 반올림·클램프 */
         fun score2(value: Double): Double = (Math.round(value.coerceIn(0.0, 100.0) * 100) / 100.0)
 
-        private fun PracticeDetailDto.toModel() = PracticeRecord(
-            practiceId, songId, songTitle, sectionId, recordingId, voiceAnalysisId, selectedKey, playbackSpeed, practiceScope,
-            status ?: "UNKNOWN", startedAt, endedAt, durationMs, createdAt, initialKey = initialKey, keyChanged = keyChanged,
-        )
+        private fun PracticeDetailDto.toModel(): PracticeRecord {
+            val firstKey = initialKey ?: selectedKey
+            return PracticeRecord(
+                practiceId, songId, songTitle, sectionId, recordingId, voiceAnalysisId, selectedKey, playbackSpeed, practiceScope,
+                status ?: "UNKNOWN", startedAt, endedAt, durationMs, createdAt,
+                initialKey = firstKey, keyChanged = keyChanged ?: (firstKey != selectedKey),
+            )
+        }
 
-        private fun PracticeSummaryDto.toModel() = PracticeSummary(
-            practiceId, songId, songTitle, imageUrl, selectedKey, practiceScope, sectionId, status ?: "UNKNOWN", startedAt, durationMs, resultStatus, overallScore,
-            initialKey = initialKey, keyChanged = keyChanged,
-        )
+        private fun PracticeSummaryDto.toModel(): PracticeSummary {
+            val firstKey = initialKey ?: selectedKey
+            return PracticeSummary(
+                practiceId, songId, songTitle, imageUrl, selectedKey, practiceScope, sectionId, status ?: "UNKNOWN", startedAt, durationMs, resultStatus, overallScore,
+                initialKey = firstKey, keyChanged = keyChanged ?: (firstKey != selectedKey),
+            )
+        }
 
         private fun SectionEvaluationDto.toModel() = SectionEvaluation(sectionId, score, measured, summary)
         private fun RetrySectionDto.toModel() = RetrySection(sectionId, selectedKey, score)
 
-        private fun PracticeReportDto.toModel() = PracticeReport(
-            practiceId, songId, songTitle, selectedKey, practiceScope, sectionId, durationMs, status,
-            overallScore, pitchScore, sustainScore, rhythmScore, summaryText, sections.map { it.toModel() }, weakSection?.toModel(), analyzedAt,
-            dataVersion = dataVersion,
-            notes = notes.orEmpty().map { JudgedNote(it.i, it.s, it.c, it.d) },
-            curve = curve?.let { PitchCurve(it.hopMs.coerceAtLeast(1), it.startMs, it.user) },
-            initialKey = initialKey, keyChanged = keyChanged,
-        )
+        private fun PracticeReportDto.toModel(): PracticeReport {
+            val firstKey = initialKey ?: selectedKey
+            return PracticeReport(
+                practiceId, songId, songTitle, selectedKey, practiceScope, sectionId, durationMs, status,
+                overallScore, pitchScore, sustainScore, rhythmScore, summaryText, sections.map { it.toModel() }, weakSection?.toModel(), analyzedAt,
+                dataVersion = dataVersion,
+                notes = notes.orEmpty().map { JudgedNote(it.i, it.s, it.c, it.d) },
+                curve = curve?.let { PitchCurve(it.hopMs.coerceAtLeast(1), it.startMs, it.user) },
+                initialKey = firstKey, keyChanged = keyChanged ?: (firstKey != selectedKey),
+            )
+        }
     }
 }
