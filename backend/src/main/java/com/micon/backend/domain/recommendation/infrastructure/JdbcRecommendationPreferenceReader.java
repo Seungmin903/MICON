@@ -1,6 +1,6 @@
 package com.micon.backend.domain.recommendation.infrastructure;
 
-import com.micon.backend.domain.recommendation.application.RecommendationPreferenceReader;
+import com.micon.backend.domain.recommendation.service.RecommendationPreferenceReader;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 

@@ -1,9 +1,11 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.VoiceAnalysisJobResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.voice.application.ArtistSearchRetryService;
+import com.micon.backend.domain.voice.service.ArtistSearchRetryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

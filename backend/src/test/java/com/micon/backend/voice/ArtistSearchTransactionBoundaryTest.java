@@ -2,7 +2,7 @@ package com.micon.backend.voice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.micon.backend.domain.voice.application.ArtistSearchJobService;
+import com.micon.backend.domain.voice.service.ArtistSearchJobService;
 import java.lang.reflect.Method;
 import java.util.List;
 

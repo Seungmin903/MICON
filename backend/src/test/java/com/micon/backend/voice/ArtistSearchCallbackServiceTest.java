@@ -1,5 +1,7 @@
 package com.micon.backend.voice;
 
+import com.micon.backend.domain.voice.repository.SimilarArtistResultRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,14 +11,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
-import com.micon.backend.domain.preference.api.PreferenceResponse;
+import com.micon.backend.domain.preference.dto.PreferenceResponse;
 import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
-import com.micon.backend.domain.voice.api.VoiceAnalysisComponentCallbackRequest;
-import com.micon.backend.domain.voice.application.ArtistSearchCallbackService;
-import com.micon.backend.domain.voice.domain.SimilarArtistResult;
-import com.micon.backend.domain.voice.domain.SimilarArtistResultRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisComponentJob;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisComponentCallbackRequest;
+import com.micon.backend.domain.voice.service.ArtistSearchCallbackService;
+import com.micon.backend.domain.voice.entity.SimilarArtistResult;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisComponentJob;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,7 +1,7 @@
 package com.micon.backend.domain.voice.client;
 
-import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
-import com.micon.backend.domain.voice.api.VoiceSessionRequest;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.dto.VoiceSessionRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;

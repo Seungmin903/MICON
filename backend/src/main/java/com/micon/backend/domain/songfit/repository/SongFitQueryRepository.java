@@ -1,6 +1,6 @@
 package com.micon.backend.domain.songfit.repository;
 
-import com.micon.backend.domain.songfit.api.SongFitResponse.BurdenSection;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.BurdenSection;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;

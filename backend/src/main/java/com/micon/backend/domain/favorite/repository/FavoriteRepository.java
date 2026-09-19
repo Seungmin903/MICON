@@ -1,6 +1,6 @@
 package com.micon.backend.domain.favorite.repository;
 
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;

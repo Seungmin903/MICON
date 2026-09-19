@@ -1,10 +1,11 @@
 package com.micon.backend.auth;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.domain.auth.token.RefreshToken;
 import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
 import com.micon.backend.domain.auth.token.RefreshTokenHasher;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
+import com.micon.backend.domain.user.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

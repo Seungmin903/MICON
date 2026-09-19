@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.micon.backend.common.exception.GlobalExceptionHandler;
-import com.micon.backend.domain.song.api.PageResponse;
+import com.micon.backend.domain.song.dto.PageResponse;
 import com.micon.backend.domain.song.api.SongController;
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import com.micon.backend.domain.song.service.SongNotFoundException;
 import com.micon.backend.domain.song.service.SongService;
 import java.util.List;
@@ -44,7 +44,7 @@ class SongControllerTest {
 			"https://example.com/good-day.jpg",
 			233_000L
 		);
-		when(songService.search("좋은", 0, 20)).thenReturn(PageResponse.of(List.of(song), 0, 20, 1));
+		when(songService.search("좋은", 0, 20, null)).thenReturn(PageResponse.of(List.of(song), 0, 20, 1));
 
 		mockMvc.perform(get("/songs").param("query", "좋은"))
 				.andExpect(status().isOk())
@@ -52,6 +52,17 @@ class SongControllerTest {
 				.andExpect(jsonPath("$.data.content[0].songId").value("1"))
 				.andExpect(jsonPath("$.data.content[0].artists[0]").value("아이유"))
 				.andExpect(jsonPath("$.data.totalElements").value(1));
+	}
+
+	@Test
+	void usesJwtSubjectForPreferredGenreOrdering() throws Exception {
+		when(songService.search("", 0, 20, 7L))
+			.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
+
+		mockMvc.perform(get("/songs").principal(() -> "7"))
+			.andExpect(status().isOk());
+
+		org.mockito.Mockito.verify(songService).search("", 0, 20, 7L);
 	}
 
 	@Test

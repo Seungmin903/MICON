@@ -1,5 +1,8 @@
 package com.micon.backend.homepage;
 
+import com.micon.backend.domain.homepage.dto.HomepageSongStatus;
+import com.micon.backend.domain.homepage.repository.HomepageSongRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;

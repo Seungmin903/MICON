@@ -1,7 +1,8 @@
 package com.micon.backend.auth;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
-import com.micon.backend.domain.user.domain.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

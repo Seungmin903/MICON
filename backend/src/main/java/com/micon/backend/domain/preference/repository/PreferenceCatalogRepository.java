@@ -1,7 +1,7 @@
 package com.micon.backend.domain.preference.repository;
 
-import com.micon.backend.domain.preference.api.PreferenceResponse.Artist;
-import com.micon.backend.domain.preference.api.PreferenceResponse.Genre;
+import com.micon.backend.domain.preference.dto.PreferenceResponse.Artist;
+import com.micon.backend.domain.preference.dto.PreferenceResponse.Genre;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;

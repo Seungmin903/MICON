@@ -1,11 +1,28 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.domain.recommendation.application.*;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
+import com.micon.backend.domain.recommendation.entity.RecommendationStatus;
+import com.micon.backend.domain.recommendation.repository.RecommendationRepository;
+import com.micon.backend.domain.recommendation.service.RecommendationInput;
+import com.micon.backend.domain.recommendation.service.RecommendationInputAssembler;
+import com.micon.backend.domain.recommendation.service.RecommendationLifecycleService;
+import com.micon.backend.domain.recommendation.service.RecommendationQueryService;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.user.repository.UserRepository;
+import com.micon.backend.domain.voice.entity.UserVoiceProfile;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.repository.UserVoiceProfileRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisSessionRepository;
+
+import com.micon.backend.domain.recommendation.service.*;
 import com.micon.backend.domain.recommendation.client.RecommendationJobGateway;
-import com.micon.backend.domain.recommendation.domain.*;
-import com.micon.backend.domain.user.domain.*;
-import com.micon.backend.domain.voice.application.VoiceProfileSavedEvent;
-import com.micon.backend.domain.voice.domain.*;
+import com.micon.backend.domain.recommendation.entity.*;
+import com.micon.backend.domain.recommendation.repository.*;
+import com.micon.backend.domain.user.entity.*;
+import com.micon.backend.domain.user.repository.*;
+import com.micon.backend.domain.voice.service.VoiceProfileSavedEvent;
+import com.micon.backend.domain.voice.entity.*;
+import com.micon.backend.domain.voice.repository.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

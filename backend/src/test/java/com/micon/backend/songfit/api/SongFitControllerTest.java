@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.micon.backend.common.exception.GlobalExceptionHandler;
 import com.micon.backend.domain.songfit.api.SongFitController;
-import com.micon.backend.domain.songfit.api.SongFitResponse;
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
 import com.micon.backend.domain.songfit.service.SongFitService;
 import java.math.BigDecimal;
 import java.util.List;

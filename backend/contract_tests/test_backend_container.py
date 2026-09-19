@@ -24,8 +24,8 @@ class BackendContainerContractTests(unittest.TestCase):
         cls.host_prep = (ROOT / "infra/deploy/prepare_backend_host.sh").read_text(encoding="utf-8")
         cls.backend_deploy = (ROOT / "infra/deploy/deploy_backend_release.sh").read_text(encoding="utf-8")
         cls.runtime_env = (ROOT / "infra/compose/backend.env.example").read_text(encoding="utf-8")
-        cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/voice/application/DirectVoiceAnalysisService.java").read_text(encoding="utf-8")
-        cls.recommendation_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/recommendation/application/RecommendationDispatchService.java").read_text(encoding="utf-8")
+        cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/voice/service/DirectVoiceAnalysisService.java").read_text(encoding="utf-8")
+        cls.recommendation_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/recommendation/service/RecommendationDispatchService.java").read_text(encoding="utf-8")
         cls.application_properties = (ROOT / "backend/src/main/resources/application.properties").read_text(encoding="utf-8")
         cls.song_fit_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/songfit/service/SongFitService.java").read_text(encoding="utf-8")
         cls.ai_gateways = [

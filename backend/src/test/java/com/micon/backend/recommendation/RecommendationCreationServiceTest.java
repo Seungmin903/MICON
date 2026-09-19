@@ -1,13 +1,14 @@
 package com.micon.backend.recommendation;
 
+import com.micon.backend.domain.voice.repository.UserVoiceProfileRepository;
+
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.recommendation.application.RecommendationCreationService;
-import com.micon.backend.domain.recommendation.application.RecommendationDispatchResult;
-import com.micon.backend.domain.recommendation.application.RecommendationDispatchService;
-import com.micon.backend.domain.recommendation.domain.RecommendationMode;
-import com.micon.backend.domain.voice.domain.UserVoiceProfile;
-import com.micon.backend.domain.voice.domain.UserVoiceProfileRepository;
+import com.micon.backend.domain.recommendation.service.RecommendationCreationService;
+import com.micon.backend.domain.recommendation.service.RecommendationDispatchResult;
+import com.micon.backend.domain.recommendation.service.RecommendationDispatchService;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
+import com.micon.backend.domain.voice.entity.UserVoiceProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

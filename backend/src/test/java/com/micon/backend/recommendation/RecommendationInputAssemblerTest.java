@@ -1,13 +1,22 @@
 package com.micon.backend.recommendation;
 
+import com.micon.backend.domain.voice.entity.UserVoiceProfile;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.entity.VoiceModelResult;
+import com.micon.backend.domain.voice.entity.VoiceRangeMeasurement;
+import com.micon.backend.domain.voice.repository.UserVoiceProfileRepository;
+import com.micon.backend.domain.voice.repository.VoiceModelResultRepository;
+import com.micon.backend.domain.voice.repository.VoiceRangeMeasurementRepository;
+
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.recommendation.application.RecommendationInput;
-import com.micon.backend.domain.recommendation.application.RecommendationInputAssembler;
-import com.micon.backend.domain.recommendation.application.RecommendationPreferenceReader;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserStatus;
-import com.micon.backend.domain.voice.domain.*;
+import com.micon.backend.domain.recommendation.service.RecommendationInput;
+import com.micon.backend.domain.recommendation.service.RecommendationInputAssembler;
+import com.micon.backend.domain.recommendation.service.RecommendationPreferenceReader;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.user.entity.UserStatus;
+import com.micon.backend.domain.voice.entity.*;
+import com.micon.backend.domain.voice.repository.*;
 
 import java.math.BigDecimal;
 import java.util.List;

@@ -1,5 +1,10 @@
 package com.micon.backend.voice;
 
+import com.micon.backend.domain.voice.repository.VoiceAnalysisComponentJobRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisJobRepository;
+import com.micon.backend.domain.voice.repository.VoiceModelResultRepository;
+import com.micon.backend.domain.voice.repository.VoiceRangeMeasurementRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,19 +14,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
-import com.micon.backend.domain.voice.api.VoiceAnalysisComponentCallbackRequest;
-import com.micon.backend.domain.voice.application.VoiceAnalysisComponentCallbackService;
-import com.micon.backend.domain.voice.application.VoiceSessionService;
-import com.micon.backend.domain.voice.application.ArtistSearchCallbackService;
-import com.micon.backend.domain.voice.application.ArtistSearchRequested;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisComponentJob;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisComponentJobRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJob;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJobRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
-import com.micon.backend.domain.voice.domain.VoiceModelResult;
-import com.micon.backend.domain.voice.domain.VoiceModelResultRepository;
-import com.micon.backend.domain.voice.domain.VoiceRangeMeasurementRepository;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisComponentCallbackRequest;
+import com.micon.backend.domain.voice.service.VoiceAnalysisComponentCallbackService;
+import com.micon.backend.domain.voice.service.VoiceSessionService;
+import com.micon.backend.domain.voice.service.ArtistSearchCallbackService;
+import com.micon.backend.domain.voice.service.ArtistSearchRequested;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisComponentJob;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisJob;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.entity.VoiceModelResult;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;

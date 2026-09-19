@@ -1,8 +1,11 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.VoiceSessionRequest;
+import com.micon.backend.domain.voice.dto.VoiceSessionResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.*;
-import com.micon.backend.domain.voice.application.VoiceSessionService;
+import com.micon.backend.domain.voice.service.VoiceSessionService;
 import jakarta.validation.Valid;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

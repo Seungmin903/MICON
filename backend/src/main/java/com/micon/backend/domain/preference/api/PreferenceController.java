@@ -1,10 +1,13 @@
 package com.micon.backend.domain.preference.api;
 
+import com.micon.backend.domain.preference.dto.PreferenceRequest;
+import com.micon.backend.domain.preference.dto.PreferenceResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.preference.service.PreferenceService;
-import com.micon.backend.domain.song.api.PageResponse;
+import com.micon.backend.domain.song.dto.PageResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;

@@ -3,8 +3,8 @@ package com.micon.backend.voice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 

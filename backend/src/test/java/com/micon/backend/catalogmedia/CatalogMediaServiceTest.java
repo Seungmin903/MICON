@@ -1,12 +1,17 @@
 package com.micon.backend.catalogmedia;
 
+import com.micon.backend.domain.catalogmedia.config.CatalogMediaProperties;
+import com.micon.backend.domain.catalogmedia.dto.CatalogMediaResponse;
+import com.micon.backend.domain.catalogmedia.repository.CatalogMediaRepository;
+import com.micon.backend.domain.catalogmedia.service.CatalogMediaService;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.catalogmedia.CatalogMediaRepository.VocalStemRow;
+import com.micon.backend.domain.catalogmedia.repository.CatalogMediaRepository.VocalStemRow;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.voice.storage.VoiceStorage;

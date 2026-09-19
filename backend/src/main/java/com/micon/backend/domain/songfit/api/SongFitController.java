@@ -1,5 +1,7 @@
 package com.micon.backend.domain.songfit.api;
 
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.domain.songfit.service.SongFitService;
 import jakarta.validation.constraints.Max;

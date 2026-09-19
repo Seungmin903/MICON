@@ -1,9 +1,11 @@
 package com.micon.backend.domain.voice.api;
 
+import com.micon.backend.domain.voice.dto.VoiceProfileResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.voice.application.VoiceOnboardingResultService;
+import com.micon.backend.domain.voice.service.VoiceOnboardingResultService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ public class VoiceProfileController {
 
     @GetMapping
     public ApiResponse<VoiceProfileResponse> latest(@AuthenticationPrincipal Jwt jwt) {
+
         return ApiResponse.success(service.latestProfile(userId(jwt)));
     }
 

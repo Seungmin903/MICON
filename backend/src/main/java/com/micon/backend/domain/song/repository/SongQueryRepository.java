@@ -1,6 +1,6 @@
 package com.micon.backend.domain.song.repository;
 
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -44,15 +44,29 @@ public class SongQueryRepository {
 
 	// 기능: findPage 조건으로 데이터베이스를 조회한다.
 	public List<SongResponse.Summary> findPage(String query, int size, long offset) {
+		return findPage(query, size, offset, null);
+	}
+
+	/** 회원의 선호 장르와 일치하는 장르 수가 많은 곡을 먼저 조회한다. */
+	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId) {
 		String sql = """
 				SELECT s.song_id, s.title, s.duration_ms
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 				""" + SEARCH_CONDITION + """
-				ORDER BY s.title, s.song_id
+				ORDER BY (
+				    SELECT COUNT(*)
+				    FROM song_genre preferred_song_genre
+				    JOIN user_genre_preference preferred_genre
+				      ON preferred_genre.genre_id = preferred_song_genre.genre_id
+				    WHERE preferred_song_genre.song_id = s.song_id
+				      AND preferred_genre.user_id = :userId
+				) DESC,
+				s.title, s.song_id
 				LIMIT :size OFFSET :offset
 				""";
 		MapSqlParameterSource params = searchParameters(query)
+				.addValue("userId", userId)
 				.addValue("size", size)
 				.addValue("offset", offset);
 		List<SongRow> songs = jdbcTemplate.query(sql, params, SONG_ROW_MAPPER);

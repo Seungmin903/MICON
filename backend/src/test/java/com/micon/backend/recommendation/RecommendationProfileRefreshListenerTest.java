@@ -1,9 +1,9 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.domain.recommendation.application.RecommendationDispatchService;
-import com.micon.backend.domain.recommendation.application.RecommendationProfileRefreshListener;
-import com.micon.backend.domain.recommendation.domain.RecommendationMode;
-import com.micon.backend.domain.voice.application.VoiceProfileSavedEvent;
+import com.micon.backend.domain.recommendation.service.RecommendationDispatchService;
+import com.micon.backend.domain.recommendation.service.RecommendationProfileRefreshListener;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
+import com.micon.backend.domain.voice.service.VoiceProfileSavedEvent;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.mock;

@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.micon.backend.domain.songfit.api.SongFitResponse;
-import com.micon.backend.domain.songfit.api.SongFitResponse.BurdenSection;
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.BurdenSection;
 import com.micon.backend.domain.songfit.client.SongFitGateway;
 import com.micon.backend.domain.songfit.repository.SongFitQueryRepository;
 import com.micon.backend.domain.songfit.repository.SongFitQueryRepository.RecommendationRow;
