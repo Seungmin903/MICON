@@ -12,7 +12,9 @@ class RangePresentationTest {
         assertFalse(rangeMeasurementCanFinish(measuring.copy(
             sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 0))))
         assertTrue(rangeMeasurementCanFinish(measuring.copy(
-            sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 1))))
+            sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 1)), inputReady = true))
+        assertFalse(rangeMeasurementCanFinish(measuring.copy(
+            sampling = measuring.sampling.copy(basicCompleted = true, measuredNoteCount = 40))))
     }
 
     @Test fun `median hides isolated spikes but raw evaluation still fails repeated deviations`() {

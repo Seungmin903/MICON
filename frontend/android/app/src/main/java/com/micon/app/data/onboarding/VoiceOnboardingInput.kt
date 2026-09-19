@@ -15,6 +15,10 @@ object VoiceOnboardingInput {
             range.lowMidi !in 0..127 || range.highMidi !in range.lowMidi..127) {
             return "확인된 음역이 없어요. 음역부터 다시 측정해 주세요."
         }
+        return recordingProblem(draftId, recording)
+    }
+
+    fun recordingProblem(draftId: String, recording: SavedRecording?): String? {
         if (recording == null || recording.meta.onboardingDraftId != draftId) {
             return "이 측정에 사용할 녹음이 없어요. 노래를 다시 불러 주세요."
         }

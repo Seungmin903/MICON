@@ -56,7 +56,7 @@ class RangeLayoutRestorationTest {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     RangePassGuide(session)
-                    RangeMeasurementActions(session, {}, {})
+                    RangeMeasurementActions(session, {}, {}, inputReady = true)
                 }
             }
             }

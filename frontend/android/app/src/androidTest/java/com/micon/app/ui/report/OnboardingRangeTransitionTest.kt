@@ -36,12 +36,8 @@ class OnboardingRangeTransitionTest {
         val requests = AtomicInteger()
         val repository = RangeRepository(context, storageDirectory = File(directory, "range"),
             serverGateway = RangeAnalysisGateway { _, _ -> requests.incrementAndGet(); response.await() })
-        val submission = RangeSubmission("saved-measurement", startMidi = 60, noiseRms = .001, durationSeconds = 10.0,
-            stopReason = "completed", lowerBoundaryStatus = "FOUND", upperBoundaryStatus = "FOUND",
-            registerEvents = emptyList(), sampling = RangeSampling(basicCompleted = true, measuredNoteCount = 1),
-            attempts = listOf(RangeAttempt("attempt", 60, "anchor", 0.0, .5, 1.0, 4.0, 1.5, 3.5, "passed",
-                RangeMetrics(0.0, 0.0, 1.0, 1.0, 2.0, creditedMidi = 60, stabilityScore = 80.0, creditedHoldSeconds = 2.0))))
-        repository.audio(submission.sessionId).writeBytes(ByteArray(44 + 16000 * 2 * 10))
+        val submission = com.micon.app.range.usableRangeSubmission().copy(sessionId = "saved-measurement")
+        com.micon.app.audio.writeQualityWav(repository.audio(submission.sessionId))
         repository.savePending(PendingRange(submission))
         val persistence = object : VoiceOnboardingPersistence {
             override fun draft() = VoiceOnboardingDraft("isolated-draft")

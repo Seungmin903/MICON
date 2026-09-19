@@ -251,6 +251,15 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
         if (phase != "profile_ready") return false
         now = max(now, audioTime); startRefinement(now); return true
     }
+    @Synchronized fun waitForValidInput() {
+        phase = "profile_ready"; target = null; cueMidi = null; currentMidi = null
+        message = "분석할 녹음 구간이 부족해요. 추가로 측정해 주세요."
+    }
+    @Synchronized fun canSupplement(): Boolean {
+        val start = anchor ?: return false
+        val completed = (previousCompletedTargets ?: parent?.completedNoteFallback().orEmpty()) + submission().completedTargets()
+        return RangeRefinement.targets(start, sampling, completed, reconfirmBoundaries = !revisedSearch).isNotEmpty()
+    }
     @Synchronized fun markFalsetto() {
         if (phase in listOf("done", "profile_ready") || register == "falsetto") return
         register = "falsetto"; registerEvents.add(RegisterEvent(now, register))
@@ -384,7 +393,7 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
                         lowerLastSuccess = sweep.lastSuccess ?: sampling.lowerLastSuccess, basicCompleted = true)
                     phase = "profile_ready"; target = null; cueMidi = null; currentMidi = null
                     message = if (measuredNotes().isEmpty()) "측정 자료가 부족해요. 계속 측정해 음별 기록을 남길 수 있어요"
-                        else "보이스 프로필 생성 가능"
+                        else "녹음 구간 확인 중…"
                 }
                 return
             }

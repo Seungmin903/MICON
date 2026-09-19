@@ -43,6 +43,8 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
         val introLeaving: Boolean = false, val permissionMissing: Boolean = false,
         val diagnosticMessage: String? = null,
         val savedMeasurementId: String? = null,
+        val inputCheck: RangeInputCheck = RangeInputCheck(), val inputChecking: Boolean = false,
+        val canSupplement: Boolean = true,
     )
     private val appContext = context.applicationContext
     private val keepOriginal = false
@@ -70,19 +72,28 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
     private val persistenceLock = Any()
     private var cueJob: Job? = null
     private var captureWatchdog: Job? = null
+    private var inputJob: Job? = null
+    private val inputQuality = RangeInputQuality()
     private var playedCue = 0
     private var lastCheckpoint = 0.0
     private val restored = repository.pending()
     private val _state = MutableStateFlow(State(hasPending = restored != null,
         diagnosticMessage = if (RangeDiagnostics.armed(context)) "진단 준비됨 · 다음 측정 1회의 원음과 판정 로그를 기기에 보관해요" else null,
         hasAttempts = restored?.submission?.attempts?.isNotEmpty() == true, stopReason = restored?.submission?.stopReason,
-        savedMeasurementId = restored?.submission?.takeIf { !submitOnFinish && it.onboardingPreview() != null }?.sessionId,
         preparationFailed = restored?.submission?.needsPreparationRetry() == true, previewMidi = restored?.submission?.startMidi ?: 60,
         error = if (missingParent) "추가 측정할 결과가 없습니다. 리포트에서 기본 측정을 먼저 완료해 주세요." else null))
     val state = _state.asStateFlow()
 
     init {
         prepareReference()
+        if (restored != null) viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { inputQuality.inspect(restored.submission, repository.audio(restored.submission.sessionId), restored.sampleRate, true) }
+                    .getOrElse { RangeInputCheck(message = "녹음 파일을 확인할 수 없어요. 음역을 다시 측정해 주세요.") }
+            }
+            _state.update { it.copy(inputCheck = result,
+                savedMeasurementId = restored.submission.sessionId.takeIf { result.ready && !submitOnFinish && restored.submission.onboardingPreview() != null }) }
+        }
         viewModelScope.launch(Dispatchers.Default) {
             for (captured in frameChannel) {
                 if (finishing.get()) continue
@@ -196,6 +207,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
             if (awaitNoiseConfirmation && audio.isFile && audio.length() >= 44) capture.resume(audio, onError, ::onCaptured)
             else capture.start(audio, onError, ::onCaptured)
             captureWatchdog?.cancel()
+            startInputChecks()
             captureWatchdog = viewModelScope.launch {
                 var previous = -1.0
                 while (_state.value.running && !finishing.get()) {
@@ -264,6 +276,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
             displayFilter.reset()
             _state.update { if (finishing.get()) it else it.copy(pausedForChoice = reason == Pause.PROFILE,
                 pausedForGuide = reason == Pause.GUIDE, pausedForIntro = reason == Pause.INTRO, level = 0f) }
+            if (reason == Pause.PROFILE) refreshInputCheck(finalized = true)
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { finish("input_quality", "측정 기록을 저장하지 못했어요.") }
         finally { changingCapture.set(false) }
@@ -322,7 +335,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
         viewModelScope.launch {
             try {
                 if (session.continueMeasurement(capture.capturedSeconds)) {
-                    _state.update { it.copy(pausedForChoice = false, session = session.view()) }
+                    _state.update { it.copy(pausedForChoice = false, session = session.view(), error = null) }
                     if (session.view().done) finish("completed")
                     else {
                         diagnosticEvent("recording_resumed")
@@ -374,12 +387,54 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
         }
     }
 
+    private fun startInputChecks() {
+        inputJob?.cancel()
+        inputJob = viewModelScope.launch {
+            while (_state.value.running && !finishing.get()) {
+                refreshInputCheck(finalized = _state.value.pausedForChoice)
+                delay(500)
+            }
+        }
+    }
+
+    private suspend fun refreshInputCheck(finalized: Boolean) {
+        val submission = session.submission().let { if (finalized) it.copy(durationSeconds = capture.capturedSeconds) else it }
+        val result = withContext(Dispatchers.IO) {
+            runCatching { inputQuality.inspect(submission, repository.audio(session.id), capture.recordingRate, finalized) }
+                .getOrElse { RangeInputCheck(message = "녹음 구간을 확인하지 못했어요. 다시 측정해 주세요.") }
+        }
+        if (!finishing.get()) _state.update { it.copy(inputCheck = result, canSupplement = result.canSupplement && session.canSupplement()) }
+    }
+
     fun finish(reason: String = "user_stopped", error: String? = null) {
+        if (error == null && reason in setOf("completed", "user_stopped") && !session.view().done && !_state.value.inputCheck.ready) return
         if (!_state.value.running || !finishing.compareAndSet(false, true)) return
         diagnosticEvent("finish_requested", mapOf("reason" to reason))
         cueJob?.cancel()
         captureWatchdog?.cancel()
+        inputJob?.cancel()
         viewModelScope.launch {
+            val requestedCompletion = error == null && reason in setOf("completed", "user_stopped")
+            if (requestedCompletion) {
+                _state.update { it.copy(inputChecking = true) }
+                val result = withContext(Dispatchers.IO) {
+                    capture.stop()
+                    // A stopped capture is now immutable; this also seals the current attempt below.
+                    val snapshot = if (session.view().targetMidi == null) session.submission().copy(durationSeconds = capture.capturedSeconds) else session.stop(reason, capture.capturedSeconds)
+                    runCatching { inputQuality.inspect(snapshot, repository.audio(session.id), capture.recordingRate, true) }
+                        .getOrElse { RangeInputCheck(message = "녹음 파일을 확인하지 못했어요. 다시 측정해 주세요.") }
+                }
+                if (!result.ready) {
+                    session.waitForValidInput()
+                    finishing.set(false)
+                    _state.update { it.copy(session = session.view(), pausedForChoice = true, inputCheck = result,
+                        inputChecking = false, canSupplement = result.canSupplement && session.canSupplement(), error = result.message) }
+                    checkpoint()
+                    startInputChecks()
+                    return@launch
+                }
+                _state.update { it.copy(inputCheck = result, inputChecking = false) }
+            }
             val submission = session.stop(reason, capture.capturedSeconds).copy(keepOriginal = keepOriginal)
             val preparationFailed = submission.needsPreparationRetry()
             val saved = try {
@@ -403,7 +458,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
                 error = if (saved) error else "측정 기록을 저장하지 못했어요. 저장 공간을 확인해 주세요.",
                 preparationFailed = preparationFailed, previewMidi = submission.startMidi ?: 60,
                 savedMeasurementId = submission.sessionId.takeIf { saved && !submitOnFinish && submission.onboardingPreview() != null }) }
-            if (submitOnFinish && saved && !preparationFailed && submission.attempts.isNotEmpty()) retryUpload()
+            if (submitOnFinish && saved && !preparationFailed && _state.value.inputCheck.ready) retryUpload()
         }
     }
 
@@ -424,11 +479,16 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
     }
 
     fun discardPending() {
+        finishing.set(true)
+        inputJob?.cancel(); cueJob?.cancel(); captureWatchdog?.cancel()
+        _state.update { it.copy(running = false, savedMeasurementId = null, inputCheck = RangeInputCheck()) }
+        capture.stop()
         repository.discardPending()
         _state.update { it.copy(hasPending = false, error = null) }
     }
 
     override fun onCleared() {
+        inputJob?.cancel()
         cueJob?.cancel()
         captureWatchdog?.cancel()
         if (_state.value.running && (capture.isRunning || _state.value.pausedForChoice || _state.value.pausedForGuide || _state.value.pausedForIntro)) {

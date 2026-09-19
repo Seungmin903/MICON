@@ -39,8 +39,8 @@ class RangeStandaloneRepositoryTest {
 
     private fun pending(repository: RangeRepository): String {
         val id = UUID.randomUUID().toString()
-        repository.audio(id).writeBytes(ByteArray(44 + 32000))
-        repository.savePending(PendingRange(RangeSession(id).stop()))
+        com.micon.app.audio.writeQualityWav(repository.audio(id))
+        repository.savePending(PendingRange(usableRangeSubmission().copy(sessionId = id)))
         return id
     }
 
@@ -125,10 +125,19 @@ class RangeStandaloneRepositoryTest {
         val repository = RangeRepository(context, model)
         val id = pending(repository)
         val first = repository.pending()!!
-        fun attempt(target: Int, reason: String) = RangeAttempt("visit-$target", target, "up", 0.0, 0.0, 0.0, .5,
-            null, null, "unmeasured", null, null, "unknown", selectedForVisit = true, advanceReason = reason)
-        repository.savePending(first.copy(submission = first.submission.copy(durationSeconds = 1.0,
-            attempts = listOf(attempt(60, "threshold"), attempt(66, "manual"), attempt(63, "manual"), attempt(62, "anchor_reset")))))
+        fun skipped(target: Int, reason: String, start: Double) = RangeAttempt("visit-$target", target,
+            if (reason == "anchor_reset") "anchor" else "up", start, start + .05, start + .05, start + .05,
+            null, null, "unmeasured", null, visitId = "visit-$target", selectedForVisit = true, advanceReason = reason,
+            searchOutcome = if (reason == "manual") "manual_failed" else null,
+            probeStage = if (reason == "anchor_reset") "anchor" else "coarse", anchorMidi = 60)
+        fun passed(target: Int, direction: String = "anchor") = first.submission.attempts.single().copy(
+            targetMidi = target, direction = direction, referenceMidi = target.toDouble(),
+            probeStage = if (direction == "anchor") "anchor" else "refinement",
+            anchorMidi = if (direction == "anchor") target else 60,
+            metrics = first.submission.attempts.single().metrics!!.copy(actualMidi = target.toDouble(),
+                creditedMidi = target, referenceMidi = target.toDouble()))
+        repository.savePending(first.copy(submission = first.submission.copy(
+            attempts = listOf(passed(60), skipped(66, "manual", 2.6), skipped(63, "manual", 2.7), skipped(62, "anchor_reset", 2.8)))))
         model.report = result().copy(analysisId = id, notes = listOf(RangeNote(61, "passed")))
         repository.submit {}
         var reopened = RangeRepository(context, model)
@@ -137,8 +146,8 @@ class RangeStandaloneRepositoryTest {
 
         val extensionId = pending(reopened)
         val extension = reopened.pending()!!
-        reopened.savePending(extension.copy(submission = extension.submission.copy(durationSeconds = 1.0, mode = "extension",
-            parentAnalysisId = id, attempts = listOf(attempt(65, "manual")))))
+        reopened.savePending(extension.copy(submission = extension.submission.copy(mode = "extension",
+            parentAnalysisId = id, attempts = listOf(passed(65, "extension")))))
         model.report = result().copy(analysisId = extensionId)
         reopened.submit {}
         reopened = RangeRepository(context, model)
@@ -146,7 +155,7 @@ class RangeStandaloneRepositoryTest {
 
         val newId = pending(reopened)
         val fresh = reopened.pending()!!
-        reopened.savePending(fresh.copy(submission = fresh.submission.copy(durationSeconds = 1.0, attempts = listOf(attempt(70, "manual")))))
+        reopened.savePending(fresh.copy(submission = fresh.submission.copy(startMidi = 70, attempts = listOf(passed(70)))))
         model.report = result().copy(analysisId = newId)
         reopened.submit {}
         assertEquals(setOf(70), RangeRepository(context, model).completedTargets(model.report))

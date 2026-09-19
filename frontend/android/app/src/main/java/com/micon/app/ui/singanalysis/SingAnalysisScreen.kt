@@ -366,7 +366,7 @@ internal fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisV
             MicLevelStrip(state.micLevel, Modifier.padding(horizontal = 24.dp))
             if (state.onboarding) {
                 ControlSheet(state, onTogglePause = { if (paused) vm.resume() else vm.pause() },
-                    onFinish = vm::requestFinish, onExit = vm::requestExit)
+                    onFinish = vm::requestFinish, onExit = vm::requestExit, onRestart = vm::restart)
             } else {
                 // Standalone retains its original bottom overlay.
                 Spacer(Modifier.height(232.dp))
@@ -426,13 +426,13 @@ private fun MicLevelStrip(level: Float, modifier: Modifier = Modifier) {
 /** 하단 시트: 일시정지/이어서 원 버튼 + 항상 보이는 "여기까지 마치기". */
 @Composable
 internal fun ControlSheet(state: SingAnalysisViewModel.UiState, onTogglePause: () -> Unit,
-    onFinish: () -> Unit, onExit: () -> Unit, modifier: Modifier = Modifier) {
+    onFinish: () -> Unit, onExit: () -> Unit, modifier: Modifier = Modifier, onRestart: () -> Unit = {}) {
     val paused = state.phase == Phase.PAUSED
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = Color.White, shadowElevation = 16.dp) {
         Column(Modifier.padding(top = 18.dp, bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(
                 onClick = onTogglePause,
-                enabled = !paused || state.nowSec < (state.plan?.endSec ?: 0.0),
+                enabled = !paused || state.recordingValid && state.nowSec < (state.plan?.endSec ?: 0.0) && (!state.onboarding || state.recordedAudioSeconds < 119.8),
                 shape = CircleShape,
                 color = if (state.onboarding || paused) Purple else GreyLight,
                 shadowElevation = 8.dp,
@@ -467,6 +467,11 @@ internal fun ControlSheet(state: SingAnalysisViewModel.UiState, onTogglePause: (
                 }, fontSize = 12.sp, color = Grey)
             }
             TextButton(onClick = onExit) { Text("녹음 그만하기", color = Grey) }
+            if (state.onboarding && paused && (!state.recordingValid || state.nowSec >= (state.plan?.endSec ?: 0.0) || state.recordedAudioSeconds >= 119.8) && !state.canFinish) {
+                Text("분석할 목소리 구간이 부족해요. 다른 시작 위치나 곡으로 다시 불러 주세요.", color = Grey,
+                    fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+                TextButton(onClick = onRestart) { Text("다시 부르기", color = Purple) }
+            }
             state.error?.let { Text(it, color = Red, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp)) }
         }
     }
@@ -510,7 +515,13 @@ internal fun singFinishLabel(state: SingAnalysisViewModel.UiState): String {
     if (!state.onboarding) return "여기까지 마치기"
     val remaining = ceil((com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS -
         state.elapsedRecSec).coerceAtLeast(0.0)).toInt()
-    return if (remaining > 0) "${remaining}초 후에 분석을 끝낼 수 있어요" else "여기까지 부르기"
+    return when {
+        remaining > 0 -> "${remaining}초 후에 분석을 끝낼 수 있어요"
+        state.recordedAudioSeconds > com.micon.app.data.onboarding.VoiceOnboardingInput.MAX_SECONDS + .05 -> "녹음이 너무 길어요. 다시 불러 주세요"
+        state.qualityChecking -> "녹음 구간 확인 중…"
+        !state.vocalQuality.ready -> state.vocalQuality.message
+        else -> "여기까지 부르기"
+    }
 }
 
 // ---------------------------------------------------------------------------

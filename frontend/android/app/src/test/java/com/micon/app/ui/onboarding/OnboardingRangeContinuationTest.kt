@@ -22,12 +22,7 @@ class OnboardingRangeContinuationTest {
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { models.clear(); Dispatchers.resetMain() }
 
-    private fun measurement(id: String = "measurement") = PendingRange(RangeSubmission(id, startMidi = 60,
-        noiseRms = .001, durationSeconds = 10.0, stopReason = "completed",
-        lowerBoundaryStatus = "FOUND", upperBoundaryStatus = "FOUND", registerEvents = emptyList(),
-        sampling = RangeSampling(basicCompleted = true, measuredNoteCount = 1),
-        attempts = listOf(RangeAttempt("attempt", 60, "anchor", 0.0, .5, 1.0, 4.0, 1.5, 3.5, "passed",
-            RangeMetrics(0.0, 0.0, 1.0, 1.0, 2.0, creditedMidi = 60, creditedHoldSeconds = 2.0, stabilityScore = 80.0)))))
+    private fun measurement(id: String = "measurement") = PendingRange(usableRangeSubmission().copy(sessionId = id))
     private fun verified(sessionId: Long = 7) = RangeReport(RangeProtocol.VERSION, listOf(RangeNote(60, "passed")),
         60, 72, emptyList(), "completed", "FOUND", "FOUND", "available",
         verification = "model_verified", backendSessionId = sessionId)

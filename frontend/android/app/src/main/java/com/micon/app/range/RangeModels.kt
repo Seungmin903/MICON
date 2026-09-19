@@ -14,6 +14,7 @@ object RangeProtocol {
     const val WINDOW = 2.0
     const val ADVANCE_HOLD_SECONDS = 1.0
     const val CLARITY = 0.8
+    const val START_TOLERANCE_SEMITONES = 1.0
     fun midi(hz: Double): Double = 69 + 12 * ln(hz / 440.0) / ln(2.0)
 }
 

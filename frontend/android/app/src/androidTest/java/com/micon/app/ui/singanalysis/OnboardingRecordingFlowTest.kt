@@ -46,6 +46,7 @@ class OnboardingRecordingFlowTest {
     private lateinit var vm: SingAnalysisViewModel
     private lateinit var recordings: SingAnalysisRecordingStore
     private lateinit var directory: File
+    private val recorder = com.micon.app.audio.GeneratedVocalRecorder()
 
     @Before fun setUp() {
         val instrument = InstrumentationRegistry.getInstrumentation()
@@ -77,7 +78,7 @@ class OnboardingRecordingFlowTest {
             override suspend fun report(analysisId: Long): VoiceAnalysisReport = error("unused")
         }
         main {
-            vm = SingAnalysisViewModel(context, songId, songs, OkHttpClient(), recordings, submitter, voice, "test-draft")
+            vm = SingAnalysisViewModel(context, songId, songs, OkHttpClient(), recordings, submitter, voice, "test-draft", recorder)
             models.put("recording", vm)
         }
         try {
@@ -159,6 +160,19 @@ class OnboardingRecordingFlowTest {
         main { vm.interruptRecording(); vm.requestFinish(); vm.confirmFinish(); vm.cancelFinish() }
         assertEquals(Phase.SETUP, main { vm.state.value.phase })
         assertFalse(main { vm.state.value.canFinish || vm.state.value.confirmEnd || vm.state.value.recordingValid })
+        assertTrue(recordings.list().isEmpty())
+    }
+
+    @Test fun thirtySecondsOfSilenceCannotOpenFinishOrSaveAndPauseDoesNotBypassQuality() {
+        recorder.audible = false
+        compose.waitUntil(45_000) { main { vm.state.value.elapsedRecSec >= 30.2 } }
+        main { vm.requestFinish(); vm.confirmFinish() }
+        assertEquals(Phase.RUNNING, main { vm.state.value.phase })
+        assertFalse(main { vm.state.value.canFinish || vm.state.value.confirmEnd })
+        assertTrue(main { vm.state.value.vocalQuality.usableWindows < 5 })
+        main { vm.pause(); vm.requestFinish(); vm.confirmFinish() }
+        assertEquals(Phase.PAUSED, main { vm.state.value.phase })
+        assertFalse(main { vm.state.value.canFinish || vm.state.value.confirmEnd })
         assertTrue(recordings.list().isEmpty())
     }
 
