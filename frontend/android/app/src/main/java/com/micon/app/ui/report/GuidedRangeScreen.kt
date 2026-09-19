@@ -7,7 +7,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -39,6 +42,7 @@ import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PrimaryButton
+import com.micon.app.ui.common.OnboardingDarkBackground
 import com.micon.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -53,25 +57,48 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
     val context = LocalContext.current
     val vm: GuidedRangeViewModel = viewModel(factory = viewModelFactory {
         initializer { GuidedRangeViewModel(context.applicationContext, extension, repository ?: com.micon.app.range.RangeRepository(context),
-            submitOnFinish = onMeasurementSaved == null, awaitAnchorConfirmation = onboardingIntro) }
+            submitOnFinish = onMeasurementSaved == null, awaitAnchorConfirmation = onboardingIntro,
+            awaitNoiseConfirmation = onboardingIntro) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     OnboardingRangeTransition(state.savedMeasurementId, onMeasurementSaved)
     SideEffect { vm.displayed(state.session) }
     val start = com.micon.app.ui.common.rememberMicrophoneAccess(vm::start, vm::permissionDenied)
+    val automaticPreparation = com.micon.app.ui.common.rememberMicrophoneAccess(vm::startAutomaticPreparation, vm::permissionDenied,
+        explanation = "이 화면에서 주변 소음을 확인하기 위해 마이크를 사용해요. 측정 시작 후에는 목소리를 듣고 음역을 측정해요.",
+        onDeclined = vm::permissionDenied)
+    LaunchedEffect(vm, onboardingIntro) {
+        if (onboardingIntro && vm.claimAutomaticPreparation()) automaticPreparation()
+    }
+    val currentState by rememberUpdatedState(state)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
+            if (onboardingIntro && event == Lifecycle.Event.ON_RESUME && currentState.permissionMissing &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                vm.startAutomaticPreparation()
+            }
             if (event == Lifecycle.Event.ON_STOP &&
                 (context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) vm.finish("app_interrupted")
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    BackHandler(state.running) { vm.finish() }
-    val introVisible = onboardingIntro && onboardingRangeIntroVisible(state)
+    val introActive = onboardingIntro && onboardingRangeIntroVisible(state)
+    val introVisible = introActive && !state.introLeaving
     val guideActive = onboardingIntro && state.running && state.session?.phase == "anchor_ready"
     val guideVisible = guideActive && (state.pausedForGuide || state.resumingGuide)
+    fun leaveGuide() {
+        if (state.running) vm.finish("app_interrupted")
+        onBack()
+    }
+    BackHandler(state.running) {
+        if (introActive || guideActive) leaveGuide() else vm.finish()
+    }
+    val introTransition = remember { MutableTransitionState(false) }.also { it.targetState = introVisible }
+    val guideTransition = remember { MutableTransitionState(false) }.also { it.targetState = guideVisible }
+    OnboardingDarkBackground(introTransition.currentState || introTransition.targetState ||
+        guideTransition.currentState || guideTransition.targetState)
     Box(Modifier.fillMaxSize()) {
         if (!introVisible && !guideVisible) {
             Column(Modifier.fillMaxSize().background(Color.White)) {
@@ -88,7 +115,8 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                     }
                     if (state.running && session != null) {
                         RangeMeasurementPanel(session, state.level, state.keyboardNotes, state.pausedForChoice, vm::replay,
-                            modifier = Modifier.weight(1f))
+                            modifier = Modifier.weight(1f), inputReady = state.inputCheck.ready && !state.inputChecking,
+                            inputMessage = state.inputCheck.message)
                     } else if (state.preparationFailed) {
                         Text("시작음을 조금 더 맞춰볼까요?", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         if (state.stopReason == "input_quality") Text("주변 소리와 마이크 위치도 확인해 주세요.", color = Grey)
@@ -130,7 +158,7 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text(state.analysisMessage)
                         } else if (state.hasPending) {
-                            if (state.hasAttempts) PrimaryButton(if (repository?.deviceOnly == true) "결과 다시 확인하기" else "모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth())
+                            if (state.hasAttempts) PrimaryButton(if (repository?.deviceOnly == true) "결과 다시 확인하기" else "모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth(), enabled = state.inputCheck.ready)
                             TextButton(onClick = { vm.discardPending(); onRestart() }) { Text("이 녹음을 지우고 새로 측정") }
                         } else {
                             TextButton(onClick = onRestart) { Text("새로 측정하기") }
@@ -154,29 +182,37 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                             val active = state.session
                             RangePassGuide(active)
                             if (active?.phase == "profile_ready") {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    RangeProfileChoiceActions(state.pausedForChoice, { vm.finish("completed") }, vm::continueMeasurement)
+                                if (!state.inputCheck.ready && !state.canSupplement) {
+                                    PrimaryButton("음역 다시 측정하기", { vm.discardPending(); onRestart() }, Modifier.fillMaxWidth())
+                                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    RangeProfileChoiceActions(state.pausedForChoice && !state.inputChecking, { vm.finish("completed") }, vm::continueMeasurement,
+                                        inputReady = state.inputCheck.ready)
                                 }
-                            } else RangeMeasurementActions(active, { vm.finish() }, vm::next)
+                            } else RangeMeasurementActions(active, { vm.finish() }, vm::next,
+                                inputReady = state.inputCheck.ready && !state.inputChecking)
                         }
                     }
                 }
             }
         }
-        OnboardingRangeIntroOverlay(visible = introVisible, calibrating = state.running,
-            startEnabled = state.soundReady && !state.previewPlaying && !state.running,
+        OnboardingRangeIntroOverlay(visible = introVisible, ready = state.pausedForIntro,
+            startEnabled = state.soundReady && state.pausedForIntro && !state.resumingIntro,
             soundLoading = state.soundLoading, soundReady = state.soundReady, error = state.error,
-            onStart = start, onRetrySound = vm::prepareReference,
-            onBack = { if (state.running) vm.finish() else onBack() })
+            onStart = vm::startComfortableMeasurement, onRetrySound = vm::prepareReference,
+            onRetryCalibration = automaticPreparation, calibrationRetryAvailable = !state.running && state.error != null,
+            active = introActive, visibilityState = introTransition,
+            onBack = ::leaveGuide)
         OnboardingRangeGuideOverlay(guideActive = guideActive, visible = guideVisible,
             ready = state.pausedForGuide && !state.resumingGuide, error = state.error,
-            onStart = vm::startAnchorMeasurement, onBack = { vm.finish() })
+            visibilityState = guideTransition,
+            onStart = vm::startAnchorMeasurement, onBack = ::leaveGuide)
     }
 }
 
 @Composable
 internal fun OnboardingRangeGuideOverlay(guideActive: Boolean, visible: Boolean, ready: Boolean,
     error: String? = null, onStart: () -> Unit, onBack: () -> Unit,
+    visibilityState: MutableTransitionState<Boolean>? = null,
 ) {
     var step by remember { mutableIntStateOf(0) }
     val currentVisible by rememberUpdatedState(visible)
@@ -188,23 +224,36 @@ internal fun OnboardingRangeGuideOverlay(guideActive: Boolean, visible: Boolean,
             delay(2000); step = 2
         }
     }
-    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(300))) {
+    val transition = visibilityState ?: remember { MutableTransitionState(visible) }
+    transition.targetState = visible
+    AnimatedVisibility(transition, enter = EnterTransition.None, exit = fadeOut(tween(300))) {
         Column(Modifier.fillMaxSize().background(Ink).testTag("onboarding-range-guide")) {
             IconButton(onClick = onBack, modifier = Modifier.padding(8.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = Color.White)
             }
             Column(Modifier.weight(1f).fillMaxWidth().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(if (step == 0) "잘하셨어요!" else "이제 안내음을 듣고, 따라서 '아'를 내주세요",
-                    color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                OnboardingFadeIn(true) {
+                    Text("잘하셨어요!", color = Color.White, fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                }
+                OnboardingFadeIn(step >= 1) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.height(16.dp))
+                        Text("이제 안내음을 듣고, 따라서 '아'를 내주세요", color = Color.White,
+                            fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    }
+                }
                 error?.let {
                     Spacer(Modifier.height(16.dp))
                     Text(it, color = Color.White, textAlign = TextAlign.Center)
                 }
-                if (step == 2) {
-                    Spacer(Modifier.height(24.dp))
-                    PrimaryButton(if (error == null) "측정 시작" else "다시 시도", onStart,
-                        Modifier.fillMaxWidth(), enabled = ready)
+                OnboardingFadeIn(step == 2) {
+                    Column {
+                        Spacer(Modifier.height(24.dp))
+                        PrimaryButton(if (error == null) "측정 시작" else "다시 시도", onStart,
+                            Modifier.fillMaxWidth(), enabled = ready)
+                    }
                 }
             }
         }
@@ -213,14 +262,26 @@ internal fun OnboardingRangeGuideOverlay(guideActive: Boolean, visible: Boolean,
 
 internal fun onboardingRangeIntroVisible(state: GuidedRangeViewModel.State): Boolean =
     !state.finished && !state.hasPending && !state.preparationFailed &&
-        (!state.running || state.session?.phase == "noise")
+        (!state.running || state.session?.phase in setOf("noise", "comfortable_ready"))
 
 @Composable
-internal fun OnboardingRangeIntroOverlay(visible: Boolean, calibrating: Boolean, startEnabled: Boolean,
+internal fun OnboardingRangeIntroOverlay(visible: Boolean, ready: Boolean, startEnabled: Boolean,
     soundLoading: Boolean = false, soundReady: Boolean = true, error: String? = null,
     onStart: () -> Unit, onRetrySound: () -> Unit = {}, onBack: () -> Unit,
+    onRetryCalibration: () -> Unit = {}, calibrationRetryAvailable: Boolean = false,
+    active: Boolean = visible, visibilityState: MutableTransitionState<Boolean>? = null,
 ) {
-    AnimatedVisibility(visible, enter = EnterTransition.None, exit = fadeOut(tween(300))) {
+    var step by remember { mutableIntStateOf(0) }
+    LaunchedEffect(active) {
+        if (active) {
+            step = 0
+            delay(1500); step = 1
+            delay(300); step = 2
+        }
+    }
+    val transition = visibilityState ?: remember { MutableTransitionState(visible) }
+    transition.targetState = visible
+    AnimatedVisibility(transition, enter = EnterTransition.None, exit = fadeOut(tween(300))) {
         Column(Modifier.fillMaxSize().background(Ink).testTag("onboarding-range-intro")) {
             IconButton(onClick = onBack, modifier = Modifier.padding(8.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = Color.White)
@@ -229,24 +290,44 @@ internal fun OnboardingRangeIntroOverlay(visible: Boolean, calibrating: Boolean,
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Icon(Icons.Filled.Mic, null, Modifier.size(128.dp), tint = Color.White)
                 Spacer(Modifier.height(24.dp))
-                Text(if (calibrating) "잠시 조용히 계세요" else "편한 목소리로 '아'를 내주세요",
-                    color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center)
+                OnboardingFadeIn(true) {
+                    Text("측정이 시작되면,", color = Color.White, fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                }
+                OnboardingFadeIn(step >= 1) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.height(16.dp))
+                        Text("편한 목소리로 '아'를 내주세요", color = Color.White, fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    }
+                }
                 error?.let {
                     Spacer(Modifier.height(16.dp))
                     Text(it, color = Color.White, textAlign = TextAlign.Center)
                 }
             }
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (!soundReady && !calibrating) {
+                if (!soundReady) {
                     if (soundLoading) Text("피아노 기준음을 준비하고 있어요", color = Color.White)
                     else TextButton(onClick = onRetrySound) { Text("피아노 기준음 다시 준비", color = Color.White) }
                     Spacer(Modifier.height(12.dp))
                 }
-                PrimaryButton("측정 시작", onStart, Modifier.fillMaxWidth(), enabled = startEnabled)
+                if (calibrationRetryAvailable) {
+                    TextButton(onClick = onRetryCalibration) { Text("소음 측정 다시 시도", color = Color.White) }
+                }
+                OnboardingFadeIn(ready && step == 2) {
+                    PrimaryButton("측정 시작하기", onStart, Modifier.fillMaxWidth(), enabled = startEnabled)
+                }
             }
         }
     }
+}
+
+@Composable
+private fun OnboardingFadeIn(visible: Boolean, content: @Composable () -> Unit) {
+    val transition = remember { MutableTransitionState(false) }
+    transition.targetState = visible
+    AnimatedVisibility(transition, enter = fadeIn(tween(300)), exit = ExitTransition.None) { content() }
 }
 
 @Composable

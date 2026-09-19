@@ -2,7 +2,7 @@ package com.micon.backend.domain.song.service;
 
 import com.micon.backend.domain.song.image.SpotifySongImageProvider;
 import com.micon.backend.domain.song.image.SpotifyTrackImage;
-import com.micon.backend.domain.song.api.SongResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
 import com.micon.backend.domain.song.image.SpotifyImageProperties;
 
 import java.util.ArrayList;

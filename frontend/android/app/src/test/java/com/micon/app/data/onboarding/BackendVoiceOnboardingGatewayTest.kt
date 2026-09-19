@@ -185,6 +185,24 @@ class BackendVoiceOnboardingGatewayTest {
         } finally { wav.delete(); server.shutdown() }
     }
 
+    @Test fun `silent recording and model retries are rejected before any request`() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val tokens = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
+        val gateway = BackendVoiceOnboardingGateway(BackendClient(server.url("/api/v1/").toString(), false, tokens).api)
+        val wav = File.createTempFile("silent-onboarding", ".wav")
+        try {
+            val recording = onboardingRecording(wav, "draft")
+            com.micon.app.audio.writeQualityWav(wav, recording.meta.sampleRate, recording.meta.durationSec, amplitude = 0.0)
+            val range = RangeReport(RangeProtocol.VERSION, emptyList(), 48, 72, emptyList(), "completed", "FOUND", "FOUND", "available")
+            val request = VoiceOnboardingRequest("draft", 1, 42, range, recording)
+            for (retry in listOf(null, AnalysisComponent.ECAPA, AnalysisComponent.SINGER_BYOL)) {
+                val failure = runCatching { gateway.analyze(request, retry) {} }.exceptionOrNull()
+                assertTrue(failure is VoiceOnboardingNotReady)
+            }
+            assertEquals(0, server.requestCount)
+        } finally { wav.delete(); server.shutdown() }
+    }
+
     private fun ok(status: Int, data: String) = MockResponse().setResponseCode(status)
         .setHeader("Content-Type", "application/json")
         .setBody("""{"code":"SUCCESS","message":"ok","data":$data}""")

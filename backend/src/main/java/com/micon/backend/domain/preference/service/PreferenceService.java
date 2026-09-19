@@ -1,16 +1,17 @@
 package com.micon.backend.domain.preference.service;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import com.micon.backend.domain.preference.repository.UserPreferenceRepository;
-import com.micon.backend.domain.preference.api.PreferenceRequest;
-import com.micon.backend.domain.preference.api.PreferenceResponse;
-import com.micon.backend.domain.preference.api.PreferenceResponse.Artist;
-import com.micon.backend.domain.preference.api.PreferenceResponse.Genre;
-import com.micon.backend.domain.song.api.PageResponse;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.user.domain.UserStatus;
+import com.micon.backend.domain.preference.dto.PreferenceRequest;
+import com.micon.backend.domain.preference.dto.PreferenceResponse;
+import com.micon.backend.domain.preference.dto.PreferenceResponse.Artist;
+import com.micon.backend.domain.preference.dto.PreferenceResponse.Genre;
+import com.micon.backend.domain.song.dto.PageResponse;
+import com.micon.backend.domain.user.entity.UserStatus;
 import java.util.HashSet;
 import java.util.List;
 import org.springframework.stereotype.Service;

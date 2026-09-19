@@ -1,5 +1,7 @@
 package com.micon.backend.embedding;
 
+import com.micon.backend.domain.embedding.service.EmbeddingCatalogService;
+
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
@@ -26,22 +28,29 @@ class EmbeddingCatalogServiceIntegrationTests {
     @MockitoBean VoiceAnalysisJobGateway aiGateway;
 
     private void seed() {
-        jdbc.update("INSERT INTO song(song_id,title) VALUES (9001,'catalog test')");
+        jdbc.update("""
+                INSERT INTO song(song_id,title,status) VALUES
+                (9001,'catalog test','ACTIVE'),
+                (9002,'inactive catalog test','INACTIVE')
+                """);
         jdbc.update("""
                 INSERT INTO embedding_catalog_batch
                 (batch_id,bucket,region,object_prefix,manifest_key,manifest_sha256,
                  manifest_bytes,models_json,track_count)
                 VALUES ('test-batch','test-bucket','ap-northeast-2','catalog/test/test-batch/',
-                        'catalog/test/test-batch/manifest.json',?,1000,? FORMAT JSON,1)
+                        'catalog/test/test-batch/manifest.json',?,1000,? FORMAT JSON,2)
                 """, "a".repeat(64), "{\"ecapa\":{\"dimension\":192},\"singer_byol\":{\"dimension\":1000}}");
-        for (String model : List.of("ecapa", "singer_byol")) {
-            jdbc.update("""
-                    INSERT INTO song_embedding
-                    (batch_id,song_id,catalog_track_id,model_key,object_key,sha256,
-                     file_bytes,segment_count,dimension)
-                    VALUES ('test-batch',9001,'POOL_9001',?,?,?,2048,2,?)
-                    """, model, "catalog/test/test-batch/" + model + ".npy",
-                    "b".repeat(64), model.equals("ecapa") ? 192 : 1000);
+        for (long songId : List.of(9001L, 9002L)) {
+            for (String model : List.of("ecapa", "singer_byol")) {
+                jdbc.update("""
+                        INSERT INTO song_embedding
+                        (batch_id,song_id,catalog_track_id,model_key,object_key,sha256,
+                         file_bytes,segment_count,dimension)
+                        VALUES ('test-batch',?,?,?, ?,?,2048,2,?)
+                        """, songId, "POOL_" + songId, model,
+                        "catalog/test/test-batch/" + songId + "/" + model + ".npy",
+                        "b".repeat(64), model.equals("ecapa") ? 192 : 1000);
+            }
         }
         jdbc.update("UPDATE embedding_catalog_active SET batch_id='test-batch',revision=4 WHERE channel='default'");
     }
@@ -51,7 +60,10 @@ class EmbeddingCatalogServiceIntegrationTests {
     void actualJdbcSnapshotPreservesSongMappingAndModelReferences() {
         seed();
         Map<String, Object> snapshot = catalog.active();
-        assertThat(snapshot).containsEntry("batch_id", "test-batch").containsEntry("revision", 4L);
+        assertThat(snapshot).containsEntry("batch_id", "test-batch")
+                .containsEntry("revision", 4L)
+                .containsEntry("source_track_count", 2)
+                .containsEntry("track_count", 1);
         assertThat((Map<String, Object>) snapshot.get("models")).containsKeys("ecapa", "singer_byol");
         List<Map<String, Object>> tracks = (List<Map<String, Object>>) snapshot.get("tracks");
         assertThat(tracks).hasSize(1);
@@ -59,7 +71,7 @@ class EmbeddingCatalogServiceIntegrationTests {
         Map<String, Map<String, Object>> embeddings =
                 (Map<String, Map<String, Object>>) tracks.getFirst().get("embeddings");
         assertThat(embeddings.get("ecapa")).containsEntry("dimension", 192).containsEntry("rows", 2)
-                .containsEntry("key", "catalog/test/test-batch/ecapa.npy");
+                .containsEntry("key", "catalog/test/test-batch/9001/ecapa.npy");
     }
 
     @Test

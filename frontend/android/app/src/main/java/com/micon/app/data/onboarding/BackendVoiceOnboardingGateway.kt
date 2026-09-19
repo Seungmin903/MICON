@@ -7,6 +7,9 @@ import com.micon.app.range.RangeProtocol
 import com.micon.app.range.RangeReport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.micon.app.audio.VocalWindowQuality
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -31,6 +34,13 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         if (request.ownerId == null) throw VoiceOnboardingNotReady("로그인하면 음색 분석 결과를 확인할 수 있어요.")
         if (retry == null) VoiceOnboardingInput.problem(request.draftId, request.range, request.recording)?.let {
             throw VoiceOnboardingNotReady(it)
+        }
+        if (retry != AnalysisComponent.ARTIST_SEARCH) {
+            val quality = withContext(Dispatchers.IO) {
+                runCatching { VocalWindowQuality().inspect(request.recording.wav, request.recording.meta.sampleRate, finalized = true) }
+                    .getOrElse { com.micon.app.audio.VocalQuality(fileProblem = true) }
+            }
+            if (!quality.ready) throw VoiceOnboardingNotReady(quality.message)
         }
         val access = VoiceSessionAccess(request.ownerId)
         val recording = request.recording

@@ -40,6 +40,7 @@ class SingRecordingMetaCodecTest {
         assertEquals(emptyList<SingLyricLine>(), meta.lyricLines)
         assertEquals(1, meta.schemaVersion)
         assertEquals(1, meta.channels)
+        assertEquals("1", meta.songId) // Previously saved numeric song IDs remain readable.
         assertEquals(SingScope.FULL, meta.scopeEnum)
     }
 
@@ -53,5 +54,11 @@ class SingRecordingMetaCodecTest {
     fun `unknown scope name falls back to FULL`() {
         val meta = sample().copy(scope = "SOMETHING_NEW")
         assertEquals(SingScope.FULL, meta.scopeEnum)
+    }
+
+    @Test fun `uuid and existing server ids survive the recording metadata round trip`() {
+        val meta = sample().copy(songId = "d221afea-6dc1-5223-a6bc-68fa055b4820",
+            serverRecordingId = 57L, serverAnalysisId = 71L)
+        assertEquals(meta, SingRecordingMetaCodec.fromJson(SingRecordingMetaCodec.toJson(meta)))
     }
 }

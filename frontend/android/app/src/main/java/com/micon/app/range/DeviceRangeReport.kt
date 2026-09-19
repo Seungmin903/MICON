@@ -2,6 +2,10 @@ package com.micon.app.range
 
 /** Navigation eligibility only. This snapshot must never replace a model-verified report. */
 fun RangeSubmission.onboardingPreview(): RangeReport? {
+    if (RangeInputQuality.metadataProblem(this) != null || attempts.none {
+            it.selectedForVisit && it.clientStatus == "passed" && it.metrics?.passed == true &&
+                it.advanceReason != "anchor_reset" && it.runEndReason !in setOf("checkpoint", "in_progress")
+        }) return null
     if (protocolVersion != RangeProtocol.VERSION || sampling?.basicCompleted != true ||
         sampling.measuredNoteCount <= 0 || stopReason !in setOf("completed", "user_stopped", "time_limit", "model_limit")) return null
     return deviceReport().takeIf { it.availability == "available" }

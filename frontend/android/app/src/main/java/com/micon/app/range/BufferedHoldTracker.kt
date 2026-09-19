@@ -5,7 +5,7 @@ import kotlin.math.*
 /** v5: raw audio time, frozen robust reference, and completed (never prefix) records. */
 class BufferedHoldTracker(private val target: Int, private val anchor: Int, private val rmsFloor: Double,
                           private val revised: Boolean = false) {
-    private val startToleranceSemitones = if (revised) 2.0 else 1.0
+    private val startToleranceSemitones = RangeProtocol.START_TOLERANCE_SEMITONES
     data class Record(val referenceStart: Double, val referenceEnd: Double, val referenceMidi: Double,
                       val start: Double, val end: Double, val metrics: RangeMetrics, val endReason: String,
                       val pitchCandidates: List<RangePitchCandidate> = emptyList())

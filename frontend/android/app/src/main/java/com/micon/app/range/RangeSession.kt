@@ -7,7 +7,8 @@ import kotlin.math.roundToInt
 class RangeSession(val id: String, private val parent: RangeReport? = null,
                    private val protocolVersion: String = RangeProtocol.VERSION,
                    private val awaitAnchorConfirmation: Boolean = false,
-                   private val previousCompletedTargets: Set<Int>? = null) {
+                   private val previousCompletedTargets: Set<Int>? = null,
+                   private val awaitComfortableConfirmation: Boolean = false) {
     private val revisedSearch = protocolVersion == "guided-range-v7"
     private val adaptive = protocolVersion in setOf("guided-range-v6", "guided-range-v7")
     private val coarseStep = if (protocolVersion == "guided-range-v7") 6 else 8
@@ -93,14 +94,14 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             responseStart, onset, floor, tracker?.referenceMidi, tracker?.current?.start,
             tracker?.current?.end, tracker?.current?.metrics?.continuousHoldSeconds ?: 0.0,
             when {
-                phase in listOf("done", "profile_ready", "anchor_ready") -> "paused"
+                phase in listOf("done", "profile_ready", "anchor_ready", "comfortable_ready") -> "paused"
                 !f.t.isFinite() || f.t + f.duration < now - 1e-6 -> "stale_frame"
                 phase in listOf("noise", "comfortable") -> phase
                 waitingForCue -> "reference_playing"
                 responseStart == null || f.t < responseStart!! -> "reference_decay"
                 else -> "onset_settling"
             }) else null
-        if (phase in listOf("done", "profile_ready", "anchor_ready") || !f.t.isFinite() || f.t + f.duration < now - 1e-6) return view()
+        if (phase in listOf("done", "profile_ready", "anchor_ready", "comfortable_ready") || !f.t.isFinite() || f.t + f.duration < now - 1e-6) return view()
         now = max(now, f.t + f.duration)
         currentMidi = if (RangeEvaluator.voiced(f, floor)) RangeProtocol.midi(f.f0) else null
         if (phase == "noise") {
@@ -112,7 +113,12 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             if (now >= 1.0 && quietWindow && (!buffered || calibration.sumOf { it.duration } >= 1.0 - 1e-8)) {
                 noise = RangeEvaluator.median(calibration.map { it.rms }) ?: 0.0
                 floor = max(.001, noise * 3.16); calibration.clear()
-                if (parent == null) { phase = "comfortable"; comfortableStart = now; message = "편한 목소리로 ‘아’를 2초 내주세요" }
+                if (parent == null) {
+                    phase = if (awaitComfortableConfirmation) "comfortable_ready" else "comfortable"
+                    comfortableStart = now
+                    if (awaitComfortableConfirmation) currentMidi = null
+                    message = "편한 목소리로 ‘아’를 2초 내주세요"
+                }
                 else startRefinement(now)
             } else if (buffered && now >= 3.0) message = "목소리가 섞이지 않은 조용한 1초가 필요해요. 잠시 기다려 주세요"
             return view()
@@ -195,6 +201,13 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
     }
     private fun eligible(m: RangeMetrics) = m.voicedRatio >= .5 - 1e-8 && m.clippedRatio <= .01 + 1e-8
 
+    /** Noise calibration is frozen until the onboarding intro has finished fading out. */
+    @Synchronized fun startComfortableMeasurement(audioTime: Double): Boolean {
+        if (phase != "comfortable_ready") return false
+        now = max(now, audioTime); comfortableStart = now; phase = "comfortable"
+        return true
+    }
+
     /** The onboarding guide holds both the first cue and the audio evaluation clock. */
     @Synchronized fun startAnchorMeasurement(audioTime: Double): Boolean {
         if (phase != "anchor_ready") return false
@@ -237,6 +250,15 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
     @Synchronized fun continueMeasurement(audioTime: Double): Boolean {
         if (phase != "profile_ready") return false
         now = max(now, audioTime); startRefinement(now); return true
+    }
+    @Synchronized fun waitForValidInput() {
+        phase = "profile_ready"; target = null; cueMidi = null; currentMidi = null
+        message = "분석할 녹음 구간이 부족해요. 추가로 측정해 주세요."
+    }
+    @Synchronized fun canSupplement(): Boolean {
+        val start = anchor ?: return false
+        val completed = (previousCompletedTargets ?: parent?.completedNoteFallback().orEmpty()) + submission().completedTargets()
+        return RangeRefinement.targets(start, sampling, completed, reconfirmBoundaries = !revisedSearch).isNotEmpty()
     }
     @Synchronized fun markFalsetto() {
         if (phase in listOf("done", "profile_ready") || register == "falsetto") return
@@ -371,7 +393,7 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
                         lowerLastSuccess = sweep.lastSuccess ?: sampling.lowerLastSuccess, basicCompleted = true)
                     phase = "profile_ready"; target = null; cueMidi = null; currentMidi = null
                     message = if (measuredNotes().isEmpty()) "측정 자료가 부족해요. 계속 측정해 음별 기록을 남길 수 있어요"
-                        else "보이스 프로필 생성 가능"
+                        else "녹음 구간 확인 중…"
                 }
                 return
             }
@@ -433,7 +455,7 @@ class RangeSession(val id: String, private val parent: RangeReport? = null,
             .maxByOrNull { if (relative) it.recordedHoldSeconds else it.inTuneRatio }
         return View(phase, target, currentMidi, cents, now, (displayHold / if (relative) RangeProtocol.FULL_HOLD_SECONDS else 1.0).coerceIn(0.0, 1.0).toFloat(), latest,
             cueId, cueMidi, waitingForCue, message, attempts.toList(), phase == "done", cueDurationSeconds, peak, visitId,
-            phase in listOf("profile_ready", "anchor_ready") || waitingForCue || responseStart?.let { now < it } == true,
+            phase in listOf("profile_ready", "anchor_ready", "comfortable_ready") || waitingForCue || responseStart?.let { now < it } == true,
             sampling.copy(measuredNoteCount = measuredNotes().size),
             bufferedTracker?.referenceMidi, if (buffered) bufferedTracker?.zone else null,
             bufferedTracker?.generation ?: 0, floor, if (adaptive) probeStage() else null, adaptive && phase == "anchor")

@@ -2,8 +2,8 @@ package com.micon.backend.domain.recommendation.client;
 
 import com.micon.backend.common.observability.ObservedAiRequestFactory;
 
-import com.micon.backend.domain.recommendation.application.RecommendationInput;
-import com.micon.backend.domain.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.service.RecommendationInput;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
 import com.micon.backend.domain.recommendation.config.RecommendationAiProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

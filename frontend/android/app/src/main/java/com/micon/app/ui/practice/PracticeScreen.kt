@@ -72,6 +72,7 @@ import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.LyricTiming
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.SectionMap
+import com.micon.app.scoring.SongSections
 import com.micon.app.scoring.ScoringUi
 import com.micon.app.scoring.Totals
 import com.micon.app.ui.charts.WaveformBars
@@ -104,7 +105,7 @@ import kotlin.math.roundToInt
  * Figma "노래 연습 - 노래 연습전 / 연습중" + 고도화.
  * 위: 곡명·가수, 탐색 가능한 진행 바(실제 반주 길이), 키 조절(원키 → 바뀐 키 이름, 렌더 대기 표시),
  *     시작 전 설정(이어폰·전주 건너뛰기·지연 보정·진동)과 마이크 미리보기.
- *     구간 칩(1절·2절…·하이라이트) — 누르면 그 구간 1.5초 앞으로 이동(재생 중에도).
+ *     구간 칩(1절·2절·하이라이트) — 누르면 그 구간이 시작하는 마디의 한 마디 앞(첫 박)으로 이동(재생 중에도, 카운트인 후).
  * 가운데: 연습 중 실시간 점수판 + 방금 음표 판정 칩, 접을 수 있는 러너웨이(피아노롤), 가사 줄 목록(LRC 줄 텍스트, 글자는 음절 시각으로 채움).
  *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다. 간주에 들어가면 "간주 건너뛰기" 버튼이 뜬다.
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
@@ -146,7 +147,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                         Text(state.artist, fontSize = 15.sp, color = Grey)
                         Spacer(Modifier.height(14.dp))
                         SeekBar(state.nowSec, state.durationSec, enabled = state.phase == Phase.READY || state.phase == Phase.PAUSED || state.phase == Phase.FINISHED, onSeek = vm::seekTo)
-                        KeyRow(state.keyShift, state.keyBusy, state.keyName, state.shiftedKeyName, enabled = !running, onChange = vm::changeKey)
+                        KeyRow(state.keyShift, state.keyName, state.shiftedKeyName, enabled = !running, onChange = vm::changeKey)
                         SectionChips(vm.sections, state.sectionIndex, enabled = state.phase != Phase.COUNTDOWN, onSection = vm::jumpToSection, onHighlight = vm::jumpToHighlight)
                         }
                         if (state.phase == Phase.READY) {
@@ -166,7 +167,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                     }
                 }
                 if (running || state.phase == Phase.PAUSED) {
-                    val interludeLeft = state.interlude?.let { it.end - state.nowSec }?.takeIf { it > SectionMap.JUMP_LEAD_SECONDS + 1.0 }?.let { ceil(it).toInt() }
+                    val interludeLeft = state.interlude?.let { it.end - state.nowSec }?.takeIf { it > SongSections.LEAD_FALLBACK_SECONDS + 1.0 }?.let { ceil(it).toInt() }
                     ScoreBoard(
                         state.totals, state.lastJudged, state.lastJudgedAtMs, state.calibrationMs, state.autoCalibrate, state.showRunway, onToggleRunway = vm::toggleRunway,
                         interludeLeft = interludeLeft, onSkipInterlude = vm::skipInterlude,
@@ -236,28 +237,25 @@ private fun SeekBar(positionSec: Double, durationSec: Double, enabled: Boolean, 
 
 /** 반주 키 조절. 렌더 중이면 스피너, 바뀐 키 이름을 함께 보여 준다. */
 @Composable
-private fun KeyRow(keyShift: Int, busy: Boolean, keyName: String?, shiftedKeyName: String?, enabled: Boolean, onChange: (Int) -> Unit) {
-    val canUse = enabled && !busy
+private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, enabled: Boolean, onChange: (Int) -> Unit) {
+    val canUse = enabled
     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("−", fontSize = 22.sp, color = if (canUse && keyShift > ScoringConstants.KEY_SHIFT_MIN) Purple else GreyLight, modifier = Modifier.clickable(enabled = canUse) { onChange(keyShift - 1) }.padding(horizontal = 8.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(if (keyShift == 0) "원키" else (if (keyShift > 0) "키 +$keyShift" else "키 $keyShift"), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
+            // 키를 바꿔도 반주를 새로 받지 않으므로 기다릴 일이 없다 (재생기가 즉시 음높이를 옮긴다).
             val label = when {
-                busy -> "반주 렌더 중… (첫 변경은 10초 정도)"
                 keyName == null -> null
                 keyShift == 0 -> keyName
                 else -> "$keyName → $shiftedKeyName"
             }
-            if (label != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                if (busy) { CircularProgressIndicator(Modifier.size(11.dp), color = Purple, strokeWidth = 2.dp); Spacer(Modifier.width(6.dp)) }
-                Text(label, fontSize = 11.sp, color = if (busy) Purple else Grey)
-            }
+            if (label != null) Text(label, fontSize = 11.sp, color = Grey)
         }
         Text("+", fontSize = 22.sp, color = if (canUse && keyShift < ScoringConstants.KEY_SHIFT_MAX) Purple else GreyLight, modifier = Modifier.clickable(enabled = canUse) { onChange(keyShift + 1) }.padding(horizontal = 8.dp))
     }
 }
 
-/** 구간 칩: 1절·2절…(음표 사이 5초 이상 빈 곳으로 나눈 보컬 묶음) + 하이라이트(최고음 구간). 현재 구간은 보라. */
+/** 구간 칩: 1절·2절(가장 긴 간주에서 둘로 나눔) + 하이라이트(최고음 구간). 현재 구간은 보라. */
 @Composable
 private fun SectionChips(sections: SectionMap, current: Int?, enabled: Boolean, onSection: (Int) -> Unit, onHighlight: () -> Unit) {
     if (sections.sections.size < 2 && sections.highlight == null) return

@@ -30,6 +30,24 @@ def test_load_and_offline_restart(package_factory, store, models, tmp_path, monk
     np.testing.assert_array_equal(restored.embeddings(1, "ecapa"), loaded.embeddings(1, "ecapa"))
 
 
+def test_loads_active_snapshot_subset_from_source_manifest(package_factory, store, models, tmp_path):
+    directory, manifest, checksum = package_factory(tracks=3)
+    upload(directory, store)
+    snapshot = synthetic_snapshot(store, manifest, checksum)
+    snapshot["source_track_count"] = 3
+    snapshot["tracks"] = snapshot["tracks"][:2]
+    snapshot["track_count"] = 2
+
+    excluded = manifest["tracks"][2]
+    for record in excluded["embeddings"].values():
+        store.client.delete_object(Bucket=store.bucket, Key=record["key"])
+
+    loaded = CatalogCache(store, tmp_path / "cache", models).refresh(snapshot)
+
+    assert set(loaded.arrays) == {1, 2}
+    assert loaded.embeddings(2, "singer_byol").shape == (2, 1000)
+
+
 def test_range_catalog_writer_uses_playable_key_bounds(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "recommend-server"))
     snapshot = {

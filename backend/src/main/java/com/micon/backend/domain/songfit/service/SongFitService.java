@@ -2,10 +2,10 @@ package com.micon.backend.domain.songfit.service;
 
 import com.micon.backend.domain.songfit.client.SongFitGateway;
 import com.micon.backend.domain.songfit.repository.SongFitQueryRepository;
-import com.micon.backend.domain.songfit.api.SongFitResponse;
-import com.micon.backend.domain.songfit.api.SongFitResponse.BurdenSection;
-import com.micon.backend.domain.songfit.api.SongFitResponse.RangeFit;
-import com.micon.backend.domain.songfit.api.SongFitResponse.RecommendationScores;
+import com.micon.backend.domain.songfit.dto.SongFitResponse;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.BurdenSection;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.RangeFit;
+import com.micon.backend.domain.songfit.dto.SongFitResponse.RecommendationScores;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

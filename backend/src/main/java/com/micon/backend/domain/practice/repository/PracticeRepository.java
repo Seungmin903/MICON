@@ -117,11 +117,13 @@ public class PracticeRepository {
 		String sql = """
 				INSERT INTO practice_session (
 				    practice_id, user_id, song_id, section_id, recording_id,
-				    selected_key, playback_speed, custom_start_ms, custom_end_ms,
+				    initial_key, selected_key, key_change_count,
+				    playback_speed, custom_start_ms, custom_end_ms,
 				    status, started_at, created_at, practice_scope
 				) VALUES (
 				    :practiceId, :userId, :songId, :sectionId, :recordingId,
-				    :selectedKey, :playbackSpeed, :customStartMs, :customEndMs,
+				    :selectedKey, :selectedKey, 0,
+				    :playbackSpeed, :customStartMs, :customEndMs,
 				    'READY', NULL, CURRENT_TIMESTAMP(6), :practiceScope
 				)
 				""";
@@ -142,7 +144,8 @@ public class PracticeRepository {
 	public Optional<PracticeResponse.Detail> findOwned(Long practiceId, Long userId) {
 		String sql = """
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, ps.section_id,
-				       ps.recording_id, ps.selected_key, ps.playback_speed,
+				       ps.recording_id, ps.initial_key, ps.selected_key, ps.key_change_count,
+				       ps.playback_speed,
 				       ps.custom_start_ms, ps.custom_end_ms, ps.practice_scope, ps.status,
 				       ps.started_at, ps.ended_at, ps.duration_ms, ps.created_at
 				FROM practice_session ps
@@ -157,7 +160,11 @@ public class PracticeRepository {
 				resultSet.getObject("section_id", Long.class),
 				resultSet.getObject("recording_id", Long.class),
 				null,
+				resultSet.getInt("initial_key"),
 				resultSet.getInt("selected_key"),
+				resultSet.getInt("key_change_count"),
+				resultSet.getInt("key_change_count") > 0
+					|| resultSet.getInt("initial_key") != resultSet.getInt("selected_key"),
 				resultSet.getBigDecimal("playback_speed"),
 				resultSet.getObject("custom_start_ms", Integer.class),
 				resultSet.getObject("custom_end_ms", Integer.class),
@@ -176,13 +183,22 @@ public class PracticeRepository {
 		Long userId,
 		int durationMs,
 		Long voiceAnalysisId,
-		Long recordingId
+		Long recordingId,
+		Integer finalSelectedKey,
+		Integer keyChangeCount
 	) {
 		String sql = """
 				UPDATE practice_session
 				SET status = 'COMPLETED', ended_at = CURRENT_TIMESTAMP(6),
 				    duration_ms = :durationMs,
-				    recording_id = COALESCE(:recordingId, recording_id)
+				    recording_id = COALESCE(:recordingId, recording_id),
+				    key_change_count = CASE
+				        WHEN :keyChangeCount IS NOT NULL THEN :keyChangeCount
+				        WHEN :finalSelectedKey IS NOT NULL AND :finalSelectedKey <> selected_key
+				        THEN GREATEST(key_change_count, 1)
+				        ELSE key_change_count
+				    END,
+				    selected_key = COALESCE(:finalSelectedKey, selected_key)
 				WHERE practice_id = :practiceId AND user_id = :userId
 				  AND status IN ('READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED')
 				""";
@@ -190,7 +206,9 @@ public class PracticeRepository {
 			.addValue("practiceId", practiceId)
 			.addValue("userId", userId)
 			.addValue("durationMs", durationMs)
-			.addValue("recordingId", recordingId));
+			.addValue("recordingId", recordingId)
+			.addValue("finalSelectedKey", finalSelectedKey)
+			.addValue("keyChangeCount", keyChangeCount));
 	}
 
 	// 기능: cancel에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.

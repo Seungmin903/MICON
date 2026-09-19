@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LoginReturnDestinationTest {
+    @Test fun uuidSurvivesSongPracticeAndLoginReturnRoutes() {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        assertEquals("song/$id", Routes.song(id))
+        assertEquals("match/$id", Routes.songMatch(id))
+        assertEquals("practice/$id?selectedKey=-2", Routes.practice(id, -2))
+        assertEquals("report/sing/$id", Routes.singAnalysis(id))
+        assertEquals("song/$id?source=favorites", loginReturnDestination(Routes.SONG, id, source = Routes.FAVORITES))
+        assertEquals("song/$id", loginReturnDestination(Routes.PRACTICE_RUN, id))
+    }
     @Test fun detailOriginAndSelectedPracticeKeyAreOptionalAndBackwardsCompatible() {
         assertEquals("song/42", Routes.song("42"))
         assertEquals("song/42?source=favorites", Routes.song("42", Routes.FAVORITES))

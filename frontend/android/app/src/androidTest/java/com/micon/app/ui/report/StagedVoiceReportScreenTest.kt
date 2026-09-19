@@ -79,7 +79,8 @@ class StagedVoiceReportScreenTest {
         show { VoiceReportContent(range, progress, retryEnabled = true, onRetry = { retried = it }) }
         compose.onNodeWithText("분석 중").assertDoesNotExist()
         compose.onNodeWithText("노래 음색 분석").assertDoesNotExist()
-        compose.onNodeWithText("나와 닮은 가수").assertDoesNotExist()
+        compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
+        compose.onNodeWithTag("ecapa-embedding-card").assertExists()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = progress.copy(byol = ComponentStatus.FAILED) }
         compose.onNodeWithText("다시 시도").performScrollTo().performClick()
@@ -89,19 +90,19 @@ class StagedVoiceReportScreenTest {
         compose.onNodeWithText("종합 보컬 특성").assertDoesNotExist()
     }
 
-    @Test fun completionRevealsCardsAndSavedStateKeepsThem() {
+    @Test fun completionUpdatesSharedCardsAndSavedStateKeepsThem() {
         var progress by mutableStateOf(complete.copy(byol = ComponentStatus.RUNNING))
-        show { VoiceReportContent(range, progress,
-            songFit = if (progress.sessionStatus == VoiceSessionStatus.SAVED) { { Text("저장 프로필 곡 적합도") } } else null) }
+        show { VoiceReportContent(range, progress) }
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = complete }
         compose.onNodeWithText("테스트 가수").performScrollTo().assertIsDisplayed()
         capture("staged-timbre-result.png")
-        compose.onNodeWithText("내 목소리에 맞는 음악").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("적정 템포 / 가사 밀도 · 미측정").assertExists()
-        compose.onNodeWithText("종합 보컬 특성").performScrollTo().assertIsDisplayed()
+        listOf("음색 분석 결과", "내 목소리에 맞는 음악", "곡 적합도", "종합 보컬 특성").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
+        }
+        compose.onNodeWithText("4C(도) ~ 6C(도)").assertExists()
+        compose.onNodeWithTag("guided-range-keyboard").assertExists()
         compose.runOnIdle { progress = complete.copy(sessionStatus = VoiceSessionStatus.SAVED, saveAllowed = false) }
-        compose.onNodeWithText("저장 프로필 곡 적합도").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("테스트 가수").assertExists()
         compose.onNodeWithText("음색 측정하기").assertDoesNotExist()
     }
@@ -110,15 +111,15 @@ class StagedVoiceReportScreenTest {
         var progress by mutableStateOf(complete.copy(artistSearch = ComponentStatus.RUNNING, artists = emptyList()))
         show { VoiceReportContent(range, progress) }
         compose.onNodeWithText("가수 찾기").assertDoesNotExist()
-        compose.onNodeWithText("나와 닮은 가수").assertDoesNotExist()
-        compose.onNodeWithText("내 목소리에 맞는 음악").assertExists()
+        compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
+        compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = progress.copy(artistSearch = ComponentStatus.COMPLETED) }
         compose.onNodeWithText("지금은 닮은 가수를 찾지 못했어요.").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun aPreviousSessionsTimbreNeverAppearsUnderANewRange() {
         show { VoiceReportContent(range.copy(backendSessionId = 8), complete) }
-        compose.onNodeWithText("3옥타브 도 ~ 5옥타브 도").assertIsDisplayed()
+        compose.onNodeWithText("4C(도) ~ 6C(도)").assertExists()
         compose.onNodeWithText("테스트 가수").assertDoesNotExist()
         compose.onNodeWithText("음색 분석 결과").assertDoesNotExist()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
@@ -130,10 +131,11 @@ class StagedVoiceReportScreenTest {
         show { VoiceReportContent(range, progress, retryEnabled = true, onRetry = { retried = it }) }
         for (status in listOf(ComponentStatus.PENDING, ComponentStatus.QUEUED, ComponentStatus.RUNNING)) {
             compose.runOnIdle { progress = progress.copy(artistSearch = status) }
-            listOf("나와 닮은 가수", "가수 찾기", "접수 준비 중", "순서 대기 중", "분석 중").forEach {
+            listOf("가수 찾기", "접수 준비 중", "순서 대기 중", "분석 중").forEach {
                 compose.onNodeWithText(it).assertDoesNotExist()
             }
-            compose.onNodeWithText("내 목소리에 맞는 음악").assertExists()
+            compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
+            compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         }
         compose.runOnIdle { progress = progress.copy(artistSearch = ComponentStatus.FAILED) }
         compose.onNodeWithText("다시 시도").performScrollTo().performClick()

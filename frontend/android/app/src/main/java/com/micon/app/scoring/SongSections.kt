@@ -8,26 +8,50 @@ data class Interlude(val start: Double, val end: Double) {
     val length: Double get() = end - start
 }
 
-/** 보컬 구간 묶음(1절·2절…). 라벨은 순서 기반 — 카탈로그에 구간(sections) 데이터가 아직 없다. */
-data class Section(val index: Int, val label: String, val start: Double, val end: Double)
+/**
+ * 절 구간. 모든 곡은 **1절·2절 둘로만** 나눈다 (구간이 4·5절까지 나오던 것을 통일).
+ * [start] 는 보컬이 실제로 시작하는 시각(표시용), [jumpStart] 는 이 절로 점프할 때 반주를 시작하는 시각 —
+ * 보컬이 시작하는 마디의 **한 마디 앞 첫 박**이다. 마디 정보가 없으면 고정 여유(2.5 s)를 뺀다.
+ */
+data class Section(val index: Int, val label: String, val start: Double, val end: Double, val jumpStart: Double)
 
-/** 최고음이 몰린 구간. "하이라이트" 점프 목적지. */
+/** 최고음이 몰린 구간. "하이라이트" 점프 목적지. [start] 는 이미 구절 마디의 한 마디 앞이다. */
 data class Highlight(val start: Double, val end: Double, val midi: Int)
 
-class SectionMap(val interludes: List<Interlude>, val sections: List<Section>, val highlight: Highlight?) {
+class SectionMap(
+    val interludes: List<Interlude>,
+    val sections: List<Section>,
+    val highlight: Highlight?,
+    private val barStarts: List<Double> = emptyList(),
+) {
     fun interludeAt(seconds: Double): Interlude? = interludes.firstOrNull { seconds >= it.start && seconds < it.end }
 
-    /** [seconds] 가 속한(또는 직전) 구간 인덱스. 첫 구간 시작 전이면 0. */
+    /** [seconds] 가 속한(또는 직전) 구간 인덱스. 첫 구간 점프 시각 전이면 0. */
     fun sectionIndexAt(seconds: Double): Int? {
         if (sections.isEmpty()) return null
-        val i = sections.indexOfLast { seconds >= it.start - JUMP_LEAD_SECONDS }
+        val i = sections.indexOfLast { seconds >= it.jumpStart }
         return if (i < 0) 0 else i
     }
 
+    /**
+     * [seconds] 에서 노래가 시작될 때 반주를 어디서 출발시킬지 — 그 시각이 속한 마디의 **한 마디 앞 첫 박**.
+     * 절 점프·하이라이트·간주 건너뛰기가 모두 이 규칙을 쓴다. 노래 중간에서 툭 시작하지 않고 마디 첫 박에서
+     * 들어가야 가수가 박자를 잡고 준비할 수 있다. 마디 정보가 없으면 [SongSections.LEAD_FALLBACK_SECONDS] 앞.
+     */
+    fun leadBefore(seconds: Double): Double = leadBefore(seconds, barStarts)
+
     companion object {
-        /** 구간으로 점프할 때 구간 시작보다 이만큼 앞에서 시작 */
-        const val JUMP_LEAD_SECONDS = 1.5
         val EMPTY = SectionMap(emptyList(), emptyList(), null)
+
+        fun leadBefore(seconds: Double, barStarts: List<Double>): Double {
+            if (barStarts.isEmpty()) return max(0.0, seconds - SongSections.LEAD_FALLBACK_SECONDS)
+            val idx = barStarts.indexOfLast { it <= seconds + 0.05 }
+            return when {
+                idx >= 1 -> barStarts[idx - 1]
+                idx == 0 -> barStarts[0]
+                else -> max(0.0, seconds - SongSections.LEAD_FALLBACK_SECONDS)
+            }
+        }
     }
 }
 
@@ -36,13 +60,15 @@ object SongSections {
     const val MIN_GAP_SECONDS = 5.0
     /** 이보다 짧은 보컬 묶음은 앞 구간에 붙인다 (간주 안의 애드리브 한두 음 등) */
     private const val MIN_SECTION_SECONDS = 12.0
+    /** 간주가 하나도 없는 곡: 이 이상 비는 음표 사이(가운데 25~75 % 구간)에서 1절·2절을 나눈다 */
+    private const val FALLBACK_SPLIT_GAP_SECONDS = 2.0
     private const val HIGHLIGHT_WINDOW_SECONDS = 10.0
-    /** 마디 정보가 없을 때 하이라이트 앞에 두는 준비 시간(≈ 한 마디) */
-    const val HIGHLIGHT_LEAD_FALLBACK_SECONDS = 2.5
+    /** 마디 정보가 없을 때 시작 앞에 두는 준비 시간(≈ 한 마디) */
+    const val LEAD_FALLBACK_SECONDS = 2.5
 
     /**
-     * @param barStarts 마디 시작 시각(비트 그리드에서). 하이라이트 시작을 "그 구절이 시작하는 마디의 한 마디 앞" 으로 맞춘다 —
-     *                  최고음에서 바로 시작하면 아무도 맞출 수 없다.
+     * @param barStarts 마디 시작 시각(비트 그리드에서). 절·하이라이트 점프 시각을 "그 구절이 시작하는 마디의 한 마디 앞" 으로
+     *                  맞춘다 — 최고음이나 첫 음절에서 바로 시작하면 아무도 맞출 수 없다.
      */
     fun build(notes: List<LiveNote>, lines: List<LyricLine>, barStarts: List<Double> = emptyList()): SectionMap {
         if (notes.isEmpty()) return SectionMap.EMPTY
@@ -68,25 +94,52 @@ object SongSections {
             i++
         }
 
-        // 2) 간주: 전주(첫 음표 앞) + 묶음 사이
+        // 2) 간주: 전주(첫 음표 앞) + 묶음 사이 — 건너뛰기 대상은 전부 남긴다
         val interludes = ArrayList<Interlude>()
         if (blocks.first().start >= MIN_GAP_SECONDS) interludes.add(Interlude(0.0, blocks.first().start))
         for (k in 1 until blocks.size) interludes.add(Interlude(blocks[k - 1].end, blocks[k].start))
 
-        // 3) 구간 라벨: 줄 시작에 맞춰 시작 시각을 살짝 당긴다
-        val sections = blocks.mapIndexed { index, b ->
-            val lineStart = lines.firstOrNull { it.start >= b.start - 0.5 && it.start < b.end }?.start
-            val start = min(b.start, lineStart ?: b.start)
-            Section(index, labelFor(index, blocks.size), start, b.end)
+        // 3) 절은 둘로만: 묶음 사이 간주 중 가장 긴 곳에서 1절/2절을 나눈다.
+        //    묶음이 하나뿐이면(간주 없는 곡) 가운데 구간의 가장 긴 음표 공백에서 나누고, 그것도 없으면 1절만 둔다.
+        val vocalStart = blocks.first().start
+        val vocalEnd = blocks.last().end
+        val splitAt: Double? = if (blocks.size >= 2) {
+            val k = (1 until blocks.size).maxBy { blocks[it].start - blocks[it - 1].end }
+            blocks[k].start
+        } else {
+            fallbackSplit(sorted, vocalStart, vocalEnd)
+        }
+        val sections = ArrayList<Section>()
+        fun section(index: Int, label: String, from: Double, to: Double) {
+            // 시작은 첫 음표와 그 줄의 시작 중 앞선 쪽 (가사 줄이 살짝 먼저 시작하는 경우)
+            val lineStart = lines.firstOrNull { it.start >= from - 0.5 && it.start < to }?.start
+            val start = min(from, lineStart ?: from)
+            sections.add(Section(index, label, start, to, SectionMap.leadBefore(start, barStarts)))
+        }
+        if (splitAt == null) {
+            section(0, "1절", vocalStart, vocalEnd)
+        } else {
+            val firstEnd = sorted.last { it.start < splitAt }.end
+            section(0, "1절", vocalStart, firstEnd)
+            section(1, "2절", splitAt, vocalEnd)
         }
 
-        return SectionMap(interludes, sections, findHighlight(sorted, lines, blocks.map { it.start to it.end }, barStarts))
+        return SectionMap(interludes, sections, findHighlight(sorted, lines, blocks.map { it.start to it.end }, barStarts), barStarts)
     }
 
-    private fun labelFor(index: Int, count: Int): String = when {
-        count == 1 -> "전체"
-        count <= 6 -> "${index + 1}절"
-        else -> "구간 ${index + 1}"
+    /** 간주 없는 곡의 1절/2절 경계: 보컬 구간 가운데 25~75 % 안에서 가장 긴 음표 공백(≥ 2 s) 뒤 첫 음표. */
+    private fun fallbackSplit(sorted: List<LiveNote>, vocalStart: Double, vocalEnd: Double): Double? {
+        val span = vocalEnd - vocalStart
+        if (span <= 0) return null
+        val lo = vocalStart + span * 0.25
+        val hi = vocalStart + span * 0.75
+        var best: Double? = null
+        var bestGap = FALLBACK_SPLIT_GAP_SECONDS
+        for (k in 1 until sorted.size) {
+            val gap = sorted[k].start - sorted[k - 1].end
+            if (sorted[k].start in lo..hi && gap >= bestGap) { bestGap = gap; best = sorted[k].start }
+        }
+        return best
     }
 
     /** 최고음 근처(최고음 −5 반음 이상) 음표의 길이·높이가 가장 큰 10초 창. 시작은 그 창이 속한 가사 줄 시작으로 맞춘다. */
@@ -110,14 +163,7 @@ object SongSections {
         val line = lines.lastOrNull { it.start <= bestStart + 0.3 }
         val phraseStart = line?.start?.takeIf { bestStart - it <= 6.0 } ?: max(0.0, bestStart - 1.0)
         // 구절 시작이 속한 마디의 "한 마디 앞" 에서 출발 → 가수가 준비하고 들어갈 수 있다
-        val start = if (barStarts.isNotEmpty()) {
-            val idx = barStarts.indexOfLast { it <= phraseStart + 0.05 }
-            when {
-                idx >= 1 -> barStarts[idx - 1]
-                idx == 0 -> barStarts[0]
-                else -> max(0.0, phraseStart - HIGHLIGHT_LEAD_FALLBACK_SECONDS)
-            }
-        } else max(0.0, phraseStart - HIGHLIGHT_LEAD_FALLBACK_SECONDS)
+        val start = SectionMap.leadBefore(phraseStart, barStarts)
         val blockEnd = blocks.firstOrNull { (a, b) -> bestStart >= a && bestStart <= b }?.second ?: (bestStart + HIGHLIGHT_WINDOW_SECONDS)
         val end = min(blockEnd, bestStart + HIGHLIGHT_WINDOW_SECONDS + 4.0)
         return Highlight(start, end, highest)

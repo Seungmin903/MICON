@@ -14,7 +14,7 @@ AI                  └────────────▶ backend:8080/call
 
 ## 최초 준비
 
-먼저 BE 호스트 준비 스크립트를 실행해 서비스 토큰과 두 runtime env 파일을 만든다. 이미 존재하는 파일은 덮어쓰지 않는다.
+먼저 BE 호스트 준비 스크립트를 실행해 서비스 토큰과 두 runtime env 파일을 만든다. 이미 존재하는 파일의 운영자 관리 값은 보존하되, 운영 활성화 계약인 `AI_ARTIST_SEARCH_ENABLED=true`는 기존 `false` 값도 교정한다.
 
 ```sh
 sudo infra/deploy/prepare_backend_host.sh
@@ -22,12 +22,12 @@ sudo stat -c '%n %u:%g %a' /etc/micon/backend-secrets/ai_service_token \
   /etc/micon/runtime/backend.env /etc/micon/runtime/recommendation.env
 ```
 
-`/etc/micon/runtime/backend.env`에는 다음 값을 유지하고 기능 플래그는 최초 검증 전까지 false로 둔다.
+`/etc/micon/runtime/backend.env`에는 다음 값을 유지한다. 닮은 가수 검색은 운영 AI·BE 계약 검증이 완료된 기능이므로 활성화하고, 그 외 추천 기능은 별도 검증 전까지 false로 둔다.
 
 ```text
 AI_RECOMMENDATION_BASE_URL=http://micon-recommendation:8788
 AI_VOICE_ANALYSIS_ENABLED=false
-AI_ARTIST_SEARCH_ENABLED=false
+AI_ARTIST_SEARCH_ENABLED=true
 AI_SONG_FIT_ENABLED=false
 AI_RECOMMENDATION_ENABLED=false
 AI_RECOMMENDATION_POLLING_ENABLED=false

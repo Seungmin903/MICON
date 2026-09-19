@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import logging
+import json
+from pathlib import Path
+import re
 import threading
 import time
 from typing import Any
@@ -18,8 +21,9 @@ import numpy as np
 
 import analysis_jobs
 import catalog_link
+from artist_catalog import ArtistCatalog, public_response
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION
-from recommendation_api import MODEL_DIMENSIONS, _configuration_status, user_embedding_matrices
+from recommendation_api import MODEL_DIMENSIONS, WORKSPACE, _configuration_status, _replace_with_retry, user_embedding_matrices
 from timbre_recommender.catalog import CatalogIndex
 from timbre_recommender.contracts import SCORING_VERSION
 from timbre_recommender.pitch_range import (
@@ -34,7 +38,8 @@ from timbre_recommender.scoring import RankerConfig, _absolute_similarity, _mode
 log = logging.getLogger("song_fit_api")
 MAX_ARTISTS = 5          # DB 제약: rank_no BETWEEN 1 AND 5
 JOBS: dict[str, dict[str, Any]] = {}
-_LOCK = threading.Lock()
+_LOCK = threading.RLock()
+ARTIST_JOBS_DIR = WORKSPACE.parent / "artist-search" / "jobs"
 router = APIRouter(tags=["song-fit"])
 
 
@@ -81,12 +86,12 @@ def _selected_key_offset(payload: Mapping[str, Any]) -> int:
 def _unavailable(
     payload: Mapping[str, Any], reason: str, selected_key_offset: int
 ) -> dict[str, Any]:
-    return {"songId": payload.get("songId"), "analysisId": payload.get("analysisId"),
+    return public_response({"songId": payload.get("songId"), "analysisId": payload.get("analysisId"),
             "selectedKeyOffset": selected_key_offset,
             "evaluationStatus": "UNAVAILABLE", "originalKeyFit": None, "selectedKeyFit": None,
             "recommendedKeyOffset": None, "recommendationScores": payload.get("recommendationScores"),
             "reason": None, "burdenSections": list(payload.get("burdenSections") or []),
-            "unavailableReason": reason}
+            "unavailableReason": reason})
 
 
 def _fit_at(user: Mapping[str, Any], song: Mapping[str, Any], shift: int,
@@ -145,7 +150,7 @@ def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
 
     best = score_range_fit(user, song)
     recommended = int(best["keyShift"])
-    return {
+    return public_response({
         "songId": payload.get("songId"), "analysisId": payload.get("analysisId"),
         "selectedKeyOffset": selected, "evaluationStatus": "AVAILABLE",
         "originalKeyFit": _fit_at(user, song, 0, user_low, user_high),
@@ -155,19 +160,21 @@ def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
         "reason": _reason(recommended, best),
         "burdenSections": list(payload.get("burdenSections") or []),
         "unavailableReason": None,
-    }
+    })
 
 
 # ── 닮은 가수 ─────────────────────────────────────────────────────────────────
 
-def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int) -> list[dict[str, Any]]:
+def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int,
+                 artists: ArtistCatalog | None = None) -> list[dict[str, Any]]:
     """가수별로 그 가수의 모든 곡 구간을 모아 사용자와 견준다. 두 축 점수의 평균으로 순위를 매긴다.
 
     추천의 음색 점수와 같은 함수를 쓴다. 곡 하나가 아니라 가수의 구간 전체가 상대라는 점만 다르다.
     """
-    by_artist: dict[str, list] = {}
+    artists = artists or ArtistCatalog.load(catalog)
+    by_artist: dict[int, list] = {}
     for track in catalog.tracks:
-        by_artist.setdefault(track.artist, []).append(track)
+        by_artist.setdefault(artists.by_track[track.track_id], []).append(track)
     config = RankerConfig()
     scores: list[dict[str, Any]] = []
     for artist, tracks in by_artist.items():
@@ -178,24 +185,31 @@ def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int
             )["raw_score"])
             for key in MODEL_DIMENSIONS
         }
-        scores.append({"artistName": artist,
+        scores.append({"artistId": artist,
+                       "artistName": min(tracks, key=lambda track: track.track_id).artist,
                        "ecapaScore": round(float(axis["ecapa"]), 4),
                        "singerByolScore": round(float(axis["singer_byol"]), 4),
                        "similarity": round(float(axis["ecapa"] + axis["singer_byol"]) / 2.0, 4)})
-    scores.sort(key=lambda item: (-item["similarity"], item["artistName"]))
-    return [{"rank": rank, "artistId": None, **item}
+    scores.sort(key=lambda item: (-item["similarity"], item["artistId"]))
+    return [{"rank": rank, **item}
             for rank, item in enumerate(scores[: max(1, min(top_k, MAX_ARTISTS))], start=1)]
 
 
 def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
     job = JOBS[job_id]
+    with _LOCK:
+        job.update(status="RUNNING", calculationStatus="RUNNING", deliveryStatus="NOT_READY")
+        _save_artist_job(job)
     try:
         config, missing = _configuration_status()
         if missing:
             raise RuntimeError(f"추천 데모 설정 누락: {', '.join(missing)}")
         query = user_embedding_matrices(payload.get("modelResults"))
         catalog = CatalogIndex.load(config["index_dir"], verify_hashes=True)
-        artists = rank_artists(query, catalog, int(payload.get("topK") or MAX_ARTISTS))
+        mapping = ArtistCatalog.load(catalog)
+        if payload.get("catalogVersion") != mapping.catalog_version:
+            raise ValueError("Requested catalogVersion does not match the local artist snapshot")
+        artists = rank_artists(query, catalog, int(payload.get("topK") or MAX_ARTISTS), mapping)
         body = {"requestId": job["requestId"], "jobId": job_id, "component": "ARTIST_SEARCH",
                 "status": "COMPLETED", "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
                 "processedAt": analysis_jobs._iso(analysis_jobs._now()), "attemptNo": job["attemptNo"],
@@ -206,16 +220,17 @@ def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
     except Exception as error:
         log.exception("artist search %s failed", job_id)
         body = _artist_failure(job, "AI_ANALYSIS_FAILED", str(error))
-    result = analysis_jobs.post_callback(body)
     with _LOCK:
-        job.update(status=body["status"], callback=result, artists=body.get("artists"),
-                   failureCode=body["failureCode"])
+        job.update(status=body["status"], calculationStatus=body["status"],
+                   deliveryStatus="PENDING", callbackBody=body, artists=body.get("artists"),
+                   failureCode=body["failureCode"], failureReason=body["failureReason"])
+        _save_artist_job(job)
+    _deliver_artist_job(job_id)
 
 
 def _artist_failure(job: dict[str, Any], code: str, reason: str) -> dict[str, Any]:
-    status = "INSUFFICIENT_DATA" if code == "INSUFFICIENT_DATA" else "FAILED"
     return {"requestId": job["requestId"], "jobId": job["jobId"], "component": "ARTIST_SEARCH",
-            "status": status, "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
+            "status": "FAILED", "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
             "processedAt": analysis_jobs._iso(analysis_jobs._now()), "attemptNo": job["attemptNo"],
             "resultVersion": job.get("resultVersion"), "catalogVersion": job.get("catalogVersion"),
             "artists": None, "failureCode": code, "failureReason": reason[:1000]}
@@ -239,7 +254,9 @@ def create_artist_search(payload: dict[str, Any], background_tasks: BackgroundTa
                         "resultVersion": payload.get("resultVersion"),
                         "catalogVersion": payload.get("catalogVersion"),
                         "createdAt": time.time(), "artists": None, "callback": None, "failureCode": None,
+                        "calculationStatus": "QUEUED", "deliveryStatus": "NOT_READY",
                         "payload": dict(payload)}
+        _save_artist_job(JOBS[job_id])
     background_tasks.add_task(_artist_process, job_id, dict(payload))
     return {"jobId": job_id, "status": "QUEUED", "audioExpiresAt": None, "duplicate": False}
 
@@ -249,7 +266,7 @@ def get_artist_search(job_id: str) -> dict[str, Any]:
     job = JOBS.get(job_id)
     if not job:
         raise HTTPException(404, "검색 작업을 찾을 수 없습니다.")
-    return job
+    return public_response(job)
 
 
 @router.post("/artist-search-jobs/{job_id}/retry", status_code=202)
@@ -257,12 +274,102 @@ def retry_artist_search(job_id: str, background_tasks: BackgroundTasks) -> dict[
     job = JOBS.get(job_id)
     if not job:
         raise HTTPException(404, "검색 작업을 찾을 수 없습니다.")
-    if job["status"] not in {"FAILED", "INSUFFICIENT_DATA"}:
-        raise HTTPException(409, "실패한 검색 작업만 재시도할 수 있습니다.")
-    payload = job.get("payload")
-    if not isinstance(payload, dict):
-        raise HTTPException(410, "재시도할 검색 입력이 만료됐습니다.")
     with _LOCK:
-        job.update(status="QUEUED", artists=None, callback=None, failureCode=None)
+        delivery_failed = job["status"] == "COMPLETED" and not (job.get("callback") or {}).get("accepted")
+        if job["status"] not in {"FAILED", "INSUFFICIENT_DATA"} and not delivery_failed:
+            raise HTTPException(409, "실패한 계산 또는 미수락 검색 결과만 재시도할 수 있습니다.")
+        payload = job.get("payload")
+        if not isinstance(payload, dict):
+            raise HTTPException(410, "재시도할 검색 입력이 만료됐습니다.")
+        if job.get("delivering"):
+            raise HTTPException(409, "콜백 전달 중에는 재계산할 수 없습니다.")
+        job.update(status="QUEUED", calculationStatus="QUEUED", deliveryStatus="NOT_READY",
+                   artists=None, callback=None, callbackBody=None, failureCode=None,
+                   failureReason=None, deliveryFailureCode=None)
+        _save_artist_job(job)
     background_tasks.add_task(_artist_process, job_id, dict(payload))
     return {"jobId": job_id, "status": "QUEUED", "audioExpiresAt": None, "duplicate": True}
+
+
+def _save_artist_job(job: dict[str, Any]) -> None:
+    directory = ARTIST_JOBS_DIR / job["jobId"]
+    directory.mkdir(parents=True, exist_ok=True)
+    temporary = directory / ".job.json.tmp"
+    temporary.write_text(json.dumps(job, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _replace_with_retry(temporary, directory / "job.json")
+
+
+def restore_artist_jobs() -> None:
+    """Restore computation/delivery state without replaying historical callbacks.
+
+    Recovery is explicit: stale attempts must not silently overwrite newer BE
+    results, and a startup must never initiate database writes on its own.
+    """
+    if not ARTIST_JOBS_DIR.is_dir():
+        return
+    with _LOCK:
+        for path in ARTIST_JOBS_DIR.glob("*/job.json"):
+            try:
+                job = json.loads(path.read_text(encoding="utf-8"))
+                jid = job["jobId"]
+                if not re.fullmatch(r"artist-search-job-[0-9a-f]{32}", jid) or path.parent.name != jid:
+                    continue
+                if job["status"] in {"QUEUED", "RUNNING"}:
+                    job.update(status="FAILED", failureCode="AI_ENGINE_RESTARTED",
+                               failureReason="검색 계산 중 AI 엔진이 재시작됐습니다.")
+                job["calculationStatus"] = job["status"]
+                job["delivering"] = False
+                callback = job.get("callback") or {}
+                rejected = isinstance(callback.get("http"), int) and 400 <= callback["http"] < 500
+                job["deliveryStatus"] = ("ACCEPTED" if callback.get("accepted")
+                    else "REJECTED" if rejected else "PENDING_RETRY" if callback
+                    else "PENDING" if job.get("callbackBody") else "NOT_READY")
+                job["deliveryFailureCode"] = (None if callback.get("accepted")
+                    else "CALLBACK_REJECTED" if rejected else "CALLBACK_UNAVAILABLE" if callback else None)
+                JOBS.setdefault(jid, job)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+
+
+def _deliver_artist_job(job_id: str) -> None:
+    with _LOCK:
+        job = JOBS[job_id]
+        if job.get("delivering") or (job.get("callback") or {}).get("accepted"):
+            return
+        body = job.get("callbackBody")
+        if not isinstance(body, dict):
+            return
+        job.update(delivering=True, deliveryStatus="DELIVERING")
+        _save_artist_job(job)
+    try:
+        result = analysis_jobs.post_callback(public_response(body))
+    except Exception:
+        log.exception("artist callback transport failed")
+        result = {"http": None, "attempts": 0, "accepted": False, "error": "Callback transport failed"}
+    with _LOCK:
+        accepted = result.get("accepted") is True
+        rejected = not accepted and isinstance(result.get("http"), int) and 400 <= result["http"] < 500
+        job.update(delivering=False, callback=result,
+                   deliveryStatus="ACCEPTED" if accepted else "REJECTED" if rejected else "PENDING_RETRY",
+                   deliveryFailureCode=None if accepted else "CALLBACK_REJECTED" if rejected else "CALLBACK_UNAVAILABLE")
+        _save_artist_job(job)
+
+
+@router.post("/artist-search-jobs/{job_id}/redeliver", status_code=202)
+def redeliver_artist_search(job_id: str, background_tasks: BackgroundTasks) -> dict[str, Any]:
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(404, "검색 작업을 찾을 수 없습니다.")
+    with _LOCK:
+        body = job.get("callbackBody")
+        if not isinstance(body, dict):
+            raise HTTPException(410, "보존된 콜백이 없어 검색 재계산이 필요합니다.")
+        if body.get("status") == "COMPLETED" and any(
+            type(a.get("artistId")) is not int or a["artistId"] < 1 for a in body.get("artists") or []
+        ):
+            raise HTTPException(409, "유효 가수 ID가 없는 이전 결과는 재계산해야 합니다.")
+        if job.get("delivering"):
+            raise HTTPException(409, "콜백 전달이 이미 진행 중입니다.")
+        if not (job.get("callback") or {}).get("accepted"):
+            background_tasks.add_task(_deliver_artist_job, job_id)
+    return {"jobId": job_id, "status": job["status"], "deliveryStatus": job.get("deliveryStatus")}

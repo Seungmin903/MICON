@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +72,9 @@ import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.PrimaryButton
+import com.micon.app.ui.common.LocalOnboardingChrome
+import com.micon.app.ui.common.OnboardingChromeState
+import com.micon.app.ui.common.OnboardingSystemBars
 
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
 @Composable
@@ -85,6 +89,9 @@ fun MiconRoot() {
     val accessGranted = sessionVerified || session.guest
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    val onboardingChrome = remember { OnboardingChromeState() }
+    val darkOnboarding = currentRoute == Routes.VOICE_ONBOARDING && onboardingChrome.dark
+    if (darkOnboarding) OnboardingSystemBars()
     if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailSystemBars()
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
     // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
@@ -111,38 +118,59 @@ fun MiconRoot() {
         }
     }
 
-    Scaffold(
-        containerColor = if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailColors.background else Color.White,
-        bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute, backStack?.arguments?.getString("source")) },
-    ) { padding ->
-        MiconNavHost(
-            nav = nav,
-            modifier = Modifier.padding(padding),
-            initialRoute = session.initialRoute,
-            accessGranted = accessGranted,
-            isGuest = session.guest,
-            session = session,
-            onVerified = {
-                session.verified = it
-                if (it) session.guest = false
+    CompositionLocalProvider(LocalOnboardingChrome provides onboardingChrome) {
+        Scaffold(
+            containerColor = when {
+                darkOnboarding -> Ink
+                currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH -> SongDetailColors.background
+                else -> Color.White
             },
-            onGuest = {
-                session.guest = it
-                if (it) session.verified = false
-            },
-        )
+            bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute, backStack?.arguments?.getString("source")) },
+        ) { padding ->
+            MiconNavHost(
+                nav = nav,
+                modifier = Modifier.padding(padding),
+                initialRoute = session.initialRoute,
+                accessGranted = accessGranted,
+                isGuest = session.guest,
+                session = session,
+                onVerified = {
+                    session.verified = it
+                    if (it) session.guest = false
+                },
+                onGuest = {
+                    session.guest = it
+                    if (it) session.verified = false
+                },
+            )
+        }
     }
 }
 
 @Composable
 private fun MiconBottomBar(nav: NavHostController, currentRoute: String?, source: String?) {
-    MiconTabBar(currentRoute, source) { route ->
-        nav.navigate(route) {
-            popUpTo(nav.graph.startDestinationId) { saveState = true }
+    MiconTabBar(currentRoute, source, onNavigate = nav::openBottomTab)
+}
+
+/** Tabs always open their root; saved child screens must not override the tapped destination. */
+internal fun NavHostController.openBottomTab(route: String) {
+    require(route in BottomTab.routes)
+    if (currentDestination?.route == route) {
+        // Reselecting the visible tab reloads it, including a previously empty/error state.
+        navigate(route) {
+            popUpTo(route) { inclusive = true }
             launchSingleTop = true
-            restoreState = true
         }
+        return
     }
+    navigate(route) {
+        // Login/session replacement removes the original start destination (splash).
+        // The graph remains a valid anchor for both member and guest tab stacks.
+        popUpTo(graph.id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+    popBackStack(route, inclusive = false)
 }
 
 /** Shared with device previews so their navigation chrome is the real app chrome. */

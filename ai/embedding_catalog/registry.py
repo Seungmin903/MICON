@@ -107,12 +107,15 @@ class Registry:
                 batch = cursor.fetchone()
                 require(batch is not None, "No active embedding catalog")
                 names = ("revision", "batch_id", "bucket", "region", "manifest_key", "manifest_sha256",
-                         "manifest_bytes", "track_count", "models")
+                         "manifest_bytes", "source_track_count", "models")
                 result = dict(zip(names, batch))
                 result.update(schema_version=1, channel="default")
                 result["models"] = json.loads(result["models"])
-                cursor.execute("SELECT song_id,catalog_track_id,model_key,object_key,sha256,file_bytes,segment_count,dimension "
-                               "FROM song_embedding WHERE batch_id=%s ORDER BY catalog_track_id,model_key",
+                cursor.execute("SELECT se.song_id,se.catalog_track_id,se.model_key,se.object_key,se.sha256,"
+                               "se.file_bytes,se.segment_count,se.dimension "
+                               "FROM song_embedding se JOIN song s ON s.song_id=se.song_id "
+                               "WHERE se.batch_id=%s AND s.status='ACTIVE' "
+                               "ORDER BY se.catalog_track_id,se.model_key",
                                (result["batch_id"],))
                 tracks = {}
                 for song_id, track_id, model, key, sha256, size, count, dimension in cursor.fetchall():
@@ -120,9 +123,9 @@ class Registry:
                     require(track["song_id"] == song_id, "Inconsistent song mapping")
                     track["embeddings"][model] = {"key": key, "sha256": sha256, "bytes": size,
                                                   "rows": count, "dimension": dimension}
-                require(len(tracks) == result["track_count"]
-                        and all(set(t["embeddings"]) == set(DIMENSIONS) for t in tracks.values()),
+                require(tracks and all(set(t["embeddings"]) == set(DIMENSIONS) for t in tracks.values()),
                         "Active catalog is incomplete")
+                result["track_count"] = len(tracks)
                 result["tracks"] = list(tracks.values())
             self.db.commit()
             return result

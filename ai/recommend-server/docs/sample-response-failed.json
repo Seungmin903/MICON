@@ -12,6 +12,10 @@
     "이하이",
     "한로로"
   ],
+  "preferred_artist_ids": [
+    831,
+    838
+  ],
   "result": null,
   "error": "보컬 오디오가 너무 짧습니다.",
   "sample_note": "실패 샘플: status=failed, result=null, error 에 사용자 안내 문장"

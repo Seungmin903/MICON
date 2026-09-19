@@ -1,5 +1,8 @@
 package com.micon.backend.catalogmedia;
 
+import com.micon.backend.domain.catalogmedia.dto.CatalogMediaResponse;
+import com.micon.backend.domain.catalogmedia.service.CatalogMediaService;
+
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;

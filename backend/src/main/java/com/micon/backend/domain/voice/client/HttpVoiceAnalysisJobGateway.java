@@ -6,7 +6,7 @@ import com.micon.backend.common.observability.AccessLog;
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisUploadRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;

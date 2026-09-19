@@ -1,7 +1,7 @@
 package com.micon.backend.preference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import com.micon.backend.domain.preference.api.PreferenceResponse.Genre;
+import com.micon.backend.domain.preference.dto.PreferenceResponse.Genre;
 import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

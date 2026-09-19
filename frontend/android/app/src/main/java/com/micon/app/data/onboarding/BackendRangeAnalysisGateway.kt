@@ -5,6 +5,9 @@ import com.micon.app.data.backend.BackendApi
 import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.range.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.micon.app.audio.Pcm16MonoWav
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -27,6 +30,10 @@ class BackendRangeAnalysisGateway(private val api: BackendApi, private val owner
     private val mapAdapter = Json.moshi.adapter(Map::class.java)
 
     override suspend fun analyze(wav: File, submission: RangeSubmission): RangeReport {
+        val input = withContext(Dispatchers.IO) {
+            RangeInputQuality().inspect(submission, wav, Pcm16MonoWav.sampleRate(wav), true)
+        }
+        check(input.ready) { input.message }
         val access = VoiceSessionAccess(ownerId)
         var link = stateStore.read(stateFile)?.let { adapter.fromJson(it) }
             ?.takeIf { it.measurementId == submission.sessionId }

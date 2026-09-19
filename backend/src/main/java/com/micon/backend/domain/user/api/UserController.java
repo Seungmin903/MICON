@@ -1,10 +1,13 @@
 package com.micon.backend.domain.user.api;
 
+import com.micon.backend.domain.user.dto.UserRequest;
+import com.micon.backend.domain.user.dto.UserResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.user.application.UserWithdrawalService;
-import com.micon.backend.domain.user.application.UserQueryService;
+import com.micon.backend.domain.user.service.UserWithdrawalService;
+import com.micon.backend.domain.user.service.UserQueryService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

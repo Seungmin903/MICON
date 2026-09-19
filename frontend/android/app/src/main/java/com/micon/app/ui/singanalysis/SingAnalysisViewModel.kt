@@ -8,6 +8,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.audio.PitchCapture
+import com.micon.app.audio.VocalQuality
+import com.micon.app.audio.VocalWindowQuality
+import com.micon.app.audio.PcmRecorder
+import com.micon.app.audio.MicrophoneTimbreRecorder
 import com.micon.app.data.SongRepository
 import com.micon.app.data.backend.dto.BeatGrid
 import com.micon.app.data.backend.dto.toLiveNotes
@@ -50,7 +54,7 @@ import kotlin.math.abs
  *
  * 흐름: 곡 준비 → 등록 구간 선택 → 카운트인 → 녹음 ⇄ 일시정지 → 사용자 종료 → 임시 WAV 저장.
  * 카운트인·일시정지 때는 마이크를 끈다. MR과 녹음이 실제 진행된 구간만 [SingTake]에 남긴다.
- * 최소 30초를 확보하고 일시정지한 상태에서만 종료한다. 곡 끝은 자동 완료하지 않는다.
+ * 최소 30초를 확보한 뒤 종료한다. 온보딩은 종료 요청 시 일시정지하고 확인한다. 곡 끝은 자동 완료하지 않는다.
  * 저장한 임시 녹음의 수명은 상위 온보딩 세션이 관리한다.
  */
 class SingAnalysisViewModel(
@@ -62,6 +66,7 @@ class SingAnalysisViewModel(
     private val submitter: SongAnalysisSubmitter,
     private val voice: VoiceAnalysisRepository,
     private val onboardingDraftId: String? = null,
+    private val capture: PcmRecorder = MicrophoneTimbreRecorder(),
 ) : ViewModel() {
     enum class Phase { LOADING, SETUP, COUNTDOWN, RUNNING, PAUSED, SAVING, DONE, ERROR }
 
@@ -98,21 +103,27 @@ class SingAnalysisViewModel(
         val takePlaying: Boolean = false,
         val submit: Submit = Submit(),
         val error: String? = null,
+        val onboarding: Boolean = false,
+        val vocalQuality: VocalQuality = VocalQuality(),
+        val qualityChecking: Boolean = false,
+        val recordedAudioSeconds: Double = 0.0,
     ) {
         val isSinging: Boolean get() = phase == Phase.COUNTDOWN || phase == Phase.RUNNING || phase == Phase.PAUSED
         /** 지금까지 부른 곡 구간 길이(초) — 다이얼로그·완료 화면 문구 */
         val sungSeconds: Double get() = elapsedRecSec
-        val canFinish: Boolean get() = recordingValid && phase == Phase.PAUSED &&
-            elapsedRecSec >= com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS
+        val canFinish: Boolean get() = recordingValid && (phase == Phase.PAUSED || onboarding && phase == Phase.RUNNING) &&
+            elapsedRecSec >= com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS &&
+            (!onboarding || vocalQuality.ready && !qualityChecking &&
+                recordedAudioSeconds >= com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS &&
+                recordedAudioSeconds <= com.micon.app.data.onboarding.VoiceOnboardingInput.MAX_SECONDS + .05)
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(UiState(onboarding = onboardingDraftId != null))
     val state = _state.asStateFlow()
 
     val player = InstrumentalPlayer(appContext, mediaHttp)
     private var instrumentalUrl: String? = null
     /** 녹음만: YIN 을 돌리지 않는다(rms 만) */
-    private val capture = PitchCapture(analyzePitch = false, timbreRecording = true)
     private val clicks: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
 
     var sheet: LyricSheet = LyricSheet.EMPTY; private set
@@ -131,6 +142,8 @@ class SingAnalysisViewModel(
     private var pollJob: Job? = null
     private var recordingId: String? = null
     private var wavFile: File? = null
+    private var quality = VocalWindowQuality()
+    private var qualityJob: Job? = null
     private var takePlayer: MediaPlayer? = null
 
     /** Valid MR/microphone overlaps copied into the final recording metadata. */
@@ -223,8 +236,12 @@ class SingAnalysisViewModel(
         val file = store.wavFile(id)
         recordingId = id
         wavFile = file
+        qualityJob?.cancel()
+        quality = VocalWindowQuality()
         pollJob?.cancel()
-        _state.update { it.copy(plan = plan, saved = null, endedEarly = false, submit = Submit(), error = null, nowSec = plan.startSec, elapsedRecSec = 0.0, recordingValid = false) }
+        _state.update { it.copy(plan = plan, saved = null, endedEarly = false, submit = Submit(), error = null, nowSec = plan.startSec, elapsedRecSec = 0.0, recordingValid = false,
+            vocalQuality = VocalQuality(), qualityChecking = false, recordedAudioSeconds = 0.0) }
+        if (onboardingDraftId != null) startQualityChecks(id, file, quality)
         beginPlayback(plan.startSec, countFrom = meter)
     }
 
@@ -234,8 +251,9 @@ class SingAnalysisViewModel(
 
     /** PAUSED → 카운트인 후 현재 위치에서 이어서. */
     fun resume() {
-        if (_state.value.phase != Phase.PAUSED) return
+        if (_state.value.phase != Phase.PAUSED || _state.value.confirmEnd || _state.value.confirmDiscard) return
         if (!eligibility.valid || player.isEnded || player.positionSec >= (_state.value.plan?.endSec ?: 0.0)) return
+        if (onboardingDraftId != null && capture.capturedSeconds >= 119.8) return
         _state.update { it.copy(confirmEnd = false) }
         beginPlayback(player.positionSec, countFrom = meter)
     }
@@ -300,7 +318,9 @@ class SingAnalysisViewModel(
                 return
             }
             eligibility.sample(audio, now, clock / 1000.0, player.isPlaying && capture.isRunning)
-            _state.update { it.copy(nowSec = now, elapsedRecSec = eligibility.seconds, buffering = player.isBuffering) }
+            _state.update { it.copy(nowSec = now, elapsedRecSec = eligibility.seconds, buffering = player.isBuffering,
+                recordedAudioSeconds = audio) }
+            if (onboardingDraftId != null && audio >= 119.8) { pause(); return }
             if (player.isEnded || now >= plan.endSec) {
                 pause()
                 if (!eligibility.canFinish(true)) _state.update {
@@ -324,22 +344,29 @@ class SingAnalysisViewModel(
         _state.update { it.copy(phase = Phase.PAUSED, countdown = 0, buffering = false, nowSec = player.positionSec) }
     }
 
-    /** Finishing never implicitly pauses playback or bypasses the 30-second gate. */
+    /** Onboarding opens the confirmation directly from recording; both modes retain the duration gate. */
     fun requestFinish() {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (_state.value.confirmEnd || _state.value.confirmDiscard || !_state.value.canFinish) return
+        if (_state.value.onboarding && _state.value.phase == Phase.RUNNING) pause()
+        if (_state.value.phase != Phase.PAUSED || !_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = true) }
     }
 
-    fun cancelFinish() = _state.update { it.copy(confirmEnd = false) }
+    fun cancelFinish() {
+        val confirmed = _state.value.confirmEnd
+        _state.update { it.copy(confirmEnd = false) }
+        if (confirmed && _state.value.onboarding) resume()
+    }
 
     fun confirmFinish() {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (!_state.value.confirmEnd || _state.value.phase != Phase.PAUSED ||
+            !_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = false) }
         finish(early = player.positionSec < (_state.value.plan?.endSec ?: 0.0))
     }
 
     private fun finish(early: Boolean) {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (_state.value.phase != Phase.PAUSED || !_state.value.canFinish || !eligibility.canFinish(true)) return
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()
@@ -354,15 +381,32 @@ class SingAnalysisViewModel(
             _state.update { it.copy(phase = Phase.SETUP, countdown = 0, buffering = false, nowSec = 0.0, error = "녹음이 너무 짧아 저장하지 않았어요. 다시 골라 불러 주세요.") }
             return
         }
-        _state.update { it.copy(phase = Phase.SAVING, endedEarly = early) }
+        _state.update { it.copy(phase = Phase.SAVING, endedEarly = early, qualityChecking = onboardingDraftId != null) }
         val s = _state.value
         val meta = buildMeta(file, plan, early, s, rate)
         viewModelScope.launch {
             try {
+                val result = withContext(Dispatchers.IO) {
+                    if (onboardingDraftId != null) quality.inspect(file, rate, finalized = true) else VocalQuality()
+                }
+                if (onboardingDraftId != null && (!result.ready || meta.durationSec > com.micon.app.data.onboarding.VoiceOnboardingInput.MAX_SECONDS + .05)) {
+                    _state.update { it.copy(phase = Phase.PAUSED, vocalQuality = result, qualityChecking = false, error = result.message) }
+                    return@launch
+                }
+                val recordingProblem = if (onboardingDraftId != null) withContext(Dispatchers.IO) {
+                    com.micon.app.data.onboarding.VoiceOnboardingInput.recordingProblem(onboardingDraftId,
+                        SavedRecording(meta, file, store.metaFile(meta.id)))
+                } else null
+                if (recordingProblem != null) {
+                    eligibility.invalidate()
+                    _state.update { it.copy(phase = Phase.PAUSED, recordingValid = false, qualityChecking = false, error = recordingProblem) }
+                    return@launch
+                }
                 val saved = withContext(Dispatchers.IO + NonCancellable) { store.save(meta) }
-                _state.update { it.copy(phase = Phase.DONE, saved = saved, elapsedRecSec = eligibility.seconds) }
+                qualityJob?.cancel()
+                _state.update { it.copy(phase = Phase.DONE, saved = saved, qualityChecking = false, elapsedRecSec = eligibility.seconds) }
             } catch (e: Exception) {
-                _state.update { it.copy(phase = Phase.ERROR, error = "녹음을 저장하지 못했어요: ${e.message ?: e.toString()}") }
+                _state.update { it.copy(phase = Phase.ERROR, qualityChecking = false, error = "녹음을 저장하지 못했어요: ${e.message ?: e.toString()}") }
             }
         }
     }
@@ -409,10 +453,29 @@ class SingAnalysisViewModel(
     }
 
     private fun discardUnsaved() {
+        qualityJob?.cancel(); qualityJob = null
         if (capture.isRunning) capture.stop()
         if (_state.value.saved == null) wavFile?.delete()
         recordingId = null; wavFile = null
         takes.clear()
+        _state.update { it.copy(vocalQuality = VocalQuality(), qualityChecking = false, recordedAudioSeconds = 0.0) }
+    }
+
+    private fun startQualityChecks(id: String, file: File, checker: VocalWindowQuality) {
+        qualityJob = viewModelScope.launch {
+            while (isActive && recordingId == id && _state.value.phase != Phase.DONE) {
+                if (file.isFile && file.length() > 44 && _state.value.phase != Phase.SAVING) {
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { checker.inspect(file, capture.recordingRate, finalized = !capture.isRunning && _state.value.phase == Phase.PAUSED) }
+                            .getOrElse { VocalQuality(fileProblem = true) }
+                    }
+                    if (recordingId == id) _state.update { it.copy(vocalQuality = result) }
+                } else if (_state.value.phase in setOf(Phase.RUNNING, Phase.PAUSED)) {
+                    _state.update { it.copy(vocalQuality = VocalQuality(fileProblem = true)) }
+                }
+                delay(500)
+            }
+        }
     }
 
     private fun onPlayerError(message: String) {
@@ -522,6 +585,7 @@ class SingAnalysisViewModel(
     }
 
     override fun onCleared() {
+        qualityJob?.cancel()
         countdownJob?.cancel()
         tickJob?.cancel()
         pollJob?.cancel()

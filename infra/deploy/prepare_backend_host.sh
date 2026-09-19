@@ -75,8 +75,21 @@ ensure_runtime_setting() {
     fi
 }
 
+set_runtime_setting() {
+    setting_name="$1"
+    setting_value="$2"
+    if grep -Eq "^${setting_name}=" "$RUNTIME_DIR/backend.env"; then
+        sed -i "s|^${setting_name}=.*$|${setting_name}=${setting_value}|" "$RUNTIME_DIR/backend.env"
+    else
+        printf '%s=%s\n' "$setting_name" "$setting_value" >> "$RUNTIME_DIR/backend.env"
+    fi
+}
+
 ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INTERVAL 1m
 ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s
+# 닮은 가수 검색은 AI·BE 계약 검증이 완료된 운영 기능이다. 기존
+# runtime 파일의 false도 교정해 blue/green 양쪽에 항상 활성 값을 전달한다.
+set_runtime_setting AI_ARTIST_SEARCH_ENABLED true
 
 if [ ! -e "$RUNTIME_DIR/recommendation.env" ]; then
     install \

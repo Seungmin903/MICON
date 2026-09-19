@@ -80,6 +80,9 @@ def validate_snapshot(snapshot: dict, store, models: dict) -> dict:
     tracks = snapshot.get("tracks")
     require(isinstance(tracks, list) and len(tracks) == snapshot.get("track_count")
             and 0 < len(tracks) <= 5000, "Incomplete snapshot")
+    source_track_count = snapshot.get("source_track_count", snapshot["track_count"])
+    require(type(source_track_count) is int and snapshot["track_count"] <= source_track_count <= 5000,
+            "Invalid source catalog size")
     ids, songs = set(), set()
     for track in tracks:
         require(isinstance(track, dict), "Invalid snapshot track")
@@ -153,10 +156,13 @@ class CatalogCache:
                 and manifest["batch_id"] == snapshot["batch_id"] and manifest["models"] == self.models,
                 "Snapshot and manifest disagree")
         mapping = {track["catalog_track_id"]: track for track in snapshot["tracks"]}
-        require(set(mapping) == {track["catalog_track_id"] for track in manifest["tracks"]},
-                "Manifest catalog IDs do not match the DB snapshot")
+        manifest_ids = {track["catalog_track_id"] for track in manifest["tracks"]}
+        require(set(mapping).issubset(manifest_ids),
+                "DB active catalog IDs are missing from the S3 manifest")
         arrays = {}
         for track in manifest["tracks"]:
+            if track["catalog_track_id"] not in mapping:
+                continue
             target = mapping[track["catalog_track_id"]]
             for model, record in track["embeddings"].items():
                 expected = {**record, "dimension": DIMENSIONS[model]}
@@ -230,6 +236,8 @@ def build_recommender_index(catalog: LoadedCatalog, destination: Path) -> Path:
                                                     "singer_byol_path", "metadata_json"])
         writer.writeheader()
         for track in catalog.manifest["tracks"]:
+            if track["catalog_track_id"] not in mapping:
+                continue
             row = {"track_id": str(mapping[track["catalog_track_id"]]), "title": track["title"], "artist": track["artist"],
                    "metadata_json": json_bytes({**track.get("metadata", {}),
                                                  "song_id": mapping[track["catalog_track_id"]],

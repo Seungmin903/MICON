@@ -1,6 +1,6 @@
 package com.micon.backend.recommendation;
 
-import com.micon.backend.domain.recommendation.application.RecommendationPreferenceReader;
+import com.micon.backend.domain.recommendation.service.RecommendationPreferenceReader;
 import com.micon.backend.domain.recommendation.infrastructure.JdbcRecommendationPreferenceReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -87,6 +87,9 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     suspend fun submit(onState: (String) -> Unit): RangeReport = withContext(Dispatchers.IO) {
         val saved = pending() ?: error("저장된 측정이 없습니다.")
         val wav = audio(saved.submission.sessionId)
+        // Validate before recovery can trim invalid metadata into an apparently usable submission.
+        val input = RangeInputQuality().inspect(saved.submission, wav, saved.sampleRate, finalized = true)
+        check(input.ready) { input.message }
         repairWav(wav, saved.sampleRate)
         val available = (wav.length() - 44).toDouble() / (saved.sampleRate * 2)
         val submission = saved.submission.recoverAudio(available)

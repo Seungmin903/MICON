@@ -52,38 +52,37 @@ fun VoiceReportContent(
     progress: VoiceAnalysisProgress?,
     retryEnabled: Boolean = false,
     onRetry: ((AnalysisComponent) -> Unit)? = null,
-    songFit: (@Composable () -> Unit)? = null,
+    embeddingMap: EcapaEmbeddingMap? = null,
 ) {
     val current = progress?.takeIf { it.matchesRange(range) }
-    LogVoiceReportProgress(current)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        RangeResultCards(range)
-        val complete = current?.hasTimbreReport(range) == true
-        if (listOf(current?.ecapa, current?.byol).any { it != null && !it.processing }) {
-            MiconCard {
-                Text(if (complete) "음색 분석 결과" else "음색 분석", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                VoiceComponentRow("닮은 목소리 분석", current?.ecapa, retryEnabled,
+        SavedVoiceReportContent(range, current, embeddingMap, retryEnabled,
+            onRetry?.let { retry -> { retry(AnalysisComponent.ARTIST_SEARCH) } })
+        if (current != null) {
+            if (current.ecapa in actionableStatuses) {
+                VoiceComponentRow("닮은 목소리 분석", current.ecapa, retryEnabled,
                     onRetry?.let { retry -> { retry(AnalysisComponent.ECAPA) } })
-                VoiceComponentRow("노래 음색 분석", current?.byol, retryEnabled,
+            }
+            if (current.byol in actionableStatuses) {
+                VoiceComponentRow("노래 음색 분석", current.byol, retryEnabled,
                     onRetry?.let { retry -> { retry(AnalysisComponent.SINGER_BYOL) } })
             }
-        }
-        if (complete) {
-            SimilarArtistsCard(checkNotNull(current), retryEnabled,
-                onRetry?.let { retry -> { retry(AnalysisComponent.ARTIST_SEARCH) } })
-            AdditionalVoiceReportCards(range, songFit)
         }
     }
 }
 
+private val actionableStatuses = setOf(ComponentStatus.FAILED, ComponentStatus.INSUFFICIENT_DATA,
+    ComponentStatus.CANCELED)
+
 /** The report tab keeps measured range cards and actual artist results. */
 @Composable
 fun SavedVoiceReportContent(range: RangeReport, progress: VoiceAnalysisProgress?,
-                            embeddingMap: EcapaEmbeddingMap? = null) {
+                            embeddingMap: EcapaEmbeddingMap? = null, retryEnabled: Boolean = false,
+                            onArtistRetry: (() -> Unit)? = null) {
     val current = progress?.takeIf { it.matchesRange(range) }
     LogVoiceReportProgress(current)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SimilarArtistsCard(current?.takeIf { it.hasTimbreReport(range) }, showEmpty = true)
+        SimilarArtistsCard(current?.takeIf { it.hasTimbreReport(range) }, retryEnabled, onArtistRetry, showEmpty = true)
         EcapaEmbeddingCard(current, embeddingMap)
         RangeResultCards(range, reportTab = true)
     }

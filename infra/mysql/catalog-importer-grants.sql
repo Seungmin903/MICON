@@ -5,6 +5,7 @@
 -- Replace <IMPORTER_HOST> with the actual trusted host, never blindly use %.
 -- This user cannot create/drop tables, delete batches or modify song metadata.
 GRANT SELECT ON micon.song_metadata TO 'catalog_importer'@'<IMPORTER_HOST>';
+GRANT SELECT ON micon.song TO 'catalog_importer'@'<IMPORTER_HOST>';
 GRANT SELECT, INSERT ON micon.embedding_catalog_batch TO 'catalog_importer'@'<IMPORTER_HOST>';
 GRANT SELECT, INSERT ON micon.song_embedding TO 'catalog_importer'@'<IMPORTER_HOST>';
 GRANT SELECT, UPDATE ON micon.embedding_catalog_active TO 'catalog_importer'@'<IMPORTER_HOST>';

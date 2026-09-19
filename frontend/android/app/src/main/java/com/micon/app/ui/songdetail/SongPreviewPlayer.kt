@@ -13,6 +13,8 @@ internal interface SongPreviewPlayer {
     val isPlaying: Boolean
     val isReady: Boolean
     val playRequested: Boolean
+    /** 반음 단위 실시간 피치 시프트(원키 반주 하나로 미리듣기). 재생 중 바꿔도 되지만 곡 상세에서는 정지 상태에서만 바꾼다. */
+    var keyShift: Int
     fun load(url: String)
     fun seekTo(seconds: Double)
     fun play()
@@ -33,6 +35,9 @@ internal class Media3SongPreview(context: Context, http: OkHttpClient) : SongPre
     override val isPlaying get() = delegate.isPlaying
     override val isReady get() = delegate.isReady
     override val playRequested get() = delegate.player.playWhenReady
+    override var keyShift: Int
+        get() = delegate.keyShift
+        set(value) { delegate.keyShift = value }
     override fun load(url: String) { delegate.pause(); delegate.load(url) }
     override fun seekTo(seconds: Double) { delegate.seekTo(seconds) }
     override fun play() { delegate.play() }

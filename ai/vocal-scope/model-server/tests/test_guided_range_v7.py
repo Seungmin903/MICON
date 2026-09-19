@@ -24,6 +24,28 @@ def revised_metadata(segments=None):
 
 
 class RangeV7Tests(unittest.TestCase):
+    def test_two_semitone_seed_matches_android_and_is_versioned(self):
+        for offset in (-2., 2.):
+            data, _ = revised_metadata([(1., 0)])
+            fs = frames([(.2, 0), (1., 0)], midi=60+offset)
+            a = data['attempts'][0]
+            m, _ = evaluate(fs, 60, 60, 1., 1.2, 1.2, 2.2, .001, revised=True)
+            self.assertTrue(passes(m))
+            self.assertEqual(60+offset, m['creditedMidi'])
+            a.update(referenceMidi=60+offset, metrics=m, clientStatus='passed', progressQualified=True, searchOutcome='reached')
+            parsed = Submission.model_validate(data).attempts[0]
+            self.assertEqual('passed', verify(parsed, fs, 60, .001, revised=True)['status'])
+            legacy, _ = evaluate(fs, 60, 60, 1., 1.2, 1.2, 2.2, .001)
+            self.assertIsNone(legacy)
+            for version in ('guided-range-v5', 'guided-range-v6'):
+                old = copy.deepcopy(data); old['protocolVersion'] = version
+                with self.assertRaises(ValueError): Submission.model_validate(old)
+        data, _ = revised_metadata()
+        data['attempts'][0]['referenceMidi'] = 62.01
+        with self.assertRaises(ValueError): Submission.model_validate(data)
+        fs = frames([(.2, 0), (1., 0)], midi=62.01)
+        self.assertIsNone(evaluate(fs, 60, 60, 1., 1.2, 1.2, 2.2, .001, revised=True)[0])
+
     def test_short_perfect_hold_scores_40_and_legacy_stays_70(self):
         data, fs = revised_metadata([(1., 0)])
         a = Submission.model_validate(data).attempts[0]

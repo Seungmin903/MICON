@@ -1,5 +1,8 @@
 package com.micon.backend.domain.song.api;
 
+import com.micon.backend.domain.song.dto.PageResponse;
+import com.micon.backend.domain.song.dto.SongResponse;
+
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.domain.song.service.SongService;
 import jakarta.validation.constraints.Max;
@@ -32,9 +35,11 @@ public class SongController {
 	public ApiResponse<PageResponse<SongResponse.Summary>> searchSongs(
 		@RequestParam(defaultValue = "") String query,
 		@RequestParam(defaultValue = "0") @Min(0) int page,
-		@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+		@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+		Principal principal
 	) {
-		return ApiResponse.success(songService.search(query, page, size));
+		Long userId = principal == null ? null : Long.valueOf(principal.getName());
+		return ApiResponse.success(songService.search(query, page, size, userId));
 	}
 
 	@GetMapping("/{songId}")

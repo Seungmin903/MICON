@@ -42,7 +42,7 @@ def evaluate(frames, target, anchor, reference_start, reference_end, start, end,
     for f, left, right, _ in portions(frames, reference_start, reference_end):
         if valid(f, floor):
             midi = 69 + 12 * math.log2(f['f0'] / 440)
-            if abs(midi - target) <= 1 + EPS:
+            if abs(midi - target) <= (2 if revised else 1) + EPS:
                 seed.append((midi, right - left))
     if sum(dt for _, dt in seed) < .15 - EPS:
         return None, dict(reason='reference_uncertain', referenceValidSeconds=sum(dt for _, dt in seed))

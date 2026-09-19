@@ -28,6 +28,9 @@ import java.io.File
 /** Synthetic UI fixtures only. Does not log in, record audio, or alter real user data. */
 class SongDetailScreenTest {
     @get:Rule val compose = createComposeRule()
+    private val firstSongId = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+    private val secondSongId = "7421c675-5c62-42b6-9275-42d4a7e38343"
+    private val thirdSongId = "231a258b-6ba3-4481-82ee-bd8b43737944"
     private val profile = UserStore.VoiceProfile(lowMidi = 55, highMidi = 72, comfortLow = 58, comfortHigh = 69)
     private val notes = (0..78).map { i ->
         val start = 16.0 + i * 2.2
@@ -35,8 +38,8 @@ class SongDetailScreenTest {
         KaraokeNote(start, start + 1.6, midi)
     }
     private val fixture = SongDetailState(loading = false,
-        detail = SongDetail(SongSummary("42", "밤편지", "아이유", null, 253000), listOf("발라드"), SongAnalysis("A♭", 79, "4/4", 60, 74), false, true),
-        fit = SongFit("42", TimbreMatch(TimbreAxis.CONSENSUS, "목소리의 질감이 잘 어울려요", null), .87f,
+        detail = SongDetail(SongSummary(firstSongId, "밤편지", "아이유", null, 253000), listOf("발라드"), SongAnalysis("A♭", 79, "4/4", 60, 74), false, true),
+        fit = SongFit(firstSongId, TimbreMatch(TimbreAxis.CONSENSUS, "목소리의 질감이 잘 어울려요", null), .87f,
             rangeFit = null, recommendedKey = -2, strainSections = null, overallFit = .89f, reasons = emptyList(), scoringVersion = "ui-fixture", compositionVersion = null),
         fitLoading = false, notes = notes, assetsLoading = false, mediaKey = 0, durationSec = 253.0,
         sections = listOf(PracticeSection(1, "CHORUS", "후렴 · 긴 호흡", 144000, 152000, 1, "LONG_BREATH", null, "프레이즈가 길게 이어져요. 시작 전에 숨을 준비해 보세요.")))
@@ -134,14 +137,14 @@ class SongDetailScreenTest {
     }
 
     @Test fun turntableSwipeChangesSongAndKeepsPracticeTargetInSync() {
-        var viewed = "42"
+        var viewed = firstSongId
         var practiced = ""
         compose.setContent {
             var current by remember { mutableStateOf(fixture) }
             MiconTheme {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
-                        SongDetailContent(current, profile, carouselIds = listOf("42", "43", "44"),
+                        SongDetailContent(current, profile, carouselIds = listOf(firstSongId, secondSongId, thirdSongId),
                             onSongSelected = { id ->
                                 viewed = id
                                 current = current.copy(selectedKey = 0, mediaKey = 0,
@@ -157,18 +160,18 @@ class SongDetailScreenTest {
         compose.onNodeWithTag("song-carousel").performTouchInput {
             swipeLeft(startX = center.x + width * .2f, endX = center.x - width * .2f, durationMillis = 500)
         }
-        compose.waitUntil(5_000) { viewed == "43" }
+        compose.waitUntil(5_000) { viewed == secondSongId }
         capture("song-detail-carousel-swiped.png")
-        compose.onNodeWithText("테스트 곡 43").assertExists()
+        compose.onNodeWithText("테스트 곡 $secondSongId").assertExists()
         compose.onNodeWithTag("song-practice").performClick()
-        assertEquals("43", practiced)
+        assertEquals(secondSongId, practiced)
         scrollTo("song-settings")
         compose.onNodeWithTag("song-detail-scroll").performScrollToIndex(0)
         compose.onNodeWithText("2 / 3 · LP를 넘겨 다른 곡 보기").assertExists()
         compose.onNodeWithTag("song-carousel").performTouchInput {
             swipeRight(startX = center.x - width * .2f, endX = center.x + width * .2f, durationMillis = 500)
         }
-        compose.waitUntil(5_000) { viewed == "42" }
+        compose.waitUntil(5_000) { viewed == firstSongId }
     }
 
     @Test fun favoritesOriginStaysSelectedAndDetailThemeDoesNotLeakToOtherTabs() {

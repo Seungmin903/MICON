@@ -1,7 +1,7 @@
 package com.micon.backend.voice;
 
-import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
-import com.micon.backend.domain.voice.api.VoiceSessionRequest;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.dto.VoiceSessionRequest;
 import com.micon.backend.domain.voice.client.HttpVoiceAnalysisJobGateway;
 import com.micon.backend.domain.voice.client.VoiceAnalysisJobGateway;
 import com.sun.net.httpserver.HttpServer;

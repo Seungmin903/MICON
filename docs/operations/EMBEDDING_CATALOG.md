@@ -20,6 +20,11 @@ S3는 벡터 검색 엔진이 아니다. 추천 요청마다 모든 곡을 S3에
 MySQL에 NPY/BLOB/큰 벡터 JSON이나 만료 presigned URL을 넣지 않는다.
 기존 `voice-recordings/` IAM과 삭제 정책, 버킷 Versioning OFF 설정은 변경하지 않는다.
 
+S3 manifest는 분석을 완료한 전체 원본 집합이고, `song.status='ACTIVE'`인 DB 곡이 현재 서비스 집합이다.
+BE snapshot과 AI 인덱스는 S3 원본 중 ACTIVE 곡에 대응하는 부분집합만 사용한다.
+`track_count`는 snapshot의 활성 곡 수, `source_track_count`는 불변 S3 batch의 전체 곡 수다.
+ACTIVE 집합이 바뀌어도 S3 객체나 기존 batch metadata를 덮어쓰지 않는다.
+
 배치 흐름: **prepare → dry-run → upload → validate → register → activate → AI cache refresh**.
 S3 업로드만으로 DB 등록/추천 전환이 일어나지 않는다. 모든 활성화는 인프라가 명시적으로 수행한다.
 
@@ -149,9 +154,10 @@ DB 이전 배치와 S3 이전 객체를 유지해야 롤백할 수 있다. 워�
 
 `GET /internal/embedding-catalog/active`, `Authorization: Bearer <AI_SERVICE_TOKEN>`.
 HTTPS로 접근한다. 사용자 JWT나 AWS Access Key는 인증 수단이 아니다.
-응답 `ApiResponse.data`는 schema_version/channel/revision/batch_id/bucket/region/manifest_key/manifest_sha256/manifest_bytes/models/track_count/tracks를 포함한다.
+응답 `ApiResponse.data`는 schema_version/channel/revision/batch_id/bucket/region/manifest_key/manifest_sha256/manifest_bytes/models/source_track_count/track_count/tracks를 포함한다.
 각 track은 song_id, catalog_track_id, 두 모델의 key/sha256/bytes/rows/dimension을 가진다.
-활성 배치가 없거나 DB 구성이 불완전하면 503 `EMBEDDING_CATALOG_UNAVAILABLE`, 인증 실패는 401이다. 응답 캐시는 no-store다.
+`tracks`에는 ACTIVE 곡만 포함되며 `track_count`는 그 배열 길이와 같다. S3 manifest는 이 집합의 상위 집합일 수 있다.
+활성 곡에 모델 누락이 있거나 활성 배치가 없으면 503 `EMBEDDING_CATALOG_UNAVAILABLE`, 인증 실패는 401이다. 응답 캐시는 no-store다.
 
 워커는 DB 비밀번호 없이 reader AWS 설정과 AI_SERVICE_TOKEN만 가진다.
 
@@ -161,6 +167,7 @@ python -m ai.embedding_catalog refresh --backend-url https://<BE-HOST>/internal/
 
 프록시가 경로 앞에 `/api`를 붙이는 배포라면 실제 라우팅에 맞춰 URL을 지정한다.
 파일별 checksum·배열·모델·DB 매핑을 전부 검증한 후에만 `current.json`을 원자적으로 바꾼다.
+워커는 manifest 전체를 검증하되 snapshot에 포함된 ACTIVE 곡의 파일만 내려받아 인덱스를 만든다.
 모델 계약 불일치, 다운로드 실패, 손상, 낮은 revision이면 예외를 내고 기존 메모리/포인터를 보존한다.
 워커 재시작 시 `CatalogCache.restore()`는 네트워크 없이 기존 캐시 전체를 재검증한다. 유효한 이전 캐시도 없으면 추천을 준비되지 않은 상태로 유지해야 하며 임의의 빈 추천으로 성공 처리하지 않는다.
 
@@ -169,6 +176,18 @@ python -m ai.embedding_catalog refresh --backend-url https://<BE-HOST>/internal/
 동기화 실패는 로그/알림으로 남기되 이미 로드한 정상 카탈로그를 유지한다. 로그에 토큰·서명 URL·원본 음성을 넣지 않는다.
 프로세스별 메모리는 각각 refresh해야 한다. 로컬 캐시 writer는 OS 파일 잠금으로 직렬화한다.
 명시적인 DB 롤백은 **더 높은 revision**의 이전 batch로 처리한다.
+
+### 곡 비활성화 절차
+
+카탈로그 곡을 서비스에서 제외할 때는 `song` 행과 `song_embedding`을 삭제하지 않는다.
+한 트랜잭션에서 대상 곡을 `INACTIVE`로 바꾸고 활성 카탈로그 revision을 1 증가시킨 뒤,
+같은 batch와 새 revision을 `embedding_catalog_event`에 기록한다. 이 revision 증가는 같은 batch 안에서
+서비스 가능한 곡 집합이 바뀌었다는 의미다. AI의 카탈로그 연결은 요청 또는 상태 조회 시 최대 30초마다
+BE snapshot을 다시 확인하므로 프로세스 재시작 없이 새 ACTIVE 집합을 반영한다.
+
+이미 곡과 embedding을 물리 삭제한 경우에는 S3를 수정하거나 `embedding_catalog_batch.track_count`를
+줄이지 않는다. ACTIVE 곡과 남은 두 모델 embedding이 완전한지 확인한 뒤 BE/AI 부분집합 지원 버전을
+배포하고 revision만 증가시킨다. `embedding_catalog_batch.track_count`는 S3 원본 수를 유지한다.
 
 ### 기존 추천 알고리즘 인덱스
 

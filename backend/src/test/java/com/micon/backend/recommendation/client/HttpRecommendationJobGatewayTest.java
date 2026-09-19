@@ -1,10 +1,10 @@
 package com.micon.backend.recommendation.client;
 
-import com.micon.backend.domain.recommendation.application.RecommendationInput;
+import com.micon.backend.domain.recommendation.service.RecommendationInput;
 import com.micon.backend.domain.recommendation.client.HttpRecommendationJobGateway;
 import com.micon.backend.domain.recommendation.client.RecommendationJobGateway;
 import com.micon.backend.domain.recommendation.config.RecommendationAiProperties;
-import com.micon.backend.domain.recommendation.domain.RecommendationMode;
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;

@@ -181,7 +181,7 @@ class VoiceContractTest(unittest.TestCase):
             state = catalog_link.refresh()
         fetch.assert_called_once_with("http://backend:8080/internal/embedding-catalog/active", "test-token")
         self.assertIsNone(state["error"])
-        self.assertEqual(catalog_link.song_ids(), {"tj-00281": 412, "412": 412})
+        self.assertEqual(catalog_link.song_ids(), {"tj-00281": "412", "412": "412"})
 
     def test_canceled_queued_job_does_not_start_inference(self):
         reply, _ = jobs.ingest({"file": wav()}, meta())

@@ -1,7 +1,7 @@
 package com.micon.backend.domain.auth.token;
 
 import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
-import com.micon.backend.domain.user.domain.UserStatus;
+import com.micon.backend.domain.user.entity.UserStatus;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;

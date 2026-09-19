@@ -23,6 +23,7 @@ import urllib.request
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from artist_catalog import public_response
 import numpy as np
 import soundfile as sf
 
@@ -292,7 +293,7 @@ def retry_job(job_id: str, background_tasks: BackgroundTasks, component: str) ->
 
 @router.get("/voice-analysis-jobs/{job_id}")
 def get_job(job_id: str) -> dict[str, Any]:
-    return _get(job_id)
+    return public_response(_get(job_id))
 
 
 def _get(job_id: str) -> dict[str, Any]:

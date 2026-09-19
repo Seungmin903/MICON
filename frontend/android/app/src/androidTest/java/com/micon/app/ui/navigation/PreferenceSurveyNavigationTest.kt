@@ -19,6 +19,7 @@ import com.micon.app.ui.report.GuidedRangeScreen
 import com.micon.app.ui.theme.MiconTheme
 import org.junit.Assert.*
 import org.junit.Rule
+import org.junit.Before
 import org.junit.Test
 import java.io.File
 import java.util.UUID
@@ -27,6 +28,11 @@ class PreferenceSurveyNavigationTest {
     @get:Rule val compose = createComposeRule()
     private lateinit var nav: NavHostController
     private lateinit var session: NavigationSessionViewModel
+
+    @Before fun grantMicrophoneForAutomaticCalibration() {
+        val instrument = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        instrument.uiAutomation.grantRuntimePermission(instrument.targetContext.packageName, android.Manifest.permission.RECORD_AUDIO)
+    }
 
     private fun showGraph(start: String = Routes.SURVEY) {
         session = NavigationSessionViewModel(SavedStateHandle(mapOf("loginDestination" to Routes.FAVORITES)))
@@ -61,7 +67,7 @@ class PreferenceSurveyNavigationTest {
         showGraph()
         compose.runOnIdle { nav.completeInitialPreferenceSurvey(session) }
         compose.onNodeWithTag("onboarding-range-intro").assertIsDisplayed()
-        compose.onNodeWithText("편한 목소리로 '아'를 내주세요").assertIsDisplayed()
+        compose.onNodeWithText("측정이 시작되면,").assertIsDisplayed()
         compose.runOnIdle {
             assertEquals(Routes.VOICE_ONBOARDING, nav.currentDestination?.route)
             assertTrue(session.verified)

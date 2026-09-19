@@ -1,0 +1,32 @@
+package com.micon.backend.domain.recommendation.service;
+
+import com.micon.backend.domain.recommendation.entity.Recommendation;
+
+import com.micon.backend.domain.recommendation.entity.RecommendationMode;
+import com.micon.backend.domain.voice.service.VoiceProfileSavedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
+@Component
+public class RecommendationProfileRefreshListener {
+    private static final Logger log = LoggerFactory.getLogger(RecommendationProfileRefreshListener.class);
+
+    private final RecommendationDispatchService dispatchService;
+
+    public RecommendationProfileRefreshListener(RecommendationDispatchService dispatchService) {
+        this.dispatchService = dispatchService;
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void refresh(VoiceProfileSavedEvent event) {
+        try {
+            dispatchService.dispatch(event.userId(), event.profileId(), RecommendationMode.OVERALL);
+        } catch (RuntimeException exception) {
+            log.warn("Recommendation refresh failed after voice profile save. userId={}, profileId={}, profileVersion={}",
+                    event.userId(), event.profileId(), event.profileVersion(), exception);
+        }
+    }
+}

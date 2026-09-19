@@ -74,11 +74,35 @@ class PracticeServiceTest {
 	@Test
 	void rejectsCompletingTerminalSession() {
 		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("ABORTED")));
-		when(repository.complete(50L, 7L, 12_000, null, null)).thenReturn(0);
+		when(repository.complete(50L, 7L, 12_000, null, null, null, null)).thenReturn(0);
 
 		assertThatThrownBy(() -> service.complete(7L, 50L, new PracticeRequest.Complete(12_000, null, null)))
 			.isInstanceOfSatisfying(BusinessException.class,
 				exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_PRACTICE_STATE));
+	}
+
+	@Test
+	void completesPracticeWithFinalKeyAndChangeCount() {
+		var completed = detail("COMPLETED", 0, -2, 2);
+		when(repository.findOwned(50L, 7L))
+			.thenReturn(Optional.of(detail("IN_PROGRESS", 0, 0, 0)), Optional.of(completed));
+		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
+		when(repository.complete(50L, 7L, 12_000, null, null, -2, 2)).thenReturn(1);
+
+		assertThat(service.complete(
+			7L, 50L, new PracticeRequest.Complete(12_000, null, null, -2, 2)
+		)).isSameAs(completed);
+	}
+
+	@Test
+	void rejectsZeroChangeCountWhenFinalKeyDiffers() {
+		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("IN_PROGRESS", 0, 0, 0)));
+		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
+
+		assertThatThrownBy(() -> service.complete(
+			7L, 50L, new PracticeRequest.Complete(12_000, null, null, -2, 0)
+		)).isInstanceOfSatisfying(BusinessException.class,
+			exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
 	}
 
 	@Test
@@ -122,8 +146,13 @@ class PracticeServiceTest {
 	}
 
 	private PracticeResponse.Detail detail(String status) {
+		return detail(status, -2, -2, 0);
+	}
+
+	private PracticeResponse.Detail detail(String status, int initialKey, int selectedKey, int keyChangeCount) {
 		return new PracticeResponse.Detail(
-			50L, "10", "연습곡", 30L, 20L, null, -2, new BigDecimal("0.80"),
+			50L, "10", "연습곡", 30L, 20L, null, initialKey, selectedKey,
+			keyChangeCount, keyChangeCount > 0 || initialKey != selectedKey, new BigDecimal("0.80"),
 			null, null, "SECTION", status, LocalDateTime.now(), null, null, LocalDateTime.now()
 		);
 	}

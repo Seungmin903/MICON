@@ -1,14 +1,15 @@
 package com.micon.backend.voice;
 
+import com.micon.backend.domain.voice.repository.VoiceAnalysisJobRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-import com.micon.backend.domain.voice.application.ArtistSearchJobService;
-import com.micon.backend.domain.voice.application.ArtistSearchRetryService;
+import com.micon.backend.domain.voice.service.ArtistSearchJobService;
+import com.micon.backend.domain.voice.service.ArtistSearchRetryService;
 import com.micon.backend.domain.voice.client.ArtistSearchJobGateway;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJob;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJobRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisJob;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

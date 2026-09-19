@@ -1,9 +1,10 @@
 package com.micon.backend.voice;
 
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.voice.domain.VoiceRecording;
-import com.micon.backend.domain.voice.domain.VoiceRecordingRepository;
+import com.micon.backend.domain.user.repository.UserRepository;
+import com.micon.backend.domain.voice.repository.VoiceRecordingRepository;
+
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.voice.entity.VoiceRecording;
 import com.micon.backend.domain.voice.storage.VoiceStorage;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,12 @@
 package com.micon.backend.voice;
 
+import com.micon.backend.domain.voice.repository.VoiceAnalysisComponentJobRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisJobRepository;
+import com.micon.backend.domain.voice.repository.VoiceAnalysisSessionRepository;
+import com.micon.backend.domain.voice.repository.VoiceRecordingContextRepository;
+import com.micon.backend.domain.voice.repository.VoiceRecordingRepository;
+import com.micon.backend.domain.voice.repository.VoiceRecordingSegmentRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -7,19 +14,13 @@ import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.voice.api.VoiceAnalysisUploadRequest;
-import com.micon.backend.domain.voice.application.TimbreAnalysisLifecycleService;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisComponentJobRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJob;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisJobRepository;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisMethod;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSession;
-import com.micon.backend.domain.voice.domain.VoiceAnalysisSessionRepository;
-import com.micon.backend.domain.voice.domain.VoiceRecording;
-import com.micon.backend.domain.voice.domain.VoiceRecordingContextRepository;
-import com.micon.backend.domain.voice.domain.VoiceRecordingRepository;
-import com.micon.backend.domain.voice.domain.VoiceRecordingSegmentRepository;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.voice.dto.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.service.TimbreAnalysisLifecycleService;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisJob;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisMethod;
+import com.micon.backend.domain.voice.entity.VoiceAnalysisSession;
+import com.micon.backend.domain.voice.entity.VoiceRecording;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

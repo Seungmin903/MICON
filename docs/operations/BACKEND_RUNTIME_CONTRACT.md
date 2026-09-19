@@ -35,7 +35,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | MAIL_STARTTLS | false | true/false. 제공자 TLS 방식과 일치; enable=true만으로 TLS 필수 강제가 되었다고 보지 않음 |
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
-| AI_ARTIST_SEARCH_ENABLED | false | true/false. 음성 분석과 별도로 닮은 가수 작업·callback을 통합 검증한 뒤에만 true |
+| AI_ARTIST_SEARCH_ENABLED | true | 운영 AI·BE 계약 검증이 완료되어 닮은 가수 작업·callback을 활성화. 호스트 준비 시 기존 false도 true로 교정 |
 | AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |
@@ -105,7 +105,7 @@ SMTP는 비밀번호 복구 기능에 필요하다. `MailConfig`는 STARTTLS ena
 | /api/v1/auth/refresh | /auth/refresh | POST, BE/OpenAPI/Android 경로 일치; 운영 미검증 |
 | /api/v1/recordings 및 /api/v1/recordings/{id}/content | /recordings 및 /recordings/{id}/content | 업로드·조회·삭제·재생 URL 코드 존재. content는 URL을 담은 JSON이며 S3 공개 주소/리다이렉트 계약이 아님; 운영 미검증 |
 | AI 내부 보컬 stem 조회 | /internal/catalog-media/vocal-stems/{songId} | AI 서비스 토큰 전용. DB의 검증된 object key에만 단기 URL 발급; 일반 JWT 접근 불가 |
-| /api/v1/health | 해당 앱용 컨트롤러 없음 | 앱은 ApiResponse 봉투 기대. Actuator를 그대로 연결해 해결되었다고 보지 않음 |
+| /api/v1/health | /health | 앱 연결 확인용 공개 `ApiResponse{data:{status:"UP"}}`. DB 포함 배포 판정은 별도 `/actuator/health/readiness` 사용 |
 
 인증 경로 변경은 Android API 선언과 인증 예외/갱신 처리에도 반영했다. health 사용 여부는 별도로 확인해야 한다. 기존 인증 경로의 하위 호환 alias는 제공하지 않으므로 BE와 앱을 함께 전환해야 한다. 상세 요청·응답은 [인증 API 문서](../AUTH_API.md)를 참고한다. AI는 [추천 AI 운영 컨테이너](RECOMMENDATION_CONTAINER_RUNTIME.md)의 내부 8788 연결 계약을 따른다.
 

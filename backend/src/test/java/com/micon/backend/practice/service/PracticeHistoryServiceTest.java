@@ -34,7 +34,7 @@ class PracticeHistoryServiceTest {
 	void returnsRequestedUsersDatedHistoryWithPagination() {
 		LocalDate date = LocalDate.of(2026, 9, 8);
 		var summary = new PracticeHistoryResponse.Summary(
-			50L, "10", "연습곡", "/images/10.jpg", -2, "FULL_SONG", null,
+			50L, "10", "연습곡", "/images/10.jpg", 0, -2, 1, true, "FULL_SONG", null,
 			"COMPLETED", LocalDateTime.of(2026, 9, 8, 12, 0), 120_000,
 			"COMPLETED", new BigDecimal("78.50")
 		);

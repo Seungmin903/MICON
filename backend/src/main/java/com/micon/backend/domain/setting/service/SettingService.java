@@ -1,7 +1,7 @@
 package com.micon.backend.domain.setting.service;
 
 import com.micon.backend.domain.setting.repository.SettingRepository;
-import com.micon.backend.domain.setting.api.SettingResponse;
+import com.micon.backend.domain.setting.dto.SettingResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

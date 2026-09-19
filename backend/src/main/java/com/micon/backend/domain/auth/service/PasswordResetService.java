@@ -1,5 +1,7 @@
 package com.micon.backend.domain.auth.service;
 
+import com.micon.backend.domain.user.repository.UserRepository;
+
 import com.micon.backend.domain.auth.dto.PasswordResetResponse;
 import com.micon.backend.domain.auth.entity.PasswordResetAttempt;
 import com.micon.backend.domain.auth.config.PasswordResetProperties;
@@ -9,10 +11,9 @@ import com.micon.backend.domain.auth.mail.PasswordResetCodeSender;
 import com.micon.backend.domain.auth.token.RefreshTokenHasher;
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
-import com.micon.backend.domain.user.domain.AuthType;
-import com.micon.backend.domain.user.domain.User;
-import com.micon.backend.domain.user.domain.UserRepository;
-import com.micon.backend.domain.user.domain.UserStatus;
+import com.micon.backend.domain.user.entity.AuthType;
+import com.micon.backend.domain.user.entity.User;
+import com.micon.backend.domain.user.entity.UserStatus;
 import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

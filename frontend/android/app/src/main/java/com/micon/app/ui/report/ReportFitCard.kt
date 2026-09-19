@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -38,6 +39,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongFit
+import com.micon.app.data.SongPage
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.favorites.FavoriteRepository
@@ -48,6 +50,8 @@ import com.micon.app.data.recommend.SavedProfileSongFit
 import com.micon.app.ui.charts.MetricBar
 import com.micon.app.ui.charts.RingProgress
 import com.micon.app.ui.common.CardTitle
+import com.micon.app.ui.common.LoadMoreFooter
+import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.common.SongRow
@@ -58,6 +62,7 @@ import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Purple
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,6 +96,11 @@ class ReportFitViewModel(
         val candidates: List<SongSummary> = emptyList(),
         val pickerLoading: Boolean = false,
         val pickerError: String? = null,
+        /** 카탈로그·검색 결과 페이징(찜 목록은 한 번에 온다). 스크롤 끝에서 [loadMoreCandidates]. */
+        val pickerPage: Int = 0,
+        val pickerHasMore: Boolean = false,
+        val pickerLoadingMore: Boolean = false,
+        val pickerMoreError: String? = null,
     )
 
     private val _state = MutableStateFlow(State())
@@ -113,21 +123,50 @@ class ReportFitViewModel(
         loadJob?.cancel()
         val query = _state.value.query.trim()
         loadJob = viewModelScope.launch {
-            _state.update { it.copy(pickerLoading = true, pickerError = null) }
+            _state.update { it.copy(pickerLoading = true, pickerError = null, pickerMoreError = null, pickerLoadingMore = false) }
             try {
                 var fromFavorites = false
+                var hasMore = false
+                var pageNo = 0
                 val list = if (query.isEmpty()) {
                     val liked = if (loggedIn) runCatching { favorites.refresh() }.getOrDefault(emptyList()) else emptyList()
-                    if (liked.isNotEmpty()) { fromFavorites = true; liked } else songs.search("", size = PAGE).items
+                    if (liked.isNotEmpty()) { fromFavorites = true; liked }
+                    else songs.search("", page = 0, size = PAGE).also { hasMore = hasNext(it); pageNo = it.page }.items
                 } else {
-                    songs.search(query, size = PAGE).items
+                    songs.search(query, page = 0, size = PAGE).also { hasMore = hasNext(it); pageNo = it.page }.items
                 }
-                _state.update { it.copy(candidates = list, fromFavorites = fromFavorites, pickerLoading = false) }
-            } catch (e: Exception) {
+                _state.update { it.copy(candidates = list, fromFavorites = fromFavorites, pickerLoading = false,
+                    pickerPage = pageNo, pickerHasMore = hasMore) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
                 _state.update { it.copy(pickerLoading = false, pickerError = describeBackendError(e, "곡을 불러오지 못했어요.")) }
             }
         }
     }
+
+    /** 곡 선택 시트의 다음 페이지(카탈로그·검색 결과만). 검색어가 바뀌면 [loadCandidates] 가 이 요청을 취소한다. */
+    fun loadMoreCandidates() {
+        val s = _state.value
+        if (s.fromFavorites || s.pickerLoading || s.pickerLoadingMore || !s.pickerHasMore) return
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _state.update { it.copy(pickerLoadingMore = true, pickerMoreError = null) }
+            try {
+                val page = songs.search(s.query.trim(), page = s.pickerPage + 1, size = PAGE)
+                _state.update { cur ->
+                    val known = cur.candidates.mapTo(HashSet()) { it.id }
+                    cur.copy(candidates = cur.candidates + page.items.filter { it.id !in known },
+                        pickerPage = page.page, pickerHasMore = hasNext(page), pickerLoadingMore = false)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                _state.update { it.copy(pickerLoadingMore = false, pickerMoreError = describeBackendError(e, "다음 곡을 불러오지 못했어요.")) }
+            }
+        }
+    }
+
+    private fun hasNext(page: SongPage): Boolean =
+        if (page.totalPages > 0) page.page + 1 < page.totalPages else page.items.size >= PAGE
 
     fun select(song: SongSummary) {
         _state.update { it.copy(selected = song, pickerOpen = false, fit = null, fitNote = null, fitLoading = true) }
@@ -164,7 +203,7 @@ fun ReportFitCard(loggedIn: Boolean, savedProfile: ProfileSaveReceipt? = null) {
     )
     val state by vm.state.collectAsStateWithLifecycle()
 
-    if (state.pickerOpen) SongPickerSheet(state, onQuery = vm::setQuery, onPick = vm::select, onDismiss = vm::closePicker)
+    if (state.pickerOpen) SongPickerSheet(state, onQuery = vm::setQuery, onPick = vm::select, onDismiss = vm::closePicker, onLoadMore = vm::loadMoreCandidates)
 
     MiconCard {
         CardTitle("곡 적합도")
@@ -243,7 +282,7 @@ private fun MetricRow(label: String, value: Float?) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SongPickerSheet(state: ReportFitViewModel.State, onQuery: (String) -> Unit, onPick: (SongSummary) -> Unit, onDismiss: () -> Unit) {
+private fun SongPickerSheet(state: ReportFitViewModel.State, onQuery: (String) -> Unit, onPick: (SongSummary) -> Unit, onDismiss: () -> Unit, onLoadMore: () -> Unit = {}) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Text("분석할 노래", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.padding(horizontal = 20.dp))
@@ -258,9 +297,17 @@ private fun SongPickerSheet(state: ReportFitViewModel.State, onQuery: (String) -
                 state.pickerLoading -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
                 state.pickerError != null -> Text(state.pickerError, color = Grey, modifier = Modifier.padding(20.dp))
                 state.candidates.isEmpty() -> Text(if (state.query.isBlank()) "곡이 없어요." else "검색 결과가 없어요.", color = Grey, modifier = Modifier.padding(20.dp))
-                else -> LazyColumn(Modifier.heightIn(max = 420.dp)) {
-                    items(state.candidates, key = { it.id }) { song ->
-                        SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
+                else -> {
+                    val listState = rememberLazyListState()
+                    LoadMoreOnScrollEnd(listState, enabled = state.pickerHasMore && !state.pickerLoadingMore && state.pickerMoreError == null,
+                        itemCount = state.candidates.size, key = state.pickerPage, onLoadMore = onLoadMore)
+                    LazyColumn(Modifier.heightIn(max = 420.dp), state = listState) {
+                        items(state.candidates, key = { it.id }) { song ->
+                            SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
+                        }
+                        if (state.pickerHasMore || state.pickerLoadingMore || state.pickerMoreError != null) {
+                            item { LoadMoreFooter(loading = state.pickerLoadingMore, error = state.pickerMoreError, onRetry = onLoadMore) }
+                        }
                     }
                 }
             }
