@@ -29,19 +29,23 @@ class RangeProfileChoiceTest {
 
     @Test fun choiceButtonsWaitForSavedRecordingAndRemainDistinct() {
         val paused = mutableStateOf(false)
+        val ready = mutableStateOf(false)
         var finishes = 0; var continues = 0
         compose.setContent { MiconTheme {
             Column(Modifier.fillMaxSize().padding(24.dp)) {
-                RangeProfileChoiceMessage(3, paused.value)
+                RangeProfileChoiceMessage(3, paused.value, ready.value, if (ready.value) "음역 분석 준비 완료" else null)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RangeProfileChoiceActions(paused.value, { finishes++ }, { continues++ })
+                    RangeProfileChoiceActions(paused.value, { finishes++ }, { continues++ }, ready.value)
                 }
             }
         } }
-        compose.onNodeWithText("보이스 프로필 생성 가능").assertIsDisplayed()
+        compose.onNodeWithText("녹음 구간 확인 중…").assertIsDisplayed()
         compose.onNodeWithText("프로필 생성하기").assertIsNotEnabled()
         compose.onNodeWithText("추가로 분석하기").performClick()
         compose.runOnIdle { assertEquals(0, continues); paused.value = true }
+        compose.onNodeWithText("프로필 생성하기").assertIsNotEnabled()
+        compose.runOnIdle { ready.value = true }
+        compose.onNodeWithText("음역 분석 준비 완료").assertIsDisplayed()
         compose.onNodeWithText("추가로 분석하기").performClick()
         compose.onNodeWithText("프로필 생성하기").performClick()
         compose.runOnIdle { assertEquals(1, continues); assertEquals(1, finishes) }

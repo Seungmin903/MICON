@@ -72,7 +72,8 @@ fun rangeHoldFeedback(session: RangeSession.View): String? = when {
 
 @Composable
 fun RangeMeasurementPanel(session: RangeSession.View, level: Float, notes: List<RangeNote>,
-                          pausedForChoice: Boolean, onReplay: () -> Unit, modifier: Modifier = Modifier) {
+                          pausedForChoice: Boolean, onReplay: () -> Unit, modifier: Modifier = Modifier,
+                          inputReady: Boolean = false, inputMessage: String? = null) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val shortScreen = constraints.hasBoundedHeight && maxHeight < 450.dp
         val keyboardHeight = if (shortScreen) 112.dp else 128.dp
@@ -97,7 +98,7 @@ fun RangeMeasurementPanel(session: RangeSession.View, level: Float, notes: List<
                     Text(if (session.waitingForCue) "${ScoringMath.midiName(midi)} 재생 중…" else "${ScoringMath.midiName(midi)} 듣기")
                 }
             }
-            if (session.phase == "profile_ready") RangeProfileChoiceMessage(session.sampling.measuredNoteCount, pausedForChoice)
+            if (session.phase == "profile_ready") RangeProfileChoiceMessage(session.sampling.measuredNoteCount, pausedForChoice, inputReady, inputMessage)
             else if (session.phase in setOf("noise", "comfortable")) Text(session.message, color = Grey)
         }
     }
@@ -119,14 +120,15 @@ fun RangePassGuide(session: RangeSession.View?) {
     }
 }
 
-fun rangeMeasurementCanFinish(session: RangeSession.View?): Boolean =
-    session?.sampling?.let { it.basicCompleted && it.measuredNoteCount > 0 } == true
+fun rangeMeasurementCanFinish(session: RangeSession.View?, inputReady: Boolean = false): Boolean =
+    inputReady && session?.sampling?.let { it.basicCompleted || it.refinementStatus == "completed" } == true
 
 @Composable
-fun RangeMeasurementActions(session: RangeSession.View?, onFinish: () -> Unit, onNext: (String?) -> Unit) {
+fun RangeMeasurementActions(session: RangeSession.View?, onFinish: () -> Unit, onNext: (String?) -> Unit,
+    inputReady: Boolean = false) {
     val density = LocalDensity.current
     val actionHeight = with(density) { (24.sp.toDp() + 24.dp).coerceAtLeast(48.dp) }
-    val canFinish = rangeMeasurementCanFinish(session)
+    val canFinish = rangeMeasurementCanFinish(session, inputReady)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (session != null) RangeAdvanceButton(session, onNext, Modifier.fillMaxWidth(), height = actionHeight)
         if (canFinish && session?.targetMidi != null) {

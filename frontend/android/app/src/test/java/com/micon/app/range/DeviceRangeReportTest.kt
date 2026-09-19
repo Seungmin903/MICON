@@ -39,7 +39,7 @@ class DeviceRangeReportTest {
     }
 
     @Test fun onboardingPreviewRequiresTheExistingProfileGateAndNormalCompletion() {
-        val complete = submission().copy(sampling = RangeSampling(basicCompleted = true, measuredNoteCount = 2))
+        val complete = usableRangeSubmission()
         assertNotNull(complete.onboardingPreview())
         assertEquals("device_measured", complete.onboardingPreview()!!.verification)
         assertNull(complete.copy(sampling = RangeSampling(measuredNoteCount = 2)).onboardingPreview())

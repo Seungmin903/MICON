@@ -25,27 +25,26 @@ class RevisedHoldTest {
         fun quiet(seconds: Double) = feed(seconds,null,.0001)
     }
 
-    @Test fun wholeToneStartBoundaryIsInclusiveAndLegacyRecordsKeepTheirOriginalGate() {
-        for (offset in listOf(-2.001, -2.0, 2.0, 2.001)) {
-            val d = Driver()
-            d.feed(.2, 60.0 + offset)
-            d.feed(1.0, 60.0 + offset)
-            if (kotlin.math.abs(offset) <= 2.0) {
-                assertEquals(60.0 + offset, d.tracker.referenceMidi!!, 1e-7)
-                assertTrue(d.tracker.current!!.metrics.passed)
-                assertEquals((60.0 + offset).toInt(), d.tracker.current!!.metrics.creditedMidi)
-            } else {
-                assertNull(d.tracker.referenceMidi)
-                assertNull(d.tracker.current)
+    @Test fun semitoneStartBoundaryIsInclusiveForCurrentAndLegacyTrackers() {
+        for (revised in listOf(false, true)) {
+            for (offset in listOf(-2.0, -1.001, -1.0, 1.0, 1.001, 2.0)) {
+                val d = Driver(revised)
+                d.feed(.2, 60.0 + offset)
+                d.feed(1.0, 60.0 + offset)
+                if (kotlin.math.abs(offset) <= 1.0) {
+                    assertEquals(60.0 + offset, d.tracker.referenceMidi!!, 1e-7)
+                    assertTrue(d.tracker.current!!.metrics.passed)
+                    assertEquals((60.0 + offset).toInt(), d.tracker.current!!.metrics.creditedMidi)
+                } else {
+                    assertNull(d.tracker.referenceMidi)
+                    assertNull(d.tracker.current)
+                }
             }
         }
-        val legacy = Driver(revised = false)
-        legacy.feed(1.2, 62.0)
-        assertNull(legacy.tracker.referenceMidi)
     }
 
     @Test fun actualSessionShowsHoldThenPassAndClearsFeedbackForTheNextNote() {
-        val s = RangeSession("whole-tone-feedback")
+        val s = RangeSession("semitone-feedback")
         var t = 0.0
         fun feed(n: Int, midi: Double? = null) {
             repeat(n) {
@@ -57,15 +56,15 @@ class RevisedHoldTest {
         feed(55); feed(101, 60.0)
         assertNull(rangeHoldFeedback(s.view()))
         s.cueFinished(s.view().cueId, t); feed(14)
-        feed(10, 62.0)
+        feed(10, 61.0)
         assertEquals("현재 음을 유지해주세요", rangeHoldFeedback(s.view()))
-        feed(49, 62.0)
+        feed(49, 61.0)
         assertEquals("현재 음을 유지해주세요", rangeHoldFeedback(s.view()))
-        feed(1, 62.0)
+        feed(1, 61.0)
         assertEquals("통과", rangeHoldFeedback(s.view()))
         feed(6)
         assertEquals(66, s.view().targetMidi)
-        assertEquals(62, s.view().attempts.single().metrics!!.creditedMidi)
+        assertEquals(61, s.view().attempts.single().metrics!!.creditedMidi)
         assertNull(rangeHoldFeedback(s.view()))
     }
 

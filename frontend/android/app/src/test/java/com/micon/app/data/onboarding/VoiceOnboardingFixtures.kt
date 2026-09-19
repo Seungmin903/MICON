@@ -1,6 +1,7 @@
 package com.micon.app.data.onboarding
 
 import com.micon.app.data.singanalysis.*
+import com.micon.app.audio.writeQualityWav
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -14,7 +15,7 @@ internal fun onboardingRecording(wav: File, draftId: String = "local-draft", sam
         putInt(16); putShort(1); putShort(1); putInt(sampleRate); putInt(sampleRate * 2)
         putShort(2); putShort(16); put("data".toByteArray()); putInt(pcmBytes)
     }
-    RandomAccessFile(wav, "rw").use { it.write(header.array()); it.setLength(44L + pcmBytes) }
+    writeQualityWav(wav, sampleRate, seconds)
     return SavedRecording(SingRecordingMeta(
         id = "recording", songId = "1", title = "Song", artist = "Artist", scope = "FULL",
         planSource = "SONG_START", plannedStartSec = 0.0, plannedEndSec = 200.0,

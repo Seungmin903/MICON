@@ -129,6 +129,7 @@ class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: D
         val pcmBytes = ByteBuffer.allocate(chunk.size * 2).order(ByteOrder.LITTLE_ENDIAN)
         val wavOut = wavFile?.let { BufferedOutputStream(FileOutputStream(it, append), 1 shl 16) }
         var pcmWritten = prefixBytes
+        var lastFlush = prefixBytes
         if (wavOut != null && !append) wavOut.write(ByteArray(44)) // 헤더 자리, stop 에서 채움
         finishedWav = null
         try {
@@ -143,6 +144,8 @@ class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: D
                     for (i in 0 until n) pcmBytes.putShort(chunk[i])
                     wavOut.write(pcmBytes.array(), 0, n * 2)
                     pcmWritten += n * 2
+                    // Let preflight workers inspect completed PCM while capture continues.
+                    if (pcmWritten - lastFlush >= captureRate) { wavOut.flush(); lastFlush = pcmWritten }
                 }
                 for (i in 0 until n) {
                     accumulator += chunk[i] / 32768f

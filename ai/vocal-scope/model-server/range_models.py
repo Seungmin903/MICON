@@ -185,7 +185,8 @@ class Submission(BaseModel):
                     if any(v is None for v in (a.referenceStart,a.referenceEnd,a.referenceMidi,a.runEndReason,a.metrics)):
                         raise ValueError('v5 requires exact reference, metrics and endpoint reason')
                     if (a.referenceStart < a.responseStart - .001 or abs(a.referenceEnd-a.referenceStart-.2) > .001 or
-                        abs(a.referenceEnd-a.evaluationStart) > .001 or abs(a.referenceMidi-a.targetMidi) > 1.000001):
+                        abs(a.referenceEnd-a.evaluationStart) > .001 or
+                        abs(a.referenceMidi-a.targetMidi) > (2.000001 if self.protocolVersion == 'guided-range-v7' else 1.000001)):
                         raise ValueError('invalid v5 reference window')
                     m = a.metrics
                     if any(v is None for v in (m.creditedHoldSeconds,m.bufferSeconds,m.outsideSeconds,m.excursionPenalty)):

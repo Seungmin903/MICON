@@ -77,7 +77,7 @@ class AdaptiveRangePresentationTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, 1.6f)) {
                 Column(Modifier.width(320.dp).padding(24.dp)) {
                     RangePassGuide(session.value)
-                    RangeMeasurementActions(session.value, {}, { passedVisit = it })
+                    RangeMeasurementActions(session.value, {}, { passedVisit = it }, inputReady = session.value.sampling.basicCompleted)
                 }
             }
         } }

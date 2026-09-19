@@ -115,7 +115,8 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                     }
                     if (state.running && session != null) {
                         RangeMeasurementPanel(session, state.level, state.keyboardNotes, state.pausedForChoice, vm::replay,
-                            modifier = Modifier.weight(1f))
+                            modifier = Modifier.weight(1f), inputReady = state.inputCheck.ready && !state.inputChecking,
+                            inputMessage = state.inputCheck.message)
                     } else if (state.preparationFailed) {
                         Text("시작음을 조금 더 맞춰볼까요?", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         if (state.stopReason == "input_quality") Text("주변 소리와 마이크 위치도 확인해 주세요.", color = Grey)
@@ -157,7 +158,7 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text(state.analysisMessage)
                         } else if (state.hasPending) {
-                            if (state.hasAttempts) PrimaryButton(if (repository?.deviceOnly == true) "결과 다시 확인하기" else "모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth())
+                            if (state.hasAttempts) PrimaryButton(if (repository?.deviceOnly == true) "결과 다시 확인하기" else "모델로 다시 분석하기", vm::retryUpload, Modifier.fillMaxWidth(), enabled = state.inputCheck.ready)
                             TextButton(onClick = { vm.discardPending(); onRestart() }) { Text("이 녹음을 지우고 새로 측정") }
                         } else {
                             TextButton(onClick = onRestart) { Text("새로 측정하기") }
@@ -181,10 +182,14 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                             val active = state.session
                             RangePassGuide(active)
                             if (active?.phase == "profile_ready") {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    RangeProfileChoiceActions(state.pausedForChoice, { vm.finish("completed") }, vm::continueMeasurement)
+                                if (!state.inputCheck.ready && !state.canSupplement) {
+                                    PrimaryButton("음역 다시 측정하기", { vm.discardPending(); onRestart() }, Modifier.fillMaxWidth())
+                                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    RangeProfileChoiceActions(state.pausedForChoice && !state.inputChecking, { vm.finish("completed") }, vm::continueMeasurement,
+                                        inputReady = state.inputCheck.ready)
                                 }
-                            } else RangeMeasurementActions(active, { vm.finish() }, vm::next)
+                            } else RangeMeasurementActions(active, { vm.finish() }, vm::next,
+                                inputReady = state.inputCheck.ready && !state.inputChecking)
                         }
                     }
                 }

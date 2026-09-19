@@ -1,12 +1,13 @@
 package com.micon.app.ui.singanalysis
 
 import com.micon.app.ui.singanalysis.SingAnalysisViewModel.Phase
+import com.micon.app.audio.VocalQuality
 import org.junit.Assert.*
 import org.junit.Test
 
 class OnboardingRecordingControlsTest {
     private val recording = SingAnalysisViewModel.UiState(phase = Phase.RUNNING,
-        onboarding = true, recordingValid = true)
+        onboarding = true, recordingValid = true, vocalQuality = VocalQuality(5, 5), recordedAudioSeconds = 35.0)
 
     @Test fun countdownUsesCeilingAndDoesNotEnableFinishingEarly() {
         for ((elapsed, remaining) in listOf(0.0 to 30, 1.01 to 29, 29.0 to 1, 29.99 to 1)) {
@@ -38,5 +39,15 @@ class OnboardingRecordingControlsTest {
         assertEquals("여기까지 마치기", singFinishLabel(standalone))
         assertFalse(standalone.canFinish)
         assertTrue(standalone.copy(phase = Phase.PAUSED).canFinish)
+    }
+    @Test fun durationAloneDoesNotAllowCompletionAndCheckingCannotBeBypassed() {
+        val longEnough = recording.copy(elapsedRecSec = 35.0, vocalQuality = VocalQuality(4, 8))
+        assertFalse(longEnough.canFinish)
+        assertEquals("목소리가 충분히 담긴 구간이 필요해요 (4/5)", singFinishLabel(longEnough))
+        assertTrue(longEnough.copy(vocalQuality = VocalQuality(5, 9)).canFinish)
+        assertFalse(longEnough.copy(vocalQuality = VocalQuality(5, 9), qualityChecking = true).canFinish)
+        assertFalse(recording.copy(elapsedRecSec = 35.0, recordedAudioSeconds = 121.0).canFinish)
+        assertFalse(recording.copy(elapsedRecSec = 35.0, recordedAudioSeconds = 29.0).canFinish)
+        assertFalse(recording.copy(elapsedRecSec = 35.0, vocalQuality = VocalQuality(5, 8, fileProblem = true)).canFinish)
     }
 }

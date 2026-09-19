@@ -4,6 +4,7 @@ import com.micon.app.core.auth.MemoryTokenStore
 import com.micon.app.core.network.BackendClient
 import com.micon.app.core.network.Json
 import com.micon.app.range.*
+import com.micon.app.audio.writeQualityWav
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -14,15 +15,13 @@ import java.io.File
 class BackendRangeAnalysisGatewayTest {
     @Test fun lostAcceptanceReusesPersistedRequestAfterGatewayRecreation() = runBlocking {
         val server = MockWebServer().apply { start() }
-        val wav = File.createTempFile("range-contract", ".wav").apply { writeBytes(ByteArray(50)) }
+        val wav = File.createTempFile("range-contract", ".wav").apply { writeQualityWav(this) }
         try {
             val api = BackendClient(server.url("/api/v1/").toString(), false,
                 MemoryTokenStore().apply { saveSession(42, "access", "refresh") }).api
             val store = TestSubmissionStateStore()
             val state = File(wav.parentFile, wav.name + ".link")
-            val fixture = File("../../../docs/contracts/onboarding-range-v7.json").readText()
-            val submission = Json.moshi.adapter(RangeSubmission::class.java).fromJson(
-                fixture.replace("\"measurementId\"", "\"sessionId\""))!!
+            val submission = usableRangeSubmission().copy(registerEvents = listOf(RegisterEvent(1.0, "modal")))
             server.enqueue(ok(201, """{"sessionId":7,"status":"CREATED","rangeStatus":"PENDING","timbreStatus":"PENDING","artistSearchStatus":"PENDING","resultVersion":0,"savedProfileExists":false,"recoverable":true,"expiresAt":"2026-09-16T00:00:00"}"""))
             server.enqueue(MockResponse().setResponseCode(503))
             assertTrue(runCatching { BackendRangeAnalysisGateway(api, 42, state, store).analyze(wav, submission) }.isFailure)
@@ -44,6 +43,16 @@ class BackendRangeAnalysisGatewayTest {
             assertTrue(secondBody.contains("\"strategy\":\"adaptive_6\""))
             assertTrue(secondBody.contains("\"register\":\"modal\""))
             assertEquals("/api/v1/voice-analysis-sessions/7/result", server.takeRequest().path)
+        } finally { wav.delete(); server.shutdown() }
+    }
+    @Test fun invalidInputDoesNotCreateAServerSessionOrSubmitAnyRequest() = runBlocking {
+        val server = MockWebServer().apply { start() }
+        val wav = File.createTempFile("invalid-range", ".wav").apply { writeQualityWav(this, amplitude = 0.0) }
+        try {
+            val api = BackendClient(server.url("/api/v1/").toString(), false, MemoryTokenStore()).api
+            assertTrue(runCatching { BackendRangeAnalysisGateway(api, 42, File(wav.path + ".link"), TestSubmissionStateStore())
+                .analyze(wav, usableRangeSubmission()) }.isFailure)
+            assertEquals(0, server.requestCount)
         } finally { wav.delete(); server.shutdown() }
     }
     private fun ok(status: Int, data: String) = MockResponse().setResponseCode(status)
