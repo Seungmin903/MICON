@@ -8,6 +8,7 @@
     "팝"
   ],
   "preferred_artists": [],
+  "preferred_artist_ids": [],
   "result": {
     "algorithm": {
       "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
@@ -26,8 +27,9 @@
         "excluded_count": null
       },
       "preferred_artists": [],
+      "preferred_artist_ids": [],
       "requested_mode": "timbre",
-      "catalog_scored": 73
+      "catalog_scored": 27
     },
     "query": {
       "segments": {
@@ -40,28 +42,32 @@
         "method": "duration-weighted rounded notes; core 5th-95th percentile",
         "histogramMidiMin": 36,
         "histogramMidiMax": 95,
-        "lowestMidi": 52,
-        "highestMidi": 76,
-        "coreLowMidi": 54,
-        "medianMidi": 59,
-        "coreHighMidi": 66,
-        "lowest": "E3",
-        "highest": "E5",
-        "coreRange": "F♯3–F♯4",
-        "noteCount": 242,
-        "voicedSeconds": 144.14,
-        "confidence": 0.7174,
-        "f0AgreementRatio": 0.9223,
-        "octaveMismatchRatio": 0.0102,
-        "comparedFrames": 14381,
+        "lowestMidi": 46,
+        "highestMidi": 73,
+        "coreLowMidi": 52,
+        "medianMidi": 61,
+        "coreHighMidi": 68,
+        "lowest": "A♯2",
+        "highest": "C♯5",
+        "coreRange": "E3–G♯4",
+        "noteCount": 766,
+        "voicedSeconds": 187.44,
+        "confidence": 0.6882,
+        "f0AgreementRatio": 0.8936,
+        "octaveMismatchRatio": 0.0032,
+        "comparedFrames": null,
         "reliable": true,
         "qualityReasons": [],
-        "pitchMethod": "CREPE full (segment Viterbi) + pYIN cross-check + VAD",
-        "separation": {
-          "backend": "htdemucs",
-          "model": "htdemucs",
-          "requested": "htdemucs",
-          "seconds": 19.5
+        "derivation": {
+          "source": "provided song_note.karaoke_notes",
+          "pitchField": "actualMidi",
+          "durationFields": [
+            "sourceStart",
+            "sourceEnd"
+          ],
+          "deduplicatedSourceIntervals": 0,
+          "newAudioInference": false,
+          "rawSourceNotesAvailable": false
         }
       },
       "pitchError": null
@@ -75,19 +81,20 @@
           {
             "position": 1,
             "shelf": "voice",
-            "track_id": "tj-00281-52ceab7628c6",
-            "song_id": "tj-00281",
-            "title": "이름 모를 소녀",
-            "artist": "김정호",
+            "track_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
+            "song_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
+            "title": "Until I Found You",
+            "artist": "Stephen Sanchez",
+            "artist_ids": [
+              215
+            ],
             "metadata": {
-              "album_name": "이름 모를 소녀 / 사랑의 진실",
-              "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/38/d2/22/38d222a0-ed01-0bfa-a358-53db00144d3f/525342_Vol_1.jpg/100x100bb.jpg",
-              "genres": [
-                "K-Pop"
-              ],
-              "language": null,
-              "release_date": "1983-02-25",
-              "tj_id": "TJ-00281",
+              "album_name": null,
+              "display_image_url": null,
+              "genres": [],
+              "language": "en",
+              "release_date": null,
+              "tj_id": "23924",
               "artist_gender": null
             },
             "axis": "ECAPA",
@@ -95,43 +102,43 @@
             "axis_scores": null,
             "axis_rank": null,
             "confidence": null,
-            "timbre_score": 0.63811,
+            "timbre_score": 0.382264,
             "range_fit": {
               "scoringVersion": "vocal-range-keyshift-continuous-v2",
-              "score": 0.993656,
-              "coverage": 0.998316,
+              "score": 0.990989,
+              "coverage": 0.993633,
               "centerScore": 1.0,
               "spanFit": 1.0,
-              "softFit": 0.981409,
-              "keyShift": 0,
-              "songCoreLowMidi": 54,
-              "songCoreHighMidi": 66,
+              "softFit": 0.979621,
+              "keyShift": 1,
+              "songCoreLowMidi": 53,
+              "songCoreHighMidi": 65,
               "catalogProfileReliable": true,
-              "baseScore": 0.998905,
-              "coverageFit": 0.981409,
+              "baseScore": 0.995862,
+              "coverageFit": 0.979621,
               "boundaryFit": 1.0,
               "centerDistanceSemitones": 0.0,
               "lowCoreExcessSemitones": 0.0,
               "highCoreExcessSemitones": 0.0,
               "totalCoreExcessSemitones": 0.0,
-              "paddedObservedLowMidi": 52,
-              "paddedObservedHighMidi": 68,
-              "songCoreRange": "F♯3–F♯4",
+              "paddedObservedLowMidi": 50,
+              "paddedObservedHighMidi": 70,
+              "songCoreRange": "F3–F4",
               "shiftedCoreLowMidi": 54,
               "shiftedCoreHighMidi": 66,
               "shiftedCoreRange": "F♯3–F♯4",
-              "paddedObservedRange": "E3–G♯4",
+              "paddedObservedRange": "D3–A♯4",
               "rangeContributionApplied": true
             },
-            "recommended_key": 0,
-            "final_score": 0.726997,
+            "recommended_key": 1,
+            "final_score": 0.534445,
             "metrics": {
               "axis_scores": {
                 "ecapa": 1.0,
-                "singer_byol": 1.0,
-                "consensus": 1.0
+                "singer_byol": 0.1818,
+                "consensus": 0.1818
               },
-              "confidence": 0.9388
+              "confidence": 0.9346
             },
             "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
             "composition_version": "shelves-v1"
@@ -151,7 +158,7 @@
           },
           "consensus_top_n": 10,
           "order": "final_score desc",
-          "candidate_count": 21
+          "candidate_count": 12
         }
       },
       {
@@ -162,19 +169,20 @@
           {
             "position": 1,
             "shelf": "original_key",
-            "track_id": "tj-07098-33d135a6ea79",
-            "song_id": "tj-07098",
-            "title": "Take Me Home, Country Roads",
-            "artist": "John Denver",
+            "track_id": "37797d96-3fa3-59b9-929e-bd482111d139",
+            "song_id": "37797d96-3fa3-59b9-929e-bd482111d139",
+            "title": "Beggin'",
+            "artist": "Maneskin",
+            "artist_ids": [
+              137
+            ],
             "metadata": {
-              "album_name": "Road Trip Sing-Alongs",
-              "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/01/59/41/01594149-3762-533f-2248-486263240aca/886445816068.jpg/100x100bb.jpg",
-              "genres": [
-                "Pop"
-              ],
+              "album_name": null,
+              "display_image_url": null,
+              "genres": [],
               "language": "en",
-              "release_date": "1971-01-01",
-              "tj_id": "TJ-07098",
+              "release_date": null,
+              "tj_id": "23765",
               "artist_gender": null
             },
             "axis": null,
@@ -182,38 +190,38 @@
             "axis_scores": null,
             "axis_rank": null,
             "confidence": null,
-            "timbre_score": 0.485856,
+            "timbre_score": 0.306693,
             "range_fit": {
               "scoringVersion": "vocal-range-keyshift-continuous-v2",
-              "score": 0.991125,
-              "coverage": 0.993868,
+              "score": 0.990631,
+              "coverage": 0.99301,
               "centerScore": 1.0,
               "spanFit": 1.0,
-              "softFit": 0.979715,
+              "softFit": 0.979371,
               "keyShift": 0,
-              "songCoreLowMidi": 52,
-              "songCoreHighMidi": 65,
+              "songCoreLowMidi": 53,
+              "songCoreHighMidi": 64,
               "catalogProfileReliable": true,
-              "baseScore": 0.996014,
-              "coverageFit": 0.979715,
+              "baseScore": 0.995457,
+              "coverageFit": 0.979371,
               "boundaryFit": 1.0,
               "centerDistanceSemitones": 0.0,
               "lowCoreExcessSemitones": 0.0,
               "highCoreExcessSemitones": 0.0,
               "totalCoreExcessSemitones": 0.0,
-              "paddedObservedLowMidi": 52,
-              "paddedObservedHighMidi": 68,
-              "songCoreRange": "E3–F4",
-              "shiftedCoreLowMidi": 52,
-              "shiftedCoreHighMidi": 65,
-              "shiftedCoreRange": "E3–F4",
-              "paddedObservedRange": "E3–G♯4",
+              "paddedObservedLowMidi": 50,
+              "paddedObservedHighMidi": 70,
+              "songCoreRange": "F3–E4",
+              "shiftedCoreLowMidi": 53,
+              "shiftedCoreHighMidi": 64,
+              "shiftedCoreRange": "F3–E4",
+              "paddedObservedRange": "D3–A♯4",
               "rangeContributionApplied": true
             },
             "recommended_key": 0,
-            "final_score": 0.612173,
+            "final_score": 0.477678,
             "metrics": {
-              "coverage0": 0.9939,
+              "coverage0": 0.993,
               "center0": 1.0
             },
             "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
@@ -224,26 +232,25 @@
       {
         "key": "discovery",
         "title": "새로운 발견",
-        "metric": "선택 안 한 장르 중 부를 수 있고 음색 중앙값 이상인 곡을 가수·장르 중복 없이 섞어 매일 다른 순서",
+        "metric": "다른 섹션에 뽑히지 않은 나머지 곡을 섞은 것. 앱이 새로고침마다 이 안에서 다시 섞는다",
         "items": [
           {
             "position": 1,
             "shelf": "discovery",
-            "track_id": "tj-20899-c81e919af420",
-            "song_id": "tj-20899",
-            "title": "Halo",
-            "artist": "Beyoncé",
+            "track_id": "e3e6020d-e86c-5231-b918-ce647af11535",
+            "song_id": "e3e6020d-e86c-5231-b918-ce647af11535",
+            "title": "Snowman",
+            "artist": "Sia",
+            "artist_ids": [
+              207
+            ],
             "metadata": {
-              "album_name": "I Am… Sasha Fierce",
-              "display_image_url": "http://coverartarchive.org/release/423ef3ec-9ba6-45c2-a51a-697b26dba00b/35915240837-500.jpg",
-              "genres": [
-                "Ballad",
-                "R&B",
-                "Hip-Hop"
-              ],
+              "album_name": null,
+              "display_image_url": null,
+              "genres": [],
               "language": "en",
-              "release_date": "2008-11-12",
-              "tj_id": "TJ-20899",
+              "release_date": null,
+              "tj_id": "23268",
               "artist_gender": null
             },
             "axis": null,
@@ -251,47 +258,42 @@
             "axis_scores": null,
             "axis_rank": null,
             "confidence": null,
-            "timbre_score": 0.447816,
+            "timbre_score": 0.333386,
             "range_fit": {
               "scoringVersion": "vocal-range-keyshift-continuous-v2",
-              "score": 0.478926,
-              "coverage": 0.840904,
-              "centerScore": 0.188876,
-              "spanFit": 0.22313,
-              "softFit": 0.154814,
-              "keyShift": -5,
+              "score": 0.994604,
+              "coverage": 1.0,
+              "centerScore": 1.0,
+              "spanFit": 1.0,
+              "softFit": 0.982014,
+              "keyShift": -2,
               "songCoreLowMidi": 56,
-              "songCoreHighMidi": 78,
+              "songCoreHighMidi": 65,
               "catalogProfileReliable": true,
-              "baseScore": 0.617832,
-              "coverageFit": 0.693827,
-              "boundaryFit": 0.22313,
-              "centerDistanceSemitones": 5.0,
-              "lowCoreExcessSemitones": 1.0,
-              "highCoreExcessSemitones": 5.0,
-              "totalCoreExcessSemitones": 6.0,
-              "paddedObservedLowMidi": 52,
-              "paddedObservedHighMidi": 68,
-              "songCoreRange": "G♯3–F♯5",
-              "shiftedCoreLowMidi": 51,
-              "shiftedCoreHighMidi": 73,
-              "shiftedCoreRange": "D♯3–C♯5",
-              "paddedObservedRange": "E3–G♯4",
+              "baseScore": 1.0,
+              "coverageFit": 0.982014,
+              "boundaryFit": 1.0,
+              "centerDistanceSemitones": 0.0,
+              "lowCoreExcessSemitones": 0.0,
+              "highCoreExcessSemitones": 0.0,
+              "totalCoreExcessSemitones": 0.0,
+              "paddedObservedLowMidi": 50,
+              "paddedObservedHighMidi": 70,
+              "songCoreRange": "G♯3–F4",
+              "shiftedCoreLowMidi": 54,
+              "shiftedCoreHighMidi": 63,
+              "shiftedCoreRange": "F♯3–D♯4",
+              "paddedObservedRange": "D3–A♯4",
               "rangeContributionApplied": true
             },
-            "recommended_key": -5,
-            "final_score": 0.455594,
+            "recommended_key": -2,
+            "final_score": 0.49869,
             "metrics": {
-              "genre": "Ballad",
-              "timbre_score": 0.4478
+              "timbre_score": 0.3334
             },
             "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
             "composition_version": "shelves-v1"
           }
-        ],
-        "excluded_tags": [
-          "K-Pop",
-          "Pop"
         ],
         "seed": 20260908
       }
@@ -300,19 +302,20 @@
       {
         "position": 1,
         "shelf": "voice",
-        "track_id": "tj-00281-52ceab7628c6",
-        "song_id": "tj-00281",
-        "title": "이름 모를 소녀",
-        "artist": "김정호",
+        "track_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
+        "song_id": "cf636fb7-ef4e-5aa1-96ad-5724ea9f9d3c",
+        "title": "Until I Found You",
+        "artist": "Stephen Sanchez",
+        "artist_ids": [
+          215
+        ],
         "metadata": {
-          "album_name": "이름 모를 소녀 / 사랑의 진실",
-          "display_image_url": "https://is1-ssl.mzstatic.com/image/thumb/Music118/v4/38/d2/22/38d222a0-ed01-0bfa-a358-53db00144d3f/525342_Vol_1.jpg/100x100bb.jpg",
-          "genres": [
-            "K-Pop"
-          ],
-          "language": null,
-          "release_date": "1983-02-25",
-          "tj_id": "TJ-00281",
+          "album_name": null,
+          "display_image_url": null,
+          "genres": [],
+          "language": "en",
+          "release_date": null,
+          "tj_id": "23924",
           "artist_gender": null
         },
         "axis": "ECAPA",
@@ -320,49 +323,49 @@
         "axis_scores": null,
         "axis_rank": null,
         "confidence": null,
-        "timbre_score": 0.63811,
+        "timbre_score": 0.382264,
         "range_fit": {
           "scoringVersion": "vocal-range-keyshift-continuous-v2",
-          "score": 0.993656,
-          "coverage": 0.998316,
+          "score": 0.990989,
+          "coverage": 0.993633,
           "centerScore": 1.0,
           "spanFit": 1.0,
-          "softFit": 0.981409,
-          "keyShift": 0,
-          "songCoreLowMidi": 54,
-          "songCoreHighMidi": 66,
+          "softFit": 0.979621,
+          "keyShift": 1,
+          "songCoreLowMidi": 53,
+          "songCoreHighMidi": 65,
           "catalogProfileReliable": true,
-          "baseScore": 0.998905,
-          "coverageFit": 0.981409,
+          "baseScore": 0.995862,
+          "coverageFit": 0.979621,
           "boundaryFit": 1.0,
           "centerDistanceSemitones": 0.0,
           "lowCoreExcessSemitones": 0.0,
           "highCoreExcessSemitones": 0.0,
           "totalCoreExcessSemitones": 0.0,
-          "paddedObservedLowMidi": 52,
-          "paddedObservedHighMidi": 68,
-          "songCoreRange": "F♯3–F♯4",
+          "paddedObservedLowMidi": 50,
+          "paddedObservedHighMidi": 70,
+          "songCoreRange": "F3–F4",
           "shiftedCoreLowMidi": 54,
           "shiftedCoreHighMidi": 66,
           "shiftedCoreRange": "F♯3–F♯4",
-          "paddedObservedRange": "E3–G♯4",
+          "paddedObservedRange": "D3–A♯4",
           "rangeContributionApplied": true
         },
-        "recommended_key": 0,
-        "final_score": 0.726997,
+        "recommended_key": 1,
+        "final_score": 0.534445,
         "metrics": {
           "axis_scores": {
             "ecapa": 1.0,
-            "singer_byol": 1.0,
-            "consensus": 1.0
+            "singer_byol": 0.1818,
+            "consensus": 0.1818
           },
-          "confidence": 0.9388
+          "confidence": 0.9346
         },
         "scoring_version": "ecapa-singer-byol-absolute-fusion-v2",
         "composition_version": "shelves-v1"
       }
     ],
-    "catalog_track_count": 374,
+    "catalog_track_count": 898,
     "limitations": [
       "관찰 음역은 업로드 샘플 기준이며 생리적 한계가 아니다.",
       "음색 점수는 후보군과 무관한 절대 유사도이지 성공 확률이 아니다.",
