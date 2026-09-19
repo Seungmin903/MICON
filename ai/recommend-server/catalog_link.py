@@ -80,12 +80,8 @@ def refresh() -> dict[str, Any]:
 
 
 def ensure(min_interval_seconds: float = 30.0) -> dict[str, Any]:
-    """빈 짝표를 제한적으로 재조회한다. 동시 요청과 BE 장애가 재조회 폭주를 만들지 않게 한다."""
-    if song_ids():
-        return status()
+    """짝표를 제한적으로 재조회한다. 활성 곡 변경도 재시작 없이 반영한다."""
     with _REFRESH_LOCK:
-        if song_ids():
-            return status()
         now = time.monotonic()
         if (_LAST_ATTEMPT_MONOTONIC is not None
                 and now - _LAST_ATTEMPT_MONOTONIC < max(0.0, min_interval_seconds)):

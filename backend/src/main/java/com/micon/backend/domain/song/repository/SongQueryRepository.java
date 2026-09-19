@@ -172,7 +172,7 @@ public class SongQueryRepository {
 		if (songIds.isEmpty()) {
 			return Set.of();
 		}
-		String sql = "SELECT song_id FROM song WHERE song_id IN (:songIds)";
+		String sql = "SELECT song_id FROM song WHERE status = 'ACTIVE' AND song_id IN (:songIds)";
 		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), String.class));
 	}
 

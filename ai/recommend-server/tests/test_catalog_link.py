@@ -30,11 +30,18 @@ class CatalogLinkTest(unittest.TestCase):
             self.assertEqual(catalog_link.ensure()["mappedTracks"], 1)
         self.assertEqual(fetch.call_count, 2)
 
-    def test_ensure_does_not_refetch_a_ready_mapping(self) -> None:
-        catalog_link._CACHE.update(songIds={"track": 1}, revision="r1", error=None)
-        with mock.patch.object(catalog_link, "_get") as fetch:
-            self.assertEqual(catalog_link.ensure()["mappedTracks"], 1)
-        fetch.assert_not_called()
+    def test_ensure_refreshes_a_ready_mapping_after_interval(self) -> None:
+        response = {"data": {"revision": "r2", "batch_id": "batch-2",
+                              "tracks": [{"catalog_track_id": "new-track", "song_id": 2}]}}
+        catalog_link._CACHE.update(songIds={"old-track": "1"}, revision="r1", error=None)
+        catalog_link._LAST_ATTEMPT_MONOTONIC = 100.0
+        with (mock.patch.dict(os.environ, MICON_BE_BASE_URL="http://backend:8080"),
+              mock.patch.object(catalog_link.time, "monotonic", side_effect=[110.0, 131.0]),
+              mock.patch.object(catalog_link, "_get", return_value=response) as fetch):
+            self.assertEqual(catalog_link.ensure()["revision"], "r1")
+            self.assertEqual(catalog_link.ensure()["revision"], "r2")
+        fetch.assert_called_once()
+        self.assertEqual(catalog_link.song_ids()["new-track"], "2")
 
     def test_uuid_is_not_coerced_and_is_returned_in_recommendations(self) -> None:
         song_id = "e8873464-9cc0-5dbe-b3ac-f561fd55eaa5"
