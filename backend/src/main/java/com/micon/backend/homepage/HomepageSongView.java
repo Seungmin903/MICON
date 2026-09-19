@@ -1,12 +1,14 @@
 package com.micon.backend.homepage;
 
 import com.micon.backend.domain.song.api.SongResponse;
+import java.util.List;
 
 /** Thymeleaf 곡 목록 화면에 표시할 값만 가공한 뷰 모델이다. */
 public record HomepageSongView(
 	String songId,
 	String title,
 	String artists,
+	String genres,
 	String imageUrl,
 	String duration,
 	boolean storedPracticeReady,
@@ -19,11 +21,16 @@ public record HomepageSongView(
 ) {
 
 	/** API 곡 요약 응답을 사람이 읽기 좋은 화면 표시 값으로 변환한다. */
-	public static HomepageSongView from(SongResponse.Summary song, HomepageSongStatus status) {
+	public static HomepageSongView from(
+		SongResponse.Summary song,
+		HomepageSongStatus status,
+		List<String> genres
+	) {
 		return new HomepageSongView(
 			song.songId(),
 			song.title(),
 			String.join(", ", song.artists()),
+			String.join(", ", genres),
 			song.imageUrl(),
 			formatDuration(song.durationMs()),
 			status.storedPracticeReady(),

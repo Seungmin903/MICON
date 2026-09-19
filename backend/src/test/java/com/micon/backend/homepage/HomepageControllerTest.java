@@ -46,6 +46,9 @@ class HomepageControllerTest {
 		when(homepageSongRepository.findStatuses(List.of("1"))).thenReturn(Map.of(
 			"1", new HomepageSongStatus("1", false, true, true, true, true, true, true)
 		));
+		when(homepageSongRepository.findGenres(List.of("1"))).thenReturn(Map.of(
+			"1", List.of("발라드", "팝")
+		));
 
 		mockMvc.perform(get("/homepage/songs").param("query", "아이유").param("page", "1"))
 			.andExpect(status().isOk())
@@ -58,16 +61,19 @@ class HomepageControllerTest {
 
 		verify(songService).search("아이유", 1, 30);
 		verify(homepageSongRepository).findStatuses(List.of("1"));
+		verify(homepageSongRepository).findGenres(List.of("1"));
 	}
 
 	@Test
 	void formatsSongValuesForTheView() {
 		HomepageSongView view = HomepageSongView.from(
 			new SongResponse.Summary("1", "좋은 날", List.of("아이유", "피처링"), null, 233_000L),
-			new HomepageSongStatus("1", false, true, true, true, true, true, true)
+			new HomepageSongStatus("1", false, true, true, true, true, true, true),
+			List.of("발라드", "팝")
 		);
 
 		assertThat(view.artists()).isEqualTo("아이유, 피처링");
+		assertThat(view.genres()).isEqualTo("발라드, 팝");
 		assertThat(view.duration()).isEqualTo("3:53");
 		assertThat(view.practiceReady()).isTrue();
 		assertThat(view.storedPracticeReady()).isFalse();

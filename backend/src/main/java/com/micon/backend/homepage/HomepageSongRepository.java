@@ -1,5 +1,6 @@
 package com.micon.backend.homepage;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,26 @@ public class HomepageSongRepository {
 
 	public HomepageSongRepository(NamedParameterJdbcTemplate jdbcTemplate) {
 		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	/** 홈페이지에 표시할 곡별 장르를 대표 장르 우선, 이름순으로 조회한다. */
+	public Map<String, List<String>> findGenres(List<String> songIds) {
+		if (songIds.isEmpty()) {
+			return Map.of();
+		}
+		String sql = """
+			SELECT sg.song_id, g.name
+			FROM song_genre sg
+			JOIN genre g ON g.genre_id = sg.genre_id
+			WHERE sg.song_id IN (:songIds)
+			ORDER BY sg.song_id, sg.is_primary DESC, g.name
+			""";
+		Map<String, List<String>> genres = new HashMap<>();
+		jdbcTemplate.query(sql, Map.of("songIds", songIds), resultSet -> {
+			genres.computeIfAbsent(resultSet.getString("song_id"), ignored -> new ArrayList<>())
+				.add(resultSet.getString("name"));
+		});
+		return genres;
 	}
 
 	public Map<String, HomepageSongStatus> findStatuses(List<String> songIds) {

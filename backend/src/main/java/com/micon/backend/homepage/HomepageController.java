@@ -39,9 +39,10 @@ public class HomepageController {
 		PageResponse<SongResponse.Summary> result = songService.search(query, page, size);
 		List<String> songIds = result.content().stream().map(SongResponse.Summary::songId).toList();
 		Map<String, HomepageSongStatus> statuses = homepageSongRepository.findStatuses(songIds);
+		Map<String, List<String>> genres = homepageSongRepository.findGenres(songIds);
 		model.addAttribute("songs", result.content().stream()
 			.map(song -> HomepageSongView.from(song, statuses.getOrDefault(song.songId(),
-				HomepageSongStatus.missing(song.songId()))))
+				HomepageSongStatus.missing(song.songId())), genres.getOrDefault(song.songId(), List.of())))
 			.toList());
 		model.addAttribute("query", query);
 		model.addAttribute("page", result.page());
