@@ -49,7 +49,8 @@ def connection():
                 cursor.execute(sql)
                 while cursor.nextset():
                     pass
-            cursor.execute("INSERT INTO song(song_id,title) VALUES (1,'test one'),(2,'test two')")
+            cursor.execute("INSERT INTO song(song_id,title,status) "
+                           "VALUES (1,'test one','ACTIVE'),(2,'test two','ACTIVE')")
             cursor.execute("INSERT INTO song_metadata(song_id,catalog_track_id) VALUES (1,'catalog-0'),(2,'catalog-1')")
         yield db
     finally:

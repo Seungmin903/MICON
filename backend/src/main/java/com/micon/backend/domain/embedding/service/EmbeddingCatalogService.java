@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** One consistent, authenticated metadata snapshot; no S3 IO on the request path. */
+/** One consistent, authenticated metadata snapshot; no S3 IO on the request path.
+ * The immutable S3 batch may be a superset. Only ACTIVE DB songs are serviceable. */
 @Service
 public class EmbeddingCatalogService {
     private final NamedParameterJdbcTemplate jdbc;
@@ -29,7 +30,8 @@ public class EmbeddingCatalogService {
     public Map<String, Object> active() {
         List<Map<String, Object>> batches = jdbc.query("""
                 SELECT a.revision, b.batch_id, b.bucket, b.region, b.manifest_key,
-                       b.manifest_sha256, b.manifest_bytes, b.track_count, b.models_json
+                       b.manifest_sha256, b.manifest_bytes,
+                       b.track_count AS source_track_count, b.models_json
                 FROM embedding_catalog_active a
                 JOIN embedding_catalog_batch b ON b.batch_id = a.batch_id
                 WHERE a.channel = 'default'
@@ -42,7 +44,7 @@ public class EmbeddingCatalogService {
                 result.put(column, row.getString(column));
             }
             result.put("manifest_bytes", row.getInt("manifest_bytes"));
-            result.put("track_count", row.getInt("track_count"));
+            result.put("source_track_count", row.getInt("source_track_count"));
             try {
                 result.put("models", json.readValue(row.getString("models_json"), Map.class));
             } catch (JacksonException invalid) {
@@ -56,10 +58,13 @@ public class EmbeddingCatalogService {
         Map<String, Object> result = batches.getFirst();
         Map<String, Map<String, Object>> tracks = new LinkedHashMap<>();
         jdbc.query("""
-                SELECT song_id, catalog_track_id, model_key, object_key, sha256,
-                       file_bytes, segment_count, dimension
-                FROM song_embedding WHERE batch_id = :batchId
-                ORDER BY catalog_track_id, model_key
+                SELECT se.song_id, se.catalog_track_id, se.model_key, se.object_key, se.sha256,
+                       se.file_bytes, se.segment_count, se.dimension
+                FROM song_embedding se
+                JOIN song s ON s.song_id = se.song_id
+                WHERE se.batch_id = :batchId
+                  AND s.status = 'ACTIVE'
+                ORDER BY se.catalog_track_id, se.model_key
                 """, Map.of("batchId", result.get("batch_id")), row -> {
             String id = row.getString("catalog_track_id");
             String songId = row.getString("song_id");
@@ -80,11 +85,11 @@ public class EmbeddingCatalogService {
                     "bytes", row.getInt("file_bytes"), "rows", row.getInt("segment_count"),
                     "dimension", row.getInt("dimension")));
         });
-        if (tracks.size() != (int) result.get("track_count")
-                || tracks.values().stream().anyMatch(track ->
+        if (tracks.isEmpty() || tracks.values().stream().anyMatch(track ->
                     !((Map<?, ?>) track.get("embeddings")).keySet().equals(Set.of("ecapa", "singer_byol")))) {
             throw new BusinessException(ErrorCode.EMBEDDING_CATALOG_UNAVAILABLE);
         }
+        result.put("track_count", tracks.size());
         result.put("tracks", List.copyOf(tracks.values()));
         return result;
     }
