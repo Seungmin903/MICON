@@ -136,13 +136,28 @@ fun MiconRoot() {
 
 @Composable
 private fun MiconBottomBar(nav: NavHostController, currentRoute: String?, source: String?) {
-    MiconTabBar(currentRoute, source) { route ->
-        nav.navigate(route) {
-            popUpTo(nav.graph.startDestinationId) { saveState = true }
+    MiconTabBar(currentRoute, source, onNavigate = nav::openBottomTab)
+}
+
+/** Tabs always open their root; saved child screens must not override the tapped destination. */
+internal fun NavHostController.openBottomTab(route: String) {
+    require(route in BottomTab.routes)
+    if (currentDestination?.route == route) {
+        // Reselecting the visible tab reloads it, including a previously empty/error state.
+        navigate(route) {
+            popUpTo(route) { inclusive = true }
             launchSingleTop = true
-            restoreState = true
         }
+        return
     }
+    navigate(route) {
+        // Login/session replacement removes the original start destination (splash).
+        // The graph remains a valid anchor for both member and guest tab stacks.
+        popUpTo(graph.id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+    popBackStack(route, inclusive = false)
 }
 
 /** Shared with device previews so their navigation chrome is the real app chrome. */

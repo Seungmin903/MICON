@@ -45,6 +45,7 @@ import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.RetryBlock
+import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.rememberAppContainer
@@ -59,6 +60,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlin.math.roundToInt
 
 /**
@@ -87,15 +91,19 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
     val state = _state.asStateFlow()
     private val seen = HashSet<Long>()
 
-    init { load() }
+    private var loadJob: Job? = null
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             try {
                 val page = practices.history(page = 0, size = PAGE_SIZE)
+                ensureActive()
                 val items = page.items.map { Item(it, PracticeLabels.date(it.startedAt) ?: "날짜 없음", it.id in seen) }
                 _state.update { it.copy(loading = false, groups = items.groupBy { i -> i.date }.toSortedMap(compareByDescending { d -> d })) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = describeBackendError(e, "연습 기록을 불러오지 못했어요.")) }
             }
@@ -145,6 +153,7 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
     val container = rememberAppContainer()
     val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer { PracticeHistoryViewModel(container.practices) } })
     val state by vm.state.collectAsStateWithLifecycle()
+    RefreshOnResume(vm::load)
 
     Column(Modifier.fillMaxSize().background(Color.White)) {
         MiconHeader(onSettings = onSettings)

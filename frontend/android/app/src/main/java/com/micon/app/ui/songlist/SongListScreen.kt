@@ -52,6 +52,7 @@ import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.common.RetryBlock
+import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.SongRow
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
@@ -166,6 +167,7 @@ fun SongListScreen(
     val container = rememberAppContainer()
     val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.recommend) } })
     val state by vm.state.collectAsStateWithLifecycle()
+    RefreshOnResume { if (!vm.state.value.loading) vm.refresh() }
     val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
     val loggedIn = TokenManager.isLoggedIn()
     val scope = rememberCoroutineScope()
