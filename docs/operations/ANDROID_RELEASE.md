@@ -53,8 +53,8 @@ Jira S15P21B110-179. 서버 CD/SQL 설정과 별도 작업이다. 현재는 코�
 
 1. 팀 리뷰된 커밋을 깨끗한 checkout에 준비하고 JDK 21, SDK 37, Build Tools 36.0.0, Python 3.11+, Git LFS를 확인한다. 필요한 LFS 객체를 read_repository 인증으로 받아 둔다.
 2. 입력·서명 파일 존재/저장소 외부 위치·공개 HTTPS 주소·증가 버전·승인 SHA 검사. `local.properties`가 있으면 중단한다.
-3. LFS 무결성 및 실제 SQLite 해시 대조 → `testReleaseUnitTest`와 `assembleRelease` 실행. Configuration/build cache는 끄며, raw Gradle 진단은 비밀값 보호를 위해 출력하지 않는다.
-4. `apksigner verify`와 `aapt dump badging`으로 서명 인증서, `com.micon.app`, 버전, debuggable 아님을 검사한다. APK 내 SQLite 해시도 검사한다.
+3. LFS 무결성 검사 → `testReleaseUnitTest`와 `assembleRelease` 실행. Configuration/build cache는 끄며, raw Gradle 진단은 비밀값 보호를 위해 출력하지 않는다.
+4. `apksigner verify`와 `aapt dump badging`으로 서명 인증서, `com.micon.app`, 버전, debuggable 아님을 검사한다. 곡 카탈로그는 백엔드 API를 사용하므로 제거된 로컬 SQLite가 APK에 다시 포함되지 않았는지도 검사한다.
 5. 모든 검사가 통과하면 저장소의 무시된 `build/releases/` 아래 **새 디렉터리**에 APK·체크섬·release.json만 생성한다. 기존 후보 파일은 덮어쓰지 않는다.
 
 ```sh
