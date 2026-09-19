@@ -27,7 +27,6 @@ import com.micon.app.ui.common.*
 import com.micon.app.ui.report.GuidedRangeScreen
 import com.micon.app.ui.report.RangeResultCards
 import com.micon.app.ui.report.VoiceReportContent
-import com.micon.app.ui.report.ReportFitCard
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
 import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.theme.*
@@ -49,12 +48,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
 
     key(state.draftId) {
         val nav = rememberNavController()
-        val initial = remember { when {
-            state.expired -> "expired"
-            state.recording != null -> "result"
-            state.canSelectSong -> "pick"
-            else -> "measure"
-        } }
+        val initial = remember { onboardingInitialDestination(state) }
         NavHost(navController = nav, startDestination = initial) {
             composable("expired") {
                 BackHandler { leave() }
@@ -70,8 +64,21 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler { leave() }
                 GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
                     repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = { measurementId ->
-                        if (vm.rangeMeasurementSaved(measurementId)) {
-                            nav.navigate("pick") { popUpTo("measure") { inclusive = true } }
+                        if (vm.rangeMeasurementSaved(measurementId) && nav.currentDestination?.route == "measure") {
+                            nav.navigate("song-guide") {
+                                popUpTo("measure") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    })
+            }
+            composable("song-guide") {
+                BackHandler { leave() }
+                OnboardingSongGuideScreen(state.songGuideError, onBack = ::leave,
+                    onNext = vm::completeSongGuide, onFinished = {
+                        nav.navigate("pick") {
+                            popUpTo("song-guide") { inclusive = true }
+                            launchSingleTop = true
                         }
                     })
             }
@@ -91,6 +98,9 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler(enabled = !state.saving) { leave() }
                 BackHandler(enabled = state.saving) { }
                 OnboardingAutomaticAnalysis(state, vm::analyzeWhenReady)
+                LaunchedEffect(state.progress?.sessionId, state.progress?.ecapa, state.recording?.id) {
+                    vm.loadEmbeddingMap()
+                }
                 VoiceOnboardingResultScreen(state, isGuest,
                     onExit = ::leave,
                     onLogin = { vm.discard(); onLogin() },
@@ -135,10 +145,7 @@ fun VoiceOnboardingResultScreen(
                 VoiceReportContent(range, progress,
                     retryEnabled = !isGuest && state.canRetryAnalysis,
                     onRetry = onRetry,
-                    // Fit uses the explicitly saved server profile, so do not show the previous profile's fit.
-                    songFit = if (state.saved && !isGuest && state.savedReceipt != null) {
-                        { ReportFitCard(true, state.savedReceipt) }
-                    } else null)
+                    embeddingMap = state.embeddingMap)
             }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
             if (state.rangeAnalysisStatus == OnboardingRangeStatus.FAILED) {

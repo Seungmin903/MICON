@@ -37,6 +37,15 @@ class RemotePracticeRepositoryTest {
         "playbackSpeed":1.00,"customStartMs":null,"customEndMs":null,"practiceScope":"FULL_SONG","status":"READY","startedAt":null,"endedAt":null,
         "durationMs":null,"createdAt":"2026-09-13T21:00:00"}"""
 
+    @Test fun `practice creation sends the uuid as a string and keeps numeric practice ids`() = runBlocking {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        server.enqueue(ok(detail.replace("\"songId\":7", "\"songId\":\"$id\"")))
+        val record = repo.create(id, -2)
+        assertEquals(id, record.songId)
+        assertEquals(31L, record.id)
+        assertTrue(server.takeRequest().body.readUtf8().contains("\"songId\":\"$id\""))
+    }
+
     @Test fun `create sends FULL_SONG request and parses detail`() = runBlocking {
         server.enqueue(ok(detail))
         val record = repo.create(songId = "7", selectedKey = -2)

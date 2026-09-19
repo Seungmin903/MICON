@@ -50,7 +50,7 @@ import kotlin.math.abs
  *
  * 흐름: 곡 준비 → 등록 구간 선택 → 카운트인 → 녹음 ⇄ 일시정지 → 사용자 종료 → 임시 WAV 저장.
  * 카운트인·일시정지 때는 마이크를 끈다. MR과 녹음이 실제 진행된 구간만 [SingTake]에 남긴다.
- * 최소 30초를 확보하고 일시정지한 상태에서만 종료한다. 곡 끝은 자동 완료하지 않는다.
+ * 최소 30초를 확보한 뒤 종료한다. 온보딩은 종료 요청 시 일시정지하고 확인한다. 곡 끝은 자동 완료하지 않는다.
  * 저장한 임시 녹음의 수명은 상위 온보딩 세션이 관리한다.
  */
 class SingAnalysisViewModel(
@@ -98,15 +98,16 @@ class SingAnalysisViewModel(
         val takePlaying: Boolean = false,
         val submit: Submit = Submit(),
         val error: String? = null,
+        val onboarding: Boolean = false,
     ) {
         val isSinging: Boolean get() = phase == Phase.COUNTDOWN || phase == Phase.RUNNING || phase == Phase.PAUSED
         /** 지금까지 부른 곡 구간 길이(초) — 다이얼로그·완료 화면 문구 */
         val sungSeconds: Double get() = elapsedRecSec
-        val canFinish: Boolean get() = recordingValid && phase == Phase.PAUSED &&
+        val canFinish: Boolean get() = recordingValid && (phase == Phase.PAUSED || onboarding && phase == Phase.RUNNING) &&
             elapsedRecSec >= com.micon.app.data.singanalysis.RecordingEligibility.MIN_SECONDS
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(UiState(onboarding = onboardingDraftId != null))
     val state = _state.asStateFlow()
 
     val player = InstrumentalPlayer(appContext, mediaHttp)
@@ -234,7 +235,7 @@ class SingAnalysisViewModel(
 
     /** PAUSED → 카운트인 후 현재 위치에서 이어서. */
     fun resume() {
-        if (_state.value.phase != Phase.PAUSED) return
+        if (_state.value.phase != Phase.PAUSED || _state.value.confirmEnd || _state.value.confirmDiscard) return
         if (!eligibility.valid || player.isEnded || player.positionSec >= (_state.value.plan?.endSec ?: 0.0)) return
         _state.update { it.copy(confirmEnd = false) }
         beginPlayback(player.positionSec, countFrom = meter)
@@ -324,22 +325,29 @@ class SingAnalysisViewModel(
         _state.update { it.copy(phase = Phase.PAUSED, countdown = 0, buffering = false, nowSec = player.positionSec) }
     }
 
-    /** Finishing never implicitly pauses playback or bypasses the 30-second gate. */
+    /** Onboarding opens the confirmation directly from recording; both modes retain the duration gate. */
     fun requestFinish() {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (_state.value.confirmEnd || _state.value.confirmDiscard || !_state.value.canFinish) return
+        if (_state.value.onboarding && _state.value.phase == Phase.RUNNING) pause()
+        if (_state.value.phase != Phase.PAUSED || !_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = true) }
     }
 
-    fun cancelFinish() = _state.update { it.copy(confirmEnd = false) }
+    fun cancelFinish() {
+        val confirmed = _state.value.confirmEnd
+        _state.update { it.copy(confirmEnd = false) }
+        if (confirmed && _state.value.onboarding) resume()
+    }
 
     fun confirmFinish() {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (!_state.value.confirmEnd || _state.value.phase != Phase.PAUSED ||
+            !_state.value.canFinish || !eligibility.canFinish(true)) return
         _state.update { it.copy(confirmEnd = false) }
         finish(early = player.positionSec < (_state.value.plan?.endSec ?: 0.0))
     }
 
     private fun finish(early: Boolean) {
-        if (!_state.value.canFinish || !eligibility.canFinish(true)) return
+        if (_state.value.phase != Phase.PAUSED || !_state.value.canFinish || !eligibility.canFinish(true)) return
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()

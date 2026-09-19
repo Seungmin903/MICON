@@ -89,6 +89,7 @@ class OnboardingRangeContinuationTest {
         assertEquals(listOf("measurement"), work.requests)
         assertTrue(model.state.value.canSelectSong)
         assertTrue(model.state.value.waitingForRange)
+        assertEquals("song-guide", onboardingInitialDestination(model.state.value))
         assertEquals("device_measured", model.state.value.rangePreview?.verification)
         assertNull(model.state.value.range)
         assertFalse(model.state.value.canAnalyze)
@@ -96,6 +97,21 @@ class OnboardingRangeContinuationTest {
         advanceUntilIdle()
         assertEquals(OnboardingRangeStatus.READY, model.state.value.rangeAnalysisStatus)
         assertNull(model.state.value.rangePreview)
+    }
+
+    @Test fun acknowledgedGuideSurvivesPendingRangeRestorationAndANewMeasurementResetsIt() = runTest {
+        val store = Store().apply { data = data.copy(songGuideCompleted = true) }
+        val work = RangeWork().apply { saved = measurement() }
+        val model = model(store, Timbre(), work)
+        runCurrent()
+        assertTrue(model.state.value.waitingForRange)
+        assertTrue(model.state.value.songGuideCompleted)
+        assertEquals("pick", onboardingInitialDestination(model.state.value))
+        work.saved = measurement("new-measurement")
+        assertTrue(model.rangeMeasurementSaved("new-measurement"))
+        assertFalse(model.state.value.songGuideCompleted)
+        assertFalse(store.data.songGuideCompleted)
+        assertEquals("song-guide", onboardingInitialDestination(model.state.value))
     }
 
     @Test fun recordingBeforeRangeWaitsForVerifiedInputAndUsesTheSameServerSessionOnce() = runTest {

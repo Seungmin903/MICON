@@ -31,6 +31,20 @@ class RemoteFavoriteRepositoryTest {
     private fun json(code: Int, body: String) = MockResponse().setResponseCode(code).setHeader("Content-Type", "application/json").setBody(body)
     private fun ok(data: String) = json(200, """{"code":"SUCCESS","message":"요청을 처리했습니다.","data":$data}""")
 
+    @Test fun `uuid favorites keep their identity when refreshed and removed`() = runBlocking {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        server.enqueue(ok("""{"songs":[{"songId":"$id","title":"곡","artists":["가수"]}],"totalCount":1}"""))
+        assertEquals(id, repo.refresh().single().id)
+        server.takeRequest()
+        assertEquals(setOf(id), repo.likedIds.value)
+        server.enqueue(ok("null"))
+        assertFalse(repo.toggle(id))
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("/api/v1/favorites/$id", request.path)
+        assertTrue(repo.likedIds.value.isEmpty())
+    }
+
     @Test fun `refresh fills liked cache from FavoriteResponse`() = runBlocking {
         server.enqueue(ok("""{"songs":[{"songId":7,"title":"빈잔","artists":["남진"],"imageUrl":null,"durationMs":200000},
             {"songId":1,"title":"너의 번호를 누르고","artists":["#안녕","영화처럼"],"imageUrl":"https://img/1.jpg","durationMs":251158}],"totalCount":2}"""))

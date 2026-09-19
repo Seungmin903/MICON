@@ -36,6 +36,23 @@ class RemoteSongRepositoryTest {
     private fun json(code: Int, body: String) = MockResponse().setResponseCode(code).setHeader("Content-Type", "application/json").setBody(body)
     private fun ok(data: String) = json(200, """{"code":"SUCCESS","message":"요청을 처리했습니다.","data":$data}""")
 
+    @Test fun `uuid from search is preserved in detail and practice assets`() = runBlocking {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        server.enqueue(ok("""{"content":[{"songId":"$id","title":"...사랑했잖아...","artists":["린"]}],"page":0,"size":1,"totalElements":948,"totalPages":948}"""))
+        val song = repo.search("사랑", size = 1).items.single()
+        assertEquals(id, song.id)
+        assertEquals("린", song.artist)
+        assertTrue(server.takeRequest().path!!.startsWith("/api/v1/songs?"))
+
+        server.enqueue(ok("""{"songId":"$id","title":"...사랑했잖아...","artists":["린"],"practiceReady":true}"""))
+        assertEquals(id, repo.detail(song.id)!!.summary.id)
+        assertEquals("/api/v1/songs/$id", server.takeRequest().path)
+
+        server.enqueue(ok("""{"songId":"$id","title":"...사랑했잖아...","selectedKey":0}"""))
+        assertEquals(id, repo.practiceAssets(song.id).songId)
+        assertEquals("/api/v1/songs/$id/practice-assets?selectedKey=0", server.takeRequest().path)
+    }
+
     @Test fun `song list maps PageResponse and joins artists`() = runBlocking {
         server.enqueue(ok("""{"content":[{"songId":1,"title":"너의 번호를 누르고","artists":["#안녕","영화처럼"],"imageUrl":null,"durationMs":251158}],"page":0,"size":20,"totalElements":384,"totalPages":20}"""))
         val page = repo.search("번호", page = 0, size = 20)
