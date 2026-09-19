@@ -49,11 +49,25 @@ class HomepageSongRepositoryTest {
 		assertThat(statuses.get("2").practiceReady()).isFalse();
 	}
 
+	@Test
+	void findsGenresWithPrimaryGenreFirst() {
+		jdbcTemplate.update("INSERT INTO song VALUES (1, FALSE), (2, FALSE)");
+		jdbcTemplate.update("INSERT INTO genre VALUES (10, '팝'), (20, '발라드'), (30, '록')");
+		jdbcTemplate.update("INSERT INTO song_genre VALUES (1, 10, FALSE), (1, 20, TRUE), (2, 30, TRUE)");
+
+		Map<String, List<String>> genres = repository.findGenres(List.of("1", "2"));
+
+		assertThat(genres.get("1")).containsExactly("발라드", "팝");
+		assertThat(genres.get("2")).containsExactly("록");
+	}
+
 	private void createTables() {
 		jdbcTemplate.execute("CREATE TABLE song (song_id VARCHAR(64) PRIMARY KEY, practice_ready BOOLEAN)");
 		jdbcTemplate.execute("CREATE TABLE song_metadata (song_id VARCHAR(64) PRIMARY KEY, lyrics_plain CLOB, lyrics_synced CLOB)");
 		jdbcTemplate.execute("CREATE TABLE song_analysis (analysis_id BIGINT PRIMARY KEY, song_id VARCHAR(64), status VARCHAR(20), analyzed_at TIMESTAMP)");
 		jdbcTemplate.execute("CREATE TABLE song_note (song_note_id BIGINT PRIMARY KEY, analysis_id BIGINT, karaoke_notes CLOB)");
 		jdbcTemplate.execute("CREATE TABLE song_media (media_id BIGINT PRIMARY KEY, song_id VARCHAR(64), kind VARCHAR(30), semitones INT, generation_status VARCHAR(20))");
+		jdbcTemplate.execute("CREATE TABLE genre (genre_id BIGINT PRIMARY KEY, name VARCHAR(100))");
+		jdbcTemplate.execute("CREATE TABLE song_genre (song_id VARCHAR(64), genre_id BIGINT, is_primary BOOLEAN)");
 	}
 }
