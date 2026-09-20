@@ -161,7 +161,7 @@ fun MiconRoot() {
 }
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
-private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND, Routes.SONG, Routes.SONG_MATCH, Routes.PRACTICE_RUN)
+private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND, Routes.SONG, Routes.SONG_MATCH, Routes.PRACTICE_RUN, Routes.PRACTICE, Routes.EVALUATION, Routes.FAVORITES)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -404,7 +404,8 @@ private fun MiconNavHost(
         composable(Routes.FAVORITES) {
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("찜", openLogin = { openLogin() })
-            else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it, Routes.FAVORITES)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            else FavoritesScreen(onSongClick = { nav.navigate(Routes.song(it, Routes.FAVORITES)) }, onSetlistClick = { nav.navigate(Routes.setlist(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
+                onPractice = { nav.navigate(Routes.practice(it)) })
         }
         composable(Routes.SETLIST, arguments = listOf(navArgument("setlistId") { type = NavType.LongType })) { entry ->
             if (isGuest || !accessGranted) return@composable
