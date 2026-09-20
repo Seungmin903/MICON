@@ -65,7 +65,7 @@ class RangeStabilityChartTest {
         compose.onNodeWithText("미측정").assertIsDisplayed()
         compose.onAllNodesWithText("목표음 유지율 100%").assertCountEquals(0)
         select(66)
-        compose.onNodeWithText("4옥타브 파♯ · 재측정 필요").assertIsDisplayed()
+        compose.onNodeWithText("4옥타브 파# · 재측정 필요").assertIsDisplayed()
         compose.onNodeWithText("재측정 필요").assertIsDisplayed()
         compose.onAllNodesWithText("목표음 유지율 100%").assertCountEquals(0)
         listOf("음별 지도 펼치기", "음별 지도 접기", "전체 C2~C6 보기", "측정 주변만 보기",

@@ -36,9 +36,35 @@ class OnboardingSongGuideTest {
 
     @Test fun priorDraftsDefaultToAnUnseenGuideAndNewFieldRoundTrips() {
         val adapter = Json.moshi.adapter(VoiceOnboardingDraft::class.java)
-        assertFalse(checkNotNull(adapter.fromJson("""{"draftId":"old","revision":3}""")).songGuideCompleted)
-        val draft = VoiceOnboardingDraft("draft", songGuideCompleted = true)
+        val old = checkNotNull(adapter.fromJson("""{"draftId":"old","revision":3}"""))
+        assertFalse(old.songGuideCompleted)
+        assertFalse(old.analysisGuideCompleted)
+        assertFalse(old.rangeGuideCompleted)
+        val draft = VoiceOnboardingDraft("draft", songGuideCompleted = true,
+            analysisGuideCompleted = true, rangeGuideCompleted = true)
         assertEquals(draft, adapter.fromJson(adapter.toJson(draft)))
+    }
+
+    @Test fun analysisAndRangeGuidesPersistOnceBeforeMeasurement() {
+        val store = Store()
+        val model = VoiceOnboardingViewModel(null, store, PendingVoiceOnboardingGateway())
+        assertEquals("analysis-guide", onboardingInitialDestination(model.state.value))
+        assertTrue(model.completeAnalysisGuide())
+        assertEquals("range-guide", onboardingInitialDestination(model.state.value))
+        assertTrue(model.completeAnalysisGuide())
+        assertEquals(1, store.writes)
+        assertTrue(model.completeRangeGuide())
+        assertEquals("measure", onboardingInitialDestination(model.state.value))
+        assertEquals(2, store.writes)
+        val restored = VoiceOnboardingViewModel(null, store, PendingVoiceOnboardingGateway())
+        assertEquals("measure", onboardingInitialDestination(restored.state.value))
+    }
+
+    @Test fun guideCopyNormalizesHonorificAndFallsBackWithoutAName() {
+        assertEquals("유림님", onboardingHonorificName(" 유림 "))
+        assertEquals("유림님", onboardingHonorificName("유림님"))
+        assertEquals("두 단계에 따라 목소리를 분석할거에요", analysisGuideCopy(null))
+        assertEquals("지금부터는 유림님이 낼 수 있는 소리의 범위를 측정해요", rangeGuideCopy("유림님"))
     }
 
     @Test fun confirmingGuideIsPersistedOnceAndRestoredWithoutRepeating() {
@@ -54,7 +80,7 @@ class OnboardingSongGuideTest {
         assertTrue(model.state.value.songGuideCompleted)
         model.restart()
         assertFalse(model.state.value.songGuideCompleted)
-        assertEquals("measure", onboardingInitialDestination(model.state.value))
+        assertEquals("analysis-guide", onboardingInitialDestination(model.state.value))
     }
 
     @Test fun storageFailureAndMissingMeasurementCannotSkipTheGuide() {

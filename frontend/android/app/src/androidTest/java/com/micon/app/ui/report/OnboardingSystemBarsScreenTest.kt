@@ -132,7 +132,7 @@ class OnboardingSystemBarsScreenTest {
     @Test fun songGuidePaintsBothSystemInsetsAndRestoresStyleAfterItsFade() {
         show(guide = false, songGuide = true)
         assertDarkAndCapture("song-guide")
-        compose.onNodeWithText("다음으로").performClick()
+        compose.onNodeWithText("노래 선택하기").performClick()
         compose.mainClock.advanceTimeBy(160)
         compose.runOnIdle {
             val controller = WindowCompat.getInsetsController(window, window.decorView)

@@ -52,11 +52,10 @@ fun VoiceReportContent(
     progress: VoiceAnalysisProgress?,
     retryEnabled: Boolean = false,
     onRetry: ((AnalysisComponent) -> Unit)? = null,
-    embeddingMap: EcapaEmbeddingMap? = null,
 ) {
     val current = progress?.takeIf { it.matchesRange(range) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SavedVoiceReportContent(range, current, embeddingMap, retryEnabled,
+        SavedVoiceReportContent(range, current, retryEnabled,
             onRetry?.let { retry -> { retry(AnalysisComponent.ARTIST_SEARCH) } })
         if (current != null) {
             if (current.ecapa in actionableStatuses) {
@@ -77,13 +76,14 @@ private val actionableStatuses = setOf(ComponentStatus.FAILED, ComponentStatus.I
 /** The report tab keeps measured range cards and actual artist results. */
 @Composable
 fun SavedVoiceReportContent(range: RangeReport, progress: VoiceAnalysisProgress?,
-                            embeddingMap: EcapaEmbeddingMap? = null, retryEnabled: Boolean = false,
+                            retryEnabled: Boolean = false,
                             onArtistRetry: (() -> Unit)? = null) {
     val current = progress?.takeIf { it.matchesRange(range) }
+    val timbreReport = current?.takeIf { it.hasTimbreReport(range) }
     LogVoiceReportProgress(current)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SimilarArtistsCard(current?.takeIf { it.hasTimbreReport(range) }, retryEnabled, onArtistRetry, showEmpty = true)
-        EcapaEmbeddingCard(current, embeddingMap)
+        SimilarArtistsCard(timbreReport, retryEnabled, onArtistRetry, showEmpty = true)
+        VoiceSimilarityGraphCard(timbreReport)
         RangeResultCards(range, reportTab = true)
     }
 }
