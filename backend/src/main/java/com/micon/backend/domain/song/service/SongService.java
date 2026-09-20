@@ -32,15 +32,22 @@ public class SongService {
 
 	/** 로그인 회원은 저장한 선호 장르와 많이 일치하는 곡부터 조회한다. */
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId) {
+		return search(query, page, size, userId, null);
+	}
+
+	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 조회한다. */
+	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId) {
 		long offset = (long) page * size;
-		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(query, size, offset, userId);
+		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(
+			query, size, offset, userId, genreId
+		);
 		List<SongResponse.Summary> songs = imageEnrichmentService.enrich(
 			songsWithoutImages,
 			songQueryRepository.findTrackIds(
 				songsWithoutImages.stream().map(SongResponse.Summary::songId).toList()
 			)
 		);
-		long totalElements = songQueryRepository.count(query);
+		long totalElements = songQueryRepository.count(query, genreId);
 		return PageResponse.of(songs, page, size, totalElements);
 	}
 

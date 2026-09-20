@@ -34,6 +34,14 @@ public class SongQueryRepository {
 			         AND LOWER(COALESCE(search_si.name, '')) LIKE :queryPattern
 			   ))
 			""";
+	private static final String GENRE_CONDITION = """
+			AND (:genreId IS NULL OR EXISTS (
+			    SELECT 1
+			    FROM song_genre filtered_song_genre
+			    WHERE filtered_song_genre.song_id = s.song_id
+			      AND filtered_song_genre.genre_id = :genreId
+			))
+			""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -49,11 +57,16 @@ public class SongQueryRepository {
 
 	/** 회원의 선호 장르와 일치하는 장르 수가 많은 곡을 먼저 조회한다. */
 	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId) {
+		return findPage(query, size, offset, userId, null);
+	}
+
+	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 반환한다. */
+	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId, Long genreId) {
 		String sql = """
 				SELECT s.song_id, s.title, s.duration_ms
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
-				""" + SEARCH_CONDITION + """
+				""" + SEARCH_CONDITION + GENRE_CONDITION + """
 				ORDER BY (
 				    SELECT COUNT(*)
 				    FROM song_genre preferred_song_genre
@@ -67,6 +80,7 @@ public class SongQueryRepository {
 				""";
 		MapSqlParameterSource params = searchParameters(query)
 				.addValue("userId", userId)
+				.addValue("genreId", genreId)
 				.addValue("size", size)
 				.addValue("offset", offset);
 		List<SongRow> songs = jdbcTemplate.query(sql, params, SONG_ROW_MAPPER);
@@ -110,12 +124,21 @@ public class SongQueryRepository {
 
 	// 기능: count 조건으로 데이터베이스를 조회한다.
 	public long count(String query) {
+		return count(query, null);
+	}
+
+	/** 장르 필터를 적용한 곡 수를 반환한다. */
+	public long count(String query, Long genreId) {
 		String sql = """
 				SELECT COUNT(*)
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
-				""" + SEARCH_CONDITION;
-		Long count = jdbcTemplate.queryForObject(sql, searchParameters(query), Long.class);
+				""" + SEARCH_CONDITION + GENRE_CONDITION;
+		Long count = jdbcTemplate.queryForObject(
+			sql,
+			searchParameters(query).addValue("genreId", genreId),
+			Long.class
+		);
 		return count == null ? 0 : count;
 	}
 

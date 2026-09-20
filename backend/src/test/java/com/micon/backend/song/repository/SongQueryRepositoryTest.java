@@ -58,6 +58,28 @@ class SongQueryRepositoryTest {
 	}
 
 	@Test
+	void filtersSongsByGenre() {
+		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, null, 22L);
+
+		assertThat(songs).extracting(SongResponse.Summary::title).containsExactly("밤편지");
+		assertThat(repository.count("", 22L)).isEqualTo(1);
+	}
+
+	@Test
+	void combinesGenreAndTextSearch() {
+		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0, null, 22L);
+
+		assertThat(songs).isEmpty();
+		assertThat(repository.count("아이유", 22L)).isZero();
+	}
+
+	@Test
+	void returnsNoSongsForAnUnknownGenre() {
+		assertThat(repository.findPage("", 20, 0, null, 999L)).isEmpty();
+		assertThat(repository.count("", 999L)).isZero();
+	}
+
+	@Test
 	void placesSongsMatchingTheUsersPreferredGenresFirst() {
 		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 30L);
 
@@ -160,8 +182,10 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (11, 'tj-00999', 1)");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (20, 'K-POP')");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (21, '발라드')");
+		jdbcTemplate.update("INSERT INTO GENRE VALUES (22, '인디')");
 		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 20, TRUE)");
 		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 21, FALSE)");
+		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00999', 22, TRUE)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
 			(100, 'tj-00281', 'COMPLETED', 'A♭ Major', 128.500, 56.00, 81.00, TIMESTAMP '2026-09-01 10:00:00'),
