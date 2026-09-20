@@ -49,6 +49,10 @@ import com.micon.app.core.network.SessionEvents
 import com.micon.app.BuildConfig
 import com.micon.app.ui.design.catalog.DesignCatalogScreen
 import com.micon.app.ui.evaluation.PracticeHistoryScreen
+import com.micon.app.ui.holo.HoloScreen
+import com.micon.app.ui.holo.VoiceResultScreen
+import com.micon.app.ui.holo.holoViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micon.app.ui.favorites.FavoritesScreen
 import com.micon.app.ui.favorites.SetlistScreen
 import com.micon.app.ui.onboarding.LoginScreen
@@ -112,7 +116,7 @@ fun MiconRoot() {
         }
     }
     LaunchedEffect(currentRoute, accessGranted) {
-        val publicRoutes = setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
+        val publicRoutes = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
         if (currentRoute != null && currentRoute !in publicRoutes && !accessGranted) {
             // Also guards restored back stacks and incoming protected deep links.
             nav.replaceAll(Routes.REPORT)
@@ -160,7 +164,7 @@ fun MiconRoot() {
 }
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
-private val migratedRoutes: Set<String?> = setOf()
+private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -223,7 +227,31 @@ private fun MiconNavHost(
     }
     fun checkSession() { onGuest(false); onVerified(false); nav.replaceAll(Routes.SPLASH) }
 
+    val holo = holoViewModel()
+    /** 홀로에서 탭으로 나갈 때: 로그인돼 있으면 세션 확인 뒤 메인, 아니면 게스트로 */
+    fun leaveHolo(destination: String) {
+        if (TokenManager.isLoggedIn()) { session.rememberDestinationRoute(destination); checkSession() }
+        else { onVerified(false); onGuest(true); nav.replaceAll(destination) }
+    }
+
     NavHost(navController = nav, startDestination = initialRoute, modifier = modifier) {
+
+        // ---- 첫 화면: 목소리 분석 → 결과 ----
+        composable(Routes.HOLO) {
+            HoloScreen(vm = holo, onResult = { nav.navigate(Routes.VOICE_RESULT) { launchSingleTop = true } },
+                onSkip = { leaveHolo(Routes.REPORT) })
+        }
+        composable(Routes.VOICE_RESULT) {
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = holoState.saving,
+                onRecommend = { leaveHolo(Routes.RECOMMEND) },
+                onSave = {
+                    if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.REPORT) }
+                    else { session.rememberDestinationRoute(Routes.REPORT); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
+                })
+        }
 
         // ---- 온보딩 ----
         composable(Routes.SPLASH) {
@@ -428,7 +456,8 @@ private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
 
 /** Survives configuration changes, but a fresh process must validate its server session. */
 class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
-    val initialRoute = if (TokenManager.isLoggedIn()) Routes.SPLASH else Routes.LOGIN
+    /** 프로토타입: 앱을 열면 바로 목소리 분석. 로그인·설문은 결과를 저장할 때 만난다 */
+    val initialRoute = Routes.HOLO
     var verified by mutableStateOf(false)
     var guest by mutableStateOf(false)
 
@@ -440,6 +469,7 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
         savedState["loginDestination"] = destination
     }
 
+    fun rememberDestinationRoute(route: String) { savedState["loginDestination"] = route }
     fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
     fun clearDestination() { savedState.remove<String>("loginDestination") }
 }

@@ -13,7 +13,7 @@ data class DeviceRangeResultRequest(
     val lowMidi: Double?, val highMidi: Double?, val noteResults: List<DeviceRangeNoteDto>,
     val measurementStatus: String, val qualityStatus: String,
 )
-data class DeviceRangeNoteDto(val midi: Int, val status: String)
+data class DeviceRangeNoteDto(val midi: Int, val status: String, val stability: Double? = null, val holdMs: Int? = null)
 data class VoiceTimbreMetaRequest(
     val requestId: String, val method: String = "SONG", val songId: String,
     val guideVersion: String, val recordedAt: String, val durationMs: Int, val sampleRate: Int,

@@ -24,6 +24,14 @@ object NoteNames {
 
     fun syllableOf(midi: Int): String = syllables[((midi % 12) + 12) % 12]
 
+    private val letters = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+
+    /** 과학 표기 "C4" · "G♯3". 설정의 음 이름 표기가 CDE 일 때, 그리고 차트 축처럼 짧아야 하는 곳에 쓴다 */
+    fun scientific(midi: Int): String = letters[((midi % 12) + 12) % 12] + octaveOf(midi)
+
+    /** "C3 – C5" */
+    fun scientificRange(lowMidi: Int, highMidi: Int): String = "${scientific(lowMidi)} – ${scientific(highMidi)}"
+
     /**
      * 옥타브 → 높낮이 말. 2 아래와 6 위는 양 끝으로 모은다 —
      * 더 잘게 나눠 봐야 사람이 구분하지 못한다.
