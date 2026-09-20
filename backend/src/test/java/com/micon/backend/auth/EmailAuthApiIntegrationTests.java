@@ -134,6 +134,30 @@ class EmailAuthApiIntegrationTests {
     }
 
     @Test
+    void rejectsSignUpPasswordsThatDoNotMeetThePasswordPolicy() throws Exception {
+        String[] invalidPasswords = {
+                "12345678!",      // 영문 없음
+                "Password!",      // 숫자 없음
+                "Password123",    // 허용된 특수문자 없음
+                "Password 123!",  // 공백 포함
+                "Password123_"    // 허용되지 않은 특수문자
+        };
+
+        for (int index = 0; index < invalidPasswords.length; index++) {
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "email": "invalid-password-%d@micon.com",
+                                      "password": "%s"
+                                    }
+                                    """.formatted(index, invalidPasswords[index])))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+    }
+
+    @Test
     void protectsMemberOnlyEndpoint() throws Exception {
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized())

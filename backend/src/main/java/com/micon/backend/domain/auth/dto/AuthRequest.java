@@ -2,6 +2,7 @@ package com.micon.backend.domain.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public final class AuthRequest {
@@ -17,6 +18,7 @@ public final class AuthRequest {
 
             @NotBlank(message = "비밀번호를 입력해 주세요.")
             @Size(min = 8, max = 64, message = "비밀번호는 8자 이상 64자 이하여야 합니다.")
+            @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE)
             String password,
 
             @Size(max = 100, message = "기기 식별자는 100자 이하여야 합니다.")

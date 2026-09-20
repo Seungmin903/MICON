@@ -124,11 +124,12 @@ fun PasswordResetScreen(onBack: () -> Unit, onDone: () -> Unit) {
                     PrimaryButton("인증하기", { model.verify(code) }, Modifier.fillMaxWidth(), enabled = !state.loading && code.length == 6)
                 }
                 else -> {
-                    MiconTextField("새 비밀번호", password, { password = it }, "8~64자", isPassword = true)
+                    MiconTextField("새 비밀번호", password, { password = it }, PASSWORD_GUIDE, isPassword = true,
+                        helper = PASSWORD_GUIDE, helperColor = if (isValidPassword(password)) com.micon.app.ui.theme.GreenChipText else Red)
                     Spacer(Modifier.height(14.dp))
                     MiconTextField("비밀번호 확인", confirm, { confirm = it }, "한 번 더 입력해주세요", isPassword = true)
                     Spacer(Modifier.height(20.dp))
-                    PrimaryButton("비밀번호 변경", { model.reset(password) }, Modifier.fillMaxWidth(), enabled = !state.loading && password.length in 8..64 && password == confirm)
+                    PrimaryButton("비밀번호 변경", { model.reset(password) }, Modifier.fillMaxWidth(), enabled = !state.loading && isValidPassword(password) && password == confirm)
                 }
             }
             state.error?.let { Spacer(Modifier.height(14.dp)); Text(it, color = Red, fontSize = 14.sp, textAlign = TextAlign.Center) }
