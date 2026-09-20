@@ -50,6 +50,7 @@ import com.micon.app.BuildConfig
 import com.micon.app.ui.design.catalog.DesignCatalogScreen
 import com.micon.app.ui.evaluation.PracticeHistoryScreen
 import com.micon.app.ui.holo.HoloScreen
+import com.micon.app.ui.analysis.AnalysisScreen
 import com.micon.app.ui.holo.VoiceResultScreen
 import com.micon.app.ui.holo.holoViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -164,7 +165,7 @@ fun MiconRoot() {
 }
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
-private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT)
+private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -301,14 +302,21 @@ private fun MiconNavHost(
                 carouselIds = ids.toList(), artwork = artwork, onSongSelected = { currentId = it })
         }
 
-        // ---- 탭: 리포트 ----
+        // ---- 탭: 분석 (이전 리포트) ----
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
-            VoiceReportScreen(
-                onQuickAnalysis = { nav.navigate(Routes.VOICE_ONBOARDING) },
+            AnalysisScreen(
+                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
+                onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
+        }
+        composable(Routes.VOICE_RESULT_VIEW) {
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = false, onRecommend = {}, onSave = {}, onBack = { nav.popBackStack() })
         }
         composable(Routes.QUICK_ANALYSIS) {
             if (!accessGranted) return@composable

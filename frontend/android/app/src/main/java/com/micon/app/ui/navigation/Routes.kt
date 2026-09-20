@@ -11,6 +11,7 @@ object Routes {
     // 온보딩 (Figma: 시작, 랜딩, 회원가입, 랜딩 페이지 - 가수/장르 선호 조사)
     const val HOLO = "holo"                  // 첫 화면 · 목소리 분석 (프로토타입 holo)
     const val VOICE_RESULT = "holo/result"   // 분석 결과
+    const val VOICE_RESULT_VIEW = "analysis/result" // 분석 탭에서 저장된 결과 다시 보기
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val SIGNUP = "signup"

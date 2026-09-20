@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -283,7 +284,7 @@ fun RecommendDeckScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = MiconSpace.screenHorizontal),
                     )
 
-                    Spacer(Modifier.height(MiconSpace.navBarContentPadding))
+                    Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
                 }
             }
         }
@@ -706,7 +707,7 @@ private fun SearchResults(state: RecommendViewModel.State, onRetry: () -> Unit, 
                     onClick = { onPick(item) },
                 )
             }
-            Spacer(Modifier.height(MiconSpace.navBarContentPadding))
+            Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
         }
     }
 }
