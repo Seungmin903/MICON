@@ -14,6 +14,18 @@ import kotlin.math.roundToInt
  */
 object NoteNames {
 
+    /** 설정 "음 이름 표기". 앱 전체 표기가 따라 바뀐다. 값은 [MiconApplication] 이 SharedPreferences 에서 복원한다 */
+    enum class Notation(val label: String) { SOLFEGE("도레미"), LETTERS("CDE") }
+
+    private val _notation = kotlinx.coroutines.flow.MutableStateFlow(Notation.SOLFEGE)
+    val notation: kotlinx.coroutines.flow.StateFlow<Notation> = _notation
+    fun setNotation(value: Notation) { _notation.value = value }
+
+    /** 설정을 따르는 표기: 도레미면 "중간 도", CDE 면 "C4" */
+    fun display(midi: Int): String = if (_notation.value == Notation.LETTERS) scientific(midi) else friendly(midi)
+    fun displayRange(lowMidi: Int, highMidi: Int): String =
+        if (_notation.value == Notation.LETTERS) scientificRange(lowMidi, highMidi) else rangeText(lowMidi, highMidi)
+
     private val syllables = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
 
     /** 1~10 은 고유어로 읽는 게 자연스럽다. "다섯 음 높아요" */

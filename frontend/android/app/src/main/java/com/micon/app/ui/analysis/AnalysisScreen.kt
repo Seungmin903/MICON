@@ -75,9 +75,10 @@ fun AnalysisScreen(
     val store = remember { HoloResultStore(context) }
     val profile by UserStore.profile.collectAsStateWithLifecycle()
     val revision by UserStore.voiceDataRevision.collectAsStateWithLifecycle()
+    val notation by NoteNames.notation.collectAsStateWithLifecycle()
     val ownerId = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
     val holo = remember(revision, ownerId) { store.read(ownerId) }
-    val view = remember(holo, profile) { holo?.let { VoiceView.from(it) } ?: profile?.let { VoiceView.from(it) } }
+    val view = remember(holo, profile, notation) { holo?.let { VoiceView.from(it) } ?: profile?.let { VoiceView.from(it) } }
 
     MiconScreen(
         appBar = {
@@ -138,7 +139,7 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text("내 목소리 · 편한 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
-                Text(NoteNames.rangeText(v.comfortLow, v.comfortHigh), fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 32.sp)
+                Text(NoteNames.displayRange(v.comfortLow, v.comfortHigh), fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 32.sp)
             }
             Text(SimpleDateFormat("M월 d일", Locale.KOREA).format(Date(v.measuredAt)), fontFamily = MiconMonoFamily, fontSize = 12.sp, color = muted)
         }
