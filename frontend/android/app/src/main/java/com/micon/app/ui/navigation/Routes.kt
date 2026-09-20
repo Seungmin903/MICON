@@ -41,6 +41,7 @@ object Routes {
     const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 세트리스트 세부 (하단 탭 보임)
     const val SETTINGS = "settings"
     const val DEV_SEED_PROFILE = "dev/seed-profile"  // 개발용
+    const val DEV_CATALOG = "dev/catalog"            // 개발용 — 디자인 카탈로그
 
     /** 개발용 딥링크 접두 (AndroidManifest 의 micon://app) */
     const val DEEP_LINK = "micon://app"
