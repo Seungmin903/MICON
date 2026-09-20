@@ -61,6 +61,12 @@ public class VoiceAnalysisUploadValidator {
         }
     }
 
+    // Each sweep stage is a fixed mission; comfort still ends on a held note.
+    private static final double MISSION_SECONDS = 15;
+    private static final double COMFORT_HOLD_SECONDS = .5;
+    private static final double SWEEP_HOLD_SECONDS = .3;
+    private static final double ENDPOINT_OFFSET_SECONDS = .5;
+
     private boolean validFreeStages(JsonNode stages, double duration) {
         if (stages == null || !stages.isArray() || stages.size() != 3) return false;
         String[] kinds = {"comfort", "down", "up"};
@@ -74,11 +80,17 @@ public class VoiceAnalysisUploadValidator {
             double start = stage.path("start").asDouble(), end = stage.path("end").asDouble();
             double holdStart = stage.path("holdStart").asDouble(), holdEnd = stage.path("holdEnd").asDouble();
             double startMidi = stage.path("startMidi").asDouble(), endpointMidi = stage.path("endpointMidi").asDouble();
+            boolean sweep = index > 0;
+            double length = end - start;
+            boolean badLength = sweep
+                    ? length < MISSION_SECONDS - .1 || length > MISSION_SECONDS + .6
+                    : length > 25;
+            double minimumHold = (sweep ? SWEEP_HOLD_SECONDS : COMFORT_HOLD_SECONDS) - .05;
             if (!Double.isFinite(start) || !Double.isFinite(end) || !Double.isFinite(holdStart) || !Double.isFinite(holdEnd)
                     || !Double.isFinite(startMidi) || !Double.isFinite(endpointMidi)
-                    || start < previousEnd || end - start > 25 || end > duration + .1
-                    || holdStart < start || holdEnd > end || holdEnd - holdStart < .45
-                    || index > 0 && holdStart - start < 1.0
+                    || start < previousEnd || badLength || end > duration + .1
+                    || holdStart < start || holdEnd > end || holdEnd - holdStart < minimumHold
+                    || sweep && holdStart - start < ENDPOINT_OFFSET_SECONDS - .05
                     || startMidi < 36 || startMidi > 84 || endpointMidi < 36 || endpointMidi > 84
                     || index == 1 && startMidi - endpointMidi < 2
                     || index == 2 && endpointMidi - startMidi < 2) return false;

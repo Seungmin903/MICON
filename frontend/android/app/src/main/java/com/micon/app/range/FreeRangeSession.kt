@@ -15,9 +15,10 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         val completed: Int,
         val currentMidi: Double?,
         val holdSeconds: Double,
-        val canFinish: Boolean,
         val elapsed: Double,
         val message: String,
+        val remainingSeconds: Double = 0.0,
+        val extremeMidi: Double? = null,
     )
 
     private var phase = "noise"
@@ -31,21 +32,23 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     private val stages = mutableListOf<FreeRangeStage>()
     private var currentMidi: Double? = null
     private var startMidi: Double? = null
-    private var extreme: Double? = null
-    private var holdMidi: Double? = null
-    private var holdReferenceMidi: Double? = null
-    private val holdMidis = mutableListOf<Double>()
-    private var holdStart: Double? = null
-    private var holdEnd: Double? = null
+    // The run in progress: consecutive valid frames that stay within the tolerance of its reference.
+    private var runReferenceMidi: Double? = null
+    private val runMidis = mutableListOf<Double>()
+    private var runStart: Double? = null
+    private var runEnd: Double? = null
+    // The most extreme qualifying run seen so far in this stage; comfort keeps its first long enough run.
+    private var bestMidi: Double? = null
+    private var bestStart: Double? = null
+    private var bestEnd: Double? = null
     private var lastValidEnd: Double? = null
     private var voicedSeconds = 0.0
-    private var silenceStart: Double? = null
-    private var canFinish = false
     private var message = "잠시 조용히 계세요"
 
-    @Synchronized fun view() = View(phase, stages.size, currentMidi,
-        if (holdStart != null && holdEnd != null) (holdEnd!! - holdStart!!).coerceAtLeast(0.0) else 0.0,
-        canFinish, now - stageStart, message)
+    @Synchronized fun view() = View(phase, stages.size, currentMidi, runDuration(),
+        now - stageStart, message,
+        if (phase in setOf("down", "up")) (MISSION_SECONDS - (now - stageStart)).coerceAtLeast(0.0) else 0.0,
+        if (phase in setOf("down", "up")) bestMidi else null)
 
     @Synchronized fun onFrame(frame: RangeFrame): View {
         if (!frame.t.isFinite() || !frame.duration.isFinite() || frame.duration <= 0 || frame.t + frame.duration < now - .1) return view()
@@ -65,54 +68,48 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         val valid = RangeEvaluator.voiced(frame, floor) && frame.clippedRatio <= .01 &&
             frame.f0.isFinite() && RangeProtocol.midi(frame.f0) in RangeProtocol.MIN_MIDI.toDouble()..RangeProtocol.MAX_MIDI.toDouble()
         if (!valid) {
+            // A short dropout is tolerated by the run's own gap check; only the deadline ends a stage.
             currentMidi = null
-            if (frame.rmsLow < floor && silenceStart == null) silenceStart = frame.t
-            if (frame.rmsLow >= floor) silenceStart = null
-            if (canFinish && phase != "comfort" && silenceStart != null && now - silenceStart!! >= 5.0) complete(now)
-            else if (!canFinish && now - stageStart >= 20.0) fail()
-            else if (now - stageStart >= 25.0) fail()
+            deadline()
             return view()
         }
-        silenceStart = null
-        if (now - stageStart >= 20.0 && !canFinish) { fail(); return view() }
         val midi = RangeProtocol.midi(frame.f0)
         currentMidi = midi
         if (phase in setOf("down", "up") && startMidi == null &&
-            abs(midi - stages.first().endpointMidi) > 1.5) {
+            abs(midi - stages.first().endpointMidi) > HOLD_TOLERANCE_SEMITONES) {
             message = "먼저 편안한 음에서 시작해 주세요"
+            deadline()
             return view()
         }
         val frameEnd = frame.t + frame.duration
-        if (lastValidEnd != null && frame.t - lastValidEnd!! > .12) resetHold()
+        if (lastValidEnd != null && frame.t - lastValidEnd!! > .12) resetRun()
         lastValidEnd = frameEnd
         voicedSeconds += frame.duration.coerceAtMost(.04)
         if (startMidi == null) startMidi = midi
+        if (runReferenceMidi == null || abs(midi - runReferenceMidi!!) > HOLD_TOLERANCE_SEMITONES) startRun(midi, frame.t, frameEnd)
+        else extendRun(midi, frameEnd)
         if (phase == "comfort") {
-            if (holdReferenceMidi == null || abs(midi - holdReferenceMidi!!) > HOLD_TOLERANCE_SEMITONES) startHold(midi, frame.t, frameEnd)
-            else extendHold(midi, frameEnd)
-            if (holdDuration() >= HOLD_SECONDS) complete(now)
+            val settled = steady()
+            if (runDuration() >= HOLD_SECONDS && settled != null) { keepRun(settled); complete(now) } else deadline()
             return view()
         }
         val direction = if (phase == "down") -1 else 1
-        if (extreme == null || direction * (midi - extreme!!) > .45) {
-            extreme = midi; startHold(midi, frame.t, frameEnd); canFinish = false
-        } else if (abs(midi - (holdReferenceMidi ?: extreme!!)) <= HOLD_TOLERANCE_SEMITONES) {
-            extendHold(midi, frameEnd)
-        } else resetHold()
-        canFinish = direction * ((holdMidi ?: midi) - startMidi!!) >= 2.0 &&
-            voicedSeconds >= 2.0 && (holdStart ?: now) - stageStart >= 1.0 && holdDuration() >= HOLD_SECONDS
-        message = when {
-            canFinish -> "여기까지 누르거나 소리를 멈추면 다음 단계로 넘어가요"
-            direction * ((extreme ?: midi) - startMidi!!) < 2.0 -> "편안한 음에서 천천히 ${if (direction < 0) "내려" else "올려"} 주세요"
-            else -> "마지막 음을 0.5초 유지해 주세요"
+        // Only a run that held its pitch long enough may claim the endpoint, so a single
+        // octave misdetection or a cracked note never becomes the measured boundary.
+        if (runDuration() >= EXTREME_HOLD_SECONDS) {
+            val candidate = steady()
+            // While the winning run keeps its pitch, widening its window gives the server more to verify.
+            val sameRun = bestStart != null && bestStart == runStart
+            if (candidate != null && (bestMidi == null || direction * (candidate - bestMidi!!) > 0 ||
+                    sameRun && direction * (candidate - bestMidi!!) >= 0)) keepRun(candidate)
         }
+        val reached = bestMidi?.let { direction * (it - startMidi!!) >= 2.0 } == true
+        message = when {
+            reached -> "좋아요. 남은 시간 동안 더 ${if (direction < 0) "낮은" else "높은"} 음까지 가 볼 수 있어요"
+            else -> "편안한 음에서 천천히 ${if (direction < 0) "내려" else "올려"} 주세요"
+        }
+        deadline()
         return view()
-    }
-
-    @Synchronized fun finishCurrent(audioTime: Double): Boolean {
-        if (!canFinish || phase !in setOf("down", "up")) return false
-        complete(max(now, audioTime))
-        return true
     }
 
     @Synchronized fun advance(audioTime: Double): Boolean {
@@ -143,6 +140,13 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     companion object {
         const val HOLD_SECONDS = 0.5
         const val HOLD_TOLERANCE_SEMITONES = 1.5
+        /** Each sweep stage is a fixed mission; whatever was reached inside it is the boundary. */
+        const val MISSION_SECONDS = 15.0
+        /** A boundary candidate has to be sung steadily for at least this long. */
+        const val EXTREME_HOLD_SECONDS = 0.3
+        /** The endpoint may not be claimed from the very first instant of a stage. */
+        const val ENDPOINT_OFFSET_SECONDS = 0.5
+        const val COMFORT_TIMEOUT_SECONDS = 20.0
 
         fun restore(checkpoint: FreeRangeCheckpoint): FreeRangeSession? {
             if (checkpoint.stages.map { it.kind } != listOf("comfort", "down", "up").take(checkpoint.stages.size)
@@ -164,8 +168,9 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     private fun begin(name: String, time: Double) {
         phase = name; stageStart = time; now = max(now, time)
         if (name == "noise") noiseFrames.clear()
-        startMidi = null; extreme = null; holdMidi = null; holdReferenceMidi = null; holdMidis.clear(); holdStart = null; holdEnd = null
-        lastValidEnd = null; voicedSeconds = 0.0; silenceStart = null; canFinish = false
+        startMidi = null; bestMidi = null; bestStart = null; bestEnd = null
+        resetRun()
+        lastValidEnd = null; voicedSeconds = 0.0
         currentMidi = null
         message = when (name) {
             "noise" -> "잠시 조용히 계세요"
@@ -175,37 +180,63 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         }
     }
 
-    private fun startHold(midi: Double, start: Double, end: Double) {
-        holdMidis.clear()
-        holdMidis += midi
-        holdReferenceMidi = midi
-        holdMidi = midi
-        holdStart = start
-        holdEnd = end
+    /** Ends the stage once its clock runs out; sweeps keep whatever boundary they reached. */
+    private fun deadline() {
+        if (phase == "comfort") { if (now - stageStart >= COMFORT_TIMEOUT_SECONDS) fail(); return }
+        if (phase !in setOf("down", "up") || now - stageStart < MISSION_SECONDS) return
+        val direction = if (phase == "down") -1 else 1
+        val origin = startMidi
+        val endpoint = bestMidi
+        val heldFrom = bestStart
+        if (origin == null || endpoint == null || heldFrom == null || voicedSeconds < 2.0 ||
+            direction * (endpoint - origin) < 2.0 || heldFrom - stageStart < ENDPOINT_OFFSET_SECONDS) {
+            fail(); return
+        }
+        complete(minOf(now, stageStart + MISSION_SECONDS + .4).coerceAtLeast(bestEnd ?: now))
     }
-    private fun extendHold(midi: Double, end: Double) {
-        holdMidis += midi
-        holdMidi = RangeEvaluator.median(holdMidis)
-        holdEnd = end
+
+    private fun startRun(midi: Double, start: Double, end: Double) {
+        runMidis.clear()
+        runMidis += midi
+        runReferenceMidi = midi
+        runStart = start
+        runEnd = end
     }
-    private fun resetHold() { holdMidi = null; holdReferenceMidi = null; holdMidis.clear(); holdStart = null; holdEnd = null; canFinish = false }
+    private fun extendRun(midi: Double, end: Double) {
+        runMidis += midi
+        runEnd = end
+    }
+    private fun resetRun() { runReferenceMidi = null; runMidis.clear(); runStart = null; runEnd = null }
+    private fun runDuration() = if (runStart != null && runEnd != null) runEnd!! - runStart!! else 0.0
+    /**
+     * The run's median, but only while the window around it would also satisfy the server's own
+     * steadiness rule. A run anchored mid-glide can span the full tolerance, and a window the
+     * server would reject is worse than no candidate at all.
+     */
+    private fun steady(): Double? {
+        val candidate = RangeEvaluator.median(runMidis) ?: return null
+        val within = runMidis.count { abs(it - candidate) <= HOLD_TOLERANCE_SEMITONES }
+        return if (within >= runMidis.size * .9) candidate else null
+    }
+    private fun keepRun(midi: Double) {
+        bestMidi = midi
+        bestStart = runStart
+        bestEnd = runEnd
+    }
     private fun fail() {
         failedPhase = phase
         phase = "failed"
-        canFinish = false
         message = "목소리를 확인하지 못했어요. 이 단계만 다시 시도해 주세요"
     }
-    private fun holdDuration() = if (holdStart != null && holdEnd != null) holdEnd!! - holdStart!! else 0.0
 
     private fun complete(time: Double) {
         val origin = startMidi ?: return
-        val endpoint = holdMidi ?: return
-        val heldFrom = holdStart ?: return
-        val heldUntil = holdEnd ?: return
+        val endpoint = bestMidi ?: return
+        val heldFrom = bestStart ?: return
+        val heldUntil = bestEnd ?: return
         stages.add(FreeRangeStage(phase, stageStart, time, origin, endpoint, heldFrom, heldUntil))
         nextPhase = if (phase == "comfort") "down" else "up"
         phase = if (stages.size == 3) "done" else "transition"
-        canFinish = false
         message = if (phase == "done") "음역 측정을 마쳤어요" else "${stages.size}/3 완료 · 다음 단계를 시작해 주세요"
     }
 }

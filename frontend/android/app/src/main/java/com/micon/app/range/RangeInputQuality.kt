@@ -30,7 +30,7 @@ class RangeInputQuality {
                 energy >= maxOf(.001, submission.noiseRms * 3.16).let { it * it } && clipped <= .01
             }
             return RangeInputCheck(usable == 3, usable,
-                if (usable == 3) "음역 분석 준비 완료" else "0.5초 유지한 녹음 구간을 확인하지 못했어요.", canSupplement = false)
+                if (usable == 3) "음역 분석 준비 완료" else "측정한 음의 녹음 구간을 확인하지 못했어요.", canSupplement = false)
         }
         if (finalized && submission.attempts.any { it.runEndReason in setOf("checkpoint", "in_progress") }) {
             return RangeInputCheck(message = "완료되지 않은 음의 기록이 있어요. 음역을 다시 측정해 주세요.", canSupplement = false)
@@ -72,20 +72,28 @@ class RangeInputQuality {
                     s.stages.map { it.kind } != listOf("comfort", "down", "up") || s.durationSeconds > 180.0)
                     return "invalid free range stages"
                 var previousEnd = 0.0
-                for (stage in s.stages) {
+                for ((index, stage) in s.stages.withIndex()) {
+                    // Comfort ends as soon as its note is held; a sweep always runs its fixed mission.
+                    val sweep = index > 0
+                    val length = stage.end - stage.start
+                    val badLength = if (sweep) length < FreeRangeSession.MISSION_SECONDS - .1 ||
+                        length > FreeRangeSession.MISSION_SECONDS + .6
+                    else length > FreeRangeSession.COMFORT_TIMEOUT_SECONDS + .5
+                    val minimumHold = if (sweep) FreeRangeSession.EXTREME_HOLD_SECONDS else FreeRangeSession.HOLD_SECONDS
                     val values = listOf(stage.start, stage.end, stage.startMidi, stage.endpointMidi,
                         stage.holdStart, stage.holdEnd)
                     if (values.any { !it.isFinite() } || stage.start < previousEnd - .001 ||
-                        stage.start < 0 || stage.end > s.durationSeconds + .05 || stage.end - stage.start > 25.0 ||
+                        stage.start < 0 || stage.end > s.durationSeconds + .05 || badLength ||
                         stage.holdStart < stage.start || stage.holdEnd > stage.end ||
-                        stage.holdEnd - stage.holdStart < FreeRangeSession.HOLD_SECONDS - .05 ||
+                        stage.holdEnd - stage.holdStart < minimumHold - .05 ||
                         stage.startMidi !in 36.0..84.0 || stage.endpointMidi !in 36.0..84.0)
                         return "invalid free range window"
                     previousEnd = stage.end
                 }
                 if (s.stages[1].startMidi - s.stages[1].endpointMidi < 2.0 ||
                     s.stages[2].endpointMidi - s.stages[2].startMidi < 2.0 ||
-                    s.stages.drop(1).any { it.holdStart - it.start < 1.0 }) return "missing sweep"
+                    s.stages.drop(1).any { it.holdStart - it.start < FreeRangeSession.ENDPOINT_OFFSET_SECONDS - .05 })
+                    return "missing sweep"
                 return null
             }
             if (s.mode == "extension" && s.parentAnalysisId.isNullOrBlank() || s.mode == "basic" && s.parentAnalysisId != null) return "invalid parent"

@@ -30,6 +30,7 @@ import com.micon.app.range.RangeFrame
 import com.micon.app.range.RangeInputQuality
 import com.micon.app.range.RangeReport
 import com.micon.app.range.RangeRepository
+import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.rememberMicrophoneAccess
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
 
 internal class FreeRangeViewModel(context: Context, private val repository: RangeRepository,
     private val onboarding: Boolean) : ViewModel() {
@@ -115,26 +117,6 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         }
     }
 
-    fun finishCurrent() {
-        if (session.finishCurrent(capture.capturedSeconds)) {
-            stateFlow.update { it.copy(view = session.view()) }
-            if (pausing.compareAndSet(false, true)) viewModelScope.launch {
-                try {
-                    withContext(Dispatchers.IO) { capture.stop() }
-                    session.checkpoint(capture.capturedSeconds)?.let { checkpoint ->
-                        withContext(Dispatchers.IO) { repository.saveFreeCheckpoint(checkpoint) }
-                    }
-                    stateFlow.update { it.copy(recording = false) }
-                    if (session.view().phase == "done") save()
-                    else if (session.view().phase == "transition") {
-                        delay(1_200)
-                        start()
-                    }
-                } finally { pausing.set(false) }
-            }
-        }
-    }
-
     fun retryStage() {
         if (stateFlow.value.recording || stateFlow.value.busy) return
         if (session.view().phase == "done") { save(); return }
@@ -176,6 +158,13 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
     }
 }
 
+/** Comfort fills as its note is held; a sweep fills as its fixed mission clock runs out. */
+private fun stageProgress(view: FreeRangeSession.View): Double = when (view.phase) {
+    "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.MISSION_SECONDS).coerceIn(0.0, 1.0)
+    else -> 0.0
+}
+
 @Composable
 fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
     onMeasurementSaved: ((String) -> Unit)? = null) {
@@ -197,20 +186,26 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
             Text("$number/3", fontSize = 28.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("free-range-step"))
             LinearProgressIndicator(progress = {
-                ((view.completed + if (view.phase in setOf("comfort", "down", "up"))
-                    (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0) else 0.0) / 3.0).toFloat().coerceIn(0f, 1f)
+                ((view.completed + stageProgress(view)) / 3.0).toFloat().coerceIn(0f, 1f)
             }, Modifier.fillMaxWidth())
             Text(view.message, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-            if (view.phase in setOf("comfort", "down", "up")) {
+            if (view.phase == "comfort") {
                 Text("음 유지 ${"%.1f".format(view.holdSeconds.coerceAtMost(FreeRangeSession.HOLD_SECONDS))}/0.5초", color = Grey)
                 LinearProgressIndicator(progress = { (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).toFloat().coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+            }
+            if (view.phase in setOf("down", "up")) {
+                Text("남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.MISSION_SECONDS.toInt())}초",
+                    color = Grey, modifier = Modifier.testTag("free-range-remaining"))
+                LinearProgressIndicator(progress = { stageProgress(view).toFloat().coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+                Text(view.extremeMidi?.let {
+                    "지금까지 ${if (view.phase == "down") "가장 낮은" else "가장 높은"} 음 ${ScoringMath.midiName(it)}"
+                } ?: "아직 기록된 음이 없어요",
+                    color = Grey, modifier = Modifier.testTag("free-range-extreme"))
             }
             state.error?.let { Text(it, color = Red) }
             if (view.phase != "done") Spacer(Modifier.weight(1f))
             when {
                 view.phase == "transition" -> Text("다음 단계 준비 중…", color = Grey)
-                view.phase in setOf("down", "up") -> PrimaryButton("여기까지", vm::finishCurrent,
-                    Modifier.fillMaxWidth(), enabled = view.canFinish && state.recording)
                 view.phase == "done" && state.report != null -> RangeResultCards(state.report!!)
                 view.phase == "done" && state.error != null -> PrimaryButton("분석 다시 시도", vm::retryStage, Modifier.fillMaxWidth())
                 !state.recording && !state.busy && state.error == null && view.phase != "failed" ->
