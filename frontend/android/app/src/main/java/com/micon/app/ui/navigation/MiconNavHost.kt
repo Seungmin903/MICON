@@ -246,6 +246,7 @@ private fun MiconNavHost(
                 onLoggedIn = { checkSession() },
                 onSignup = { nav.navigate(Routes.SIGNUP) },
                 onFindPassword = { nav.navigate(Routes.PASSWORD_RESET) },
+                onGuest = { goGuest() },
             )
         }
         composable(Routes.PASSWORD_RESET) {
@@ -393,7 +394,7 @@ private fun MiconNavHost(
         // ---- 설정 ----
         composable(Routes.SETTINGS) {
             if (isGuest || !accessGranted) return@composable
-            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goGuest() },
+            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() },
                 onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) })
         }
 
@@ -429,9 +430,9 @@ private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
 
 /** Survives configuration changes, but a fresh process must validate its server session. */
 class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
-    val initialRoute = if (TokenManager.isLoggedIn()) Routes.SPLASH else Routes.REPORT
+    val initialRoute = if (TokenManager.isLoggedIn()) Routes.SPLASH else Routes.LOGIN
     var verified by mutableStateOf(false)
-    var guest by mutableStateOf(initialRoute == Routes.REPORT)
+    var guest by mutableStateOf(false)
 
     fun rememberDestination(nav: NavHostController) {
         val entry = nav.currentBackStackEntry ?: return

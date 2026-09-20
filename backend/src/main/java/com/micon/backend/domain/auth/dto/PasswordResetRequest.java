@@ -25,6 +25,7 @@ public final class PasswordResetRequest {
 
     public record Reset(
             @NotBlank @Size(min = 8, max = 64, message = "비밀번호는 8자 이상 64자 이하여야 합니다.")
+            @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE)
             String newPassword
     ) {
     }
