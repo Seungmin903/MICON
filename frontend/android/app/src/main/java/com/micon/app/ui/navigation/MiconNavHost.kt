@@ -64,21 +64,14 @@ import com.micon.app.ui.onboarding.SplashScreen
 import com.micon.app.ui.practice.PracticeScreen
 import com.micon.app.ui.recommend.RecommendDeckScreen
 import com.micon.app.ui.recommend.SongCarousel
-import com.micon.app.ui.report.QuickAnalysisScreen
-import com.micon.app.ui.report.VoiceReportScreen
-import com.micon.app.ui.singanalysis.SingAnalysisScreen
-import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.Ink
-import com.micon.app.ui.common.MiconHeader
-import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.LocalOnboardingChrome
 import com.micon.app.ui.common.OnboardingChromeState
-import com.micon.app.ui.common.OnboardingSystemBars
 
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
 @Composable
@@ -94,8 +87,7 @@ fun MiconRoot() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val onboardingChrome = remember { OnboardingChromeState() }
-    val darkOnboarding = currentRoute == Routes.VOICE_ONBOARDING && onboardingChrome.dark
-    if (darkOnboarding) OnboardingSystemBars()
+    val darkOnboarding = false
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
     // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
     val context = LocalContext.current
@@ -162,7 +154,7 @@ fun MiconRoot() {
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
 private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND, Routes.SONG, Routes.SONG_MATCH, Routes.PRACTICE_RUN, Routes.PRACTICE, Routes.EVALUATION, Routes.FAVORITES,
-    Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY, Routes.EDIT_PREFERENCES, Routes.SETTINGS)
+    Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY, Routes.EDIT_PREFERENCES, Routes.SETTINGS, Routes.RESULT)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -316,30 +308,21 @@ private fun MiconNavHost(
             VoiceResultScreen(result, saving = false, onRecommend = {}, onSave = {}, onBack = { nav.popBackStack() })
         }
         composable(Routes.QUICK_ANALYSIS) {
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
         }
+        // 옛 온보딩·불러서 분석하기 경로는 모두 첫 화면(홀로)으로
         composable(Routes.VOICE_ONBOARDING) {
-            if (!accessGranted) return@composable
-            com.micon.app.ui.onboarding.VoiceOnboardingFlow(isGuest,
-                onExit = { if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT) },
-                onLogin = {
-                    if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT)
-                    openLogin()
-                })
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.VOICE_ONBOARDING) { inclusive = true } } }
         }
-        // 불러서 분석하기: 곡 선택 → 범위 선택(전곡·2절·하이라이트) → 카운트인 → 가사만 보며 부르기(WAV 녹음) → 저장 완료
         composable(Routes.SING_ANALYSIS_PICK) {
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_PICK) { inclusive = true } } }
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.SING_ANALYSIS_PICK) { inclusive = true } } }
         }
         composable(
             Routes.SING_ANALYSIS_RUN,
             arguments = listOf(navArgument("songId") { type = NavType.StringType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SING_ANALYSIS_RUN}" }),
-        ) { entry ->
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_RUN) { inclusive = true } } }
+        ) {
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.SING_ANALYSIS_RUN) { inclusive = true } } }
         }
 
         // ---- 탭: 연습 ----
@@ -444,18 +427,16 @@ private fun MiconNavHost(
 
 @Composable
 private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onLogin = openLogin)
-        Column(
-            Modifier.fillMaxSize().padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("아직 표시할 $title 콘텐츠가 없어요", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+    com.micon.app.ui.design.organisms.MiconScreen(
+        appBar = { com.micon.app.ui.design.organisms.MiconAppBar(title = title, actions = {
+            com.micon.app.ui.design.atoms.MiconButton("로그인", openLogin, kind = com.micon.app.ui.design.atoms.MiconButtonKind.Text)
+        }) },
+    ) {
+        com.micon.app.ui.design.atoms.MiconCard(kind = com.micon.app.ui.design.atoms.MiconCardKind.Elevated) {
+            Text("로그인하면 $title 을 쓸 수 있어요", style = MaterialTheme.typography.titleMedium)
+            Text("분석 결과와 연습 기록을 계정에 안전하게 보관해요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
-            Text("로그인하면 나만의 $title 콘텐츠를 이용할 수 있어요", fontSize = 14.sp, color = Grey)
-            Spacer(Modifier.height(24.dp))
-            PrimaryButton("로그인하기", openLogin, Modifier.fillMaxWidth())
+            com.micon.app.ui.design.atoms.MiconButton("로그인하기", openLogin, Modifier.fillMaxWidth())
         }
     }
 }

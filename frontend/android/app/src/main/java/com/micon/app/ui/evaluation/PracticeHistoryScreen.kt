@@ -58,6 +58,8 @@ import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -99,12 +101,16 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
 
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
+    private var loadJob: Job? = null
 
+    /** 새로고침이 겹치면 앞선 요청은 버린다 — 느린 옛 응답이 최신 목록을 덮어쓰지 않는다 */
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             try {
                 val page = practices.history(0, 50)
+                ensureActive()
                 _state.update { it.copy(loading = false, items = page.items) }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(loading = false, error = describeBackendError(e, "연습 기록을 불러오지 못했어요.")) } }

@@ -27,7 +27,7 @@ class PracticeHistoryRefreshTest {
         vm.load(); advanceUntilIdle()
         repo.fetch = { page(2) }
         vm.load(); advanceUntilIdle()
-        assertEquals(listOf(2L), vm.state.value.groups.values.flatten().map { it.practice.id })
+        assertEquals(listOf(2L), vm.state.value.items.map { it.id })
         assertFalse(vm.state.value.loading)
     }
 
@@ -41,7 +41,7 @@ class PracticeHistoryRefreshTest {
         repo.fetch = { page(2) }
         vm.load(); runCurrent()
         gate.complete(Unit); advanceUntilIdle()
-        assertEquals(listOf(2L), vm.state.value.groups.values.flatten().map { it.practice.id })
+        assertEquals(listOf(2L), vm.state.value.items.map { it.id })
         assertNull(vm.state.value.error)
         assertFalse(vm.state.value.loading)
     }
