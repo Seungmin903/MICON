@@ -290,8 +290,8 @@ private fun Globe(scale: Float, absorbing: Boolean) {
             // 표면을 미는 덩어리
             lobePhases.forEachIndexed { i, ph ->
                 val a = ph.value * 2f * PI.toFloat() + i * 1.26f
-                val d = r * (0.72f + 0.16f * sin(a * 1.7f))
-                drawCircle(Color.White, radius = r * 0.30f, center = Offset(c.x + cos(a) * d, c.y + sin(a) * d))
+                val d = r * (0.62f + 0.14f * sin(a * 1.7f))
+                drawCircle(Color.White, radius = r * 0.34f, center = Offset(c.x + cos(a) * d, c.y + sin(a) * d))
             }
             // 흡수 방울 (녹음 중)
             if (absorbAlpha > 0f) bubblePhases.forEachIndexed { i, ph ->
@@ -429,18 +429,19 @@ private fun PillPlayer(state: HoloViewModel.State, modifier: Modifier = Modifier
         CompactDisc(title = picked?.title ?: "", artist = picked?.artist, imageUrl = picked?.imageUrl, size = 62.dp, spinning = true, spinPeriodMs = 6000)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(picked?.title ?: "간편 분석", color = Ink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val s = state.elapsedSec.toInt().coerceIn(0, 30)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(picked?.title ?: "간편 분석", color = Ink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text("0:${"%02d".format(s)} / 0:30", color = Muted, fontSize = 12.sp, fontFamily = MiconMonoFamily)
+            }
             Text(picked?.artist ?: "아— 하고 편하게 소리내 주세요", color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(Color(0xFFE4E0F2))) {
                 Box(
                     Modifier.fillMaxWidth(state.progress).fillMaxSize()
                         .background(Brush.horizontalGradient(listOf(Color(0xFF7C5BF0), Color(0xFF5FA8FB)))),
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            val s = state.elapsedSec.toInt().coerceIn(0, 30)
-            Text("0:${"%02d".format(s)} / 0:30", color = Muted, fontSize = 12.sp, fontFamily = MiconMonoFamily)
         }
     }
 }
