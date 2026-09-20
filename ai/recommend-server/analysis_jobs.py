@@ -31,7 +31,7 @@ from recommendation_api import _configuration_status, _replace_with_retry
 from timbre_recommender.embedding import embed_vocal_audio
 
 
-log = logging.getLogger("analysis_jobs")
+log = logging.getLogger("uvicorn.error").getChild("analysis_jobs")   # 인바운드 오류와 같은 핸들러(시각 붙은 stderr)로 나간다
 ROOT = Path(__file__).resolve().parent
 ANALYSIS_DIR = ROOT / "workspace" / "analysis"
 MAX_BYTES = 64 * 1024 * 1024
@@ -349,6 +349,7 @@ def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, me
             "segmentInfo": {
                 "segmentDurationSeconds": metadata["window_seconds"],
                 "segmentCount": len(segments),
+                "validChunkCount": len(segments),      # BE f6b2271 부터 필수(>= 5). min_segments=5 가 이를 보장한다
                 "startTimes": [round(s["start_seconds"], 3) for s in segments],
                 "embeddings": [[round(float(v), 7) for v in row] for row in rows],
             },
@@ -364,10 +365,22 @@ def _failure_callback(job: dict[str, Any], component: str, status: str, code: st
             "failureCode": code, "failureReason": reason[:1000], "processedAt": _iso(_now())}
 
 
+def _log_callback_failure(payload: dict[str, Any], result: dict[str, Any], *, retrying: bool) -> None:
+    """실패한 전송 1회를 로그에 남긴다. job.json 의 callback 은 다음 라운드가 덮어쓰므로 여기가 유일한 기록이다."""
+    log.warning(
+        "callback %s job=%s component=%s attempt=%s http=%s error=%s",
+        "retrying" if retrying else "failed", payload.get("jobId"), payload.get("component"),
+        result["attempts"], result["http"],
+        json.dumps((result.get("error") or "")[:300], ensure_ascii=False),   # 본문 줄바꿈이 로그를 쪼개지 않게
+    )
+
+
 def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
     """콜백 1건. 5xx·연결 오류·타임아웃은 3회 재시도, 4xx 는 즉시 중단. 결과 {http, attempts, accepted}."""
     url = os.environ.get("MICON_BE_CALLBACK_URL", "").strip()
     if not url:
+        log.warning("callback skipped job=%s component=%s: MICON_BE_CALLBACK_URL 미설정",
+                    payload.get("jobId"), payload.get("component"))
         return {"http": None, "attempts": 0, "accepted": False, "skipped": "MICON_BE_CALLBACK_URL 미설정"}
     headers = {"Content-Type": "application/json"}
     token = os.environ.get("AI_SERVICE_TOKEN", "").strip()
@@ -383,11 +396,13 @@ def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
                 return last
         except urllib.error.HTTPError as error:
             last["http"] = error.code
+            last["error"] = error.read(500).decode("utf-8", "replace")      # 5xx 본문도 남긴다. 원인은 거의 여기 있다
             if error.code < 500:
-                last["error"] = error.read(500).decode("utf-8", "replace")
+                _log_callback_failure(payload, last, retrying=False)
                 return last
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             last["error"] = str(error)[:200]
+        _log_callback_failure(payload, last, retrying=attempt < 3)
         time.sleep(2 ** (attempt - 1))
     return last
 
@@ -521,6 +536,18 @@ def deliver_callbacks(job_id: str) -> None:
                 continue
             result = post_callback(json.loads(payload.read_text(encoding="utf-8")))
             state.update(accepted=result["accepted"], callback=result)
+            if not result["accepted"]:
+                # callback 은 다음 라운드가 덮어쓴다. 실패 사유는 따로 보존해야 뒤늦게 성공해도 남는다.
+                state.update(
+                    callbackFailures=int(state.get("callbackFailures") or 0) + 1,
+                    lastCallbackFailure={
+                        "at": _iso(_now()), "http": result.get("http"), "attempts": result.get("attempts"),
+                        "error": result.get("error") or result.get("skipped"),
+                    },
+                )
+            elif state.get("callbackFailures"):
+                log.warning("callback accepted after %s failed deliveries job=%s component=%s http=%s",
+                            state["callbackFailures"], job_id, component, result.get("http"))
             _update(job_id, components=job["components"])
         _finish(job_id, job["components"])
         if job["status"] == "CALLBACK_PENDING" and not job.get("audioDeleted"):
