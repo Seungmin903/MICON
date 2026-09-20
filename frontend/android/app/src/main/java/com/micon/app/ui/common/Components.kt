@@ -64,16 +64,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -94,37 +91,16 @@ import com.micon.app.ui.theme.Purple
 // 로고 · 헤더
 // ---------------------------------------------------------------------------
 
-/** MICON 로고: 보라 파형 바 5개 + "MICON"(I 만 보라). */
+/** MICON 브랜드 로고 이미지. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: TextUnit = 22.sp) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(barHeight * 1.35f, barHeight * 1.15f)) {
-            val ratios = listOf(0.45f, 0.75f, 1f, 0.75f, 0.45f)
-            val barW = size.width / 7f
-            val gap = barW * 0.5f
-            val totalH = size.height / 1.15f
-            ratios.forEachIndexed { i, r ->
-                val h = totalH * r
-                val x = i * (barW + gap)
-                val y = (totalH - h) / 2f
-                drawRoundRect(Purple, Offset(x, y), Size(barW, h), CornerRadius(barW / 2f))
-            }
-            // 가운데 바 아래 점
-            drawCircle(Purple, radius = barW * 0.55f, center = Offset(2 * (barW + gap) + barW / 2f, totalH + barW * 0.6f))
-        }
-        Spacer(Modifier.width(6.dp))
-        Text(
-            buildAnnotatedString {
-                append("M")
-                withStyle(SpanStyle(color = Purple)) { append("I") }
-                append("CON")
-            },
-            fontWeight = FontWeight.Black,
-            fontSize = fontSize,
-            color = Ink,
-            letterSpacing = 0.5.sp,
-        )
-    }
+    Image(
+        painter = painterResource(R.drawable.micon_logo),
+        contentDescription = "MICON",
+        modifier = modifier.height(barHeight * 1.15f).width(barHeight * 4.5f),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 /** Figma 공통 헤더. 비회원에게는 계정 아이콘 대신 로그인 버튼만 노출한다. */
