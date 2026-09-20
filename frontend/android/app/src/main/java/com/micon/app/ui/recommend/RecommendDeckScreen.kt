@@ -28,7 +28,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,6 +63,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -101,6 +105,7 @@ import com.micon.app.ui.onboarding.VoiceOnboardingEntry
 import com.micon.app.ui.onboarding.VoiceOnboardingEntryViewModel
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * 추천 탭 — 포터블 CD 플레이어. 프로토타입 `#recommend` 화면.
@@ -174,6 +179,9 @@ fun RecommendDeckScreen(
     }
     fun closeCoach() { coachOpen = false; prefs.edit().putBoolean(KEY_COACH_SEEN, true).apply() }
 
+    val preview = rememberRecommendPreview(container.songs, container.mediaHttp)
+    LaunchedEffect(loadedId) { if (loadedId != preview.songId) preview.stop() }
+
     fun open(item: RecommendedSong) {
         vm.onTap(item)
         val pageSongs = (if (state.query.isNotBlank()) state.searchItems else items).map { it.song }
@@ -244,14 +252,16 @@ fun RecommendDeckScreen(
                         trackIndex = loadedIndex + 1,
                         trackTotal = items.size,
                         loaded = loaded != null,
-                        onDiscClick = { loaded?.let(::open) },
+                        playing = preview.playing && preview.songId == loadedId,
+                        progress = if (preview.songId == loadedId) preview.progress else 0f,
+                        onDiscClick = { loaded?.let { preview.toggle(it.song.id) } },
                         onPrev = { items.getOrNull(loadedIndex - 1)?.let { loadedId = it.song.id } },
                         onNext = { items.getOrNull(loadedIndex + 1)?.let { loadedId = it.song.id } },
                         onDiscDragDown = { loadedId = null },
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
 
-                    NowInfo(loaded)
+                    NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
 
                     if (loaded == null) {
                         CardFan(
@@ -353,7 +363,7 @@ private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit
 
 /** 제목 · 가수 · 키/음역 배지 · 길이. 비어 있어도 자리를 지켜 데크가 튀지 않는다 */
 @Composable
-private fun NowInfo(item: RecommendedSong?) {
+private fun NowInfo(item: RecommendedSong?, preview: RecommendPreview? = null) {
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth().heightIn(min = 74.dp).padding(horizontal = MiconSpace.screenHorizontal),
@@ -374,14 +384,22 @@ private fun NowInfo(item: RecommendedSong?) {
             val hi = item.fit?.rangeFit?.songCoreHighMidi
             if (lo != null && hi != null) MiconBadge(text = NoteNames.rangeText(lo, hi))
         }
-        item.song.durationMs?.let { ms ->
-            val s = ms / 1000
+        val total = preview?.durationSec?.toLong() ?: item.song.durationMs?.let { it / 1000 }
+        if (total != null) {
+            val pos = preview?.positionSec?.toLong() ?: 0L
             Text(
-                "%d:%02d".format(s / 60, s % 60),
+                if (preview != null && preview.songId != null) "%d:%02d / %d:%02d".format(pos / 60, pos % 60, total / 60, total % 60)
+                else "%d:%02d".format(total / 60, total % 60),
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = MiconMonoFamily),
                 color = scheme.onSurfaceVariant,
             )
         }
+        val status = when {
+            preview?.error != null -> preview.error
+            preview?.loading == true -> "미리듣기 준비 중…"
+            else -> null
+        }
+        if (status != null) Text(status, style = MaterialTheme.typography.labelMedium, color = if (preview?.error != null) scheme.tertiary else scheme.onSurfaceVariant)
     }
 }
 
@@ -407,11 +425,16 @@ private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (Recom
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PickHead(header, "위로 끌어 올려 담기")
+        val listState = rememberLazyListState()
         LazyRow(
+            state = listState,
             contentPadding = PaddingValues(horizontal = MiconSpace.screenHorizontal),
             horizontalArrangement = Arrangement.spacedBy(MiconSpace.sm),
         ) {
-            items(songs, key = { it.song.id }) { item -> DragCard(item, onLoad = { onLoad(item) }) }
+            items(songs.size, key = { songs[it].song.id }) { i ->
+                val tilt by remember(listState, i) { derivedStateOf { fanTilt(listState, i) } }
+                DragCard(songs[i], tilt = tilt, onLoad = { onLoad(songs[i]) })
+            }
         }
         Text(
             buildString { append("카드를 플레이어 쪽으로 끌어 올리면 CD가 올라갑니다") },
@@ -424,8 +447,18 @@ private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (Recom
 }
 
 /** 위로 끌리는 카드. 임계(80dp) 를 넘기면 올라가고, 못 넘기면 튕겨 돌아온다 */
+/** 카드 가운데가 뷰포트 가운데에서 얼마나 떨어졌나 — -1(왼쪽 끝)..1(오른쪽 끝). 프로토타입 `.fan` 의 기울기 근거 */
+private fun fanTilt(state: LazyListState, index: Int): Float {
+    val info = state.layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return 0f
+    val center = item.offset + item.size / 2f
+    val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+    val half = info.viewportSize.width / 2f
+    return if (half <= 0f) 0f else ((center - mid) / half).coerceIn(-1f, 1f)
+}
+
 @Composable
-private fun DragCard(item: RecommendedSong, onLoad: () -> Unit) {
+private fun DragCard(item: RecommendedSong, tilt: Float, onLoad: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val threshold = with(LocalDensity.current) { 80.dp.toPx() }
     val lift = remember { Animatable(0f) }
@@ -434,8 +467,11 @@ private fun DragCard(item: RecommendedSong, onLoad: () -> Unit) {
         Modifier
             .width(96.dp)
             .graphicsLayer {
-                translationY = lift.value
                 val p = (-lift.value / threshold).coerceIn(0f, 1f)
+                // 부채꼴: 가운데에서 멀수록 바깥으로 기울고 살짝 내려앉는다. 끌어올리는 동안은 펴진다
+                transformOrigin = TransformOrigin(0.5f, 1f)
+                rotationZ = 14f * tilt * (1f - p)
+                translationY = lift.value + abs(tilt) * 14.dp.toPx() * (1f - p)
                 scaleX = 1f - 0.14f * p; scaleY = scaleX
                 alpha = 1f - 0.25f * p
             }
@@ -547,7 +583,7 @@ private fun CoachOverlay(onDismiss: () -> Unit) {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     CoachStep(1, "아래 카드를 ", "위로 끌어 올리면", " CD가 플레이어에 올라가요")
-                    CoachStep(2, "CD ", "가운데를 누르면", " 곡 자세히 보기")
+                    CoachStep(2, "CD ", "가운데를 누르면", " 재생 / 일시정지")
                     CoachStep(3, "CD ", "양 끝을 누르면", " 이전 · 다음 곡")
                     CoachStep(4, "CD를 ", "아래로 끌어내리면", " 빼기")
                 }

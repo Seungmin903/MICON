@@ -1,6 +1,9 @@
 package com.micon.app.ui.design.atoms
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
@@ -58,6 +61,16 @@ fun MiconFilterChip(
     emphasis: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
+    // 프로토타입 `.chip { transition: all .16s }` — 색이 튀지 않고 넘어간다
+    val container by animateColorAsState(
+        when { !selected -> scheme.surface; emphasis -> scheme.primary; else -> scheme.primaryContainer },
+        tween(160), label = "chip-bg",
+    )
+    val label by animateColorAsState(
+        when { !selected -> scheme.onSurface; emphasis -> scheme.onPrimary; else -> scheme.onPrimaryContainer },
+        tween(160), label = "chip-fg",
+    )
+    val outline by animateColorAsState(if (selected) scheme.primary else scheme.outlineVariant, tween(160), label = "chip-line")
     FilterChip(
         selected = selected,
         onClick = onClick,
@@ -66,19 +79,12 @@ fun MiconFilterChip(
         shape = MiconShape.chip,
         label = { Text(text, style = MaterialTheme.typography.labelLarge) },
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = scheme.surface,
-            labelColor = scheme.onSurface,
-            selectedContainerColor = if (emphasis) scheme.primary else scheme.primaryContainer,
-            selectedLabelColor = if (emphasis) scheme.onPrimary else scheme.onPrimaryContainer,
+            containerColor = container,
+            labelColor = label,
+            selectedContainerColor = container,
+            selectedLabelColor = label,
         ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = when {
-                !selected -> scheme.outlineVariant
-                emphasis -> scheme.primary
-                else -> scheme.primary
-            },
-        ),
+        border = BorderStroke(width = 1.dp, color = outline),
     )
 }
 
