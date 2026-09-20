@@ -7,6 +7,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,8 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -166,12 +170,12 @@ internal fun PreferenceSurveyContent(
     val photoCredits = (state.artists + state.selectedArtists.values).filter { !it.imageSourceUrl.isNullOrBlank() }
         .distinctBy { it.imageSourceUrl }
     val enabled = !state.loading && state.loadError == null && !state.isSaving && !state.sessionExpired && !state.saved
-    Column(Modifier.fillMaxSize().background(Color.White).imePadding().testTag("preference-survey")) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)).imePadding().testTag("preference-survey")) {
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack, enabled = !state.isSaving, modifier = Modifier.testTag("preferences-back")) {
+            if (artistStep || isEditing) IconButton(onClick = onBack, enabled = !state.isSaving, modifier = Modifier.testTag("preferences-back")) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "이전으로", tint = Ink)
-            }
-            if (compactHeader) Text("아티스트 찾기", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            } else Spacer(Modifier.size(48.dp))
+            if (compactHeader) Text("가수 찾기", fontSize = 18.sp, fontWeight = FontWeight.Bold,
                 color = Ink, modifier = Modifier.weight(1f).semantics { heading() })
             else {
                 Spacer(Modifier.weight(1f))
@@ -180,21 +184,28 @@ internal fun PreferenceSurveyContent(
                 }
             }
         }
-        if (!compactHeader) Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (!compactHeader) Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.Start) {
             Spacer(Modifier.height(12.dp))
-            Text(if (artistStep) "어떤 음악을 좋아하세요?" else "어떤 장르를 좋아하세요?",
-                fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, color = Ink,
-                textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
-            Spacer(Modifier.height(8.dp))
-            Text("복수 선택 가능 · 각각 1개 이상", color = Red, fontSize = 13.sp)
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                SurveyTab("아티스트", artistStep, enabled, "preferences-tab-artists") { onStep(1) }
-                SurveyTab("장르", !artistStep, enabled, "preferences-tab-genres") {
-                    keyboard?.hide(); focusManager.clearFocus(); onStep(0)
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Purple))
+                Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp))
+                    .background(if (artistStep) Purple else Color(0xFFDCD6FF)))
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(if (artistStep) "2 / 2 · 좋아하는 가수" else "1 / 2 · 좋아하는 장르",
+                color = Color(0xFF5546C9), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(if (artistStep) "어떤 가수의 노래를 자주 부르나요?" else "어떤 노래를 자주 들으세요?",
+                fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, color = Ink,
+                modifier = Modifier.semantics { heading() })
+            if (!artistStep) {
+                Spacer(Modifier.height(8.dp))
+                Text("한 개 이상 골라 주세요. 추천에 반영됩니다.", color = Grey, fontSize = 13.5.sp)
+            } else{
+                Spacer(Modifier.height(8.dp))
+                Text("한 명 이상 골라 주세요. 추천에 반영됩니다.", color = Grey, fontSize = 13.5.sp)
+            }
+            Spacer(Modifier.height(16.dp))
         }
         when {
             state.loading -> CenteredStatus("음악 취향을 불러오고 있어요", Modifier.weight(1f), loading = true)
@@ -205,7 +216,7 @@ internal fun PreferenceSurveyContent(
         }
         if (compactHeader) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("아티스트 ${state.selectedArtists.size}명 선택", fontSize = 13.sp, color = Purple,
+                Text("가수 ${state.selectedArtists.size}명 선택", fontSize = 13.sp, color = Purple,
                     modifier = Modifier.weight(1f).testTag("preferences-selection-count"))
                 TextButton(onClick = { keyboard?.hide(); focusManager.clearFocus() }, modifier = Modifier.testTag("preferences-close-search")) {
                     Text("선택 확인", color = Purple)
@@ -213,34 +224,27 @@ internal fun PreferenceSurveyContent(
             }
             if (state.message != null) Text(state.message, color = Red, fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 24.dp).testTag("preferences-save-error"))
-        } else Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) {
-            Text(if (artistStep) "아티스트 ${state.selectedArtists.size}명 선택" else "장르 ${state.selectedGenres.size}개 선택",
-                color = Purple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.testTag("preferences-selection-count"))
+        } else Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+            Text(if (artistStep) "${state.selectedArtists.size}명 선택" else "${state.selectedGenres.size}개 선택",
+                color = Color(0xFF5546C9), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                    .testTag("preferences-selection-count"))
             if (state.message != null || state.saveError != null) Text(state.saveError ?: state.message.orEmpty(),
                 color = Red, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp).testTag("preferences-save-error"))
-            if (!artistStep && state.selectedArtists.isEmpty()) Text("아티스트도 1명 이상 선택해주세요.",
-                color = InkSoft, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             if (state.draftError != null) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("이 기기에 임시 저장됨", fontSize = 11.sp, color = Grey, modifier = Modifier.weight(1f))
                 TextButton(onClick = onRetryDraft, enabled = !state.isSaving) { Text("동기화 재시도", color = Purple, fontSize = 12.sp) }
             }
             Spacer(Modifier.height(10.dp))
-            if (!artistStep) {
-                OutlinedButton(onClick = onBack, enabled = !state.isSaving,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("preferences-previous"),
-                    shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Purple)) { Text("이전으로", color = Purple) }
-                Spacer(Modifier.height(8.dp))
-            }
-            Button(onClick = if (artistStep) onNext else onSave,
-                enabled = if (artistStep) state.canContinue else state.canFinish,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag(if (artistStep) "preferences-next" else "preferences-complete"),
-                shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Purple)) {
+            Button(onClick = if (artistStep) onSave else onNext,
+                enabled = if (artistStep) state.canFinish else state.canContinue,
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag(if (artistStep) "preferences-complete" else "preferences-next"),
+                shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = Purple)) {
                 if (state.isSaving) {
                     CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(when { state.isSaving -> "저장 중"; artistStep -> "다음"; state.saveError != null -> "다시 저장"; isEditing -> "저장"; else -> "완료" },
+                Text(when { state.isSaving -> "저장 중"; !artistStep -> "다음"; state.saveError != null -> "다시 저장"; isEditing -> "저장"; else -> "완료" },
                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
@@ -259,29 +263,31 @@ private fun SurveyTab(label: String, active: Boolean, enabled: Boolean, tag: Str
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun GenrePicker(state: PreferenceSurveyState, onGenre: (PreferenceGenre) -> Unit, onReload: () -> Unit, modifier: Modifier) {
     if (state.genres.isEmpty()) { CenteredStatus("아직 선택할 수 있는 장르가 없어요", modifier, onRetry = onReload); return }
-    LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = modifier.padding(horizontal = 24.dp).testTag("genre-grid"),
-        horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(22.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp)) {
-        items(state.genres, key = { it.genreId }) { genre ->
+    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).testTag("genre-grid")) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.genres.forEach { genre ->
             val selected = genre.genreId in state.selectedGenres
-            Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(CircleShape)
-                .background(if (selected) Color(0xFF9D8FEB) else Color(0xFFF0EBFC))
+            Box(Modifier.height(36.dp).clip(RoundedCornerShape(18.dp))
+                .background(if (selected) Lavender else Color.White)
+                .border(1.dp, if (selected) Purple else Color(0xFFE4E2EE), RoundedCornerShape(18.dp))
                 .toggleable(selected, enabled = !state.isSaving, role = Role.Checkbox, onValueChange = { onGenre(genre) })
-                .testTag("genre-${genre.genreId}").padding(8.dp), contentAlignment = Alignment.Center) {
-                Text(genre.name.replace("/", "/\n"), color = if (selected) Color.White else Ink, fontSize = 14.sp,
-                    lineHeight = 20.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium)
-                if (selected) Icon(Icons.Filled.Check, null, Modifier.size(14.dp).align(Alignment.TopCenter), tint = Color.White)
+                .testTag("genre-${genre.genreId}").padding(horizontal = 15.dp), contentAlignment = Alignment.Center) {
+                Text(genre.name, color = if (selected) Color(0xFF5546C9) else Ink, fontSize = 13.5.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
             }
         }
+        }
+        Spacer(Modifier.height(20.dp))
     }
 }
 
 @Composable
 private fun PhotoCredits(artists: List<PreferenceArtist>, onDismiss: () -> Unit) {
     val uri = LocalUriHandler.current
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("아티스트 사진 출처") },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("가수 사진 출처") },
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { Text("사진을 원형으로 잘라 표시합니다.", fontSize = 12.sp) }
@@ -310,12 +316,12 @@ private fun ArtistPicker(
     Column(modifier) {
         OutlinedTextField(
             value = state.query, onValueChange = onQuery, enabled = !state.isSaving, singleLine = true,
-            placeholder = { Text("아티스트 이름으로 검색", fontSize = 14.sp) },
-            leadingIcon = { Icon(Icons.Filled.Search, "아티스트 검색", tint = Grey) },
+            placeholder = { Text("가수 이름으로 검색", fontSize = 14.sp) },
+            leadingIcon = { Icon(Icons.Filled.Search, "가수 검색", tint = Grey) },
             trailingIcon = {
                 if (state.query.isNotEmpty()) IconButton(onClick = { onQuery("") }) { Icon(Icons.Filled.Close, "검색어 지우기") }
             },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).testTag("preferences-search"),
+            modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 20.dp).testTag("preferences-search"),
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Purple, unfocusedBorderColor = GreyLight),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -335,15 +341,15 @@ private fun ArtistPicker(
         } else Spacer(Modifier.height(if (compact) 6.dp else 12.dp))
         if (state.artists.isEmpty()) {
             when {
-                state.artistsLoading -> CenteredStatus("아티스트를 찾고 있어요", Modifier.weight(1f), loading = true)
+                state.artistsLoading -> CenteredStatus("가수를 찾고 있어요", Modifier.weight(1f), loading = true)
                 state.artistsError != null -> CenteredStatus(state.artistsError, Modifier.weight(1f), onRetry = onRetry)
-                else -> CenteredStatus(if (state.query.isBlank()) "등록된 아티스트가 없어요" else "검색 결과가 없어요\n다른 이름으로 찾아보세요", Modifier.weight(1f), onRetry = if (state.query.isBlank()) onRetry else null)
+                else -> CenteredStatus(if (state.query.isBlank()) "등록된 가수가 없어요" else "검색 결과가 없어요\n다른 이름으로 찾아보세요", Modifier.weight(1f), onRetry = if (state.query.isBlank()) onRetry else null)
             }
         } else {
             LazyVerticalGrid(
                 columns = if (compact) GridCells.Fixed(1) else GridCells.Fixed(3),
-                modifier = Modifier.weight(1f).padding(horizontal = 24.dp).testTag("artist-grid"),
-                horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 18.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = 20.dp).testTag("artist-grid"),
+                horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 14.dp),
                 contentPadding = PaddingValues(top = 6.dp, bottom = 16.dp),
             ) {
                 items(state.artists, key = { it.artistId }) { artist ->
@@ -354,7 +360,7 @@ private fun ArtistPicker(
                     when {
                         state.artistsLoading -> Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), color = Purple, strokeWidth = 2.dp) }
                         state.artistsError != null -> CenteredStatus(state.artistsError, onRetry = onRetry)
-                        state.hasMoreArtists -> TextButton(onClick = onMore, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth().testTag("preferences-more-artists")) { Text("아티스트 더 보기", color = Purple) }
+                        state.hasMoreArtists -> TextButton(onClick = onMore, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth().testTag("preferences-more-artists")) { Text("가수 더 보기", color = Purple) }
                     }
                 }
             }
@@ -390,7 +396,7 @@ private fun ArtistSearchRow(artist: PreferenceArtist, selected: Boolean, enabled
 private fun ArtistTile(artist: PreferenceArtist, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().toggleable(selected, enabled = enabled, role = Role.Checkbox,
         onValueChange = { onClick() }).testTag("artist-${artist.artistId}"), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(CircleShape).background(Color(0xFFF0EBFC)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(Color(0xFFF0EBFC)), contentAlignment = Alignment.Center) {
             Text(artist.name.take(1), color = Purple, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             if (!artist.imageUrl.isNullOrBlank()) AsyncImage(model = artist.imageUrl, contentDescription = null,
                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -400,7 +406,7 @@ private fun ArtistTile(artist: PreferenceArtist, selected: Boolean, enabled: Boo
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(artist.name, fontSize = 14.sp, color = Ink, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        Text(artist.name, fontSize = 12.5.sp, color = Ink, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
     }
 }

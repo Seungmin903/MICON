@@ -42,19 +42,19 @@ class PreferenceSurveyViewModelTest {
     private fun model(repo: FakeRepository, drafts: MemoryDrafts = MemoryDrafts(), userId: Long = 7, editing: Boolean = false, current: () -> Boolean = { true }) =
         PreferenceSurveyViewModel(repo, drafts, userId, editing, current).also(models::add)
 
-    @Test fun `artists precede genres and final save requires both selections`() = runTest(dispatcher) {
+    @Test fun `genres precede artists and final save requires both selections`() = runTest(dispatcher) {
         val repo = FakeRepository()
         val vm = model(repo)
         advanceUntilIdle()
         vm.next()
         vm.finish()
-        assertEquals(1, vm.state.value.step)
-        assertTrue(repo.saves.isEmpty())
-        vm.toggleArtist(artists.first())
-        vm.next()
         assertEquals(0, vm.state.value.step)
-        assertFalse(vm.state.value.canFinish)
+        assertTrue(repo.saves.isEmpty())
         vm.toggleGenre(genres.first())
+        vm.next()
+        assertEquals(1, vm.state.value.step)
+        assertFalse(vm.state.value.canFinish)
+        vm.toggleArtist(artists.first())
         vm.finish()
         advanceUntilIdle()
         assertTrue(vm.state.value.saved)
@@ -83,21 +83,23 @@ class PreferenceSurveyViewModelTest {
         assertEquals(setOf(1L, 41L), vm.state.value.selectedArtists.keys)
     }
 
-    @Test fun `tabs and saved draft keep both selections and original step meaning`() = runTest(dispatcher) {
+    @Test fun `step selection and saved draft keep both selections`() = runTest(dispatcher) {
         val store = MemoryDrafts()
         val vm = model(FakeRepository(), store)
         advanceUntilIdle()
-        vm.toggleArtist(artists.first())
-        vm.next()
         vm.toggleGenre(genres.first())
+        vm.next()
+        vm.toggleArtist(artists.first())
+        vm.selectStep(0)
+        assertEquals(0, vm.state.value.step)
+        assertEquals(setOf(1L), vm.state.value.selectedArtists.keys)
         vm.selectStep(1)
         assertEquals(1, vm.state.value.step)
         assertEquals(setOf(1L), vm.state.value.selectedGenres.keys)
-        vm.selectStep(0)
         assertTrue(vm.state.value.canFinish)
-        assertEquals(0, store.read(7, false)!!.step)
+        assertEquals(1, store.read(7, false)!!.step)
         assertTrue(vm.back())
-        assertEquals(1, vm.state.value.step)
+        assertEquals(0, vm.state.value.step)
         assertFalse(vm.back())
     }
 
