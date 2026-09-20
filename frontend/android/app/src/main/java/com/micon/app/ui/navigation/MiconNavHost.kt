@@ -45,6 +45,8 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.core.network.SessionEvents
+import com.micon.app.BuildConfig
+import com.micon.app.ui.design.catalog.DesignCatalogScreen
 import com.micon.app.ui.evaluation.PracticeHistoryScreen
 import com.micon.app.ui.favorites.FavoritesScreen
 import com.micon.app.ui.favorites.SetlistScreen
@@ -396,6 +398,15 @@ private fun MiconNavHost(
             if (isGuest || !accessGranted) return@composable
             SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() },
                 onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) })
+        }
+
+        // ---- 개발용: 디자인 카탈로그 (adb shell am start -d "micon://app/dev/catalog") ----
+        // 리디자인 부품(토큰·원자·분자·유기체)을 한 화면에 모아 둔 곳. 새 화면을 만들기 전에
+        // 여기서 부품을 고르고, 토큰을 바꿨을 때 앱 전체에 어떻게 퍼지는지 여기서 본다.
+        // release 빌드에는 들어가지 않는다.
+        composable(Routes.DEV_CATALOG, deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_CATALOG}" })) {
+            if (!BuildConfig.DEBUG) return@composable
+            DesignCatalogScreen(onBack = { nav.popBackStack() })
         }
 
         // ---- 개발용: 음성 프로필 예시를 채우고 리포트 탭으로 (adb shell am start -d "micon://app/dev/seed-profile") ----

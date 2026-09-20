@@ -1,7 +1,9 @@
 package com.micon.app
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
@@ -37,7 +39,14 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // 인자 없는 enableEdgeToEdge() 는 시스템 테마를 따라간다. 앱은 라이트 고정이라
+        // 시스템이 다크 모드인 사용자에게는 흰 배경 위에 흰 상태바 아이콘이 남았다.
+        // light(...) 를 못 박아 아이콘을 항상 어둡게 한다. 두 인자는 scrim · darkScrim 이고
+        // 둘 다 투명이라 배경은 화면이 그대로 비친다.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
         setContent {
             MiconTheme {
                 var showSplash by rememberSaveable { mutableStateOf(true) }
