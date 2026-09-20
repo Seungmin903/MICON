@@ -56,7 +56,7 @@ import com.micon.app.ui.onboarding.PreferenceSurveyScreen
 import com.micon.app.ui.onboarding.SignupScreen
 import com.micon.app.ui.onboarding.SplashScreen
 import com.micon.app.ui.practice.PracticeScreen
-import com.micon.app.ui.recommend.RecommendScreen
+import com.micon.app.ui.recommend.RecommendDeckScreen
 import com.micon.app.ui.recommend.SongCarousel
 import com.micon.app.ui.report.QuickAnalysisScreen
 import com.micon.app.ui.report.VoiceReportScreen
@@ -269,7 +269,7 @@ private fun MiconNavHost(
         composable(Routes.RECOMMEND) {
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
-            else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
+            else RecommendDeckScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
                 onAnalyze = { nav.navigate(Routes.VOICE_ONBOARDING) })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
