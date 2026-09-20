@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.micon.app.ui.design.organisms.FloatingNavBar
+import com.micon.app.ui.design.organisms.LocalTabBarPadding
+import com.micon.app.ui.design.tokens.MiconSpace
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -69,8 +70,6 @@ import com.micon.app.ui.songdetail.SongDetailColors
 import com.micon.app.ui.songdetail.SongDetailSystemBars
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
-import com.micon.app.ui.theme.GreyLight
-import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.PrimaryButton
@@ -120,18 +119,26 @@ fun MiconRoot() {
         }
     }
 
-    CompositionLocalProvider(LocalOnboardingChrome provides onboardingChrome) {
-        Scaffold(
-            containerColor = when {
-                darkOnboarding -> Ink
-                currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH -> SongDetailColors.background
-                else -> Color.White
-            },
-            bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute, backStack?.arguments?.getString("source")) },
-        ) { padding ->
+    CompositionLocalProvider(
+        LocalOnboardingChrome provides onboardingChrome,
+        LocalTabBarPadding provides if (showBottomBar) MiconSpace.navBarContentPadding else 0.dp,
+    ) {
+        // 새 화면은 MiconScreen 이 상태바·내비 바 여백을 스스로 처리한다(전면 배경·홀로 화면 가능).
+        // 아직 옛 헤더를 쓰는 화면만 여기서 시스템 바를 피해 준다 — 옮길 때마다 migratedRoutes 에 넣는다.
+        val legacy = currentRoute !in migratedRoutes
+        Box(
+            Modifier.fillMaxSize().background(
+                when {
+                    darkOnboarding -> Ink
+                    currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH -> SongDetailColors.background
+                    legacy -> Color.White
+                    else -> MaterialTheme.colorScheme.background
+                },
+            ),
+        ) {
             MiconNavHost(
                 nav = nav,
-                modifier = Modifier.padding(padding),
+                modifier = if (legacy) Modifier.systemBarsPadding() else Modifier,
                 initialRoute = session.initialRoute,
                 accessGranted = accessGranted,
                 isGuest = session.guest,
@@ -145,14 +152,15 @@ fun MiconRoot() {
                     if (it) session.verified = false
                 },
             )
+            if (showBottomBar) {
+                MiconTabBar(currentRoute, onNavigate = nav::openBottomTab, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
 }
 
-@Composable
-private fun MiconBottomBar(nav: NavHostController, currentRoute: String?, source: String?) {
-    MiconTabBar(currentRoute, source, onNavigate = nav::openBottomTab)
-}
+/** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
+private val migratedRoutes: Set<String?> = setOf()
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -175,32 +183,11 @@ internal fun NavHostController.openBottomTab(route: String) {
     popBackStack(route, inclusive = false)
 }
 
-/** Shared with device previews so their navigation chrome is the real app chrome. */
+/** 물방울 탭바. 탭 루트에서만 보이므로 하위 화면 → 탭 매핑은 없다. */
 @Composable
-internal fun MiconTabBar(currentRoute: String?, source: String? = null, onNavigate: (String) -> Unit = {}) {
-    val detail = currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH
-    val selectedColor = if (detail) SongDetailColors.accent else Purple
-    val muted = if (detail) SongDetailColors.muted else Grey
-    NavigationBar(containerColor = if (detail) SongDetailColors.background else Color.White, tonalElevation = 0.dp) {
-        BottomTab.entries.forEach { tab ->
-            val selected = currentRoute == tab.route ||
-                (currentRoute == Routes.SONG_MATCH && tab == BottomTab.RECOMMEND) ||
-                (currentRoute == Routes.SONG && tab.route == (source ?: Routes.PRACTICE)) ||
-                (tab == BottomTab.FAVORITES && currentRoute == Routes.SETLIST)
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onNavigate(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = tab.label, Modifier.size(26.dp)) },
-                label = { Text(tab.label, fontSize = 12.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = selectedColor, selectedTextColor = selectedColor,
-                    unselectedIconColor = muted, unselectedTextColor = muted,
-                    indicatorColor = Color.Transparent,
-                ),
-            )
-        }
-    }
-    @Suppress("UNUSED_VARIABLE") val divider = GreyLight
+internal fun MiconTabBar(currentRoute: String?, onNavigate: (String) -> Unit = {}, modifier: Modifier = Modifier) {
+    val selected = BottomTab.entries.firstOrNull { it.route == currentRoute } ?: BottomTab.REPORT
+    FloatingNavBar(selected = selected.tab, onSelect = { onNavigate(BottomTab.of(it).route) }, modifier = modifier)
 }
 
 @Composable
