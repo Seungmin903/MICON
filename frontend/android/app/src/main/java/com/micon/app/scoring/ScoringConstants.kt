@@ -60,6 +60,6 @@ object ScoringConstants {
     // 반음마다 반주 파일을 만들면 S3·DB 부담이 커서, 원키 반주 하나만 받아 재생기가 실시간으로
     // 음높이를 옮긴다(InstrumentalPlayer.keyShift). 폭이 커질수록 시프트 알고리즘이 배경을
     // 뭉개므로 ±3 으로 제한한다.
-    const val KEY_SHIFT_MIN = -3
-    const val KEY_SHIFT_MAX = 3
+    const val KEY_SHIFT_MIN = -5
+    const val KEY_SHIFT_MAX = 5
 }

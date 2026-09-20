@@ -1,34 +1,72 @@
 package com.micon.app.ui.songdetail
 
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.SongDetail
+import com.micon.app.data.SongFit
 import com.micon.app.data.local.UserStore
-import com.micon.app.ui.common.*
+import com.micon.app.scoring.ScoringConstants
+import com.micon.app.ui.analysis.RangeBar
+import com.micon.app.ui.common.describeBackendError
+import com.micon.app.ui.design.atoms.CompactDisc
+import com.micon.app.ui.design.atoms.MiconBadge
+import com.micon.app.ui.design.atoms.MiconButton
+import com.micon.app.ui.design.atoms.MiconCard
+import com.micon.app.ui.design.atoms.MiconCardKind
+import com.micon.app.ui.design.atoms.MiconChipTone
+import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.design.organisms.MiconAppBar
+import com.micon.app.ui.design.organisms.MiconScreen
+import com.micon.app.ui.design.tokens.MiconMonoFamily
+import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
-import com.micon.app.ui.theme.Ink
-import com.micon.app.ui.songdetail.SongDetailColors as Detail
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
+/**
+ * 곡 상세 — 프로토타입 `songDetail`. "이 곡을 내가 부를 수 있나"에 한 화면으로 답한다.
+ * 곡 정보 → 음역 매치(내 음역·곡 음역을 같은 자에) → 키 조절(막대·문장이 같이 바뀜) → 어려운 구간 → 연습하기.
+ * 예전 곡 매치 상세·곡 상세 두 화면을 하나로 합쳤고, 어둡던 톤을 라이트로 통일했다.
+ */
 @Composable
 fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Unit,
     onSettings: () -> Unit = {}, onLogin: (() -> Unit)? = null,
@@ -40,95 +78,194 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Un
     })
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
-    val profileLoadFailed by UserStore.profileLoadFailed.collectAsStateWithLifecycle()
-    PlaybackLifecycleEffect(vm, onResume = vm::enterScreen, onExit = vm::leaveScreen)
-    SongDetailContent(state, profile, profileLoadFailed,
-        onKey = vm::selectKey, onToggle = vm::toggle, onSeek = vm::seekTo, onListen = vm::listenAt,
-        onPractice = { vm.leaveScreen(); onPractice(state.selectedKey) }, onRetryAssets = vm::retryAssets, onRetryFit = vm::refreshFit,
-        onBack = { vm.leaveScreen(); onBack() }, onSettings = { vm.leaveScreen(); onSettings() },
-        onLogin = onLogin?.let { login -> { vm.leaveScreen(); login() } }, onRetryDetail = vm::load,
-        songId = songId, carouselIds = carouselIds, artwork = artwork,
-        onSongSelected = { id -> if (id != songId) { vm.leaveScreen(); onSongSelected(id) } })
+    val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
+    val loggedIn = TokenManager.isLoggedIn()
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(loggedIn) { if (loggedIn) runCatching { container.favorites.refresh() } }
+    fun toggleLike() {
+        if (!loggedIn) { onLogin?.invoke() ?: Toast.makeText(context, "로그인하면 찜할 수 있어요.", Toast.LENGTH_SHORT).show(); return }
+        scope.launch { runCatching { container.favorites.toggle(songId) }.onFailure { Toast.makeText(context, describeBackendError(it), Toast.LENGTH_SHORT).show() } }
+    }
+    SongDetailContent(state, profile, liked = songId in liked, onLike = ::toggleLike,
+        onKey = vm::selectKey, onPractice = { vm.leaveScreen(); onPractice(state.selectedKey) },
+        onBack = { vm.leaveScreen(); onBack() }, onRetryDetail = vm::load)
 }
 
-/** Pure content for previews and device UI tests; no API calls or account changes. */
-@OptIn(ExperimentalLayoutApi::class)
+/** 순수 콘텐츠 — 프리뷰·UI 테스트용 */
 @Composable
-fun SongDetailContent(state: SongDetailState, profile: UserStore.VoiceProfile?, profileLoadFailed: Boolean = false,
-    onKey: (Int) -> Unit = {}, onToggle: () -> Unit = {}, onSeek: (Double) -> Unit = {}, onListen: (Double) -> Unit = {},
-    onPractice: () -> Unit = {}, onRetryAssets: () -> Unit = {}, onRetryFit: () -> Unit = {},
-    onBack: () -> Unit = {}, onSettings: () -> Unit = {}, onLogin: (() -> Unit)? = null, onRetryDetail: () -> Unit = {},
-    songId: String = state.detail?.summary?.id.orEmpty(),
-    carouselIds: List<String> = emptyList(), artwork: Map<String, String?> = emptyMap(), onSongSelected: (String) -> Unit = {}) {
+fun SongDetailContent(
+    state: SongDetailState, profile: UserStore.VoiceProfile?, liked: Boolean = false, onLike: () -> Unit = {},
+    onKey: (Int) -> Unit = {}, onPractice: () -> Unit = {}, onBack: () -> Unit = {}, onRetryDetail: () -> Unit = {},
+) {
     val detail = state.detail
-    val measured = profile?.let { MeasuredPitchRange(it.lowMidi, it.highMidi) }?.takeIf { it.valid }
-    val pitch = remember(state.notes, state.sections, state.durationSec, measured, state.selectedKey, state.fit?.recommendedKey) {
-        SongPitchPresentation.build(state.notes, state.durationSec, measured, state.selectedKey, state.fit?.recommendedKey, state.sections)
-    }
-    var selectedRegionId by rememberSaveable(songId, state.selectedKey) { mutableStateOf<String?>(null) }
-    val selectedRegion = pitch.regions.firstOrNull { it.id == selectedRegionId }
-    val scroll = rememberLazyListState()
-    val collapsed by remember { derivedStateOf { scroll.firstVisibleItemIndex > 0 || scroll.firstVisibleItemScrollOffset > 120 } }
-    SongDetailTheme {
-        Column(Modifier.fillMaxSize().background(Detail.background)) {
-            Column(Modifier.weight(1f)) {
-                Row(Modifier.fillMaxWidth().background(if (collapsed) Detail.background else Color(0xFFF5F3FF))
-                    .padding(horizontal = 8.dp).heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val headerColor = if (collapsed) Detail.title else Ink
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = headerColor) }
-                    Text(if (collapsed) detail?.summary?.title ?: "곡 상세" else "곡 상세", modifier = Modifier.weight(1f),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, color = headerColor, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    if (onLogin != null) TextButton(onClick = onLogin) { Text("로그인", color = headerColor) }
-                    else IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", tint = headerColor) }
+    val key = state.selectedKey
+    MiconScreen(
+        appBar = {
+            MiconAppBar(onBack = onBack, actions = {
+                IconButton(onLike, Modifier.size(MiconSpace.touchTarget)) {
+                    Icon(if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (liked) "찜 해제" else "찜",
+                        tint = if (liked) Color(0xFFC92A5E) else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(23.dp))
                 }
-                LazyColumn(Modifier.weight(1f).testTag("song-detail-scroll"), state = scroll,
-                    contentPadding = PaddingValues(bottom = 24.dp)) {
-                    item("turntable") { SongDetailTurntable(state, songId, carouselIds, artwork, onSongSelected, onToggle) }
-                    item("player") { SongDetailPlayer(state, onSeek) }
-                    if (state.loading || detail == null) item("detail-status") {
-                        Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (state.loading) CircularProgressIndicator(color = Detail.accent)
-                            else {
-                                Text(state.error ?: "곡을 불러오지 못했어요.", color = Detail.body)
-                                TextButton(onClick = onRetryDetail) { Text("곡 정보 다시 불러오기") }
-                            }
-                        }
-                    }
-                    if (detail != null) {
-                        item("range") { DetailSection { RangeMatchingCard(detail, measured, state.selectedKey, profileLoadFailed, pitch.notes) } }
-                        item("settings") { DetailSection { SongSettingsCard(state, onKey, onRetryFit) } }
-                        item("pitch") { DetailSection {
-                            SongPitchCard(pitch, selectedRegion, state.positionSec, state.playable, state.assetsLoading,
-                                onSelect = { selectedRegionId = it.id }, onListen = { selectedRegion?.let { onListen(it.start) } })
-                        } }
-                        if (state.assetsError != null || state.playbackError != null) item("assets-error") { DetailSection {
-                            MiconCard(color = Detail.card) {
-                                Text(state.playbackError ?: state.assetsError.orEmpty(), fontSize = 13.sp, color = Detail.body, lineHeight = 20.sp)
-                                TextButton(onClick = onRetryAssets) { Text("반주·음표 다시 불러오기") }
-                            }
-                        } }
-                        item("metadata") { DetailSection {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                detail.analysis?.keyName?.let { SoftChip("조성 $it", bg = Detail.card, fg = Detail.muted) }
-                                detail.analysis?.tempoBpm?.let { SoftChip("$it BPM", bg = Detail.card, fg = Detail.muted) }
-                                detail.analysis?.timeSignature?.let { SoftChip(it, bg = Detail.card, fg = Detail.muted) }
-                            }
-                        } }
-                    }
+            })
+        },
+        verticalArrangement = Arrangement.spacedBy(MiconSpace.md),
+        bottom = {
+            MiconButton(
+                text = when { state.assetsLoading || state.keyLoading -> "반주 준비 중…"; !state.practiceEnabled -> "연습 데이터 준비 중"; else -> "이 노래 연습하기" },
+                onClick = onPractice, modifier = Modifier.fillMaxWidth().testTag("song-practice"), enabled = state.practiceEnabled,
+            )
+        },
+    ) {
+        if (detail == null) {
+            Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
+                if (state.loading) CircularProgressIndicator()
+                else Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(state.error ?: "곡을 불러오지 못했어요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MiconButton("다시 불러오기", onRetryDetail, kind = com.micon.app.ui.design.atoms.MiconButtonKind.Text)
                 }
+            }
+            return@MiconScreen
+        }
+        val fit = state.fit
+        val matchPct = fit?.let { (it.overallFit * 100).roundToInt() }
+        val song = songRange(detail, fit)
+        val mine = profile?.let { it.comfortLow to it.comfortHigh }
+        val verdict = verdict(matchPct, mine, song, key)
 
-            }
-            Surface(color = Detail.background, shadowElevation = 8.dp) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    PrimaryButton(text = when { state.assetsLoading || state.keyLoading -> "반주 준비 중…"; !state.practiceEnabled -> "연습 데이터 준비 중"; state.selectedKey == 0 -> "원키로 연습 시작"; else -> "키 ${songKeyLabel(state.selectedKey)}로 연습 시작" },
-                        onClick = onPractice, modifier = Modifier.fillMaxWidth().testTag("song-practice"), enabled = state.practiceEnabled)
-                }
-            }
+        Header(detail, verdict)
+        MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
+        KeyCard(key, onKey)
+        DifficultCard(state, fit)
+    }
+}
+
+private data class Verdict(val label: String, val tone: MiconChipTone, val message: String)
+
+private fun songRange(detail: SongDetail, fit: SongFit?): IntRange? {
+    val low = fit?.rangeFit?.songCoreLowMidi ?: detail.analysis?.coreLowMidi ?: detail.analysis?.lowestMidi
+    val high = fit?.rangeFit?.songCoreHighMidi ?: detail.analysis?.coreHighMidi ?: detail.analysis?.highestMidi
+    return if (low != null && high != null && high >= low) low..high else null
+}
+
+/** 키를 옮긴 곡 음역이 내 편한 음역 안에 드는지로 판정. 매치 %가 있으면 배지 색은 그것을 따른다 */
+private fun verdict(match: Int?, mine: Pair<Int, Int>?, song: IntRange?, key: Int): Verdict {
+    val shifted = song?.let { (it.first + key)..(it.last + key) }
+    val overTop = if (mine != null && shifted != null) shifted.last - mine.second else 0
+    val underLow = if (mine != null && shifted != null) mine.first - shifted.first else 0
+    val tone = when {
+        match != null -> if (match >= 88) MiconChipTone.Success else if (match >= 80) MiconChipTone.Warning else MiconChipTone.Challenge
+        overTop <= 0 && underLow <= 0 -> MiconChipTone.Success
+        overTop <= 2 -> MiconChipTone.Warning
+        else -> MiconChipTone.Challenge
+    }
+    val label = when (tone) { MiconChipTone.Success -> "잘 맞아요"; MiconChipTone.Warning -> "한 키 조절"; else -> "도전곡" }
+    val message = when {
+        mine == null -> "목소리를 분석하면 이 곡이 내 음역에 맞는지 알려 드려요."
+        shifted == null -> "이 곡의 음역 정보가 아직 없어요."
+        key == 0 && overTop <= 0 && underLow <= 0 -> "곡이 내 음역 안에 들어와요. 원래 키로 불러도 편합니다."
+        key == 0 && overTop > 0 -> "후렴 고음이 내 음역보다 ${NoteNames.distanceText(0, overTop).removeSuffix("요")}. 키를 내려 보세요."
+        key < 0 && overTop <= 0 -> "${-key}키 내림 · 후렴 고음이 한결 편해집니다."
+        key < 0 -> "${-key}키 내림 · 아직 고음이 ${overTop}음 남았어요."
+        overTop > 0 -> "${key}키 올림 · 후렴에서 음이 내 음역을 벗어나요."
+        else -> "${key}키 올림 · 아직 내 음역 안이에요."
+    }
+    return Verdict(label, tone, message)
+}
+
+@Composable
+private fun Header(detail: SongDetail, verdict: Verdict) {
+    val s = detail.summary
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        CompactDisc(title = s.title, artist = s.artist, imageUrl = s.imageUrl, size = 88.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(s.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val meta = listOfNotNull(s.artist, s.releaseDate?.take(4), detail.genres.firstOrNull() ?: s.genre).joinToString(" · ")
+            Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            MiconBadge(verdict.label, tone = verdict.tone)
         }
     }
 }
 
 @Composable
-private fun DetailSection(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp)) { content() }
+private fun MatchCard(match: Int?, mine: Pair<Int, Int>?, song: IntRange?, key: Int, verdict: Verdict, loading: Boolean, noProfile: Boolean) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    MiconCard(kind = MiconCardKind.Elevated) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text("음역 매치", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp, modifier = Modifier.weight(1f).padding(bottom = 6.dp))
+            if (match != null) {
+                Text("$match", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = (-1).sp, lineHeight = 36.sp)
+                Text("%", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
+            } else if (loading && !noProfile) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+        }
+        Spacer(Modifier.height(8.dp))
+        val shifted = song?.let { (it.first + key)..(it.last + key) }
+        RangeBar(low = mine?.first ?: 0, high = mine?.second ?: 0, song = shifted)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(14.dp, 6.dp).background(Color(0xFF6C5CE7), RoundedCornerShape(3.dp)))
+                Spacer(Modifier.width(6.dp)); Text("내 음역", fontSize = 12.sp, color = muted)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(14.dp, 10.dp).border(1.5.dp, Color(0xFFC92A5E), RoundedCornerShape(5.dp)))
+                Spacer(Modifier.width(6.dp)); Text("곡 음역", fontSize = 12.sp, color = muted)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(verdict.message, style = MaterialTheme.typography.bodyMedium, color = muted)
+    }
+}
+
+@Composable
+private fun KeyCard(key: Int, onKey: (Int) -> Unit) {
+    MiconCard(kind = MiconCardKind.Outlined) {
+        Text("키 조절", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            KeyStep("−", enabled = key > ScoringConstants.KEY_SHIFT_MIN) { onKey(key - 1) }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (key > 0) "+$key" else "$key", fontFamily = MiconMonoFamily, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
+                Text(when { key == 0 -> "원래 키"; key > 0 -> "+${key}키"; else -> "${key}키" }, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            KeyStep("+", enabled = key < ScoringConstants.KEY_SHIFT_MAX) { onKey(key + 1) }
+        }
+    }
+}
+
+@Composable
+internal fun KeyStep(symbol: String, size: androidx.compose.ui.unit.Dp = 48.dp, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick, Modifier.size(size), enabled = enabled) {
+        Text(symbol, fontSize = 22.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+    }
+}
+
+/** 곡 구간 중 난이도가 표시된 것 2개. 없으면 카드 생략 */
+@Composable
+private fun DifficultCard(state: SongDetailState, fit: SongFit?) {
+    val hard = state.sections.filter { it.difficultyType != "NONE" && it.difficultyType.isNotBlank() }
+        .sortedByDescending { it.difficultyScore ?: 0.0 }.take(2)
+    val strain = fit?.strainSections?.original.orEmpty()
+    if (hard.isEmpty() && strain.isEmpty()) return
+    MiconCard(kind = MiconCardKind.Outlined) {
+        Text("어려운 구간", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
+        Spacer(Modifier.height(4.dp))
+        if (hard.isNotEmpty()) hard.forEach { s ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(s.sectionName.ifBlank { s.sectionType }, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val (label, tone) = when (s.difficultyType) {
+                    "HIGH_NOTE" -> "높은 음" to MiconChipTone.Warning
+                    "LONG_BREATH" -> "긴 호흡" to MiconChipTone.Neutral
+                    "FAST_LYRICS" -> "빠른 가사" to MiconChipTone.Neutral
+                    "PITCH_JUMP" -> "음 도약" to MiconChipTone.Warning
+                    else -> "복합" to MiconChipTone.Challenge
+                }
+                MiconBadge(s.description?.takeIf { it.length <= 10 } ?: label, tone = tone)
+            }
+        } else strain.take(2).forEach { s ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${(s.startSec / 60).toInt()}:${"%02d".format((s.startSec % 60).toInt())} 부근", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                MiconBadge("${s.maxExcessSemitones}음 높음", tone = MiconChipTone.Warning)
+            }
+        }
+    }
 }

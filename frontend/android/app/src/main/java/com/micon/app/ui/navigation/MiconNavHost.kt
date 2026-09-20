@@ -71,8 +71,6 @@ import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
-import com.micon.app.ui.songdetail.SongDetailColors
-import com.micon.app.ui.songdetail.SongDetailSystemBars
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.Ink
@@ -98,7 +96,6 @@ fun MiconRoot() {
     val onboardingChrome = remember { OnboardingChromeState() }
     val darkOnboarding = currentRoute == Routes.VOICE_ONBOARDING && onboardingChrome.dark
     if (darkOnboarding) OnboardingSystemBars()
-    if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailSystemBars()
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
     // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
     val context = LocalContext.current
@@ -135,7 +132,6 @@ fun MiconRoot() {
             Modifier.fillMaxSize().background(
                 when {
                     darkOnboarding -> Ink
-                    currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH -> SongDetailColors.background
                     legacy -> Color.White
                     else -> MaterialTheme.colorScheme.background
                 },
@@ -165,7 +161,7 @@ fun MiconRoot() {
 }
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
-private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND)
+private val migratedRoutes: Set<String?> = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND, Routes.SONG, Routes.SONG_MATCH)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
