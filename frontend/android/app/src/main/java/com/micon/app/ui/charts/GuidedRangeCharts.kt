@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
@@ -82,7 +83,7 @@ fun GuidedRangeMapChart(
                 val span = (axisHigh - axisLow + if (noteCells) 1 else 0).toFloat()
                 ticks.forEach { m ->
                     val x = size.width * (m - axisLow + if (noteCells) .5f else 0f) / span
-                    val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 11.sp, color = Grey))
+                    val layout = measurer.measure(sharpNoteText(labelOf(m), 11.sp), TextStyle(fontSize = 11.sp, color = Grey))
                     drawText(layout, topLeft = Offset((x - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
                 }
             }
@@ -194,7 +195,9 @@ fun GuidedPitchGauge(
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         PitchHoldRing(targetName, holdSeconds, ringSize = ringSize, holdLabel = holdLabel)
         Spacer(Modifier.height(if (compact) 2.dp else 12.dp))
-        val labelLayouts = neighborNames.take(5).map { measurer.measure(it, TextStyle(fontSize = 15.sp, color = Grey), softWrap = false, maxLines = 1) }
+        val labelLayouts = neighborNames.take(5).map {
+            measurer.measure(sharpNoteText(it, 15.sp), TextStyle(fontSize = 15.sp, color = Grey), softWrap = false, maxLines = 1)
+        }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val labelHeight = with(LocalDensity.current) { (labelLayouts.maxOfOrNull { it.size.height } ?: 0).toDp() }
             val chartHeight = if (compact) minOf(gaugeHeight, (maxWidth / 2 - 36.dp + labelHeight + 32.dp).coerceAtLeast(80.dp))

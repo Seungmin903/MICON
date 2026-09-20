@@ -63,6 +63,7 @@ import com.micon.app.ui.charts.PianoTargetKeyboard
 import com.micon.app.ui.charts.PitchGauge
 import com.micon.app.ui.charts.WaveformBars
 import com.micon.app.ui.common.BackHeader
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PillChip
@@ -414,7 +415,8 @@ private fun MicCheckBody(state: QuickAnalysisViewModel.State, onVoiceType: (Quic
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text("시작 음 " + state.targets.joinToString(" → ") { ScoringMath.midiName(it) } + " · 측정 중에 건반으로 바꿀 수 있어요", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center)
+        Text(sharpNoteText("시작 음 " + state.targets.joinToString(" → ") { ScoringMath.midiName(it) } +
+            " · 측정 중에 건반으로 바꿀 수 있어요", 12.sp), fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         PrimaryButton("측정 시작", onStart, Modifier.fillMaxWidth(), enabled = state.micRunning)
         Spacer(Modifier.height(14.dp))
@@ -449,8 +451,8 @@ private fun PitchBody(
         PitchGauge(ScoringMath.midiName(target), names, state.cents?.coerceIn(-200f, 200f), state.matched, state.holdProgress, gaugeHeight = 128.dp, ringSize = 76.dp)
         Spacer(Modifier.height(4.dp))
         val (title, subtitle, color) = hintFor(state)
-        Text(title, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = TextAlign.Center)
-        Text(subtitle, fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center)
+        Text(sharpNoteText(title, 21.sp), fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = TextAlign.Center)
+        Text(sharpNoteText(subtitle, 14.sp), fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center)
         Spacer(Modifier.height(14.dp))
         MiconCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
             PianoTargetKeyboard(targetMidi = target, detectedMidi = state.detectedMidi, matched = state.matched, onKeyTap = onKeyTap)
@@ -471,9 +473,11 @@ private fun PitchBody(
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(
+        val confirmedLabel =
             if (state.confirmed.isEmpty()) "확인된 음 0 / ${QuickAnalysisViewModel.REQUIRED_NOTES} · 못 내는 음은 건너뛰면 다른 음을 추천해요"
-            else "확인된 음 ${state.confirmed.size} / ${QuickAnalysisViewModel.REQUIRED_NOTES}: " + state.confirmed.joinToString(" · ") { ScoringMath.midiName(it) },
+            else "확인된 음 ${state.confirmed.size} / ${QuickAnalysisViewModel.REQUIRED_NOTES}: " +
+                state.confirmed.joinToString(" · ") { ScoringMath.midiName(it) }
+        Text(sharpNoteText(confirmedLabel, 13.sp),
             fontSize = 13.sp, color = if (state.confirmed.isEmpty()) Grey else Teal, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
@@ -519,7 +523,8 @@ private fun DoneBody(state: QuickAnalysisViewModel.State) {
             Text("확인된 음이 없어 기본 프로필로 시작해요", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center)
         } else {
             val low = state.confirmed.min(); val high = state.confirmed.max()
-            Text("편안한 음역 ${ScoringMath.midiName(low)} ~ ${ScoringMath.midiName(high)}", fontSize = 16.sp, color = Purple, fontWeight = FontWeight.SemiBold)
+            Text(sharpNoteText("편안한 음역 ${ScoringMath.midiName(low)} ~ ${ScoringMath.midiName(high)}", 16.sp),
+                fontSize = 16.sp, color = Purple, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(18.dp))
             MiconCard { PianoRangeChart(hlLow = low, hlHigh = high, lowMidi = (low - 7).coerceAtLeast(36), highMidi = (high + 7).coerceAtMost(96)) }
         }

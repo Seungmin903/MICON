@@ -55,7 +55,7 @@ class AdaptiveRangePresentationTest {
             view.value=session.view()
         }
         compose.onNodeWithText("6반음씩 고음 탐색").assertIsDisplayed()
-        compose.onNodeWithText("목표 F♯4").assertIsDisplayed()
+        compose.onNodeWithText("목표 F#4").assertIsDisplayed()
         compose.onNodeWithTag("range-pass-guide").assertIsDisplayed()
             .assertTextEquals("소리 내기 어려운 음은 패스할 수 있어요.")
         compose.runOnIdle { voice(30) }

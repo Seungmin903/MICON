@@ -43,6 +43,7 @@ import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.OnboardingDarkBackground
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -122,7 +123,9 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                         if (state.stopReason == "input_quality") Text("주변 소리와 마이크 위치도 확인해 주세요.", color = Grey)
                         if (state.stopReason == "model_limit") Text("이번 테스트는 C2~C6 범위의 음을 확인할 수 있어요.", color = Grey)
                         if (state.hasAttempts) OutlinedButton(onClick = vm::previewReference, enabled = state.soundReady && !state.previewPlaying, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (state.previewPlaying) "기준음 재생 중…" else "시작음 ${ScoringMath.midiName(state.previewMidi)} 듣기")
+                            val previewLabel = if (state.previewPlaying) "기준음 재생 중…"
+                                else "시작음 ${ScoringMath.midiName(state.previewMidi)} 듣기"
+                            Text(sharpNoteText(previewLabel, 14.sp))
                         }
                         PrimaryButton("편한 시작음 다시 찾기", { vm.discardPending(); onRestart() }, Modifier.fillMaxWidth(), enabled = !state.previewPlaying)
                         OutlinePurpleButton("여기서 나가기", onDone, Modifier.fillMaxWidth())
