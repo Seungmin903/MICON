@@ -1,6 +1,7 @@
 package com.micon.app.ui.songlist
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +61,7 @@ import com.micon.app.ui.common.SongRow
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
+import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.CancellationException
@@ -172,6 +177,7 @@ fun SongListScreen(
     val loggedIn = TokenManager.isLoggedIn()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var selectedGenre by remember { mutableStateOf("전체") }
     // 찜은 서버가 진실. 로그인 상태면 진입 때 캐시를 한 번 맞춘다(비회원은 서버를 부르지 않는다).
     LaunchedEffect(loggedIn) { if (loggedIn) runCatching { container.favorites.refresh() } }
     fun like(songId: String) {
@@ -185,7 +191,7 @@ fun SongListScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
         if (backTitle != null) {
             BackHeader(backTitle, onBack)
             Spacer(Modifier.height(12.dp))
@@ -196,7 +202,39 @@ fun SongListScreen(
         } else {
             MiconHeader(onSettings = onSettings, onLogin = onLogin)
         }
-        MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
+        MiconSearchBar(
+            state.query,
+            vm::setQuery,
+            Modifier.padding(horizontal = 20.dp),
+            placeholder = "노래나 가수를 검색해 보세요",
+            prototypeStyle = true,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PRACTICE_GENRES.forEach { genre ->
+                val selected = selectedGenre == genre
+                Surface(
+                    onClick = { selectedGenre = genre },
+                    modifier = Modifier.height(36.dp),
+                    shape = RoundedCornerShape(50),
+                    color = if (selected) Purple else Color.White,
+                    border = BorderStroke(1.dp, if (selected) Purple else Color(0xFFE4E2EE)),
+                    shadowElevation = if (selected) 0.dp else 1.dp,
+                ) {
+                    Box(Modifier.padding(horizontal = 15.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            genre,
+                            color = if (selected) Color.White else Ink,
+                            fontSize = 13.5.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -221,9 +259,9 @@ fun SongListScreen(
                             artist = song.artist,
                             imageUrl = song.imageUrl,
                             onClick = { onSongClick(song.id) },
-                            keyBadge = state.keys[song.id],
                             liked = song.id in liked,
                             onLike = { like(song.id) },
+                            compactCd = true,
                         )
                     }
                     if (state.songs.isEmpty()) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }
@@ -233,3 +271,5 @@ fun SongListScreen(
         }
     }
 }
+
+private val PRACTICE_GENRES = listOf("전체", "발라드", "댄스", "R&B", "록/메탈", "힙합", "인디")
