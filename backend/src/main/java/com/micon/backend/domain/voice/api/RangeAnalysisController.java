@@ -27,7 +27,7 @@ public class RangeAnalysisController {
 
     @PostMapping(consumes = "multipart/form-data")
     @Operation(summary = "음역 녹음 분석 요청",
-            description = "WAV와 guided-range-v7 메타데이터를 AI에 직접 전달합니다.")
+            description = "WAV와 guided-range-v7/v8 메타데이터를 AI에 직접 전달합니다.")
     public ResponseEntity<ApiResponse<VoiceAnalysisJobResponse>> submit(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Guest-Session-Token", required = false) String guestToken,

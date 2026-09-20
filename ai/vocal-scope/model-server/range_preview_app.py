@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from guided_range import analyze
 from range_models import Submission
+from guided_range_v8 import analyze_free
 from range_upload import RangeUploadRoute
 
 app = FastAPI(title="MICON local range model preview", version="1")
@@ -33,7 +34,7 @@ async def loopback_only(request: Request, call_next):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "mode": "model_preview", "models": ["CREPE full", "pYIN"], "protocolVersion": "guided-range-v7", "supportedProtocolVersions": ["guided-range-v1", "guided-range-v2", "guided-range-v3", "guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7"]}
+    return {"status": "ok", "mode": "model_preview", "models": ["CREPE full", "pYIN"], "protocolVersion": "guided-range-v8", "supportedProtocolVersions": ["guided-range-v1", "guided-range-v2", "guided-range-v3", "guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7", "guided-range-v8"]}
 
 
 def report_path(identifier: str) -> Path:
@@ -45,11 +46,19 @@ def guided_range(audio: UploadFile = File(...), metadata: str = Form(...)):
     if len(metadata) > 8_000_000:
         raise HTTPException(413, "Measurement metadata too large")
     try:
-        submission = Submission.model_validate_json(metadata)
-        if submission.protocolVersion not in ('guided-range-v5', 'guided-range-v6', 'guided-range-v7') and len(metadata) > 200_000:
+        raw = json.loads(metadata)
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid measurement metadata")
+        free = raw.get("protocolVersion") == "guided-range-v8"
+        submission = raw if free else Submission.model_validate(raw)
+        protocol = raw.get("protocolVersion") if free else submission.protocolVersion
+        session_id = raw.get("sessionId") if free else submission.sessionId
+        if free and (raw.get("mode") != "basic" or len(raw.get("stages", [])) != 3):
+            raise ValueError("Invalid free range stages")
+        if protocol not in ('guided-range-v5', 'guided-range-v6', 'guided-range-v7', 'guided-range-v8') and len(metadata) > 200_000:
             raise HTTPException(413, 'Measurement metadata too large')
-        destination = report_path(submission.sessionId)
-        parent_path = report_path(submission.parentAnalysisId) if submission.mode == "extension" else None
+        destination = report_path(session_id)
+        parent_path = report_path(submission.parentAnalysisId) if not free and submission.mode == "extension" else None
     except (ValidationError, ValueError, TypeError) as e:
         raise HTTPException(422, "Invalid measurement metadata") from e
     if not worker.acquire(blocking=False):
@@ -71,14 +80,14 @@ def guided_range(audio: UploadFile = File(...), metadata: str = Form(...)):
             with path.open("wb") as output:
                 while chunk := audio.file.read(65536):
                     count += len(chunk)
-                    if submission.protocolVersion == "guided-range-v1" and count > 10_000_000:
+                    if protocol == "guided-range-v1" and count > 10_000_000:
                         raise HTTPException(413, "Recording too large")
                     output.write(chunk)
             try:
-                report = analyze(path, submission, previous)
+                report = analyze_free(path, raw) if free else analyze(path, submission, previous)
             except ValueError as e:
                 raise HTTPException(422, str(e)) from e
-        report.update(verification="model_verified", analysisId=submission.sessionId)
+        report.update(verification="model_verified", analysisId=session_id)
         temporary = destination.with_suffix(".json.new")
         temporary.write_text(json.dumps(report, ensure_ascii=False, allow_nan=False), encoding="utf-8")
         os.replace(temporary, destination)

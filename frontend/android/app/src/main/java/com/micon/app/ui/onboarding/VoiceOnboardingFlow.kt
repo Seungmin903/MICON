@@ -26,6 +26,7 @@ import com.micon.app.data.onboarding.*
 import com.micon.app.range.RangeReport
 import com.micon.app.ui.common.*
 import com.micon.app.ui.report.GuidedRangeScreen
+import com.micon.app.ui.report.FreeRangeScreen
 import com.micon.app.ui.report.RangeResultCards
 import com.micon.app.ui.report.VoiceReportContent
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
@@ -93,15 +94,19 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             }
             composable("measure") {
                 BackHandler { leave() }
-                GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
-                    repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = { measurementId ->
+                val measurementSaved: (String) -> Unit = { measurementId ->
                         if (vm.rangeMeasurementSaved(measurementId) && nav.currentDestination?.route == "measure") {
                             nav.navigate("song-guide") {
                                 popUpTo("measure") { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
-                    })
+                    }
+                if (store.rangeRepository.pending()?.submission?.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) {
+                    GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
+                        repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = measurementSaved)
+                } else FreeRangeScreen(onBack = ::leave, repository = store.rangeRepository,
+                    onMeasurementSaved = measurementSaved)
             }
             composable("song-guide") {
                 BackHandler { leave() }

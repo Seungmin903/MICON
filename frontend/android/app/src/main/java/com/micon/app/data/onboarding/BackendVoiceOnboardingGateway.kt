@@ -190,7 +190,7 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
     }
 
     private fun VoiceRangeDto.toReport(sessionId: Long) = RangeReport(
-        protocolVersion = RangeProtocol.VERSION,
+        protocolVersion = protocolVersion ?: RangeProtocol.VERSION,
         notes = noteResults.orEmpty(),
         lowMidi = lowMidi?.toInt(),
         highMidi = highMidi?.toInt(),
@@ -201,6 +201,8 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         availability = if (measurementStatus == "AVAILABLE") "available" else "insufficient_data",
         verification = "server_verified",
         backendSessionId = sessionId,
+        stableLowMidi = stableLowMidi,
+        stableHighMidi = stableHighMidi,
     )
 
     private fun String?.toComponentStatus() = runCatching { ComponentStatus.valueOf(this ?: "PENDING") }

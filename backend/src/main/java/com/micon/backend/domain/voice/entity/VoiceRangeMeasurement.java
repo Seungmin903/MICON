@@ -16,6 +16,8 @@ public class VoiceRangeMeasurement {
     @Column(nullable = false, length = 30) private String source;
     @Column(name = "full_low_midi", precision = 6, scale = 2) private BigDecimal fullLowMidi;
     @Column(name = "full_high_midi", precision = 6, scale = 2) private BigDecimal fullHighMidi;
+    @Column(name = "stable_low_midi", precision = 6, scale = 2) private BigDecimal stableLowMidi;
+    @Column(name = "stable_high_midi", precision = 6, scale = 2) private BigDecimal stableHighMidi;
     @Column(name = "note_results", nullable = false, columnDefinition = "json") private String noteResults;
     @Column(name = "measurement_status", nullable = false, length = 30) private String measurementStatus;
     @Column(name = "quality_status", nullable = false, length = 30) private String qualityStatus;
@@ -32,16 +34,28 @@ public class VoiceRangeMeasurement {
     public VoiceRangeMeasurement(VoiceAnalysisSession session, String measurementUid, String ruleVersion,
                                  String source, BigDecimal lowMidi, BigDecimal highMidi, String noteResults,
                                  String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
+        this(session, measurementUid, ruleVersion, source, lowMidi, highMidi, null, null, noteResults,
+                measurementStatus, qualityStatus, measuredAt);
+    }
+
+    public VoiceRangeMeasurement(VoiceAnalysisSession session, String measurementUid, String ruleVersion,
+                                 String source, BigDecimal lowMidi, BigDecimal highMidi,
+                                 BigDecimal stableLowMidi, BigDecimal stableHighMidi, String noteResults,
+                                 String measurementStatus, String qualityStatus, LocalDateTime measuredAt) {
         this.session = session; this.measurementUid = measurementUid; this.ruleVersion = ruleVersion;
         if (!"ON_DEVICE".equals(source) && !"SERVER_AI".equals(source)) {
             throw new IllegalArgumentException("unsupported range measurement source");
         }
         this.source = source; this.fullLowMidi = lowMidi; this.fullHighMidi = highMidi;
+        this.stableLowMidi = stableLowMidi; this.stableHighMidi = stableHighMidi;
         this.noteResults = noteResults; this.measurementStatus = measurementStatus;
         this.qualityStatus = qualityStatus; this.measuredAt = measuredAt; this.submittedAt = LocalDateTime.now();
     }
     public BigDecimal getFullLowMidi() { return fullLowMidi; }
     public BigDecimal getFullHighMidi() { return fullHighMidi; }
+    public BigDecimal getStableLowMidi() { return stableLowMidi; }
+    public BigDecimal getStableHighMidi() { return stableHighMidi; }
+    public String getRuleVersion() { return ruleVersion; }
     public String getSource() { return source; }
     public String getMeasurementUid() { return measurementUid; }
     public String getNoteResults() { return noteResults; }

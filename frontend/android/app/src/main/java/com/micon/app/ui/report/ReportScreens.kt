@@ -262,12 +262,6 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
                 labelOf = ReportNoteNames::note)
         }
 
-        MiconCard {
-            CardTitle("음역별 안정성")
-            Spacer(Modifier.height(10.dp))
-            StabilityLineChart(p.stability, p.stabilityLabels.map(ReportNoteNames::fromScientific))
-        }
-
     }
 }
 

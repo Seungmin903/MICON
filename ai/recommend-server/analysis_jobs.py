@@ -149,10 +149,11 @@ def _ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, An
         uuid.UUID(request_id)
         if any(type(meta.get(k)) is not int or meta[k] < 1 for k in ("analysisId", "sessionId", "attemptNo")):
             raise ValueError()
-        if meta.get("contractVersion") != "v1":
+        expected_contract = "v2" if meta.get("analysisType") == "RANGE" and meta.get("protocolVersion") == "guided-range-v8" else "v1"
+        if meta.get("contractVersion") != expected_contract:
             raise ValueError()
     except (ValueError, TypeError):
-        raise HTTPException(422, "requestId UUID, 양수 analysisId/sessionId/attemptNo, contractVersion v1이 필요합니다.")
+        raise HTTPException(422, "requestId UUID, 양수 analysisId/sessionId/attemptNo, 올바른 contractVersion이 필요합니다.")
     components = _components(meta)
     if set(files) != {"file"} or not files["file"] or len(files["file"]) > MAX_BYTES:
         raise HTTPException(422, "64MB 이하 file WAV 파트 하나가 필요합니다.")
@@ -499,9 +500,11 @@ def _range_callback(job, audio):
     payload = _failure_callback(job, "RANGE", "INSUFFICIENT_DATA", "INSUFFICIENT_DATA", "확인된 음역이 없습니다.")
     if report.get("availability") != "available":
         return payload
-    payload.update(status="COMPLETED", modelKey="RANGE", modelVersion="guided-range-v7",
+    protocol = report.get("protocolVersion", "guided-range-v7")
+    payload.update(status="COMPLETED", modelKey="RANGE", modelVersion=protocol,
                    failureCode=None, failureReason=None, measurementId=job["meta"]["measurementId"],
-                   protocolVersion="guided-range-v7", lowMidi=report["lowMidi"], highMidi=report["highMidi"],
+                   protocolVersion=protocol, lowMidi=report["lowMidi"], highMidi=report["highMidi"],
+                   stableLowMidi=report.get("stableLowMidi"), stableHighMidi=report.get("stableHighMidi"),
                    noteResults=report["notes"], measurementStatus="AVAILABLE", qualityStatus="VALID")
     return payload
 
