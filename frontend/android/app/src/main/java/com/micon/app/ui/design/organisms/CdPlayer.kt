@@ -1,6 +1,17 @@
 package com.micon.app.ui.design.organisms
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,7 +81,13 @@ fun CdPlayer(
     loaded: Boolean = title != null,
     hasPrev: Boolean = trackIndex > 1,
     hasNext: Boolean = trackIndex < trackTotal,
+    /** CD 를 아래로 끌어내리면 — 프로토타입 "CD를 아래로 끌어내리면 빼기". null 이면 드래그 없음 */
+    onDiscDragDown: (() -> Unit)? = null,
 ) {
+    val density = LocalDensity.current
+    val pullThreshold = with(density) { 72.dp.toPx() }
+    val pull = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -98,7 +115,25 @@ fun CdPlayer(
                         size = stage * 0.9f,
                         spinning = spinning,
                         contentDescription = "$title, $artist. 눌러서 곡 자세히 보기",
-                        modifier = Modifier.clickable(onClick = onDiscClick),
+                        modifier = Modifier
+                            .graphicsLayer {
+                                translationY = pull.value
+                                val p = (pull.value / pullThreshold).coerceIn(0f, 1f)
+                                alpha = 1f - 0.35f * p
+                            }
+                            .then(
+                                if (onDiscDragDown == null) Modifier else Modifier.pointerInput(title) {
+                                    detectVerticalDragGestures(
+                                        onVerticalDrag = { _, dy -> scope.launch { pull.snapTo((pull.value + dy).coerceAtLeast(0f)) } },
+                                        onDragEnd = {
+                                            if (pull.value > pullThreshold) { onDiscDragDown(); scope.launch { pull.snapTo(0f) } }
+                                            else scope.launch { pull.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
+                                        },
+                                        onDragCancel = { scope.launch { pull.animateTo(0f) } },
+                                    )
+                                },
+                            )
+                            .clickable(onClick = onDiscClick),
                     )
                 } else {
                     Spindle(stage * 0.78f)

@@ -1,5 +1,9 @@
 package com.micon.app.ui.songdetail
 
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.foundation.shape.GenericShape
+import kotlin.math.atan2
+import kotlin.math.sqrt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.R
 import com.micon.app.ui.common.VinylArt
-import com.micon.app.ui.recommend.TurntableSheetShape
 import com.micon.app.ui.theme.RecommendBackground
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.absoluteValue
@@ -112,4 +115,19 @@ internal fun SongDetailPlayer(state: SongDetailState, onSeek: (Double) -> Unit) 
             else -> "${songKeyLabel(state.selectedKey)} · 반주 미리 듣기" },
             fontSize = 11.sp, color = SongDetailColors.muted, textAlign = TextAlign.Center)
     }
+}
+
+/** 위쪽이 커다란 원호로 둥근 시트. 원호 반지름 = 폭 × [SHEET_ARC_R] 이라 화면 가운데가 가장 높다.
+ *  (LP 턴테이블 화면이 CD 데크로 대체되면서 여기로 옮겨 왔다. 곡 상세 리디자인 때 함께 정리한다.) */
+private const val SHEET_ARC_R = 0.585f
+private val TurntableSheetShape = GenericShape { size, _ ->
+    val r = size.width * SHEET_ARC_R
+    val a = size.width / 2f
+    val s = sqrt((r * r - a * a).coerceAtLeast(0f))
+    val beta = Math.toDegrees(atan2(s.toDouble(), a.toDouble())).toFloat()
+    moveTo(0f, r - s)
+    arcTo(Rect(a - r, 0f, a + r, 2 * r), -180f + beta, 180f - 2 * beta, false)
+    lineTo(size.width, size.height)
+    lineTo(0f, size.height)
+    close()
 }
