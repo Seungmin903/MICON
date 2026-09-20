@@ -63,7 +63,9 @@ public class VoiceAnalysisUploadValidator {
 
     // Each sweep stage is a fixed mission; comfort still ends on a held note.
     private static final double MISSION_SECONDS = 15;
-    private static final double COMFORT_HOLD_SECONDS = .5;
+    private static final double MAX_STAGE_SECONDS = 45;
+    private static final double COMFORT_TIMEOUT_SECONDS = 30;
+    private static final double COMFORT_HOLD_SECONDS = 1.5;
     private static final double SWEEP_HOLD_SECONDS = .3;
     private static final double ENDPOINT_OFFSET_SECONDS = .5;
 
@@ -83,8 +85,8 @@ public class VoiceAnalysisUploadValidator {
             boolean sweep = index > 0;
             double length = end - start;
             boolean badLength = sweep
-                    ? length < MISSION_SECONDS - .1 || length > MISSION_SECONDS + .6
-                    : length > 25;
+                    ? length < MISSION_SECONDS - .1 || length > MAX_STAGE_SECONDS + .6
+                    : length > COMFORT_TIMEOUT_SECONDS + .5;
             double minimumHold = (sweep ? SWEEP_HOLD_SECONDS : COMFORT_HOLD_SECONDS) - .05;
             if (!Double.isFinite(start) || !Double.isFinite(end) || !Double.isFinite(holdStart) || !Double.isFinite(holdEnd)
                     || !Double.isFinite(startMidi) || !Double.isFinite(endpointMidi)

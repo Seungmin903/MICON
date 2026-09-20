@@ -10,7 +10,9 @@ import numpy as np
 
 # Each sweep stage is a fixed mission; comfort still ends on a held note.
 MISSION_SECONDS = 15.0
-COMFORT_HOLD_SECONDS = .5
+MAX_STAGE_SECONDS = 45.0
+COMFORT_TIMEOUT_SECONDS = 30.0
+COMFORT_HOLD_SECONDS = 1.5
 SWEEP_HOLD_SECONDS = .3
 ENDPOINT_OFFSET_SECONDS = .5
 
@@ -33,7 +35,8 @@ def validate_meta(meta: dict, duration: float) -> list[dict]:
             raise ValueError("invalid stage time or pitch") from error
         sweep = index > 0
         length = end - start
-        bad_length = (not MISSION_SECONDS - .1 <= length <= MISSION_SECONDS + .6) if sweep else length > 25
+        bad_length = ((not MISSION_SECONDS - .1 <= length <= MAX_STAGE_SECONDS + .6) if sweep
+                      else length > COMFORT_TIMEOUT_SECONDS + .5)
         minimum_hold = (SWEEP_HOLD_SECONDS if sweep else COMFORT_HOLD_SECONDS) - .05
         if (not all(math.isfinite(value) for value in
                     (start, end, hold_start, hold_end, origin, endpoint))

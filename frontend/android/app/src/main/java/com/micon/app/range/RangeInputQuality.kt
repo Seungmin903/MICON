@@ -77,7 +77,7 @@ class RangeInputQuality {
                     val sweep = index > 0
                     val length = stage.end - stage.start
                     val badLength = if (sweep) length < FreeRangeSession.MISSION_SECONDS - .1 ||
-                        length > FreeRangeSession.MISSION_SECONDS + .6
+                        length > FreeRangeSession.MAX_STAGE_SECONDS + .6
                     else length > FreeRangeSession.COMFORT_TIMEOUT_SECONDS + .5
                     val minimumHold = if (sweep) FreeRangeSession.EXTREME_HOLD_SECONDS else FreeRangeSession.HOLD_SECONDS
                     val values = listOf(stage.start, stage.end, stage.startMidi, stage.endpointMidi,

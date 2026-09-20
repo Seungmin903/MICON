@@ -2,6 +2,7 @@ package com.micon.app.range
 
 import java.util.UUID
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -19,6 +20,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         val message: String,
         val remainingSeconds: Double = 0.0,
         val extremeMidi: Double? = null,
+        val voicedSeconds: Double = 0.0,
     )
 
     private var phase = "noise"
@@ -48,7 +50,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     @Synchronized fun view() = View(phase, stages.size, currentMidi, runDuration(),
         now - stageStart, message,
         if (phase in setOf("down", "up")) (MISSION_SECONDS - (now - stageStart)).coerceAtLeast(0.0) else 0.0,
-        if (phase in setOf("down", "up")) bestMidi else null)
+        if (phase in setOf("down", "up")) bestMidi else null, voicedSeconds)
 
     @Synchronized fun onFrame(frame: RangeFrame): View {
         if (!frame.t.isFinite() || !frame.duration.isFinite() || frame.duration <= 0 || frame.t + frame.duration < now - .1) return view()
@@ -104,8 +106,13 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
                     sameRun && direction * (candidate - bestMidi!!) >= 0)) keepRun(candidate)
         }
         val reached = bestMidi?.let { direction * (it - startMidi!!) >= 2.0 } == true
+        val overtime = now - stageStart >= MISSION_SECONDS
         message = when {
-            reached -> "좋아요. 남은 시간 동안 더 ${if (direction < 0) "낮은" else "높은"} 음까지 가 볼 수 있어요"
+            overtime && voicedSeconds < MIN_VOICED_SECONDS ->
+                "조금 더 불러 주세요. ${ceil(MIN_VOICED_SECONDS - voicedSeconds).toInt()}초 더 부르면 돼요"
+            overtime && !usable() ->
+                "아직 기록할 구간을 못 찾았어요. 조금 더 ${if (direction < 0) "낮게" else "높게"} 이어서 불러 주세요"
+            reached -> "좋아요. 더 ${if (direction < 0) "낮은" else "높은"} 음까지 가 볼 수 있어요"
             else -> "편안한 음에서 천천히 ${if (direction < 0) "내려" else "올려"} 주세요"
         }
         deadline()
@@ -138,15 +145,19 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
             FreeRangeCheckpoint(id, stages.toList(), noiseRms, audioSeconds) else null
 
     companion object {
-        const val HOLD_SECONDS = 0.5
+        const val HOLD_SECONDS = 1.5
         const val HOLD_TOLERANCE_SEMITONES = 1.5
-        /** Each sweep stage is a fixed mission; whatever was reached inside it is the boundary. */
+        /** A sweep stage runs at least this long; the boundary is whatever it reached by then. */
         const val MISSION_SECONDS = 15.0
+        /** Without a usable segment a sweep keeps listening, but never past this. */
+        const val MAX_STAGE_SECONDS = 45.0
         /** A boundary candidate has to be sung steadily for at least this long. */
         const val EXTREME_HOLD_SECONDS = 0.3
         /** The endpoint may not be claimed from the very first instant of a stage. */
         const val ENDPOINT_OFFSET_SECONDS = 0.5
-        const val COMFORT_TIMEOUT_SECONDS = 20.0
+        /** Silence does not count: a sweep is not over until this much voice went into it. */
+        const val MIN_VOICED_SECONDS = 5.0
+        const val COMFORT_TIMEOUT_SECONDS = 30.0
 
         fun restore(checkpoint: FreeRangeCheckpoint): FreeRangeSession? {
             if (checkpoint.stages.map { it.kind } != listOf("comfort", "down", "up").take(checkpoint.stages.size)
@@ -174,25 +185,33 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         currentMidi = null
         message = when (name) {
             "noise" -> "잠시 조용히 계세요"
-            "comfort" -> "편한 목소리로 '아'를 0.5초 내주세요"
+            "comfort" -> "편한 목소리로 '아'를 1.5초 내주세요"
             "down" -> "편안한 음에서 천천히 목소리를 내려주세요"
             else -> "편안한 음에서 천천히 목소리를 높여주세요"
         }
     }
 
-    /** Ends the stage once its clock runs out; sweeps keep whatever boundary they reached. */
+    /**
+     * The mission time is a floor, not a deadline. A sweep ends as soon as it has a usable
+     * segment, and until then it keeps listening rather than throwing the attempt away.
+     */
     private fun deadline() {
         if (phase == "comfort") { if (now - stageStart >= COMFORT_TIMEOUT_SECONDS) fail(); return }
-        if (phase !in setOf("down", "up") || now - stageStart < MISSION_SECONDS) return
+        if (phase !in setOf("down", "up")) return
+        val elapsed = now - stageStart
+        if (elapsed < MISSION_SECONDS) return
+        if (!usable()) { if (elapsed >= MAX_STAGE_SECONDS) fail(); return }
+        complete(minOf(now, stageStart + MAX_STAGE_SECONDS + .4).coerceAtLeast(bestEnd ?: now))
+    }
+
+    /** Everything the stage owes the server: a steady boundary, real movement and real voice. */
+    private fun usable(): Boolean {
         val direction = if (phase == "down") -1 else 1
-        val origin = startMidi
-        val endpoint = bestMidi
-        val heldFrom = bestStart
-        if (origin == null || endpoint == null || heldFrom == null || voicedSeconds < 2.0 ||
-            direction * (endpoint - origin) < 2.0 || heldFrom - stageStart < ENDPOINT_OFFSET_SECONDS) {
-            fail(); return
-        }
-        complete(minOf(now, stageStart + MISSION_SECONDS + .4).coerceAtLeast(bestEnd ?: now))
+        val origin = startMidi ?: return false
+        val endpoint = bestMidi ?: return false
+        val heldFrom = bestStart ?: return false
+        return voicedSeconds >= MIN_VOICED_SECONDS && direction * (endpoint - origin) >= 2.0 &&
+            heldFrom - stageStart >= ENDPOINT_OFFSET_SECONDS
     }
 
     private fun startRun(midi: Double, start: Double, end: Double) {

@@ -190,12 +190,18 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
             }, Modifier.fillMaxWidth())
             Text(view.message, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             if (view.phase == "comfort") {
-                Text("음 유지 ${"%.1f".format(view.holdSeconds.coerceAtMost(FreeRangeSession.HOLD_SECONDS))}/0.5초", color = Grey)
+                Text("음 유지 ${"%.1f".format(view.holdSeconds.coerceAtMost(FreeRangeSession.HOLD_SECONDS))}/1.5초", color = Grey)
                 LinearProgressIndicator(progress = { (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).toFloat().coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
             }
             if (view.phase in setOf("down", "up")) {
-                Text("남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.MISSION_SECONDS.toInt())}초",
-                    color = Grey, modifier = Modifier.testTag("free-range-remaining"))
+                // Past the mission time the stage says what it is still short of, not a countdown.
+                Text(when {
+                    view.elapsed < FreeRangeSession.MISSION_SECONDS ->
+                        "남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.MISSION_SECONDS.toInt())}초"
+                    view.voicedSeconds < FreeRangeSession.MIN_VOICED_SECONDS ->
+                        "${ceil(FreeRangeSession.MIN_VOICED_SECONDS - view.voicedSeconds).toInt()}초 더 불러 주세요"
+                    else -> "기록할 구간을 기다리는 중…"
+                }, color = Grey, modifier = Modifier.testTag("free-range-remaining"))
                 LinearProgressIndicator(progress = { stageProgress(view).toFloat().coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
                 Text(view.extremeMidi?.let {
                     "지금까지 ${if (view.phase == "down") "가장 낮은" else "가장 높은"} 음 ${ScoringMath.midiName(it)}"

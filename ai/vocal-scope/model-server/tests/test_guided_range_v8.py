@@ -78,12 +78,28 @@ class FreeRangeVerificationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_meta(self.meta, 33.5)
 
-    def test_sweep_stages_must_run_the_full_mission(self):
-        for end in (12.0, 20.0):
-            meta = metadata()
-            meta["stages"][1]["end"] = end
-            with self.assertRaises(ValueError):
-                validate_meta(meta, 33.5)
+    def test_a_sweep_shorter_than_the_mission_time_is_rejected(self):
+        meta = metadata()
+        meta["stages"][1]["end"] = 12.0
+        with self.assertRaises(ValueError):
+            validate_meta(meta, 33.5)
+
+    def test_a_sweep_may_run_past_the_mission_time_up_to_the_cap(self):
+        allowed = metadata()
+        allowed["stages"][1]["end"] = 25
+        allowed["stages"][2].update(start=25.2, end=40.2, holdStart=30, holdEnd=30.5)
+        self.assertEqual(3, len(validate_meta(allowed, 41)))
+
+        beyond = metadata()
+        beyond["stages"][1]["end"] = 50
+        beyond["stages"][2].update(start=50.2, end=65.2, holdStart=55, holdEnd=55.5)
+        with self.assertRaises(ValueError):
+            validate_meta(beyond, 66)
+
+    def test_a_comfort_hold_shorter_than_one_and_a_half_seconds_is_rejected(self):
+        self.meta["stages"][0]["holdStart"] = 1.5
+        with self.assertRaises(ValueError):
+            validate_meta(self.meta, 33.5)
 
     def test_wrong_start_and_an_immediate_endpoint_are_rejected(self):
         wrong_start = [dict(frame, rawMidi=67) if frame["t"] < 3.7 else frame
