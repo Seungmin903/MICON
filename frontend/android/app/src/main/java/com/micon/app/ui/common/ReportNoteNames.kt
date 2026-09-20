@@ -2,14 +2,14 @@ package com.micon.app.ui.common
 
 import kotlin.math.floor
 
-/** Report notation requested as 3옥타브 솔 (MIDI 55) → 4G(솔). */
+/** Scientific MIDI octave notation: MIDI 55 → 3G(솔), MIDI 60 → 4C(도). */
 object ReportNoteNames {
-    private val letters = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
-    private val syllables = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
+    private val letters = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+    private val syllables = arrayOf("도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시")
 
     fun note(midi: Int): String {
         val pitchClass = ((midi % 12) + 12) % 12
-        return "${floor(midi / 12.0).toInt()}${letters[pitchClass]}(${syllables[pitchClass]})"
+        return "${floor(midi / 12.0).toInt() - 1}${letters[pitchClass]}(${syllables[pitchClass]})"
     }
 
     fun range(lowMidi: Int, highMidi: Int): String = "${note(lowMidi)} ~ ${note(highMidi)}"

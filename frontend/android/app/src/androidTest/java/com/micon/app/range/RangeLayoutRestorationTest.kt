@@ -75,7 +75,7 @@ class RangeLayoutRestorationTest {
         assertTrue(input.bottom <= feedback.top)
         assertTrue(feedback.bottom < piano.top)
         assertTrue(finish.bottom <= page.bottom)
-        compose.onNodeWithText("F♯4 재생 중…").assertIsDisplayed()
+        compose.onNodeWithText("F#4 재생 중…").assertIsDisplayed()
         compose.onNodeWithText("이 음 패스하기").assertIsDisplayed()
         compose.onAllNodes(hasScrollAction()).assertCountEquals(0)
         compose.onNodeWithText("보라 테두리 목표",substring=true).assertDoesNotExist()

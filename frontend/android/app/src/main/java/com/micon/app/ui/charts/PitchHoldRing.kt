@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.common.rangeSharpNotation
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import java.util.Locale
 import kotlin.math.floor
@@ -36,6 +38,7 @@ import kotlin.math.roundToInt
 @Composable
 fun PitchHoldRing(targetName: String, holdSeconds: Float, modifier: Modifier = Modifier, ringSize: Dp = 64.dp,
                   holdLabel: String = "연속 유지") {
+    val displayTargetName = targetName.rangeSharpNotation()
     val seconds = if (holdSeconds.isFinite()) holdSeconds.coerceAtLeast(0f) else 0f
     val completed = floor(seconds).toInt()
     val fraction = seconds - completed
@@ -47,10 +50,11 @@ fun PitchHoldRing(targetName: String, holdSeconds: Float, modifier: Modifier = M
     val baseStyle = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Ink)
     // Use the same fitted font for every supported note, including sharps and the octave.
     val widestName = remember(measurer, density.density, density.fontScale) {
-        (36..84).map(ScoringMath::midiName).maxBy { measurer.measure(it, baseStyle, softWrap = false, maxLines = 1).size.width }
+        (36..84).map { ScoringMath.midiName(it).rangeSharpNotation() }
+            .maxBy { measurer.measure(sharpNoteText(it, 32.sp), baseStyle, softWrap = false, maxLines = 1).size.width }
     }
     BoxWithConstraints(modifier.size(ringSize).testTag("pitch-hold-ring").semantics {
-        contentDescription = "목표음 $targetName"
+        contentDescription = "목표음 $displayTargetName"
         stateDescription = "$holdLabel ${String.format(Locale.ROOT, "%.2f", seconds)}초 · 완료한 원 ${completed}개 · 다음 원 ${(fraction * 100).roundToInt()}퍼센트"
     }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
@@ -69,12 +73,14 @@ fun PitchHoldRing(targetName: String, holdSeconds: Float, modifier: Modifier = M
             var high = 32f
             repeat(10) {
                 val candidate = (low + high) / 2
-                val size = measurer.measure(widestName, baseStyle.copy(fontSize = candidate.sp), softWrap = false, maxLines = 1).size
+                val size = measurer.measure(sharpNoteText(widestName, candidate.sp), baseStyle.copy(fontSize = candidate.sp),
+                    softWrap = false, maxLines = 1).size
                 if (size.width <= availableWidth - 2 && size.height <= availableHeight - 2) low = candidate else high = candidate
             }
             low.sp
         }
-        Text(targetName, modifier = Modifier.width((maxWidth - 24.dp).coerceAtLeast(1.dp)).testTag("pitch-target-note"),
+        Text(sharpNoteText(displayTargetName, fontSize),
+            modifier = Modifier.width((maxWidth - 24.dp).coerceAtLeast(1.dp)).testTag("pitch-target-note"),
             style = baseStyle.copy(fontSize = fontSize, textAlign = TextAlign.Center), maxLines = 1, softWrap = false)
     }
 }

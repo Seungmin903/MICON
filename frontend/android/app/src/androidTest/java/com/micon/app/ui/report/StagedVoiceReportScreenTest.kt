@@ -80,7 +80,7 @@ class StagedVoiceReportScreenTest {
         compose.onNodeWithText("분석 중").assertDoesNotExist()
         compose.onNodeWithText("노래 음색 분석").assertDoesNotExist()
         compose.onNodeWithText("나와 닮은 가수").assertIsDisplayed()
-        compose.onNodeWithTag("ecapa-embedding-card").assertExists()
+        compose.onNodeWithTag("voice-similarity-graph-card").assertDoesNotExist()
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = progress.copy(byol = ComponentStatus.FAILED) }
         compose.onNodeWithText("다시 시도").performScrollTo().performClick()
@@ -96,6 +96,7 @@ class StagedVoiceReportScreenTest {
         compose.onNodeWithText("내 목소리에 맞는 음악").assertDoesNotExist()
         compose.runOnIdle { progress = complete }
         compose.onNodeWithText("테스트 가수").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("voice-similarity-graph-card").performScrollTo().assertIsDisplayed()
         capture("staged-timbre-result.png")
         listOf("음색 분석 결과", "내 목소리에 맞는 음악", "곡 적합도", "종합 보컬 특성").forEach {
             compose.onNodeWithText(it).assertDoesNotExist()

@@ -28,6 +28,8 @@ import com.micon.app.range.RangeNote
 import com.micon.app.range.RangeSession
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.OutlinePurpleButton
+import com.micon.app.ui.common.rangeSharpNotation
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 
 fun rangeStageLabel(session: RangeSession.View): String = when (session.phase) {
@@ -48,7 +50,8 @@ fun RangePitchVisuals(session: RangeSession.View, gaugeHeight: Dp = 240.dp, ring
     session.targetMidi?.let { midi ->
         val feedback = rangeHoldFeedback(session)
         Column(Modifier.testTag("range-pitch-and-hold"), horizontalAlignment = Alignment.CenterHorizontally) {
-            GuidedPitchGauge(ScoringMath.midiName(midi), (midi-2..midi+2).map(ScoringMath::midiName),
+            GuidedPitchGauge(ScoringMath.midiName(midi).rangeSharpNotation(),
+                (midi-2..midi+2).map { ScoringMath.midiName(it).rangeSharpNotation() },
                 session.currentMidi?.let { ((it-midi)*100).toFloat() }, session.pitchZone == "normal",
                 modifier = Modifier.testTag("range-pitch-gauge"),
                 holdSeconds = session.holdProgress * 2.5f, gaugeHeight = gaugeHeight, ringSize = ringSize,
@@ -95,7 +98,9 @@ fun RangeMeasurementPanel(session: RangeSession.View, level: Float, notes: List<
             session.targetMidi?.let { midi ->
                 OutlinedButton(onClick = onReplay, enabled = !session.waitingForCue,
                     modifier = Modifier.fillMaxWidth().height(replayHeight)) {
-                    Text(if (session.waitingForCue) "${ScoringMath.midiName(midi)} 재생 중…" else "${ScoringMath.midiName(midi)} 듣기")
+                    val replayLabel = if (session.waitingForCue) "${ScoringMath.midiName(midi)} 재생 중…"
+                        else "${ScoringMath.midiName(midi)} 듣기"
+                    Text(sharpNoteText(replayLabel.rangeSharpNotation(), 14.sp))
                 }
             }
             if (session.phase == "profile_ready") RangeProfileChoiceMessage(session.sampling.measuredNoteCount, pausedForChoice, inputReady, inputMessage)

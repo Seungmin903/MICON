@@ -13,9 +13,9 @@ class RangeNoteNamesTest {
     }
 
     @Test fun accidentalsAndMeasuredPitchUseTheSameDisplayConvention() {
-        assertEquals("4옥타브 도♯", RangeNoteNames.full(61))
-        assertEquals("4옥 파♯", RangeNoteNames.short(66))
+        assertEquals("4옥타브 도#", RangeNoteNames.full(61))
+        assertEquals("4옥 파#", RangeNoteNames.short(66))
         assertEquals("4옥타브 도", RangeNoteNames.full(60.35))
-        assertEquals("4옥타브 도♯", RangeNoteNames.full(60.8))
+        assertEquals("4옥타브 도#", RangeNoteNames.full(60.8))
     }
 }

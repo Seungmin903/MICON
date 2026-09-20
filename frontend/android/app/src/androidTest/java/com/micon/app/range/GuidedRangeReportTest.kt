@@ -52,7 +52,7 @@ class GuidedRangeReportTest {
         assertEquals(60, target.value)
         save("guided-keyboard-sample.png")
         compose.runOnIdle { target.value = 61 }
-        compose.onNodeWithTag("range-current-target").assertTextEquals("▼ 지금 부를 음 · 4옥타브 도♯")
+        compose.onNodeWithTag("range-current-target").assertTextEquals("▼ 지금 부를 음 · 4옥타브 도#")
         assertEquals(bounds, keyboard.fetchSemanticsNode().boundsInRoot)
         save("guided-keyboard-passed-black-target.png")
         compose.runOnIdle { target.value = 84 }

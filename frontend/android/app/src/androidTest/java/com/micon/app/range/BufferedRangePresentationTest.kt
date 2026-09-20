@@ -43,7 +43,7 @@ class BufferedRangePresentationTest {
         compose.onNodeWithContentDescription("음정 영역 buffer · 정상 45 cents 이내 · 완충 100 cents 이내").assertIsDisplayed()
         compose.onNodeWithTag("pitch-hold-ring").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             "인정 유지 1.20초 · 완료한 원 1개 · 다음 원 20퍼센트"))
-        compose.onNodeWithText("고정 중심 C♯4 · 목표 C♯4").assertIsDisplayed()
+        compose.onNodeWithText("고정 중심 C#4 · 목표 C#4").assertIsDisplayed()
         save("guided-v5-buffer.png")
     }
     @Test fun reportShowsCreditedAndStrictTimesAndKeepsMissingNotesEmpty() {
