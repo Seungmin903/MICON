@@ -8,6 +8,11 @@ import com.micon.app.data.SongFit
 import com.micon.app.data.SongPage
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
+import com.micon.app.data.preferences.PreferenceArtistPage
+import com.micon.app.data.preferences.PreferenceGenre
+import com.micon.app.data.preferences.PreferenceRepository
+import com.micon.app.data.preferences.SavePreferencesRequest
+import com.micon.app.data.preferences.UserPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -35,9 +40,18 @@ class SongListViewModelTest {
     private class FakeSongs(total: Int) : SongRepository {
         val all = (1..total).map { SongSummary("s$it", if (it % 10 == 0) "비 오는 날 $it" else "곡 $it", "가수 ${it % 7}", null, 200_000) }
         val requests = mutableListOf<Pair<String, Int>>()
+        val genreRequests = mutableListOf<Long?>()
         var failNext = false
         override suspend fun search(query: String, page: Int, size: Int): SongPage {
             requests += query to page
+            return page(query, page, size)
+        }
+        override suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage {
+            requests += query to page
+            genreRequests += genreId
+            return page(query, page, size)
+        }
+        private fun page(query: String, page: Int, size: Int): SongPage {
             if (failNext) { failNext = false; throw IllegalStateException("network") }
             val hit = if (query.isBlank()) all else all.filter { it.title.contains(query) }
             val items = hit.drop(page * size).take(size)
@@ -47,6 +61,13 @@ class SongListViewModelTest {
         override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
     }
 
+    private val preferences = object : PreferenceRepository {
+        override suspend fun getGenres() = listOf(PreferenceGenre(20, "K-POP"), PreferenceGenre(21, "발라드"))
+        override suspend fun getArtists(query: String, page: Int) = PreferenceArtistPage()
+        override suspend fun getPreferences() = UserPreferences()
+        override suspend fun savePreferences(request: SavePreferencesRequest) = UserPreferences()
+    }
+
     private val recommend = object : RecommendRepository {
         override suspend fun fit(songId: String): SongFit? = null
         override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
@@ -54,7 +75,7 @@ class SongListViewModelTest {
 
     @Test fun `first page then load more until the catalog is exhausted`() = runTest {
         val songs = FakeSongs(120)
-        val vm = SongListViewModel(songs, recommend); advanceUntilIdle()
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
         assertEquals(50, vm.state.value.songs.size)                    // 페이지 크기 50
         assertEquals(120L, vm.state.value.totalElements)
         assertTrue(vm.state.value.hasMore)
@@ -75,7 +96,7 @@ class SongListViewModelTest {
 
     @Test fun `load more failure keeps the list and can be retried`() = runTest {
         val songs = FakeSongs(80)
-        val vm = SongListViewModel(songs, recommend); advanceUntilIdle()
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
         songs.failNext = true
         vm.loadMore(); advanceUntilIdle()
         assertEquals(50, vm.state.value.songs.size)
@@ -91,7 +112,7 @@ class SongListViewModelTest {
 
     @Test fun `query change resets paging and drops the in-flight page`() = runTest {
         val songs = FakeSongs(120)
-        val vm = SongListViewModel(songs, recommend); advanceUntilIdle()
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
         vm.loadMore()                                                    // 아직 완료 전
         vm.setQuery("비 오는"); advanceUntilIdle()                        // 250 ms 디바운스 뒤 새 검색
         val s = vm.state.value
@@ -100,5 +121,16 @@ class SongListViewModelTest {
         assertEquals(0, s.page)
         assertFalse(s.hasMore)
         assertFalse(s.loadingMore)
+    }
+
+    @Test fun `genre selection resets to the first page and sends its id`() = runTest {
+        val songs = FakeSongs(120)
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
+
+        vm.setGenre(21); advanceUntilIdle()
+
+        assertEquals(21L, vm.state.value.selectedGenreId)
+        assertEquals(0, vm.state.value.page)
+        assertEquals(21L, songs.genreRequests.last())
     }
 }

@@ -67,6 +67,14 @@ class RemoteSongRepositoryTest {
         assertNull(song.imageUrl)
     }
 
+    @Test fun `song list sends the selected genre id`() = runBlocking {
+        server.enqueue(ok("""{"content":[],"page":0,"size":20,"totalElements":0,"totalPages":0}"""))
+
+        repo.search(query = "아이유", page = 0, size = 20, genreId = 21)
+
+        assertEquals("/api/v1/songs?query=%EC%95%84%EC%9D%B4%EC%9C%A0&genreId=21&page=0&size=20", server.takeRequest().path)
+    }
+
     @Test fun `song detail maps analysis and readiness`() = runBlocking {
         server.enqueue(ok("""{"songId":7,"title":"빈잔","artists":["남진"],"albumName":"남진 골든","imageUrl":"https://img/7.jpg","releaseDate":"1982-03-01","durationMs":200000,"originalKey":"E♭ major","bpm":96.5,"genres":["트로트","발라드"],"lowestMidi":50.0,"highestMidi":69.0,"favorite":true,"practiceReady":true}"""))
         val detail = checkNotNull(repo.detail("7"))

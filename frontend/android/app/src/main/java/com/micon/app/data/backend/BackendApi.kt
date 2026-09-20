@@ -94,9 +94,14 @@ interface BackendApi {
 
     // ---- 곡 카탈로그 (SongController · PracticeAssetController) ----
 
-    /** 제목·가수 검색. size 최대 100. */
+    /** 제목·가수 검색. genreId가 있으면 해당 장르에 연결된 곡만 반환한다. size 최대 100. */
     @GET("songs")
-    suspend fun songs(@Query("query") query: String, @Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<SongSummaryDto>>>
+    suspend fun songs(
+        @Query("query") query: String,
+        @Query("genreId") genreId: Long? = null,
+        @Query("page") page: Int,
+        @Query("size") size: Int,
+    ): Response<ApiResponse<PageDto<SongSummaryDto>>>
 
     @GET("songs/{songId}")
     suspend fun song(@Path("songId") songId: String): Response<ApiResponse<SongDetailDto>>

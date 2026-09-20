@@ -14,6 +14,10 @@ interface SongRepository {
     /** 제목·가수 검색. query 가 비면 전체. 서버 페이지 크기 최대 100. */
     suspend fun search(query: String = "", page: Int = 0, size: Int = 50): SongPage
 
+    /** 장르가 선택되면 해당 장르만 검색한다. 기존 구현체는 장르 미지원 시 전체 검색으로 동작한다. */
+    suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage =
+        search(query, page, size)
+
     /** 곡 상세. 없는 곡(404)은 null. */
     suspend fun detail(songId: String): SongDetail?
 
