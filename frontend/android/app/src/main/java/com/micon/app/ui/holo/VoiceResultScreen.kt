@@ -63,8 +63,9 @@ private val Ser3 = Color(0xFFC2410C)
 fun VoiceResultScreen(
     result: HoloResult,
     saving: Boolean,
-    onRecommend: () -> Unit,
     onSave: () -> Unit,
+    onRetry: () -> Unit,
+    saveError: String? = null,
     /** 분석 탭에서 다시 볼 때는 뒤로가기만 */
     onBack: (() -> Unit)? = null,
 ) {
@@ -73,9 +74,14 @@ fun VoiceResultScreen(
         appBar = if (onBack != null) ({ com.micon.app.ui.design.organisms.MiconAppBar(title = "분석 결과", onBack = onBack) }) else null,
         verticalArrangement = Arrangement.spacedBy(14.dp),
         bottom = if (onBack == null) ({
-            MiconButton("추천곡 보러 가기", onRecommend, Modifier.fillMaxWidth())
-            MiconButton(if (result.profileSaved) "저장됨" else if (saving) "저장 중…" else "결과만 저장하기", onSave, Modifier.fillMaxWidth(),
-                kind = MiconButtonKind.Outline, enabled = !saving && !result.profileSaved)
+            val song = result.songId != null
+            (saveError ?: if (!song) "추천은 노래를 부른 분석에서만 받을 수 있어요." else null)?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = if (saveError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+            if (song) MiconButton(if (saving) "음색 분석을 기다리는 중…" else "저장하고 추천받기", onSave, Modifier.fillMaxWidth(), enabled = !saving)
+            else MiconButton("노래로 분석하고 추천받기", onRetry, Modifier.fillMaxWidth())
+            MiconButton("다시 측정하기", onRetry, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline, enabled = !saving)
         }) else null,
     ) {
         if (onBack == null) Spacer(Modifier.height(12.dp))

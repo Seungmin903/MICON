@@ -235,15 +235,15 @@ private fun MiconNavHost(
             val holoState by holo.state.collectAsStateWithLifecycle()
             val result = holoState.result ?: holo.previousResult()
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
-            VoiceResultScreen(result, saving = holoState.saving,
-                onRecommend = { leaveHolo(Routes.RECOMMEND) },
+            VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
+                // 회원: 서버 프로필로 저장 → 추천 탭. 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
                 onSave = {
-                    if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.REPORT) }
-                    else { session.rememberDestinationRoute(Routes.REPORT); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
-                })
+                    if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
+                    else { session.rememberDestinationRoute(Routes.HOLO); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
+                },
+                onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
         }
 
-        // ---- 온보딩 ----
         composable(Routes.SPLASH) {
             SplashScreen(onLoggedIn = { goMain() }, onNeedLogin = { goLogin() },
                 onNeedSurvey = { nav.replaceAll(Routes.SURVEY) })
@@ -275,7 +275,7 @@ private fun MiconNavHost(
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
             else RecommendDeckScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
-                onAnalyze = { nav.navigate(Routes.VOICE_ONBOARDING) })
+                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (isGuest || !accessGranted) return@composable
@@ -305,7 +305,7 @@ private fun MiconNavHost(
             val holoState by holo.state.collectAsStateWithLifecycle()
             val result = holoState.result ?: holo.previousResult()
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
-            VoiceResultScreen(result, saving = false, onRecommend = {}, onSave = {}, onBack = { nav.popBackStack() })
+            VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
         }
         composable(Routes.QUICK_ANALYSIS) {
             LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }

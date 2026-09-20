@@ -62,6 +62,11 @@ class HoloViewModel(
         /** 서버 저장 상태 문구(결과 화면 하단) */
         val saving: Boolean = false,
         val saved: Boolean = false,
+        /** 서버가 프로필 저장을 허용했는가(음색 분석 완료) */
+        val saveAllowed: Boolean = false,
+        /** 서버 음색 분석이 끝났는가(성공·실패 무관) */
+        val analysisFinished: Boolean = false,
+        val saveError: String? = null,
     ) {
         val progress: Float get() = (elapsedSec / DURATION_SEC).toFloat().coerceIn(0f, 1f)
         val globeScale: Float get() = if (phase == Phase.REC) 0.8f + Math.pow(progress.toDouble(), 1.08).toFloat() * 1.2f else 1f
@@ -203,10 +208,12 @@ class HoloViewModel(
                 _state.update { it.copy(result = it.result?.copy(timbreSubmitted = true)) }
                 client.poll(s) { p ->
                     pollVersion = p.version; saveAllowed = p.saveAllowed
-                    if (p.artists.isNotEmpty()) _state.update { it.copy(result = it.result?.copy(artists = p.artists)) }
+                    _state.update { it.copy(saveAllowed = p.saveAllowed, analysisFinished = p.done,
+                        result = if (p.artists.isNotEmpty()) it.result?.copy(artists = p.artists) else it.result) }
                     _state.value.result?.let { r -> runCatching { store.write(ownerId, r) } }
                 }
-            }
+                _state.update { it.copy(analysisFinished = true) }
+            } else _state.update { it.copy(analysisFinished = true) }
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { /* 서버 저장 실패는 결과 화면을 막지 않는다 */ }
     }
@@ -221,16 +228,28 @@ class HoloViewModel(
         ))
     }
 
-    /** 회원이면 서버 프로필 저장. 비회원은 호출부가 로그인으로 보낸다 */
+    /**
+     * 회원: 서버 프로필 저장 → 추천. 음색 분석이 아직 돌고 있으면 끝날 때까지(최대 2분) 기다린다.
+     * 추천은 노래를 부른 분석(음색 임베딩)이 있어야 서버가 만들 수 있으므로, 간편 분석 결과는 호출부가 막는다.
+     */
     fun save(onDone: () -> Unit) {
-        val s = session
-        if (ownerId == null || s == null) { onDone(); return }
-        _state.update { it.copy(saving = true) }
+        if (_state.value.saving) return
+        _state.update { it.copy(saving = true, saveError = null) }
         viewModelScope.launch {
-            val ok = runCatching { if (saveAllowed) client.saveProfile(s, pollVersion) }.isSuccess
-            _state.update { it.copy(saving = false, saved = ok, result = it.result?.copy(profileSaved = ok)) }
-            _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { store.write(ownerId, r) } } }
-            onDone()
+            var waited = 0
+            while (!saveAllowed && !_state.value.analysisFinished && waited < 120_000) { delay(1_000); waited += 1_000 }
+            val s = session
+            if (ownerId == null || s == null || !saveAllowed) {
+                _state.update { it.copy(saving = false, saveError = if (s == null) "서버에 연결할 수 없어 저장하지 못했어요." else "음색 분석이 끝나지 않아 저장할 수 없어요. 조금 더 길게 불러 다시 측정해 주세요.") }
+                return@launch
+            }
+            val ok = runCatching { client.saveProfile(s, pollVersion) }
+            if (ok.isSuccess) {
+                _state.update { it.copy(saving = false, saved = true, result = it.result?.copy(profileSaved = true)) }
+                _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { store.write(ownerId, r) } } }
+                UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) } // 추천 저장소가 서버 프로필 id 를 다시 읽게
+                onDone()
+            } else _state.update { it.copy(saving = false, saveError = ok.exceptionOrNull()?.message ?: "프로필을 저장하지 못했어요.") }
         }
     }
 

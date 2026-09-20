@@ -86,7 +86,6 @@ import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
 import com.micon.app.data.ShelfKeys
-import com.micon.app.data.onboarding.VoiceOnboardingStore
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -102,8 +101,6 @@ import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconShape
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.design.tokens.miconShadow
-import com.micon.app.ui.onboarding.VoiceOnboardingEntry
-import com.micon.app.ui.onboarding.VoiceOnboardingEntryViewModel
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -142,24 +139,7 @@ fun RecommendDeckScreen(
         onDispose { lifecycle.removeObserver(observer); vm.onHidden() }
     }
 
-    // 목소리 분석 온보딩 진입 — 예전 RecommendScreen 과 같은 배선
     val context = LocalContext.current
-    val owner = TokenManager.getUserId().takeIf { it > 0 }
-    val entry: VoiceOnboardingEntryViewModel = viewModel(key = "voice-entry-$owner", factory = viewModelFactory {
-        initializer {
-            VoiceOnboardingEntryViewModel(
-                persistence = owner?.let { VoiceOnboardingStore(context.applicationContext, it, container.backend.api) },
-                isCurrentOwner = { owner != null && TokenManager.getUserId() == owner },
-            )
-        }
-    })
-    val entryState by entry.state.collectAsStateWithLifecycle()
-    LaunchedEffect(entryState.navigate) {
-        if (entryState.navigate) {
-            if (owner != null && TokenManager.getUserId() == owner) onAnalyze()
-            entry.navigationHandled()
-        }
-    }
 
     // --- 화면 상태 ---
     var shelfIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -215,9 +195,7 @@ fun RecommendDeckScreen(
                     EmptyState(text = state.error!!, actionLabel = "다시 불러오기", onAction = vm::load)
 
                 state.note == RecommendShelves.NOTE_ANALYSIS_REQUIRED ->
-                    EmptyState(text = state.note!!) {
-                        VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
-                    }
+                    EmptyState(text = state.note!!, actionLabel = "목소리 분석하기", onAction = onAnalyze)
 
                 shelves.isEmpty() -> {
                     val serverEmpty = state.note?.startsWith(RecommendShelves.NOTE_EMPTY) == true
