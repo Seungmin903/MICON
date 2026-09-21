@@ -6,6 +6,7 @@ import os
 import secrets
 import threading
 from pathlib import Path
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -29,6 +30,7 @@ class Settings(BaseModel):
     minProfileConfidence: float = Field(default=.55, ge=0, le=1)
     useRangeGate: bool = True
     topK: int = Field(default=10, ge=1, le=50)
+    compositionMode: Literal["twoAxisQuota", "finalScore"] = "twoAxisQuota"
 
 
 class Experiment(BaseModel):
@@ -47,7 +49,8 @@ def create_app(config=None, engine=None, repository=None):
     if repository is None:
         owners = OwnerResolver.from_config(cfg)
         repo = Repository(cfg.get("LAB_ANALYSIS_DIR"), cfg.get("LAB_RECOMMEND_JOBS_DIR"), cfg.get("LAB_CASES_DIR"),
-                          owners=owners, insights=SessionInsightsResolver.from_config(cfg, owners))
+                          owners=owners, insights=SessionInsightsResolver.from_config(cfg, owners),
+                          artist_jobs=cfg.get("LAB_ARTIST_JOBS_DIR"))
     else:
         repo = repository
     eng_error = None
@@ -107,7 +110,8 @@ def create_app(config=None, engine=None, repository=None):
     @app.get("/api/status", dependencies=[Depends(auth)])
     def status():
         return {"engineReady": engine is not None, "engineError": eng_error, "devMode": dev,
-                "dataSources": {"analysis": bool(repo.analysis), "recommendations": bool(repo.recommendations), "cases": bool(repo.cases)},
+                "dataSources": {"analysis": bool(repo.analysis), "recommendations": bool(repo.recommendations),
+                                "artistSearch": bool(repo.artist_jobs), "cases": bool(repo.cases)},
                 "catalog": engine.info() if engine else None}
 
     @app.get("/api/map", dependencies=[Depends(auth)])

@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = {requests: [], map: [], shown: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false};
+const state = {requests: [], map: [], shown: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false, pendingAutoRun: false, autoTimer: null};
 const models = ['ecapa', 'singer_byol'];
 const settingIds = ['ecapaWeight','centroidWeight','timbreWeight','maxKeyShift','maxCoreExcess','minRangeScore','minProfileConfidence','topK'];
 function el(tag, text, cls) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if(cls) n.className = cls; return n; }
@@ -141,26 +141,78 @@ function drawMaps(){
     let drag=null;root.onpointerdown=e=>{if(e.target===root||e.target===g)drag={x:e.clientX,y:e.clientY,tx:v.x,ty:v.y};};root.onpointermove=e=>{if(!drag)return;const rect=root.getBoundingClientRect();v.x=drag.tx+(e.clientX-drag.x)/rect.width*600;v.y=drag.ty+(e.clientY-drag.y)/rect.height*350;g.setAttribute('transform',`translate(${v.x},${v.y}) scale(${v.scale})`);};root.onpointerup=root.onpointerleave=()=>{drag=null;};
   }
 }
-function inputChanged(){state.epoch++; state.result=null; $('results').hidden=true;const r=state.requests.find(r=>r.id===$('caseSelect').value);$('run').disabled=!r||state.busy;
-  $('inputInfo').textContent=inputInfo(r);
-  $('experimentState').textContent='입력 또는 설정이 변경됐습니다. 실험 실행을 눌러 새 결과를 계산하세요.';
+function percent(value){return `${Math.round(Number(value)*100)}%`;}
+function setOutput(id,text){const node=$(id);if(node)node.textContent=text;}
+function updateSettingSummary(){
+  const ecapa=Number($('ecapaWeight').value), centroid=Number($('centroidWeight').value), timbre=Number($('timbreWeight').value);
+  setOutput('ecapaWeightValue',`ECAPA ${percent(ecapa)} · Singer-BYOL ${percent(1-ecapa)}`);
+  setOutput('centroidWeightValue',`전체 평균 ${percent(centroid)} · 구간 매칭 ${percent(1-centroid)}`);
+  setOutput('timbreWeightValue',`음색 ${percent(timbre)} · 음역·키 ${percent(1-timbre)}`);
+  setOutput('maxKeyShiftValue',`±${$('maxKeyShift').value} 반음`);
+  setOutput('maxCoreExcessValue',`${$('maxCoreExcess').value} 반음`);
+  setOutput('minRangeScoreValue',Number($('minRangeScore').value).toFixed(2));
+  setOutput('minProfileConfidenceValue',Number($('minProfileConfidence').value).toFixed(2));
+  const mode=timbre===.75?'현재 timbre 모드 기본값':timbre===.3?'range 모드 기본값':'운영 모드가 아닌 맞춤 실험값';
+  const composition=$('compositionMode').value;
+  const compositionText=composition==='finalScore'?'할당 없음 · 최종 점수 순':'현행 · ECAPA/BYOL/합의 축 할당';
+  setOutput('compositionModeValue',compositionText);
+  $('compositionModeHelp').textContent=composition==='finalScore'
+    ?'같은 후보 풀에서 축별 쿼터를 쓰지 않고 final score가 높은 순으로만 Top-K를 구성합니다. 점수식과 음역 게이트는 그대로입니다.'
+    :'현행은 두 모델 축과 합의 축에서 먼저 곡을 고른 뒤 final score로 정렬합니다. 후보 풀·점수식·음역 게이트는 바꾸지 않습니다.';
+  $('timbreWeightHelp').textContent=`${percent(timbre)}:${percent(1-timbre)} — ${mode}. 75:25는 timbre 모드, 30:70은 range 모드의 기본값이며, 다른 값은 두 점수를 실험용으로 재조합합니다.`;
+  $('settingsSummary').textContent=`${compositionText} / ECAPA ${percent(ecapa)} · Singer-BYOL ${percent(1-ecapa)} / 전체 평균 ${percent(centroid)} · 구간 매칭 ${percent(1-centroid)} / 음색 ${percent(timbre)} · 음역·키 ${percent(1-timbre)}${$('useRangeGate').checked?' / 음역 게이트 사용':' / 음역 게이트 미사용'}`;
+}
+function scheduleAutoRun(){
+  clearTimeout(state.autoTimer); if(!$('autoRun').checked||!$('caseSelect').value)return;
+  if(state.busy){state.pendingAutoRun=true;return;}
+  state.autoTimer=setTimeout(run,550);
+}
+function inputChanged(auto=false){state.epoch++; state.result=null; $('results').hidden=true;const r=state.requests.find(r=>r.id===$('caseSelect').value);$('run').disabled=!r||state.busy;
+  $('inputInfo').textContent=inputInfo(r); updateSettingSummary();
+  $('experimentState').textContent=auto&&r?'설정이 바뀌었습니다. 잠시 뒤 같은 입력으로 다시 계산합니다.':'입력 또는 설정이 변경됐습니다. 비교 실행을 누르거나 자동 계산을 켜세요.';
+  if(auto)scheduleAutoRun();
+}
+function applyPreset(name){
+  const values={current:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.75},global:{ecapaWeight:.5,centroidWeight:1,timbreWeight:.75},range:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.3}}[name];
+  if(!values)return;for(const [id,value] of Object.entries(values))$(id).value=value; inputChanged(true);
 }
 async function run(){
-  const id=$('caseSelect').value;if(!id||state.busy)return;
+  const id=$('caseSelect').value;if(!id)return;if(state.busy){state.pendingAutoRun=true;return;}
   for(const key of settingIds)if(!$(key).reportValidity())return;
   const epoch=++state.epoch; state.busy=true; $('run').disabled=true; error(''); $('experimentState').textContent='같은 입력으로 기본값과 후보 설정을 계산 중…';
-  const settings={};for(const key of settingIds)settings[key]=Number($(key).value); settings.useRangeGate=$('useRangeGate').checked;
+  const settings={};for(const key of settingIds)settings[key]=Number($(key).value); settings.useRangeGate=$('useRangeGate').checked;settings.compositionMode=$('compositionMode').value;
   try{const result=await api('api/experiments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:id,settings})}); if(epoch!==state.epoch)return;
     state.result=result; $('results').hidden=false;renderResults();$('experimentState').textContent=(result.inputWarning||'고정 입력 case 재생 완료')+' · '+(result.rangeAvailable?'음역 입력 있음':'음역 입력 없음: 기본값은 음색 단독 fallback');
   }catch(e){if(epoch===state.epoch){error(e.message);$('experimentState').textContent='실험 실패: '+e.message;}}
-  finally{state.busy=false;$('run').disabled=!$('caseSelect').value;}
+  finally{state.busy=false;$('run').disabled=!$('caseSelect').value;if(state.pendingAutoRun){state.pendingAutoRun=false;scheduleAutoRun();}}
 }
 function renderResults(){
   const result=state.result;if(!result)return;$('comparison').replaceChildren();
   for(const name of ['baseline','candidate']){const data=result[name];const card=el('div',undefined,'panel');card.append(el('h3',name==='baseline'?'기본값 최종 추천':'후보 설정 최종 추천'),el('p',`게이트 통과 ${data.eligibleCount} · 탈락 ${data.excludedCount} · 음역 게이트 ${data.rangeGateApplied?'적용':'미적용'}`,'muted'));const list=el('ol');
     for(const p of data.recommendations){const item=el('li',`${p.artist} · ${p.title}`);item.append(el('span',Number(p.final_score).toFixed(4),'score'));list.append(item);}card.append(list);if(!data.recommendations.length)card.append(el('p','게이트를 통과해 선택된 곡이 없습니다.','muted'));$('comparison').append(card);}
   $('comparison').append(el('p',`Top K 공통 곡 ${result.overlapAtK}개 · 배치 ${result.catalogFingerprint.slice(0,12)}`,'muted'));
+  renderImprovement();
   renderRankings();
+}
+function improvementMetric(label,value){const card=el('div',undefined,'improvement-metric');card.append(el('small',label),el('strong',String(value)));return card;}
+function renderImprovement(){
+  const holder=$('improvement');holder.replaceChildren();const data=state.result?.improvement;if(!data)return;
+  const rule=data.rules, base=data.baseline, candidate=data.candidate, verdict=data.verdict;
+  holder.append(el('p',`음역 밖 히스토그램 질량 ≤ ${(rule.outsideMassLimit*100).toFixed(0)}% · 두 모델 상위 ${(rule.consensusFractions[0]*100).toFixed(0)}%→${(rule.consensusFractions[1]*100).toFixed(0)}% 합의 · RRF(${rule.rrfK}) 보충 · 가수당 최대 ${rule.maxSongsPerArtist}곡`,'muted'));
+  const metrics=el('div',undefined,'improvement-metrics');
+  for(const [label,source,key] of [['현행 고유 가수',base,'uniqueArtistCount'],['개선 고유 가수',candidate,'uniqueArtistCount'],['현행 중복 곡',base,'duplicateItems'],['개선 중복 곡',candidate,'duplicateItems'],['현행 한 가수 최다',base,'maxSongsPerArtist'],['개선 한 가수 최다',candidate,'maxSongsPerArtist']])metrics.append(improvementMetric(label,source.metrics[key]));
+  holder.append(metrics);
+  const status=el('p',verdict.artistDiversityImproved?'가수 다양성 지표는 개선되었습니다.':'가수 다양성 지표는 개선되지 않았거나 같은 수준입니다.',verdict.artistDiversityImproved?'improvement-pass':'improvement-note');
+  status.append(' ',el('span',verdict.artistCapSatisfied?`가수 상한 ${rule.maxSongsPerArtist}곡 충족`:'가수 상한 미충족'));
+  if(data.rangeProxy.available)status.append(' · ',el('span',verdict.rangeProxySatisfied?'음역 프록시 충족':'음역 프록시 미충족'));
+  holder.append(status,el('p',data.rangeProxy.description,'muted'));
+  const columns=el('div',undefined,'improvement-columns');
+  for(const [title,side] of [['현행 Top K',base],['개선안 Top K',candidate]]){
+    const card=el('div',undefined,'improvement-list');card.append(el('h3',title));const list=el('ol');
+    for(const item of side.recommendations){const ratio=item.outsideMassRatio===null||item.outsideMassRatio===undefined?'음역 프록시 없음':`밖 ${(100*item.outsideMassRatio).toFixed(1)}%`;const text=title==='개선안 Top K'?`${item.artist} · ${item.title} — ${item.source} · ${ratio}`:`${item.artist} · ${item.title} — ${ratio}`;list.append(el('li',text));}
+    card.append(list);const repeats=side.metrics.repeatedArtists;if(repeats.length)card.append(el('p','중복 가수: '+repeats.map(x=>`${x.artist} ${x.count}곡`).join(', '),'muted'));else card.append(el('p','동일 가수 중복 없음','muted'));columns.append(card);
+  }
+  holder.append(columns,el('p',verdict.qualityClaim,'improvement-note'));
 }
 function renderRankings(){if(!state.result)return;
   $('baselineTab').classList.toggle('active',state.tab==='baseline');$('candidateTab').classList.toggle('active',state.tab==='candidate');
@@ -178,10 +230,15 @@ async function start(){
     await refreshRequests(); setInterval(refreshRequests,10000);
   }catch(e){$('connection').textContent='연결 실패';error(e.message);}
 }
-$('refresh').onclick=refreshRequests;$('requestSearch').oninput=refreshRequestList;$('caseSelect').onchange=inputChanged;$('run').onclick=run;
+$('refresh').onclick=refreshRequests;$('requestSearch').oninput=refreshRequestList;$('caseSelect').onchange=()=>inputChanged(true);$('run').onclick=run;
 $('jobForm').onsubmit=e=>{e.preventDefault();inspectJob($('jobId').value.trim());};
 $('resetMap').onclick=()=>{for(const model of models)views[model]={scale:1,x:0,y:0};state.artist=null;drawMaps();};
-for(const id of [...settingIds,'useRangeGate'])$(id).onchange=inputChanged;
+for(const id of settingIds){$(id).oninput=()=>inputChanged(true);$(id).onchange=()=>inputChanged(true);}
+$('useRangeGate').onchange=()=>inputChanged(true);
+$('compositionMode').onchange=()=>inputChanged(true);
+$('autoRun').onchange=()=>{if($('autoRun').checked)scheduleAutoRun();else clearTimeout(state.autoTimer);};
+for(const button of document.querySelectorAll('[data-preset]'))button.onclick=()=>applyPreset(button.dataset.preset);
 for(const id of ['trackSearch','onlyExcluded','rowLimit'])$(id).oninput=renderRankings;
 $('baselineTab').onclick=()=>{state.tab='baseline';renderRankings();};$('candidateTab').onclick=()=>{state.tab='candidate';renderRankings();};$('export').onclick=exportResult;
+updateSettingSummary();
 start();

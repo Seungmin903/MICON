@@ -11,7 +11,7 @@ from app import create_app
 from demo import generate, write_json
 from engine import Engine, DEFAULTS, MODEL_KEYS
 from adapters import matrices
-from repository import Repository
+from repository import Repository, created_timestamp
 from timbre_recommender.shelves import score_all_tracks, build_shelves
 
 
@@ -61,6 +61,16 @@ class LabTest(unittest.TestCase):
         eligible = {r["id"] for r in rows if r["eligible"]}
         selected = {r["track_id"] for r in result["baseline"]["recommendations"]}
         self.assertTrue(selected.issubset(eligible))
+
+    def test_final_score_composition_uses_the_same_eligible_pool_without_axis_quota(self):
+        result = self.engine.run(self.repo.case("case_demo"), dict(DEFAULTS, compositionMode="finalScore"))
+        recommendations = result["candidate"]["recommendations"]
+        self.assertTrue(recommendations)
+        self.assertTrue(all(item["axis"] == "FINAL_SCORE" for item in recommendations))
+        self.assertEqual(
+            [item["final_score"] for item in recommendations],
+            sorted((item["final_score"] for item in recommendations), reverse=True),
+        )
 
     def test_failed_analysis_and_successful_callback_distinct(self):
         j = self.client.get("/api/jobs/job_demo_failed", auth=self.auth).json()
@@ -134,6 +144,52 @@ class LabTest(unittest.TestCase):
         self.engine.run(self.repo.case("case_demo"), dict(DEFAULTS, maxKeyShift=6))
         self.repo.list(); self.repo.job("job_demo_failed")
         self.assertEqual(before, {p: p.read_bytes() for p in before})
+
+    def test_request_order_normalizes_iso_and_unix_created_at(self):
+        analysis = self.root / "mixed-time-analysis"
+        recommendations = self.root / "mixed-time-recommendations"
+        write_json(analysis / "job_iso/job.json", {
+            "jobId": "job_iso", "status": "COMPLETED", "createdAt": "2026-09-18T17:32:13",
+            "meta": {"analysisType": "RANGE"}, "components": {},
+        })
+        write_json(recommendations / "job_unix/job.json", {
+            "id": "job_unix", "status": "complete", "createdAt": 1789792327.3118126,
+        })
+
+        rows = Repository(analysis, recommendations).list()
+
+        self.assertEqual([row["id"] for row in rows], ["job_unix", "job_iso"])
+        self.assertIsInstance(rows[0]["createdAt"], str)
+        self.assertIn("T", rows[0]["createdAt"])
+        self.assertAlmostEqual(created_timestamp(rows[0]["createdAt"]), 1789792327.3118126, delta=1)
+
+    def test_expired_timbre_uses_linked_artist_search_centroids_for_map(self):
+        analysis = self.root / "expired-analysis"
+        artist_jobs = self.root / "artist-jobs"
+        write_json(analysis / "job_expired/job.json", {
+            "jobId": "job_expired", "status": "COMPLETED", "audioDeleted": True,
+            "meta": {"analysisType": "TIMBRE", "analysisId": 31, "sessionId": 119},
+            "components": {
+                "ECAPA": {"status": "COMPLETED", "accepted": True},
+                "SINGER_BYOL": {"status": "COMPLETED", "accepted": True},
+            },
+        })
+        write_json(artist_jobs / "artist-search-job-1/job.json", {
+            "jobId": "artist-search-job-1",
+            "payload": {"analysisId": 31, "sessionId": 119, "modelResults": {
+                "ECAPA": {"embedding": [1.0] + [0.0] * 191},
+                "SINGER_BYOL": {"embedding": [1.0] + [0.0] * 999},
+            }},
+        })
+        repo = Repository(analysis, artist_jobs=artist_jobs)
+
+        summary = repo.job("job_expired")
+        case = repo.case("job_expired")
+
+        self.assertTrue(summary["replayAvailable"])
+        self.assertEqual(summary["replaySource"], "artist-search-centroids")
+        self.assertEqual(case["query"]["ecapa"][0], 1.0)
+        self.assertIn("대표 벡터", case["warning"])
 
 
 if __name__ == "__main__": unittest.main()

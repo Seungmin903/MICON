@@ -18,11 +18,12 @@ from timbre_recommender.scoring import RankerConfig
 from timbre_recommender.shelves import score_all_tracks, build_shelves, VOICE_MAX_KEY_SHIFT, MIN_PROFILE_CONFIDENCE
 
 from adapters import matrices
+from improvement import evaluate as evaluate_improvement
 
 DEFAULTS = {"ecapaWeight": .5, "centroidWeight": .3, "timbreWeight": .75,
             "maxKeyShift": VOICE_MAX_KEY_SHIFT, "maxCoreExcess": 0.0,
             "minRangeScore": .35, "minProfileConfidence": MIN_PROFILE_CONFIDENCE,
-            "useRangeGate": True, "topK": 10}
+            "useRangeGate": True, "topK": 10, "compositionMode": "twoAxisQuota"}
 
 
 def centroid(x):
@@ -85,12 +86,21 @@ class Engine:
         with threadpool_limits(limits=2):
             a = self._rank(query, profile, range_available, genres, excluded, baseline, True)
             b = self._rank(query, profile, range_available, genres, excluded, dict(baseline, **settings), False)
+            improvement_rows = score_all_tracks(
+                self.catalog, self.ranges, query, query_profile=profile if range_available else None,
+                config=RankerConfig(), mode="range" if case.get("mode") == "range" else "timbre", genres=genres,
+            )
+            improvement = evaluate_improvement(
+                improvement_rows, baseline=a["recommendations"], profile=profile, range_available=range_available,
+                ranges=self.ranges.profiles, excluded_track_ids=excluded, top_k=baseline["topK"],
+            )
         before = {p["track_id"]: p["position"] for p in a["recommendations"]}
         after = {p["track_id"]: p["position"] for p in b["recommendations"]}
         return {"caseId": case["caseId"], "inputKind": case.get("inputKind", "saved-case"),
                 "rangeAvailable": range_available, "rangeFallbackReason": None if range_available else "검증된 음역 입력 없음 또는 신뢰도 부족",
                 "catalogFingerprint": self.fingerprint, "coreFingerprint": self.core_fingerprint,
                 "baseline": a, "candidate": b,
+                "improvement": improvement,
                 "changes": [{"id": tid, "before": before.get(tid), "after": after.get(tid)}
                             for tid in sorted(set(before) | set(after))],
                 "overlapAtK": len(set(before) & set(after)), "userPoints": self.project(case["query"])}
@@ -146,6 +156,15 @@ class Engine:
             allowed_rows = [r for r in rows if r["track_id"] not in excluded and
                             (allowed is None or track_language(r["metadata"]) is None or track_language(r["metadata"]) in allowed)]
             recs = build_shelves(allowed_rows, top_k=cfg["topK"], genres=genres, range_enabled=available, seed=42)[0]["items"]
+        elif cfg["compositionMode"] == "finalScore":
+            ordered = sorted(eligible, key=lambda item: (-float(item["final_score"]), item["track_id"]))[:cfg["topK"]]
+            recs = [{
+                "position": position, "track_id": item["track_id"], "title": item["title"], "artist": item["artist"],
+                "axis": "FINAL_SCORE", "label": "축별 할당 없이 최종 점수 순", "timbre_score": item["timbre_score"],
+                "range_fit": item["range_fit"] if use_range else None,
+                "recommended_key": int(item["range_fit"]["keyShift"]) if use_range and item["range_fit"] else None,
+                "final_score": item["final_score"],
+            } for position, item in enumerate(ordered, start=1)]
         else:
             recs = compose_two_axis(eligible, top_k=cfg["topK"], range_enabled=use_range,
                                     min_range_score=cfg["minRangeScore"], scoring_version=SCORING_VERSION)["recommendations"]

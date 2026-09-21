@@ -19,20 +19,60 @@
   <div class="section-title map-heading"><div><h2>음색 임베딩 지도</h2><p class="muted">점에 마우스를 올리면 가수와 곡 · 클릭하면 같은 가수 강조 · 휠로 확대 · 드래그로 이동</p></div><button id="resetMap" class="subtle">지도 초기화</button></div>
   <div class="maps"><section class="panel"><div class="map-title"><h3>ECAPA-TDNN</h3><span class="muted">192 dimensions</span></div><svg id="ecapaMap" viewBox="0 0 600 350" aria-label="ECAPA 음색 지도"></svg></section><section class="panel"><div class="map-title"><h3>Singer-BYOL</h3><span class="muted">1000 dimensions</span></div><svg id="singer_byolMap" viewBox="0 0 600 350" aria-label="Singer BYOL 음색 지도"></svg></section></div>
   <p id="projectionInfo" class="muted fineprint">PCA로 정규화된 곡별 구간 평균을 투영합니다. 지도 거리는 실제 구간 기반 추천 점수와 다릅니다.</p>
-  <section class="panel experiment-panel"><div class="section-title"><div><h2>같은 입력으로 실험하기</h2><p class="muted">운영 결과를 수정하지 않습니다. 기본값과 후보 설정을 함께 계산합니다.</p></div><button id="run" disabled>실험 실행</button></div>
+  <section class="panel experiment-panel"><div class="section-title"><div><h2>같은 입력으로 실험하기</h2><p class="muted">운영 결과를 수정하지 않습니다. 현행·후보 설정·고정 개선안을 함께 계산합니다.</p></div><button id="run" disabled>현행·개선안 비교 실행</button></div>
     <div class="input-row"><label>재생 입력<select id="caseSelect"><option value="">입력이 남아 있는 요청을 선택해 주세요</option></select></label><div id="inputInfo" class="muted"></div></div>
-    <div class="controls">
-      <label>ECAPA 혼합 비중<input id="ecapaWeight" type="number" min="0" max="1" step="0.05" value="0.5"></label>
-      <label>구간 평균 비중<input id="centroidWeight" type="number" min="0" max="1" step="0.05" value="0.3"></label>
-      <label>음색 최종 비중<input id="timbreWeight" type="number" min="0" max="1" step="0.05" value="0.75"></label>
-      <label>허용 키 변화 ±반음<input id="maxKeyShift" type="number" min="0" max="6" step="1" value="3"></label>
-      <label>허용 핵심 음역 초과<input id="maxCoreExcess" type="number" min="0" max="12" step="0.5" value="0"></label>
-      <label>최소 음역 점수<input id="minRangeScore" type="number" min="0" max="1" step="0.05" value="0.35"></label>
-      <label>최소 곡 프로파일 신뢰도<input id="minProfileConfidence" type="number" min="0" max="1" step="0.05" value="0.55"></label>
-      <label>최종 추천 개수<input id="topK" type="number" min="1" max="50" step="1" value="10"></label>
-      <label class="check"><input id="useRangeGate" type="checkbox" checked>후보의 음역 게이트 사용</label>
-    </div><p id="experimentState" class="muted" role="status">설정은 실험실에만 적용됩니다. 새 임베딩 모델로 바꾸는 기능은 아닙니다.</p>
+    <div class="experiment-guide"><strong>먼저 세 가지를 조절하세요.</strong> 같은 녹음·같은 카탈로그를 다시 점수화하므로, 어떤 점수 규칙 때문에 Top K가 바뀌는지 바로 비교할 수 있습니다. 모델을 다시 학습하거나 운영 추천을 바꾸지는 않습니다.</div>
+    <div class="preset-row" aria-label="점수 설정 빠른 선택">
+      <button type="button" class="subtle preset" data-preset="current">현행 점수</button>
+      <button type="button" class="subtle preset" data-preset="global">전체 음색만 보기</button>
+      <button type="button" class="subtle preset" data-preset="range">음역·키 우선 보기</button>
+    </div>
+    <div class="parameter-layout">
+      <section class="parameter-group" aria-labelledby="compositionControls">
+        <h3 id="compositionControls">Top-K 조립 방식</h3>
+        <article class="parameter-card">
+          <div class="parameter-head"><label for="compositionMode">후보를 어떤 규칙으로 Top-K에 넣을지</label><output id="compositionModeValue">현행: ECAPA · BYOL · 합의 축 할당</output></div>
+          <select id="compositionMode">
+            <option value="twoAxisQuota">현행 축별 할당 (2:2:1 비율)</option>
+            <option value="finalScore">할당 없음 — 최종 점수 순</option>
+          </select>
+          <p id="compositionModeHelp">현행은 두 모델 축과 합의 축에서 먼저 곡을 고른 뒤 최종 점수로 정렬합니다. 후보 풀·점수식·음역 게이트는 바꾸지 않습니다.</p>
+        </article>
+      </section>
+      <section class="parameter-group" aria-labelledby="scoreControls">
+        <h3 id="scoreControls">점수 조합</h3>
+        <article class="parameter-card">
+          <div class="parameter-head"><label for="ecapaWeight">두 모델의 혼합 비중</label><output id="ecapaWeightValue">ECAPA 50% · Singer-BYOL 50%</output></div>
+          <input id="ecapaWeight" type="range" min="0" max="1" step="0.05" value="0.5">
+          <p>ECAPA는 물리적 화자 특성, Singer-BYOL은 가창 표현 신호입니다. 운영의 축별 2:2:1 구성은 그대로라서, 이 값은 주로 최종 순서에 영향을 줄 수 있습니다.</p>
+        </article>
+        <article class="parameter-card">
+          <div class="parameter-head"><label for="centroidWeight">전체 음색과 구간 매칭의 비중</label><output id="centroidWeightValue">전체 평균 30% · 구간 매칭 70%</output></div>
+          <input id="centroidWeight" type="range" min="0" max="1" step="0.05" value="0.3">
+          <p>전체 평균은 곡 전체의 일관된 음색을, 구간 매칭은 짧은 표현 구간끼리의 맞음을 봅니다. 100%로 올리면 구간 매칭은 사용하지 않습니다.</p>
+        </article>
+        <article class="parameter-card">
+          <div class="parameter-head"><label for="timbreWeight">최종 음색과 음역·키의 비중</label><output id="timbreWeightValue">음색 75% · 음역·키 25%</output></div>
+          <input id="timbreWeight" type="range" min="0" max="1" step="0.05" value="0.75">
+          <p id="timbreWeightHelp">75:25는 현재 timbre 모드의 기본값입니다. 30:70은 range 모드의 기본값이며, 그 밖의 값은 실험용 재조합입니다.</p>
+        </article>
+      </section>
+      <details class="parameter-group filter-controls">
+        <summary><span><strong>후보 필터와 표시 개수</strong><small>음역 게이트를 얼마나 엄격하게 적용할지 조절합니다</small></span><span class="details-hint">펼치기</span></summary>
+        <div class="filter-grid">
+          <article class="parameter-card compact"><div class="parameter-head"><label for="maxKeyShift">허용 키 변화</label><output id="maxKeyShiftValue">±3 반음</output></div><input id="maxKeyShift" type="range" min="0" max="6" step="1" value="3"><p>원곡을 이 범위 안에서 옮겨 부를 수 있어야 후보가 됩니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="maxCoreExcess">핵심 음역 초과 허용</label><output id="maxCoreExcessValue">0 반음</output></div><input id="maxCoreExcess" type="range" min="0" max="12" step="0.5" value="0"><p>곡의 핵심 음역이 회원 음역을 넘는 허용 폭입니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="minRangeScore">최소 음역 점수</label><output id="minRangeScoreValue">0.35</output></div><input id="minRangeScore" type="range" min="0" max="1" step="0.05" value="0.35"><p>낮출수록 더 많은 곡이 음역 후보로 남습니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="minProfileConfidence">최소 곡 음역 신뢰도</label><output id="minProfileConfidenceValue">0.55</output></div><input id="minProfileConfidence" type="range" min="0" max="1" step="0.05" value="0.55"><p>카탈로그 곡의 음역 프로파일을 신뢰할 최소 수준입니다.</p></article>
+          <label class="number-control">최종 추천 개수<input id="topK" type="number" min="1" max="50" step="1" value="10"></label>
+          <label class="check gate-check"><input id="useRangeGate" type="checkbox" checked>후보의 음역 게이트 사용</label>
+        </div>
+      </details>
+    </div>
+    <div class="live-settings"><div><strong>현재 실험 설정</strong><p id="settingsSummary">ECAPA 50% · Singer-BYOL 50% / 전체 평균 30% · 구간 매칭 70% / 음색 75% · 음역·키 25%</p></div><label class="check auto-run"><input id="autoRun" type="checkbox" checked>설정 변경 뒤 자동 계산</label></div>
+    <p id="experimentState" class="muted" role="status">재생 입력을 고르고 값을 움직이면, 멈춘 뒤 후보 결과를 자동으로 다시 계산합니다.</p>
   </section>
+  <section class="panel improvement-panel"><div class="section-title"><div><h2>개선안 검증 프로세스</h2><p class="muted">선택한 실제 요청에서 현행 Top K와 고정 개선안의 가수 편중·성별 편향 프록시를 비교합니다. 운영 추천에는 적용하지 않습니다.</p></div></div><div id="improvement" class="empty-state">재생 가능한 입력을 선택한 뒤 비교를 실행하면, 같은 가수 반복과 성별 편향이 실제로 줄었는지 표시합니다.</div></section>
   <section id="results" hidden><div class="section-title"><h2>실험 결과</h2><button id="export" class="subtle">결과 JSON 저장</button></div><div id="comparison" class="comparison"></div>
     <div class="rank-toolbar"><div class="switch"><button id="baselineTab" class="active">기본값 순위</button><button id="candidateTab">후보 설정 순위</button></div><input id="trackSearch" type="search" placeholder="가수 · 곡 검색" aria-label="곡 검색"><label class="check"><input id="onlyExcluded" type="checkbox">탈락 곡만</label><select id="rowLimit" aria-label="표시할 순위 개수"><option value="100">100개</option><option value="300">300개</option><option value="9999">전체</option></select></div>
     <p class="muted">아래는 각 모델의 전체 후보 음색 순위입니다. 최종 추천은 두 축 할당과 final score 정렬이 적용되므로 순서가 다를 수 있습니다. 회색은 게이트 탈락이며 Top K 미선택과 구분됩니다.</p>
