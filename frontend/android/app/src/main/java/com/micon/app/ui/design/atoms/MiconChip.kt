@@ -1,6 +1,9 @@
 package com.micon.app.ui.design.atoms
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
@@ -51,7 +54,23 @@ fun MiconFilterChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * true = 선택 시 **primary 채움 + 흰 글자** (프로토타입 `.chip.on` — 추천·연습·기록 랙).
+     * false = 라벤더 틴트 + 보라 글자 (`.chip.lav` — 설문처럼 여러 개를 고르는 곳).
+     */
+    emphasis: Boolean = false,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    // 프로토타입 `.chip { transition: all .16s }` — 색이 튀지 않고 넘어간다
+    val container by animateColorAsState(
+        when { !selected -> scheme.surface; emphasis -> scheme.primary; else -> scheme.primaryContainer },
+        tween(160), label = "chip-bg",
+    )
+    val label by animateColorAsState(
+        when { !selected -> scheme.onSurface; emphasis -> scheme.onPrimary; else -> scheme.onPrimaryContainer },
+        tween(160), label = "chip-fg",
+    )
+    val outline by animateColorAsState(if (selected) scheme.primary else scheme.outlineVariant, tween(160), label = "chip-line")
     FilterChip(
         selected = selected,
         onClick = onClick,
@@ -60,15 +79,12 @@ fun MiconFilterChip(
         shape = MiconShape.chip,
         label = { Text(text, style = MaterialTheme.typography.labelLarge) },
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            containerColor = container,
+            labelColor = label,
+            selectedContainerColor = container,
+            selectedLabelColor = label,
         ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
-        ),
+        border = BorderStroke(width = 1.dp, color = outline),
     )
 }
 

@@ -1,13 +1,7 @@
 package com.micon.app.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Assessment
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.RateReview
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.micon.app.data.requireSongId
+import com.micon.app.ui.design.organisms.MiconTab
 
 /**
  * 화면 경로. Figma 프레임 이름과의 대응은 README "화면 ↔ 패키지" 표 참고.
@@ -15,6 +9,9 @@ import com.micon.app.data.requireSongId
  */
 object Routes {
     // 온보딩 (Figma: 시작, 랜딩, 회원가입, 랜딩 페이지 - 가수/장르 선호 조사)
+    const val HOLO = "holo"                  // 첫 화면 · 목소리 분석 (프로토타입 holo)
+    const val VOICE_RESULT = "holo/result"   // 분석 결과
+    const val VOICE_RESULT_VIEW = "analysis/result" // 분석 탭에서 저장된 결과 다시 보기
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
@@ -54,19 +51,25 @@ object Routes {
     fun result(practiceId: Long) = "result/$practiceId"
     fun setlist(setlistId: Long) = "setlist/$setlistId"
 
-    /** 하단 탭을 보이는 경로 (Figma 에서 하단 바가 있는 화면) */
-    val withBottomBar: Set<String> = BottomTab.routes + setOf(SONG, SONG_MATCH, SETLIST)
+    /** 하단 탭을 보이는 경로 — 프로토타입은 탭 5개 루트에서만 탭바가 보인다 */
+    val withBottomBar: Set<String> = BottomTab.routes
 }
 
-/** 하단 탭 정의. 순서·아이콘은 Figma 와 같다: 리포트(그래프) · 추천(음표 원) · 연습(마이크) · 평가(클립보드) · 찜(북마크 하트) */
-enum class BottomTab(val route: String, val label: String, val icon: ImageVector) {
-    REPORT(Routes.REPORT, "리포트", Icons.Outlined.Assessment),
-    RECOMMEND(Routes.RECOMMEND, "추천", Icons.Outlined.Explore),
-    PRACTICE(Routes.PRACTICE, "연습", Icons.Outlined.Mic),
-    EVALUATION(Routes.EVALUATION, "평가", Icons.Outlined.RateReview),
-    FAVORITES(Routes.FAVORITES, "찜", Icons.Outlined.BookmarkBorder);
+/**
+ * 하단 탭 정의. 순서·라벨·아이콘은 프로토타입과 같다: 분석 · 추천 · 연습 · 기록 · 찜.
+ * (이전 이름 리포트→분석, 평가→기록. 라우트 문자열은 호환을 위해 유지.)
+ */
+enum class BottomTab(val route: String, val tab: MiconTab) {
+    REPORT(Routes.REPORT, MiconTab.Analysis),
+    RECOMMEND(Routes.RECOMMEND, MiconTab.Recommend),
+    PRACTICE(Routes.PRACTICE, MiconTab.Practice),
+    EVALUATION(Routes.EVALUATION, MiconTab.History),
+    FAVORITES(Routes.FAVORITES, MiconTab.Favorites);
+
+    val label: String get() = tab.label
 
     companion object {
         val routes: Set<String> = entries.map { it.route }.toSet()
+        fun of(tab: MiconTab): BottomTab = entries.first { it.tab == tab }
     }
 }

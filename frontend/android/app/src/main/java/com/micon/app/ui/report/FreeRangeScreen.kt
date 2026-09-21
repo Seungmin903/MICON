@@ -167,7 +167,12 @@ private fun stageProgress(view: FreeRangeSession.View): Double = when (view.phas
 
 @Composable
 fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
-    onMeasurementSaved: ((String) -> Unit)? = null) {
+    onMeasurementSaved: ((String) -> Unit)? = null,
+    /**
+     * 결과 페이지에서 "노래로 음색 측정하기" 를 눌렀을 때. null 이면 버튼을 그리지 않는다.
+     * 음역 측정과 음색 측정을 한 흐름으로 잇지 않고, 사용자가 결과를 보고 직접 넘어가게 하려는 것이다.
+     */
+    onTimbreMeasurement: (() -> Unit)? = null) {
     val context = LocalContext.current
     val vm: FreeRangeViewModel = viewModel(factory = viewModelFactory {
         initializer { FreeRangeViewModel(context.applicationContext, repository ?: RangeRepository(context), onMeasurementSaved != null) }
@@ -217,6 +222,8 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
                 !state.recording && !state.busy && state.error == null && view.phase != "failed" ->
                     PrimaryButton("측정 시작", start, Modifier.fillMaxWidth())
             }
+            if (view.phase == "done" && state.report != null && onTimbreMeasurement != null)
+                PrimaryButton("노래로 음색 측정하기", onTimbreMeasurement, Modifier.fillMaxWidth())
             if (!state.recording && view.phase != "done" && (view.phase == "failed" || state.error != null))
                 PrimaryButton("이 단계 다시 시도", vm::retryStage, Modifier.fillMaxWidth())
         }

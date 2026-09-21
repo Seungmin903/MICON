@@ -94,19 +94,23 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             }
             composable("measure") {
                 BackHandler { leave() }
-                val measurementSaved: (String) -> Unit = { measurementId ->
-                        if (vm.rangeMeasurementSaved(measurementId) && nav.currentDestination?.route == "measure") {
-                            nav.navigate("song-guide") {
-                                popUpTo("measure") { inclusive = true }
-                                launchSingleTop = true
-                            }
+                // 음역 측정과 음색 측정(노래 부르기)은 한 흐름으로 잇지 않는다. 측정이 끝나면 그 화면의 결과
+                // 페이지에서 멈추고, 사용자가 "노래로 음색 측정하기" 를 눌러야 다음 단계가 열린다.
+                val measurementSaved: (String) -> Unit = { measurementId -> vm.rangeMeasurementSaved(measurementId) }
+                fun continueToTimbre() {
+                    if (state.canSelectSong && nav.currentDestination?.route == "measure") {
+                        nav.navigate("song-guide") {
+                            popUpTo("measure") { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
+                }
                 if (store.rangeRepository.pending()?.submission?.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) {
                     GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
-                        repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = measurementSaved)
+                        repository = store.rangeRepository, onboardingIntro = true,
+                        onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
                 } else FreeRangeScreen(onBack = ::leave, repository = store.rangeRepository,
-                    onMeasurementSaved = measurementSaved)
+                    onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
             }
             composable("song-guide") {
                 BackHandler { leave() }

@@ -34,6 +34,7 @@ class MiconApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         TokenManager.init(this)
+        com.micon.app.ui.settings.restoreNotation(this)
         com.micon.app.data.onboarding.VoiceOnboardingStore.clearInterruptedGuests(this)
         container = AppContainer(this)
 
