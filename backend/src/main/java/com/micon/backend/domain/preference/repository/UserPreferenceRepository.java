@@ -42,6 +42,23 @@ public class UserPreferenceRepository {
 		return Boolean.TRUE.equals(completed);
 	}
 
+	public long preferenceVersion(long userId) {
+		Long version = jdbcTemplate.query("""
+			SELECT preference_version FROM user_setting WHERE user_id = :userId
+			""", Map.of("userId", userId), resultSet ->
+			resultSet.next() ? resultSet.getLong("preference_version") : 0L);
+		return version == null ? 0L : version;
+	}
+
+	public void incrementPreferenceVersion(long userId) {
+		jdbcTemplate.update("""
+			INSERT INTO user_setting(user_id, save_original_recording, preference_onboarding_completed, preference_version)
+			VALUES (:userId, FALSE, FALSE, 1)
+			ON DUPLICATE KEY UPDATE preference_version = preference_version + 1,
+			    updated_at = CURRENT_TIMESTAMP(6)
+			""", Map.of("userId", userId));
+	}
+
 	public void replace(long userId, List<Long> genreIds, List<Long> artistIds) {
 		Map<String, Object> user = Map.of("userId", userId);
 		jdbcTemplate.update("DELETE FROM user_genre_preference WHERE user_id = :userId", user);

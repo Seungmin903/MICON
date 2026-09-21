@@ -10,6 +10,7 @@ import com.micon.backend.domain.recommendation.dto.RecommendationResponse;
 import com.micon.backend.domain.recommendation.entity.Recommendation;
 import com.micon.backend.domain.recommendation.entity.RecommendationShelf;
 import com.micon.backend.domain.recommendation.entity.RecommendationSong;
+import com.micon.backend.domain.preference.repository.UserPreferenceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -26,15 +27,17 @@ public class RecommendationQueryService {
     private final RecommendationShelfRepository shelves;
     private final RecommendationSongRepository songs;
     private final ObjectMapper objectMapper;
+    private final UserPreferenceRepository preferences;
 
     public RecommendationQueryService(RecommendationRepository recommendations,
                                       RecommendationShelfRepository shelves,
                                       RecommendationSongRepository songs,
-                                      ObjectMapper objectMapper) {
+                                      ObjectMapper objectMapper, UserPreferenceRepository preferences) {
         this.recommendations = recommendations;
         this.shelves = shelves;
         this.songs = songs;
         this.objectMapper = objectMapper;
+        this.preferences = preferences;
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +85,8 @@ public class RecommendationQueryService {
                 recommendation.getCompositionVersion(), recommendation.getGeneratedAt(),
                 recommendation.getCompletedAt(), recommendation.getExpiresAt(), shelfResponses,
                 recommendation.getVoiceProfile().getId(), recommendation.getSourceSessionId(),
-                recommendation.getProfileVersion());
+                recommendation.getProfileVersion(), recommendation.getPreferenceVersion(),
+                preferences.preferenceVersion(recommendation.getUser().getId()));
     }
 
     private RecommendationResponse.Song song(RecommendationSong song) {

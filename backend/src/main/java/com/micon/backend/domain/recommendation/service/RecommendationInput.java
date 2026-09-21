@@ -8,11 +8,18 @@ public record RecommendationInput(
         Long profileId,
         Long sourceSessionId,
         long profileVersion,
+        long preferenceVersion,
         String sourceSongId,
         VoiceProfile voiceProfile,
         List<String> genres,
         List<String> preferredArtists
 ) {
+    public RecommendationInput(Long profileId, Long sourceSessionId, long profileVersion,
+                               String sourceSongId, VoiceProfile voiceProfile,
+                               List<String> genres, List<String> preferredArtists) {
+        this(profileId, sourceSessionId, profileVersion, 0L, sourceSongId, voiceProfile, genres, preferredArtists);
+    }
+
     public RecommendationInput {
         Objects.requireNonNull(profileId, "profileId is required");
         Objects.requireNonNull(voiceProfile, "voiceProfile is required");

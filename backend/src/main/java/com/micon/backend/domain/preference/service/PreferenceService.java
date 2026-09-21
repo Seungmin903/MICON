@@ -84,7 +84,12 @@ public class PreferenceService {
 			throw invalid("존재하지 않는 장르 또는 아티스트입니다.");
 		}
 
-		preferenceRepository.replace(userId, request.genreIds(), request.artistIds());
+		boolean changed = !new HashSet<>(preferenceRepository.findGenreIds(userId)).equals(new HashSet<>(request.genreIds()))
+			|| !new HashSet<>(preferenceRepository.findArtistIds(userId)).equals(new HashSet<>(request.artistIds()));
+		if (changed) {
+			preferenceRepository.replace(userId, request.genreIds(), request.artistIds());
+			preferenceRepository.incrementPreferenceVersion(userId);
+		}
 		if (request.onboardingCompleted()) {
 			preferenceRepository.markOnboardingCompleted(userId);
 		}

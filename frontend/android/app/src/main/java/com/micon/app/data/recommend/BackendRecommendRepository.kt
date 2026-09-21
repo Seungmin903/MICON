@@ -69,7 +69,8 @@ class BackendRecommendRepository(
         if (server.profileMissing) return RecommendShelves.empty(RecommendShelves.NOTE_ANALYSIS_REQUIRED)
         if (rec != null && rec.status == "COMPLETED") {
             val mapped = mapShelves(rec, limit, reshuffle)
-            if (mapped.isNotEmpty()) return RecommendShelves(personalized = true, shelves = mapped)
+            if (mapped.isNotEmpty()) return RecommendShelves(
+                personalized = true, shelves = mapped, note = server.note, generating = server.generating)
         }
         return fallback(limit, reshuffle, server.note ?: noteFor(rec)).copy(
             generating = server.generating || rec?.status == "GENERATING")
@@ -111,19 +112,23 @@ class BackendRecommendRepository(
         } catch (e: BackendRequestException) {
             if (e.status == 404) null else throw e
         }
-        if (latest != null && latest.profileId == profile.profileId &&
-            latest.sourceSessionId == profile.sessionId && latest.profileVersion == profile.profileVersion) {
+        val sameProfile = latest != null && latest.profileId == profile.profileId &&
+            latest.sourceSessionId == profile.sessionId && latest.profileVersion == profile.profileVersion
+        val fresh = sameProfile && latest?.preferenceVersion != null &&
+            latest.preferenceVersion == latest.currentPreferenceVersion
+        if (fresh) {
             return ServerState(latest, null)
         }
         return try {
             api.createRecommendation().unwrapData()
-            ServerState(null, NOTE_GENERATING, generating = true)
+            // A preference-only change can still show the same voice-profile result while it refreshes.
+            ServerState(if (sameProfile) latest else null, NOTE_PREFERENCE_REFRESHING, generating = true)
         } catch (e: BackendRequestException) {
             ServerState(
-                null,
+                if (sameProfile) latest else null,
                 when (e.code) {
                     "RECOMMENDATION_INPUT_NOT_READY" -> RecommendShelves.NOTE_ANALYSIS_REQUIRED
-                    "RECOMMENDATION_ALREADY_GENERATING" -> NOTE_GENERATING
+                    "RECOMMENDATION_ALREADY_GENERATING" -> if (sameProfile) NOTE_PREFERENCE_REFRESHING else NOTE_GENERATING
                     "RECOMMENDATION_DISPATCH_FAILED" -> "추천 서버가 아직 준비되지 않았어요."
                     else -> e.message
                 },
@@ -235,6 +240,7 @@ class BackendRecommendRepository(
         private const val MAX_CATALOG_PAGES = 5
         private const val PROFILE_CACHE_MS = 60_000L
         private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 다시 불러오면 바뀌어요."
+        private const val NOTE_PREFERENCE_REFRESHING = "변경한 선호를 반영해 추천을 갱신하고 있어요."
         /** 기기 계산 추천을 대신 보여 줄 때 이유 뒤에 붙이는 꼬리 */
         private const val NOTE_LOCAL_TAIL = "지금은 이 기기의 음역 계산 추천이에요."
 

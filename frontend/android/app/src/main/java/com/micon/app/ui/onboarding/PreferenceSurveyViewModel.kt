@@ -62,6 +62,7 @@ class PreferenceSurveyViewModel(
     private val userId: Long,
     private val isEditing: Boolean = false,
     private val isCurrentUser: () -> Boolean = { true },
+    private val refreshRecommendations: suspend () -> Unit = {},
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(PreferenceSurveyState())
     val state = mutableState.asStateFlow()
@@ -205,6 +206,8 @@ class PreferenceSurveyViewModel(
                     alreadyCompleted = true
                     drafts.clear(userId, isEditing)
                     mutableState.update { it.copy(isSaving = false, saved = true, draftPending = false, draftError = null) }
+                    // Freshness is enforced by the backend version check; this only starts the refresh sooner.
+                    if (isEditing) runCatching { refreshRecommendations() }
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
                     if (handleSessionError(error)) return@withLock
