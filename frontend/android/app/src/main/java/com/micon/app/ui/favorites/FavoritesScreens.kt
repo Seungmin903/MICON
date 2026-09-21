@@ -90,6 +90,164 @@ import kotlinx.coroutines.ensureActive
  * 찜 탭. 데이터: 백엔드 `GET /users/me/favorites`(찜 곡), `GET /setlists`(세트리스트), `GET /practices`(연습한 곡 → "연습 중" 탭).
  * 비회원은 NavHost 가 로그인 안내를 보여 주므로 여기 오지 않는다.
  */
+class FavoritesViewModel(
+    private val favorites: FavoriteRepository,
+    private val setlists: SetlistRepository,
+    private val practices: PracticeRepository,
+    private val recommend: RecommendRepository,
+) : ViewModel() {
+    data class State(
+        val loading: Boolean = true,
+        val error: String? = null,
+        val songs: List<SongSummary> = emptyList(),
+        /** 연습 기록이 있는 곡 id — "연습 중" 탭 */
+        val practicedIds: Set<String> = emptySet(),
+        val setlists: List<Setlist> = emptyList(),
+        val keys: Map<String, Int?> = emptyMap(),
+        val busy: Boolean = false,
+        val toast: String? = null,
+    )
+
+    private val _state = MutableStateFlow(State())
+    val state = _state.asStateFlow()
+
+    private var loadJob: Job? = null
+
+    fun load() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null) }
+            try {
+                val songs = favorites.refresh()
+                val lists = setlists.list()
+                val practiced = runCatching { practices.history(page = 0, size = 50).items.map { it.songId }.toSet() }.getOrDefault(emptySet())
+                ensureActive()
+                _state.update { it.copy(loading = false, songs = songs, setlists = lists, practicedIds = practiced) }
+                val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
+                ensureActive()
+                _state.update { it.copy(keys = keys) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(loading = false, error = describeBackendError(e, "찜 목록을 불러오지 못했어요.")) }
+            }
+        }
+    }
+
+    /** 하트: 낙관적으로 캐시가 먼저 바뀌고, 해제되면 목록에서도 바로 뺀다. 실패하면 저장소가 되돌리고 토스트로 알린다. */
+    fun toggleLike(songId: String) {
+        viewModelScope.launch {
+            try {
+                if (!favorites.toggle(songId)) _state.update { it.copy(songs = it.songs.filterNot { s -> s.id == songId }) }
+            } catch (e: Exception) {
+                _state.update { it.copy(toast = describeBackendError(e, "찜을 바꾸지 못했어요.")) }
+            }
+        }
+    }
+
+    fun createSetlist(name: String) {
+        if (name.isBlank() || _state.value.busy) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true) }
+            try {
+                setlists.create(name)
+                _state.update { it.copy(setlists = setlists.list(), busy = false, toast = "세트리스트를 만들었어요.") }
+            } catch (e: Exception) {
+                _state.update { it.copy(busy = false, toast = describeBackendError(e, "세트리스트를 만들지 못했어요.")) }
+            }
+        }
+    }
+
+    fun consumeToast() = _state.update { it.copy(toast = null) }
+}
+
+private enum class Tab(val label: String) { ALL("전체"), PRACTICING("연습 중"), SETLIST("내 세트리스트") }
+
+/** Figma "노래 찜 목록" / "노래 찜 목록 - 세트리스트" */
+@Composable
+fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Unit, onSettings: () -> Unit) {
+    val container = rememberAppContainer()
+    val vm: FavoritesViewModel = viewModel(factory = viewModelFactory {
+        initializer { FavoritesViewModel(container.favorites, container.setlists, container.practices, container.recommend) }
+    })
+    val state by vm.state.collectAsStateWithLifecycle()
+    RefreshOnResume(vm::load)
+    val context = LocalContext.current
+    var tab by remember { mutableStateOf(Tab.ALL) }
+    var query by remember { mutableStateOf("") }
+    var showCreate by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
+    if (showCreate) {
+        NameDialog("새 세트리스트", initial = "", confirmLabel = "만들기", onDismiss = { showCreate = false }) { showCreate = false; vm.createSetlist(it) }
+    }
+
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        MiconHeader(onSettings = onSettings)
+        MiconSearchBar(query, { query = it }, Modifier.padding(horizontal = 20.dp))
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Tab.entries.forEach { t -> PillChip(t.label, selected = tab == t, onClick = { tab = t }, fontSize = 14.sp) }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Menu, null, Modifier.size(22.dp), tint = Ink)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                when (tab) { Tab.SETLIST -> "${state.setlists.size}개 리스트"; Tab.PRACTICING -> "연습 기록이 있는 찜 곡"; Tab.ALL -> "${state.songs.size}곡" },
+                fontSize = 15.sp, color = Grey, modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        HorizontalDivider(color = GreyLight)
+
+        when {
+            state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
+            state.error != null -> RetryBlock(state.error!!, vm::load)
+            tab == Tab.SETLIST -> LazyColumn(Modifier.fillMaxSize()) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showCreate = true }.padding(horizontal = 20.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(76.dp).background(Color(0xFF15161C), CircleShape), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(50.dp).background(Lavender, CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Add, "새 리스트", Modifier.size(28.dp), tint = Ink)
+                            }
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Text("새로운 리스트", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                    }
+                }
+                items(state.setlists, key = { it.id }) { sl ->
+                    SongRow(title = sl.name, artist = "${sl.songCount}곡", imageUrl = null, onClick = { onSetlistClick(sl.id) })
+                }
+                if (state.setlists.isEmpty()) item { Text("세트리스트가 없어요. 위에서 새 리스트를 만들어 보세요.", Modifier.padding(24.dp), color = Grey) }
+            }
+            else -> {
+                val songs = state.songs
+                    .filter { tab == Tab.ALL || it.id in state.practicedIds }
+                    .filter { query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) }
+                LazyColumn(Modifier.fillMaxSize()) {
+                    items(songs, key = { it.id }) { song ->
+                        SongRow(
+                            title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
+                            keyBadge = state.keys[song.id], liked = true, onLike = { vm.toggleLike(song.id) },
+                        )
+                    }
+                    if (songs.isEmpty()) item {
+                        Text(
+                            if (tab == Tab.PRACTICING) "연습한 찜 곡이 없어요. 찜한 곡을 연습 탭에서 불러 보세요." else "찜한 곡이 없어요. 연습 탭에서 하트를 눌러 보세요.",
+                            Modifier.padding(24.dp), color = Grey,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 세트리스트 세부. 데이터: `GET /setlists/{id}`. 이름 변경·삭제(더보기 메뉴), 곡 추가(찜한 곡 중)·제거(편집 모드). */
 class SetlistViewModel(
     private val setlists: SetlistRepository,
     private val favorites: FavoriteRepository,
