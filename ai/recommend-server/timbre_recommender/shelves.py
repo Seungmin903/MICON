@@ -37,7 +37,7 @@ VOICE_MAX_KEY_SHIFT = 4                # A: 이 폭 안의 키 조정으로 부�
 ORIGINAL_KEY_MIN_COVERAGE = 0.95       # B
 CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상한(+여유)보다 이만큼 높음
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
-RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop"}
+RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop", "랩/힙합"}   # DB genre 테이블은 한글 라벨을 쓴다
 # 한국곡 설문 장르 → 스타일 태그. 외국어 선택은 아래 언어 판정으로 처리한다.
 # K-Pop 은 범용 태그라 항상 "취향 안"으로 본다.
 GENRE_TAGS = {
