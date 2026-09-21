@@ -7,7 +7,8 @@ data class VoiceSessionDto(
     val expiresAt: String, val range: VoiceRangeDto? = null,
 )
 data class VoiceRangeDto(val lowMidi: Double?, val highMidi: Double?, val measurementStatus: String, val qualityStatus: String,
-    val noteResults: List<com.micon.app.range.RangeNote>? = null)
+    val noteResults: List<com.micon.app.range.RangeNote>? = null,
+    val protocolVersion: String? = null, val stableLowMidi: Double? = null, val stableHighMidi: Double? = null)
 data class DeviceRangeResultRequest(
     val measurementId: String, val measuredAt: String, val protocolVersion: String,
     val lowMidi: Double?, val highMidi: Double?, val noteResults: List<DeviceRangeNoteDto>,

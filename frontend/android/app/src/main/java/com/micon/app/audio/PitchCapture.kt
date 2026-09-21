@@ -55,6 +55,9 @@ class PitchCapture(private val fmin: Double = YinPitch.FMIN, private val fmax: D
 
     /** Restart capture after a choice pause, appending PCM on the same recording clock. */
     fun resume(wavFile: File, onError: (Throwable) -> Unit = {}, onFrame: (PitchFrame) -> Unit) {
+        recordingRate = Pcm16MonoWav.sampleRate(wavFile).also {
+            require(it in setOf(16000, 44100, 48000)) { "unsupported previous recording rate" }
+        }
         startInternal(wavFile, true, onError, onFrame)
     }
 

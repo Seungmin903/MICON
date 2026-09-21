@@ -95,9 +95,10 @@ public class RecommendationInputAssembler {
     }
 
     private RecommendationInput.VoiceProfile profile(VoiceRangeMeasurement range, String embeddings) {
+        boolean free = range != null && "guided-range-v8".equals(range.getRuleVersion());
         return new RecommendationInput.VoiceProfile(
-                range == null ? null : range.getFullLowMidi(),
-                range == null ? null : range.getFullHighMidi(),
+                range == null ? null : free ? range.getStableLowMidi() : range.getFullLowMidi(),
+                range == null ? null : free ? range.getStableHighMidi() : range.getFullHighMidi(),
                 null,
                 range == null ? null : range.getNoteResults(),
                 null,

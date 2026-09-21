@@ -30,12 +30,7 @@ fun RangeTestFlow() {
     Scaffold(containerColor = Color.White) { padding ->
         NavHost(navController = nav, startDestination = "device-measure", modifier = Modifier.padding(padding)) {
             composable("device-measure") {
-                GuidedRangeScreen(onBack = { results() }, onDone = { results() },
-                    onRestart = { nav.navigate("device-measure") { popUpTo("device-measure") { inclusive = true } } })
-            }
-            composable("device-extension") {
-                GuidedRangeScreen(onBack = { results() }, onDone = { results() }, extension = true,
-                    onRestart = { nav.navigate("device-extension") { popUpTo("device-extension") { inclusive = true } } })
+                FreeRangeScreen(onBack = { results() })
             }
             composable("device-results") {
                 val context = LocalContext.current
@@ -47,9 +42,9 @@ fun RangeTestFlow() {
                 }
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("음역 안정성 결과", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text("음역 측정 결과", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     PrimaryButton("새로 측정하기", { nav.navigate("device-measure") }, Modifier.fillMaxWidth())
-                    report?.let { RangeReportCards(it, onExtend = { nav.navigate("device-extension") }) }
+                    report?.let { RangeReportCards(it) }
                         ?: Text("측정 결과 없음", color = Grey)
                 }
             }

@@ -53,7 +53,10 @@ object VoiceProfileMapper {
         val low = range.lowMidi ?: return null
         val high = range.highMidi ?: return null
         if (high <= low) return null
-        val stable = range.stableIntervals.filter { it.size == 2 && it[0] <= it[1] }.map { it[0]..it[1] }
+        val held = if (range.protocolVersion == com.micon.app.range.RangeProtocol.FREE_VERSION &&
+            range.stableLowMidi != null && range.stableHighMidi != null)
+            listOf(range.stableLowMidi.roundToInt()..range.stableHighMidi.roundToInt()) else emptyList()
+        val stable = (held + range.stableIntervals.filter { it.size == 2 && it[0] <= it[1] }.map { it[0]..it[1] })
             .ifEmpty { runs(range.notes.filter { it.status in CONFIRMED }.map { it.midi }) }
             .maxByOrNull { it.last - it.first }
         val comfortLow = (stable?.first ?: low).coerceIn(low, high)
