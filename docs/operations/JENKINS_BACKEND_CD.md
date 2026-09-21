@@ -1,6 +1,6 @@
 # Jenkins BE main 배포
 
-Jira: S15P21B110-155. 연계: 153·154·156. 기준일: 2026-09-10 KST.
+Jira: S15P21B110-155. 연계: 153·154·156. 최초 기준일: 2026-09-10 KST, 운영 상태 갱신: 2026-09-21 KST.
 
 `ci/Jenkinsfile.backend`는 Android CI와 분리된 BE 전용 Pipeline 정의다. 리뷰된 `main` checkout만 서버 배포를 허용하며 MR 소스·develop·수동 detached branch는 branch guard에서 중단한다. GitLab로 commit status를 다시 전송하지 않는 기존 팀 결정도 유지한다.
 
@@ -15,7 +15,7 @@ Jira: S15P21B110-155. 연계: 153·154·156. 기준일: 2026-09-10 KST.
 
 Jenkins agent에는 Git, Python 3, Java 21, `tar`, `sha256sum`, OpenSSH client가 필요하다. 서버에는 Docker Compose v2+, nginx, Python 3, util-linux의 `flock`과 배포 사용자에 필요한 제한된 sudo 권한이 필요하다.
 
-현재 로컬 PEM을 Jenkins workspace나 저장소로 복사하지 않는다. Jenkins 관리자 화면에서 credential을 등록하는 작업은 영구 접근 권한 생성이므로 인프라 담당자가 대상·지문·키를 확인한 뒤 수행한다. 이 브랜치 작업에서는 credential과 Jenkins job을 생성하지 않았다.
+현재 로컬 PEM을 Jenkins workspace나 저장소로 복사하지 않는다. Jenkins credential은 관리자 화면에서 대상·지문·키를 확인해 관리하며 저장소나 빌드 로그에 원문을 남기지 않는다. Backend 배포 Jenkins 작업은 Android CI와 분리해 구성되어 있다.
 
 ## Pipeline 순서
 
@@ -54,4 +54,4 @@ sudo /path/to/release/infra/deploy/rollback_backend_release.sh --confirm-db-comp
 - 로컬 `infra/deploy` 테스트 37개에서 main guard, host key 강제, SHA archive, gate 순서, 전환 전 후보 정리를 검사했다.
 - SSAFY 서버에서 세 shell script의 syntax, root 0600 `backend-deploy.env` 설치, 잘못된 release SHA의 무변경 종료를 확인했다.
 - 각 build/Flyway/readiness/S3 단계와 Nginx 후보 syntax·fail-closed는 앞선 수동 후보 검증에서 개별 통과했다.
-- Jenkins credential/job 생성, main webhook, Pipeline 전체 실행과 실제 Nginx 성공 전환은 리뷰·병합 후 남아 있다. 따라서 155를 완료로 표시하지 않는다.
+- Backend Jenkins 작업과 `main` 트리거 연결은 구성되었고 2026-09-21 배포 실행 시작까지 확인했다. 최신 실행의 최종 결과·배포 SHA·활성 슬롯·공개 API 검증 결과는 Jenkins 기록을 확인해 [배포 준비 문서](DEPLOYMENT_READINESS.md)에 남긴다. 이 근거 없이 배포 완료로 판정하지 않는다.
