@@ -31,6 +31,7 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.NetworkAuthRepository
 import com.micon.app.data.backend.dto.PasswordChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
+import com.micon.app.data.backend.errorEnvelope
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconTextField
@@ -235,10 +236,12 @@ fun ChangePasswordScreen(onBack: () -> Unit, onLogout: () -> Unit) {
                         try {
                             val response = backend.api.changePassword(PasswordChangeRequest(currentPassword, newPassword))
                             if (!response.isSuccessful) {
-                                error = when (response.code()) {
-                                    401 -> "현재 비밀번호가 올바르지 않습니다."
-                                    400 -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
-                                    else -> "비밀번호를 변경하지 못했습니다."
+                                val backendError = response.errorEnvelope()
+                                error = when (backendError?.code) {
+                                    "INVALID_CURRENT_PASSWORD" -> "현재 비밀번호가 올바르지 않습니다."
+                                    "PASSWORD_UNCHANGED" -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                                    "INVALID_REQUEST" -> backendError.message
+                                    else -> backendError?.message ?: "비밀번호를 변경하지 못했습니다."
                                 }
                             } else {
                                 currentPassword = ""; newPassword = ""; confirmPassword = ""
