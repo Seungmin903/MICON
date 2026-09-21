@@ -25,8 +25,8 @@ def connect():
 
 def variants(path: Path) -> list[dict]:
     rows = json.loads(path.read_text(encoding="utf-8"))["variants"]
-    if len(rows) != 5388:
-        raise SystemExit(f"expected 5,388 variants, got {len(rows)}")
+    if not rows:
+        raise SystemExit("manifest contains no variants")
     if len({(row["songId"], int(row["semitones"])) for row in rows}) != len(rows):
         raise SystemExit("manifest contains duplicate song/key pairs")
     return rows
@@ -34,7 +34,17 @@ def variants(path: Path) -> list[dict]:
 
 def register(connection, rows: list[dict], apply: bool) -> dict:
     inserted = exact = 0
+    song_ids = sorted({row["songId"] for row in rows})
     with connection.cursor() as cursor:
+        placeholders = ",".join(["%s"] * len(song_ids))
+        cursor.execute(f"SELECT song_id FROM song WHERE song_id IN ({placeholders})", song_ids)
+        existing_song_ids = {row[0] for row in cursor.fetchall()}
+        missing_song_ids = [song_id for song_id in song_ids if song_id not in existing_song_ids]
+        if missing_song_ids:
+            raise RuntimeError(
+                f"manifest references missing songs: {len(missing_song_ids)}/{len(song_ids)} "
+                f"examples={missing_song_ids[:10]}"
+            )
         for row in rows:
             cursor.execute("""SELECT file_path,mime_type,file_bytes,sha256,generation_status FROM song_media
                               WHERE song_id=%s AND kind='INSTRUMENTAL_KEY' AND semitones=%s FOR UPDATE""",
@@ -50,8 +60,6 @@ def register(connection, rows: list[dict], apply: bool) -> dict:
                               VALUES(%s,'INSTRUMENTAL_KEY',%s,%s,%s,%s,%s,'READY')""",
                            (row["songId"], row["semitones"], row["objectKey"], row["mimeType"], row["bytes"], row["sha256"]))
             inserted += 1
-        song_ids = sorted({row["songId"] for row in rows})
-        placeholders = ",".join(["%s"] * len(song_ids))
         cursor.execute(f"""SELECT song_id,COUNT(DISTINCT semitones),MIN(semitones),MAX(semitones)
                            FROM song_media WHERE song_id IN ({placeholders})
                              AND generation_status='READY' AND kind IN ('INSTRUMENTAL','INSTRUMENTAL_KEY')
