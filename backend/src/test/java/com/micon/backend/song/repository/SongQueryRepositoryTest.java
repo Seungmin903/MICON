@@ -48,11 +48,19 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void returnsAllSongsOnTheRequestedPageWhenQueryIsBlank() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, null);
 
-		assertThat(repository.count("")).isEqualTo(2);
+		assertThat(repository.countCatalog()).isEqualTo(2);
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("밤편지", "좋은 날");
+	}
+
+	@Test
+	void appliesOffsetToCatalogPagesWithoutChangingTheirOrder() {
+		assertThat(repository.findCatalogPage(1, 0, null)).extracting(SongResponse.Summary::title)
+			.containsExactly("밤편지");
+		assertThat(repository.findCatalogPage(1, 1, null)).extracting(SongResponse.Summary::title)
+			.containsExactly("좋은 날");
 	}
 
 	@Test
@@ -79,7 +87,7 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void placesSongsMatchingTheUsersPreferredGenresFirst() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 30L);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, 30L);
 
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("좋은 날", "밤편지");
@@ -87,10 +95,20 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void keepsTheDefaultOrderWhenTheUserHasNoPreferredGenres() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 31L);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, 31L);
 
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("밤편지", "좋은 날");
+	}
+
+	@Test
+	void keepsTitleTjNumberAndArtistSearchBehaviorOnTheSearchPath() {
+		assertThat(repository.findPage("좋은", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
+		assertThat(repository.findPage("33791", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
+		assertThat(repository.findPage("아이유", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
 	}
 
 	@Test
