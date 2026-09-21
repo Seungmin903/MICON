@@ -19,11 +19,14 @@ from timbre_recommender.shelves import score_all_tracks, build_shelves, VOICE_MA
 
 from adapters import matrices
 from improvement import evaluate as evaluate_improvement
+import genres as genre_rules
 
 DEFAULTS = {"ecapaWeight": .5, "centroidWeight": .3, "timbreWeight": .75,
             "maxKeyShift": VOICE_MAX_KEY_SHIFT, "maxCoreExcess": 0.0,
             "minRangeScore": .35, "minProfileConfidence": MIN_PROFILE_CONFIDENCE,
-            "useRangeGate": True, "topK": 10, "compositionMode": "twoAxisQuota"}
+            "useRangeGate": True, "topK": 10, "compositionMode": "twoAxisQuota",
+            # 0 = 현행. 장르는 언어 게이트로만 쓰이고 곡 선택에는 영향을 주지 않는다.
+            "genreWeight": 0.0, "preferredGenres": []}
 
 
 def centroid(x):
@@ -32,6 +35,16 @@ def centroid(x):
     if not np.isfinite(n) or n < 1e-12:
         raise ValueError("구간 평균이 영벡터이므로 지도에 투영할 수 없습니다.")
     return v / n
+
+
+def _with_genre_bonus(row):
+    """장르 가산점을 두 축 점수에도 반영한 사본. 진단 표에는 원래 모델 점수를 남긴다."""
+    bonus = row.get("genre_bonus") or 0.0
+    if not bonus:
+        return row
+    models = {key: dict(value, absolute_score=value["absolute_score"] + bonus)
+              for key, value in row["models"].items()}
+    return dict(row, models=models)
 
 
 class Engine:
@@ -59,14 +72,20 @@ class Engine:
 
     def info(self):
         batches = sorted({str((t.metadata or {}).get("batch_id")) for t in self.catalog.tracks if (t.metadata or {}).get("batch_id")})
+        summary = genre_rules.catalog_summary(self.catalog.tracks)
+        tagged = sum(1 for t in self.catalog.tracks if genre_rules.track_genres(t.metadata))
         return {"trackCount": len(self.catalog.tracks), "catalogFingerprint": self.fingerprint,
                 "coreFingerprint": self.core_fingerprint, "scoringVersion": SCORING_VERSION,
                 "batchIds": batches, "defaults": DEFAULTS,
+                "genres": {"labels": summary, "taggedTrackCount": tagged,
+                           "untaggedTrackCount": len(self.catalog.tracks) - tagged,
+                           "genericKeys": sorted(genre_rules.GENERIC_KEYS)},
                 "projection": {"method": "PCA normalized segment centroid seed 42",
                     "explainedVariance": {k: self.projectors[k].explained_variance_ratio_.tolist() for k in MODEL_KEYS}},
                 "limitations": ["2차원 거리는 실제 구간 기반 추천 점수와 다릅니다.",
                     "모델 점수는 성공 확률이나 음색 정확도 지표가 아닙니다.",
-                    "성별 메타데이터가 없어 성별 필터를 적용하지 않습니다."]}
+                    "성별 메타데이터가 없어 성별 필터를 적용하지 않습니다.",
+                    "장르 가산점은 실험실 전용 규칙이며 운영 추천에는 적용되지 않습니다."]}
 
     def project(self, query):
         x = matrices(query)
@@ -94,6 +113,12 @@ class Engine:
                 improvement_rows, baseline=a["recommendations"], profile=profile, range_available=range_available,
                 ranges=self.ranges.profiles, excluded_track_ids=excluded, top_k=baseline["topK"],
             )
+        # 현행 Top K 도 후보 설정의 선호 장르 기준으로 세야 "몇 곡이 늘었나"가 비교가 된다.
+        candidate_keys = genre_rules.genre_keys(b["genre"]["preferred"])
+        for side in (a, b):
+            for rec in side["recommendations"]:
+                rec["genreMatch"] = genre_rules.track_matches({"genres": rec.get("genres") or []}, candidate_keys)
+            side["genre"]["matchedInTopK"] = sum(1 for rec in side["recommendations"] if rec["genreMatch"])
         before = {p["track_id"]: p["position"] for p in a["recommendations"]}
         after = {p["track_id"]: p["position"] for p in b["recommendations"]}
         return {"caseId": case["caseId"], "inputKind": case.get("inputKind", "saved-case"),
@@ -113,7 +138,18 @@ class Engine:
                                 config=RankerConfig(base_ecapa_weight=cfg["ecapaWeight"],
                                     centroid_weight=cfg["centroidWeight"], segment_weight=1-cfg["centroidWeight"]),
                                 mode="range" if cfg["timbreWeight"] == .3 else "timbre")
-        allowed = allowed_languages(genres)
+        # 선호 장르는 현행대로 언어 게이트를 그대로 태우고(0% 결과 = 현행), 가산점만 실험값이다.
+        preferred = genre_rules.preferred_labels(None if baseline else cfg.get("preferredGenres"), genres)
+        preferred_keys = genre_rules.genre_keys(preferred)
+        weight = 0.0 if baseline else float(cfg.get("genreWeight") or 0.0)
+        allowed = allowed_languages(preferred)
+        for r in rows:
+            fit = r["range_fit"]
+            # 장르 가산점 이전의 점수. 가산점 크기를 이 분포 폭에 맞춘다.
+            r["base_final_score"] = (cfg["timbreWeight"]*r["timbre_score"] + (1-cfg["timbreWeight"])*fit["score"]
+                                     if available and fit else r["timbre_score"])
+        genre_bonus, score_span = genre_rules.bonus_unit((r["base_final_score"] for r in rows), weight)
+        language_excluded = 0
         diagnostics = []
         eligible = []
         for r in rows:
@@ -124,6 +160,7 @@ class Engine:
             lang = track_language(r["metadata"])
             if allowed is not None and lang is not None and lang not in allowed:
                 reasons.append({"code": "LANGUAGE", "message": f"언어 {lang}: 허용 {','.join(sorted(allowed))}"})
+                language_excluded += 1
             if r["is_rap"]:
                 reasons.append({"code": "RAP", "message": "목소리 shelf에서 랩 제외"})
             if use_range:
@@ -143,11 +180,14 @@ class Engine:
                     if fit["score"] < cfg["minRangeScore"]:
                         reasons.append({"code": "RANGE_SCORE", "message": f"음역 점수 {fit['score']:.3f} < {cfg['minRangeScore']:.3f}"})
             # In production unreliable/missing range falls back to timbre only.
-            r["final_score"] = (cfg["timbreWeight"]*r["timbre_score"] + (1-cfg["timbreWeight"])*fit["score"]
-                                  if available and fit else r["timbre_score"])
+            r["genre_match"] = genre_rules.track_matches(r["metadata"], preferred_keys)
+            r["genre_bonus"] = genre_bonus if r["genre_match"] else 0.0
+            r["final_score"] = r["base_final_score"] + r["genre_bonus"]
             diagnostics.append({"id": r["track_id"], "title": r["title"], "artist": r["artist"],
                 "scores": {k: r["models"][k]["absolute_score"] for k in MODEL_KEYS},
                 "timbreScore": r["timbre_score"], "finalScore": r["final_score"], "rangeFit": fit,
+                "genres": genre_rules.track_genres(r["metadata"]), "genreMatch": r["genre_match"],
+                "genreBonus": round(r["genre_bonus"], 6),
                 "eligible": not reasons, "exclusions": reasons})
             if not reasons:
                 eligible.append(r)
@@ -166,11 +206,25 @@ class Engine:
                 "final_score": item["final_score"],
             } for position, item in enumerate(ordered, start=1)]
         else:
-            recs = compose_two_axis(eligible, top_k=cfg["topK"], range_enabled=use_range,
+            # 가산점을 축 점수에도 같이 실어야 할당(2:2:1) 단계의 **선발**까지 장르가 영향을 준다.
+            # 최종 점수에만 더하면 이미 뽑힌 10곡의 순서만 바뀐다.
+            recs = compose_two_axis([_with_genre_bonus(r) for r in eligible], top_k=cfg["topK"], range_enabled=use_range,
                                     min_range_score=cfg["minRangeScore"], scoring_version=SCORING_VERSION)["recommendations"]
+        rows_by_id = {r["track_id"]: r for r in rows}
+        for rec in recs:
+            row = rows_by_id.get(rec["track_id"])
+            rec["genres"] = genre_rules.track_genres(row["metadata"]) if row else []
+            rec["genreMatch"] = bool(row and row["genre_match"])
         lists = {}
         for key in MODEL_KEYS:
             lists[key] = [dict(d, rank=i+1) for i, d in enumerate(sorted(diagnostics, key=lambda d: (-d["scores"][key], d["id"])))]
         return {"settings": cfg, "recommendations": recs, "rankings": lists,
                 "eligibleCount": sum(d["eligible"] for d in diagnostics), "excludedCount": sum(not d["eligible"] for d in diagnostics),
-                "rangeGateApplied": use_range}
+                "rangeGateApplied": use_range,
+                "genre": {"preferred": preferred, "unknownLabels": genre_rules.unknown_labels(preferred),
+                          "source": "experiment" if (not baseline and cfg.get("preferredGenres")) else "case",
+                          "weight": weight, "bonusPerMatch": round(genre_bonus, 6), "scoreSpan": round(score_span, 6),
+                          "matchedCatalogCount": sum(1 for r in rows if r["genre_match"]),
+                          "matchedEligibleCount": sum(1 for r in eligible if r["genre_match"]),
+                          "languageExcludedCount": language_excluded,
+                          "matchedInTopK": sum(1 for rec in recs if rec["genreMatch"])}}

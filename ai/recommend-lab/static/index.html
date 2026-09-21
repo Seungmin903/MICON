@@ -26,6 +26,7 @@
       <button type="button" class="subtle preset" data-preset="current">현행 점수</button>
       <button type="button" class="subtle preset" data-preset="global">전체 음색만 보기</button>
       <button type="button" class="subtle preset" data-preset="range">음역·키 우선 보기</button>
+      <button type="button" class="subtle preset" data-preset="genre">선호 장르 우선 보기</button>
     </div>
     <div class="parameter-layout">
       <section class="parameter-group" aria-labelledby="compositionControls">
@@ -57,6 +58,19 @@
           <p id="timbreWeightHelp">75:25는 현재 timbre 모드의 기본값입니다. 30:70은 range 모드의 기본값이며, 그 밖의 값은 실험용 재조합입니다.</p>
         </article>
       </section>
+      <section class="parameter-group genre-group" aria-labelledby="genreControls">
+        <h3 id="genreControls">장르 취향</h3>
+        <article class="parameter-card">
+          <div class="parameter-head"><label for="genreWeight">장르가 추천에 미치는 영향</label><output id="genreWeightValue">0% · 현행과 같음</output></div>
+          <input id="genreWeight" type="range" min="0" max="1" step="0.05" value="0">
+          <p id="genreWeightHelp">현행은 선호 장르를 언어(한국어·영어·일본어) 판정에만 쓰고, 어떤 곡을 뽑을지에는 쓰지 않습니다. 그래서 0%가 곧 현행 동작입니다. 올릴수록 선호 장르 곡에 점수를 더해 축별 선발과 최종 순서를 함께 밀어 올립니다.</p>
+        </article>
+        <article class="parameter-card">
+          <div class="parameter-head"><span id="genreChoiceLabel" class="pseudo-label">선호 장르</span><output id="genreChoiceValue">입력에 저장된 취향 사용</output></div>
+          <div id="genreChips" class="genre-chips" role="group" aria-labelledby="genreChoiceLabel"><p class="muted">카탈로그 장르를 불러오는 중…</p></div>
+          <p id="genreChoiceHelp">카탈로그에 실제로 있는 장르만 고를 수 있습니다. 아무것도 고르지 않으면 이 요청에 저장된 취향을 그대로 씁니다. 왼쪽 현행 결과는 언제나 저장된 취향을 씁니다.</p>
+        </article>
+      </section>
       <details class="parameter-group filter-controls">
         <summary><span><strong>후보 필터와 표시 개수</strong><small>음역 게이트를 얼마나 엄격하게 적용할지 조절합니다</small></span><span class="details-hint">펼치기</span></summary>
         <div class="filter-grid">
@@ -73,7 +87,9 @@
     <p id="experimentState" class="muted" role="status">재생 입력을 고르고 값을 움직이면, 멈춘 뒤 후보 결과를 자동으로 다시 계산합니다.</p>
   </section>
   <section class="panel improvement-panel"><div class="section-title"><div><h2>개선안 검증 프로세스</h2><p class="muted">선택한 실제 요청에서 현행 Top K와 고정 개선안의 가수 편중·성별 편향 프록시를 비교합니다. 운영 추천에는 적용하지 않습니다.</p></div></div><div id="improvement" class="empty-state">재생 가능한 입력을 선택한 뒤 비교를 실행하면, 같은 가수 반복과 성별 편향이 실제로 줄었는지 표시합니다.</div></section>
-  <section id="results" hidden><div class="section-title"><h2>실험 결과</h2><button id="export" class="subtle">결과 JSON 저장</button></div><div id="comparison" class="comparison"></div>
+  <section id="results" hidden><div class="section-title"><h2>실험 결과</h2><button id="export" class="subtle">결과 JSON 저장</button></div>
+    <div id="genreSummary" class="panel genre-summary"></div>
+    <div id="comparison" class="comparison"></div>
     <div class="rank-toolbar"><div class="switch"><button id="baselineTab" class="active">기본값 순위</button><button id="candidateTab">후보 설정 순위</button></div><input id="trackSearch" type="search" placeholder="가수 · 곡 검색" aria-label="곡 검색"><label class="check"><input id="onlyExcluded" type="checkbox">탈락 곡만</label><select id="rowLimit" aria-label="표시할 순위 개수"><option value="100">100개</option><option value="300">300개</option><option value="9999">전체</option></select></div>
     <p class="muted">아래는 각 모델의 전체 후보 음색 순위입니다. 최종 추천은 두 축 할당과 final score 정렬이 적용되므로 순서가 다를 수 있습니다. 회색은 게이트 탈락이며 Top K 미선택과 구분됩니다.</p>
     <div class="rankings"><section class="panel"><h3>ECAPA 순위</h3><div id="ecapaRank"></div></section><section class="panel"><h3>Singer-BYOL 순위</h3><div id="singer_byolRank"></div></section></div>

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app import create_app
 from demo import generate, write_json
 from engine import Engine, DEFAULTS, MODEL_KEYS
+from genres import genre_key
 from adapters import matrices
 from repository import Repository, created_timestamp
 from timbre_recommender.shelves import score_all_tracks, build_shelves
@@ -229,6 +230,61 @@ class LabTest(unittest.TestCase):
         self.assertEqual(summary["replaySource"], "artist-search-centroids")
         self.assertEqual(case["query"]["ecapa"][0], 1.0)
         self.assertIn("대표 벡터", case["warning"])
+
+    def test_genre_labels_join_korean_db_and_english_catalog_tags(self):
+        self.assertEqual(genre_key("랩/힙합"), genre_key("Hip-Hop"))
+        self.assertEqual(genre_key("댄스/팝"), genre_key("Dance"))
+        self.assertEqual(genre_key("포크/어쿠스틱"), genre_key("Folk"))
+        self.assertIsNone(genre_key("존재하지 않는 장르"))
+        labels = self.engine.info()["genres"]["labels"]
+        self.assertEqual({row["label"]: row["key"] for row in labels},
+                         {"Ballad": "ballad", "Dance": "dance", "Soundtrack": "ost", "Hip-Hop": "hiphop"})
+        self.assertEqual(self.engine.info()["genres"]["untaggedTrackCount"], 0)
+
+    def test_genre_choice_without_weight_keeps_the_current_top_k(self):
+        case = self.repo.case("case_demo")
+        current = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5))
+        chosen = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"]))
+        self.assertEqual([p["track_id"] for p in current["candidate"]["recommendations"]],
+                         [p["track_id"] for p in chosen["candidate"]["recommendations"]])
+        self.assertEqual(chosen["candidate"]["genre"]["bonusPerMatch"], 0)
+
+    def test_genre_weight_pulls_preferred_genre_into_top_k(self):
+        case = self.repo.case("case_demo")
+        settings = dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"])
+        for mode in ["twoAxisQuota", "finalScore"]:
+            with self.subTest(mode=mode):
+                off = self.engine.run(case, dict(settings, compositionMode=mode, genreWeight=0))["candidate"]
+                on = self.engine.run(case, dict(settings, compositionMode=mode, genreWeight=1))["candidate"]
+                self.assertEqual(off["genre"]["matchedInTopK"], 1)
+                self.assertEqual(on["genre"]["matchedInTopK"], 3)
+                # 선택 장르가 위로 올라오고, 같은 장르 안에서는 음색 순서가 남는다.
+                self.assertTrue(all(p["genreMatch"] for p in on["recommendations"][:3]))
+                self.assertEqual(on["genre"]["bonusPerMatch"], on["genre"]["scoreSpan"])
+                self.assertEqual(off["eligibleCount"], on["eligibleCount"])
+
+    def test_baseline_ignores_the_experiment_genre_choice(self):
+        result = self.engine.run(self.repo.case("case_demo"),
+                                 dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"], genreWeight=1))
+        self.assertEqual(result["baseline"]["genre"]["preferred"], ["발라드"])
+        self.assertEqual(result["baseline"]["genre"]["source"], "case")
+        self.assertEqual(result["baseline"]["genre"]["weight"], 0)
+        self.assertEqual(result["candidate"]["genre"]["source"], "experiment")
+
+    def test_unknown_genre_label_is_reported_not_silently_dropped(self):
+        result = self.engine.run(self.repo.case("case_demo"),
+                                 dict(DEFAULTS, useRangeGate=False, preferredGenres=["없는장르"], genreWeight=1))
+        self.assertEqual(result["candidate"]["genre"]["unknownLabels"], ["없는장르"])
+        self.assertEqual(result["candidate"]["genre"]["matchedCatalogCount"], 0)
+
+    def test_genre_settings_validation(self):
+        for settings in [{"genreWeight": 1.5}, {"genreWeight": -0.1}, {"preferredGenres": "발라드"},
+                         {"preferredGenres": ["발라드", "발라드"]}, {"preferredGenres": [""]},
+                         {"preferredGenres": ["가" * 41]}, {"preferredGenres": ["장르"] * 13}]:
+            with self.subTest(settings=settings):
+                response = self.client.post("/api/experiments", auth=self.auth,
+                                            json={"requestId": "case_demo", "settings": settings})
+                self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__": unittest.main()

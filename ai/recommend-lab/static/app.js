@@ -1,8 +1,8 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = {requests: [], map: [], shown: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false, pendingAutoRun: false, autoTimer: null};
+const state = {requests: [], map: [], shown: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false, pendingAutoRun: false, autoTimer: null, genres: new Set(), catalogGenres: []};
 const models = ['ecapa', 'singer_byol'];
-const settingIds = ['ecapaWeight','centroidWeight','timbreWeight','maxKeyShift','maxCoreExcess','minRangeScore','minProfileConfidence','topK'];
+const settingIds = ['ecapaWeight','centroidWeight','timbreWeight','maxKeyShift','maxCoreExcess','minRangeScore','minProfileConfidence','topK','genreWeight'];
 function el(tag, text, cls) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if(cls) n.className = cls; return n; }
 function error(message) { $('error').textContent = message || ''; $('error').hidden = !message; }
 async function api(path, options) {
@@ -154,6 +154,28 @@ function drawMaps(){
 }
 function percent(value){return `${Math.round(Number(value)*100)}%`;}
 function setOutput(id,text){const node=$(id);if(node)node.textContent=text;}
+function renderGenreChips(){
+  const holder=$('genreChips');holder.replaceChildren();
+  if(!state.catalogGenres.length){holder.append(el('p','이 카탈로그에는 장르 메타데이터가 없습니다. 장르 영향력을 올려도 달라지지 않습니다.','muted'));return;}
+  for(const row of state.catalogGenres){
+    const chip=el('label',undefined,'genre-chip'+(state.genres.has(row.label)?' on':''));
+    const box=el('input');box.type='checkbox';box.checked=state.genres.has(row.label);box.setAttribute('aria-label',`선호 장르 ${row.label}`);
+    box.onchange=()=>{box.checked?state.genres.add(row.label):state.genres.delete(row.label);renderGenreChips();inputChanged(true);};
+    chip.append(box,el('span',row.label),el('small',`${row.count}곡`));
+    if(!row.key)chip.title='실험실이 모르는 장르 라벨입니다. 가산점 계산에 쓰이지 않습니다.';
+    holder.append(chip);
+  }
+}
+function genreWeightText(weight){
+  if(!weight)return '0% · 현행과 같음 (장르는 언어 판정에만)';
+  if(weight>=1)return '100% · 선호 장르 먼저, 같은 장르 안에서는 음색 순';
+  return `${percent(weight)} · 선호 장르 곡에 점수 가산`;
+}
+function updateGenreOutputs(){
+  const chosen=[...state.genres];
+  setOutput('genreWeightValue',genreWeightText(Number($('genreWeight').value)));
+  setOutput('genreChoiceValue',chosen.length?`${chosen.length}개 선택 · ${chosen.join(' · ')}`:'입력에 저장된 취향 사용');
+}
 function updateSettingSummary(){
   const ecapa=Number($('ecapaWeight').value), centroid=Number($('centroidWeight').value), timbre=Number($('timbreWeight').value);
   setOutput('ecapaWeightValue',`ECAPA ${percent(ecapa)} · Singer-BYOL ${percent(1-ecapa)}`);
@@ -171,7 +193,10 @@ function updateSettingSummary(){
     ?'같은 후보 풀에서 축별 쿼터를 쓰지 않고 final score가 높은 순으로만 Top-K를 구성합니다. 점수식과 음역 게이트는 그대로입니다.'
     :'현행은 두 모델 축과 합의 축에서 먼저 곡을 고른 뒤 final score로 정렬합니다. 후보 풀·점수식·음역 게이트는 바꾸지 않습니다.';
   $('timbreWeightHelp').textContent=`${percent(timbre)}:${percent(1-timbre)} — ${mode}. 75:25는 timbre 모드, 30:70은 range 모드의 기본값이며, 다른 값은 두 점수를 실험용으로 재조합합니다.`;
-  $('settingsSummary').textContent=`${compositionText} / ECAPA ${percent(ecapa)} · Singer-BYOL ${percent(1-ecapa)} / 전체 평균 ${percent(centroid)} · 구간 매칭 ${percent(1-centroid)} / 음색 ${percent(timbre)} · 음역·키 ${percent(1-timbre)}${$('useRangeGate').checked?' / 음역 게이트 사용':' / 음역 게이트 미사용'}`;
+  updateGenreOutputs();
+  const genreWeight=Number($('genreWeight').value), chosen=[...state.genres];
+  const genreText=genreWeight?`장르 ${percent(genreWeight)} (${chosen.length?chosen.join('·'):'입력 저장 취향'})`:'장르 미반영';
+  $('settingsSummary').textContent=`${compositionText} / ECAPA ${percent(ecapa)} · Singer-BYOL ${percent(1-ecapa)} / 전체 평균 ${percent(centroid)} · 구간 매칭 ${percent(1-centroid)} / 음색 ${percent(timbre)} · 음역·키 ${percent(1-timbre)} / ${genreText}${$('useRangeGate').checked?' / 음역 게이트 사용':' / 음역 게이트 미사용'}`;
 }
 function scheduleAutoRun(){
   clearTimeout(state.autoTimer); if(!$('autoRun').checked||!$('caseSelect').value)return;
@@ -184,7 +209,8 @@ function inputChanged(auto=false){state.epoch++; state.result=null; $('results')
   if(auto)scheduleAutoRun();
 }
 function applyPreset(name){
-  const values={current:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.75},global:{ecapaWeight:.5,centroidWeight:1,timbreWeight:.75},range:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.3}}[name];
+  const values={current:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.75,genreWeight:0},global:{ecapaWeight:.5,centroidWeight:1,timbreWeight:.75,genreWeight:0},
+    range:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.3,genreWeight:0},genre:{ecapaWeight:.5,centroidWeight:.3,timbreWeight:.75,genreWeight:1}}[name];
   if(!values)return;for(const [id,value] of Object.entries(values))$(id).value=value; inputChanged(true);
 }
 async function run(){
@@ -192,16 +218,49 @@ async function run(){
   for(const key of settingIds)if(!$(key).reportValidity())return;
   const epoch=++state.epoch; state.busy=true; $('run').disabled=true; error(''); $('experimentState').textContent='같은 입력으로 기본값과 후보 설정을 계산 중…';
   const settings={};for(const key of settingIds)settings[key]=Number($(key).value); settings.useRangeGate=$('useRangeGate').checked;settings.compositionMode=$('compositionMode').value;
+  settings.preferredGenres=[...state.genres];
   try{const result=await api('api/experiments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:id,settings})}); if(epoch!==state.epoch)return;
     state.result=result; $('results').hidden=false;renderResults();$('experimentState').textContent=(result.inputWarning||'고정 입력 case 재생 완료')+' · '+(result.rangeAvailable?'음역 입력 있음':'음역 입력 없음: 기본값은 음색 단독 fallback');
   }catch(e){if(epoch===state.epoch){error(e.message);$('experimentState').textContent='실험 실패: '+e.message;}}
   finally{state.busy=false;$('run').disabled=!$('caseSelect').value;if(state.pendingAutoRun){state.pendingAutoRun=false;scheduleAutoRun();}}
 }
+function genreTags(item){
+  const tags=el('div',undefined,'genre-tags'+(item.genreMatch?' match':''));
+  for(const name of item.genres || [])tags.append(el('span',name,'genre-tag'));
+  if(item.genreMatch)tags.append(el('span','선호 장르','genre-tag hit'));
+  return tags;
+}
+function renderGenreSummary(){
+  const holder=$('genreSummary');holder.replaceChildren();const result=state.result;if(!result)return;
+  const base=result.baseline, candidate=result.candidate, info=candidate.genre;
+  holder.append(el('h3','장르가 바꾼 것'));
+  if(!info.preferred.length){holder.append(el('p','이 입력에는 저장된 선호 장르가 없고 실험에서도 고르지 않았습니다. 장르는 추천에 전혀 쓰이지 않았습니다.','muted'));return;}
+  const head=el('p');head.append(el('span','선호 장르 '),el('strong',info.preferred.join(' · ')),
+    el('span',` · ${info.source==='experiment'?'실험에서 선택':'입력 case에 저장된 취향'} · 영향력 ${percent(info.weight)}`));
+  holder.append(head);
+  const metrics=el('div',undefined,'improvement-metrics');
+  metrics.append(improvementMetric('현행 Top K 중 선호 장르',`${base.genre.matchedInTopK} / ${base.recommendations.length}`),
+    improvementMetric('후보 Top K 중 선호 장르',`${info.matchedInTopK} / ${candidate.recommendations.length}`),
+    improvementMetric('곡당 가산점',info.bonusPerMatch.toFixed(4)),
+    improvementMetric('후보 점수 폭',info.scoreSpan.toFixed(4)),
+    improvementMetric('카탈로그 내 선호 장르',`${info.matchedCatalogCount}곡`),
+    improvementMetric('게이트 통과 중 선호 장르',`${info.matchedEligibleCount}곡`),
+    improvementMetric('언어 게이트 탈락',`${info.languageExcludedCount}곡`));
+  holder.append(metrics);
+  if(!base.recommendations.length)holder.append(el('p','현행 쪽은 현행 그대로의 게이트를 쓰기 때문에 남은 후보가 없습니다. 비교할 현행 Top K가 없으니 후보 목록만 보고 판단해 주세요.','muted'));
+  if(info.unknownLabels.length)holder.append(el('p','카탈로그에서 찾지 못한 장르 라벨: '+info.unknownLabels.join(', ')+' · 가산점 계산에 쓰이지 않았습니다.','failure-reason'));
+  if(!info.weight)holder.append(el('p','영향력이 0%이므로 현행과 같은 규칙입니다. 선호 장르는 언어 게이트로만 쓰였고, 어떤 곡이 뽑히는지는 장르와 무관합니다.','muted'));
+  else if(!info.matchedEligibleCount)holder.append(el('p','게이트를 통과한 곡 중에 선호 장르가 없어서 가산점이 순서를 바꾸지 못했습니다. 음역 게이트나 언어 조건을 먼저 확인해 주세요.','improvement-note'));
+  holder.append(el('p','장르 가산점은 실험실 전용 규칙입니다. 운영 추천은 아직 장르로 곡을 고르지 않습니다.','improvement-note'));
+}
 function renderResults(){
   const result=state.result;if(!result)return;$('comparison').replaceChildren();
-  for(const name of ['baseline','candidate']){const data=result[name];const card=el('div',undefined,'panel');card.append(el('h3',name==='baseline'?'기본값 최종 추천':'후보 설정 최종 추천'),el('p',`게이트 통과 ${data.eligibleCount} · 탈락 ${data.excludedCount} · 음역 게이트 ${data.rangeGateApplied?'적용':'미적용'}`,'muted'));const list=el('ol');
-    for(const p of data.recommendations){const item=el('li',`${p.artist} · ${p.title}`);item.append(el('span',Number(p.final_score).toFixed(4),'score'));list.append(item);}card.append(list);if(!data.recommendations.length)card.append(el('p','게이트를 통과해 선택된 곡이 없습니다.','muted'));$('comparison').append(card);}
+  for(const name of ['baseline','candidate']){const data=result[name];const card=el('div',undefined,'panel');card.append(el('h3',name==='baseline'?'기본값 최종 추천':'후보 설정 최종 추천'),el('p',`게이트 통과 ${data.eligibleCount} · 탈락 ${data.excludedCount} · 음역 게이트 ${data.rangeGateApplied?'적용':'미적용'} · 선호 장르 ${data.genre.matchedInTopK}곡`,'muted'));const list=el('ol');
+    for(const p of data.recommendations){const item=el('li',undefined,'rec-item'+(p.genreMatch?' genre-match':''));
+      const head=el('div',undefined,'rec-head');head.append(el('span',`${p.artist} · ${p.title}`),el('span',Number(p.final_score).toFixed(4),'score'));
+      item.append(head);if((p.genres||[]).length||p.genreMatch)item.append(genreTags(p));list.append(item);}card.append(list);if(!data.recommendations.length)card.append(el('p','게이트를 통과해 선택된 곡이 없습니다.','muted'));$('comparison').append(card);}
   $('comparison').append(el('p',`Top K 공통 곡 ${result.overlapAtK}개 · 배치 ${result.catalogFingerprint.slice(0,12)}`,'muted'));
+  renderGenreSummary();
   renderImprovement();
   renderRankings();
 }
@@ -230,14 +289,18 @@ function renderRankings(){if(!state.result)return;
   const query=$('trackSearch').value.toLowerCase(), limit=Number($('rowLimit').value);
   for(const model of models){const holder=$(model+'Rank');holder.replaceChildren();const source=state.result[state.tab].rankings[model];const filtered=source.filter(p=>(p.artist+' '+p.title).toLowerCase().includes(query)&&(!$('onlyExcluded').checked||!p.eligible));holder.append(el('p',`전체 ${source.length}곡 · 검색 ${filtered.length}곡 · 표시 ${Math.min(limit,filtered.length)}곡`,'muted'));
     const table=el('table'),head=el('thead'),tr=el('tr');for(const name of ['순위','곡과 가수','음색 점수','게이트와 사유'])tr.append(el('th',name));head.append(tr);table.append(head);const body=el('tbody');
-    for(const p of filtered.slice(0,limit)){const row=el('tr',undefined,p.eligible?'':'excluded');row.dataset.trackId=p.id;row.append(el('td',p.rank));const song=el('td');song.append(el('div',p.title,'song-title'),el('div',p.artist),el('div',`최적 키 ${p.rangeFit?Number(p.rangeFit.keyShift).toFixed(0):'—'} · 음역 점수 ${p.rangeFit?Number(p.rangeFit.score).toFixed(3):'—'}`,'muted'));row.append(song,el('td',p.scores[model].toFixed(4)));const reasons=el('td',undefined,'reason');if(p.eligible)reasons.textContent='통과';else for(const r of p.exclusions)reasons.append(el('div',r.message));row.append(reasons);row.onpointerenter=()=>{state.artist=p.artist;drawMaps();};row.onpointerleave=()=>{state.artist=null;drawMaps();};body.append(row);}table.append(body);const scroll=el('div',undefined,'table-scroll');scroll.append(table);holder.append(scroll);
+    for(const p of filtered.slice(0,limit)){const row=el('tr',undefined,p.eligible?'':'excluded');row.dataset.trackId=p.id;row.append(el('td',p.rank));const song=el('td');song.append(el('div',p.title,'song-title'),el('div',p.artist),el('div',`최적 키 ${p.rangeFit?Number(p.rangeFit.keyShift).toFixed(0):'—'} · 음역 점수 ${p.rangeFit?Number(p.rangeFit.score).toFixed(3):'—'}`,'muted'),
+      el('div',`장르 ${p.genres?.length?p.genres.join(' · '):'없음'}${p.genreBonus?` · 가산 +${Number(p.genreBonus).toFixed(4)}`:''}`,p.genreMatch?'genre-line match':'genre-line muted'));row.append(song,el('td',p.scores[model].toFixed(4)));const reasons=el('td',undefined,'reason');if(p.eligible)reasons.textContent='통과';else for(const r of p.exclusions)reasons.append(el('div',r.message));row.append(reasons);row.onpointerenter=()=>{state.artist=p.artist;drawMaps();};row.onpointerleave=()=>{state.artist=null;drawMaps();};body.append(row);}table.append(body);const scroll=el('div',undefined,'table-scroll');scroll.append(table);holder.append(scroll);
   }
 }
 function exportResult(){if(!state.result)return;const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),...state.result},null,2)],{type:'application/json'});const link=el('a');link.href=URL.createObjectURL(blob);link.download=`recommend-lab-${state.result.caseId}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
 async function start(){
   try{const status=await api('api/status'); $('connection').textContent=status.engineReady?'카탈로그 연결됨':'상태 조회 모드 · 카탈로그 미연결';$('sourceInfo').textContent='소스: '+Object.entries(status.dataSources).filter(([,on])=>on).map(([key])=>key).join(' / ');
-    if(status.engineReady){const body=await api('api/map');state.map=body.points;const info=body.catalog; $('catalogInfo').append(el('strong',info.trackCount+'곡'),el('div','카탈로그 '+info.catalogFingerprint.slice(0,12)),el('div','추천 core '+info.coreFingerprint.slice(0,12)),el('div',info.scoringVersion,'muted'));$('projectionInfo').textContent=`PCA · 평균 구간 벡터 정규화 · 분산 설명 ECAPA ${(100*info.projection.explainedVariance.ecapa.reduce((a,b)=>a+b,0)).toFixed(1)}%, BYOL ${(100*info.projection.explainedVariance.singer_byol.reduce((a,b)=>a+b,0)).toFixed(1)}% · 지도 거리는 실제 추천 점수가 아닙니다.`;drawMaps();}
-    else error(status.engineError || '카탈로그 소스를 설정해야 지도와 실험을 사용할 수 있습니다.');
+    if(status.engineReady){const body=await api('api/map');state.map=body.points;const info=body.catalog;
+      state.catalogGenres=info.genres?.labels || [];renderGenreChips();
+      if(info.genres?.untaggedTrackCount)$('genreChoiceHelp').textContent=`카탈로그 ${info.trackCount}곡 중 ${info.genres.untaggedTrackCount}곡은 장르 메타데이터가 없어 어떤 선호 장르에도 맞지 않습니다. 아무것도 고르지 않으면 이 요청에 저장된 취향을 그대로 씁니다.`;
+      $('catalogInfo').append(el('strong',info.trackCount+'곡'),el('div','카탈로그 '+info.catalogFingerprint.slice(0,12)),el('div','추천 core '+info.coreFingerprint.slice(0,12)),el('div',info.scoringVersion,'muted'));$('projectionInfo').textContent=`PCA · 평균 구간 벡터 정규화 · 분산 설명 ECAPA ${(100*info.projection.explainedVariance.ecapa.reduce((a,b)=>a+b,0)).toFixed(1)}%, BYOL ${(100*info.projection.explainedVariance.singer_byol.reduce((a,b)=>a+b,0)).toFixed(1)}% · 지도 거리는 실제 추천 점수가 아닙니다.`;drawMaps();}
+    else {$('genreChips').replaceChildren(el('p','카탈로그가 연결되면 장르 선택지가 표시됩니다.','muted'));error(status.engineError || '카탈로그 소스를 설정해야 지도와 실험을 사용할 수 있습니다.');}
     await refreshRequests(); setInterval(refreshRequests,10000);
   }catch(e){$('connection').textContent='연결 실패';error(e.message);}
 }

@@ -11,7 +11,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from engine import Engine
 from repository import Repository
@@ -31,6 +31,19 @@ class Settings(BaseModel):
     useRangeGate: bool = True
     topK: int = Field(default=10, ge=1, le=50)
     compositionMode: Literal["twoAxisQuota", "finalScore"] = "twoAxisQuota"
+    # 0 이면 현행과 같다(장르는 언어 게이트로만). 비우면 입력 case 에 저장된 취향을 쓴다.
+    genreWeight: float = Field(default=0.0, ge=0, le=1)
+    preferredGenres: list[str] = Field(default_factory=list, max_length=12)
+
+    @field_validator("preferredGenres")
+    @classmethod
+    def _check_genre_labels(cls, value: list[str]) -> list[str]:
+        cleaned = [label.strip() for label in value]
+        if any(not label or len(label) > 40 for label in cleaned):
+            raise ValueError("장르 라벨은 1~40자여야 합니다.")
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("장르 라벨이 중복됐습니다.")
+        return cleaned
 
 
 class Experiment(BaseModel):
