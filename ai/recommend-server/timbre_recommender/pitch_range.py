@@ -36,6 +36,9 @@ CORE_EXCESS_DECAY_SEMITONES = 4.0
 BASE_RANGE_SCORE_WEIGHT = 0.70
 SOFT_FIT_SCORE_WEIGHT = 0.30
 CENTER_SCORE_WEIGHT = 0.20
+# 추천 후보 게이트: 최적 키에서도 회원의 (여유를 포함한) 음역 밖에 있는
+# 시간 가중 음정 질량이 이 비율을 넘으면 '부를 수 있는 곡'으로 내지 않는다.
+MAX_OUTSIDE_RANGE_RATIO = 0.05
 # 앱 음역 측정(guided-range)으로 만든 프로파일. median 이 (하한+상한)//2 라 "주로 부르는 높이"가 아니다.
 # 이 종류에는 중심음 맞추기(center_score)를 쓰지 않고, 점수가 비슷한 키 중 가장 적게 옮기는 키를 고른다.
 GUIDED_RANGE_PROFILE_KIND = "guided_range_measurement"
@@ -235,6 +238,7 @@ def score_range_fit(
             "score": round(float(best["score"]), 6),
             "baseScore": round(float(best["baseScore"]), 6),
             "coverage": round(float(best["coverage"]), 6),
+            "outsideRangeRatio": round(float(1.0 - best["coverage"]), 6),
             "coverageFit": round(float(best["coverageFit"]), 6),
             "boundaryFit": round(float(best["boundaryFit"]), 6),
             "softFit": round(float(best["softFit"]), 6),

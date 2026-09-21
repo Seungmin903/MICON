@@ -17,7 +17,9 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable, Mapping, Sequence
 
-COMPOSITION_VERSION = "two-axis-quota-v1"
+from .pitch_range import MAX_OUTSIDE_RANGE_RATIO
+
+COMPOSITION_VERSION = "two-axis-quota-v2-artist-cap"
 
 # 할당. 클라이언트는 이 값을 알 필요 없다(응답 algorithm.composition 에 실림). top_k 가 5 를 넘으면 같은 비율로 늘린다.
 QUOTA = {"ecapa": 2, "singer_byol": 2, "consensus": 1}
@@ -35,6 +37,9 @@ AXIS_LABEL = {
 
 # 음역 게이트: 음역 점수가 이 값 아래(또는 곡 프로파일 unreliable)면 할당에서 제외. 사용자 평가 후 조정.
 DEFAULT_MIN_RANGE_SCORE = 0.35
+# 모델이 같은 가수를 여러 곡 높게 평가해도, 최종 '내 목소리' 추천에서는
+# 한 가수의 곡을 최대 두 곡만 표시한다. 이는 모델 평가지표가 아닌 제품 구성 정책이다.
+MAX_SONGS_PER_ARTIST = 2
 
 # 언어 게이트. 카탈로그 metadata.languages 는 ISO 639-2. mul/zxx(다국어·가사 없음)는 항상 통과.
 CATALOG_LANGUAGE = {"kor": "ko", "eng": "en", "jpn": "jp"}
@@ -111,6 +116,17 @@ def _consistency(item: Mapping[str, Any], axis: str) -> float:
     return float(item["models"][axis].get("match_consistency", 0.0))
 
 
+def _artist_key(item: Mapping[str, Any]) -> str:
+    artist = str(item.get("artist") or "").strip().casefold()
+    return artist or f"track:{item['track_id']}"
+
+
+def _outside_range_ratio(fit: Mapping[str, Any]) -> float:
+    """신규 필드가 없는 과거 결과도 coverage로 같은 뜻을 복원한다."""
+
+    return float(fit.get("outsideRangeRatio", 1.0 - float(fit.get("coverage", 0.0))))
+
+
 def _scaled_quota(top_k: int) -> dict[str, int]:
     """top_k 를 2:2:1 비율로 나눈다. 나머지는 ecapa, singer_byol 순."""
     unit = sum(QUOTA.values())
@@ -150,7 +166,12 @@ def compose_two_axis(
     if range_enabled:
         def range_ok(item: Mapping[str, Any]) -> bool:
             fit = item.get("range_fit")
-            return bool(fit) and bool(fit.get("catalogProfileReliable", True)) and float(fit.get("score", 0.0)) >= min_range_score
+            return (
+                bool(fit)
+                and bool(fit.get("catalogProfileReliable", True))
+                and float(fit.get("score", 0.0)) >= min_range_score
+                and _outside_range_ratio(fit) <= MAX_OUTSIDE_RANGE_RATIO
+            )
         pool = [item for item in gated if range_ok(item)]
     else:
         pool = list(gated)
@@ -179,12 +200,15 @@ def compose_two_axis(
     # 5) 할당대로 뽑기 (중복 없이). CONSENSUS 가 모자라면 그 자리는 ecapa/singer_byol 이 번갈아 채운다.
     quota = _scaled_quota(top_k)
     used: set[str] = set()
+    artist_counts: dict[str, int] = {}
     picks: list[tuple[str, Mapping[str, Any]]] = []
 
     def take(axis: str) -> bool:
         for item in order[axis]:
-            if item["track_id"] not in used:
+            artist = _artist_key(item)
+            if item["track_id"] not in used and artist_counts.get(artist, 0) < MAX_SONGS_PER_ARTIST:
                 used.add(item["track_id"])
+                artist_counts[artist] = artist_counts.get(artist, 0) + 1
                 picks.append((axis, item))
                 return True
         return False
@@ -195,9 +219,15 @@ def compose_two_axis(
             filled[axis] += 1
     fallback_axes = ("ecapa", "singer_byol")
     i = 0
+    misses = 0
     while len(picks) < top_k and len(used) < len(pool):
         if take(fallback_axes[i % 2]):
             filled[fallback_axes[i % 2]] += 1
+            misses = 0
+        else:
+            misses += 1
+            if misses >= len(fallback_axes):
+                break
         i += 1
 
     # 6) 순서 = final_score 내림차순. 화면 크기 규칙(앞일수록 크게)과 같은 뜻.
@@ -239,6 +269,8 @@ def compose_two_axis(
             "consensus_top_n": CONSENSUS_TOP_N,
             "order": ORDER_RULE,
             "candidate_count": len(pool),
+            "max_songs_per_artist": MAX_SONGS_PER_ARTIST,
+            "unique_artist_count": len(artist_counts),
         },
         "language_gate": {
             "enabled": allowed is not None,
@@ -249,6 +281,7 @@ def compose_two_axis(
         "range_filter": {
             "enabled": range_enabled,
             "min_score": min_range_score,
+            "max_outside_range_ratio": MAX_OUTSIDE_RANGE_RATIO,
             "excluded_count": range_excluded,
         },
         "catalog_filter": {"excluded_without_song_id": no_song_count},
