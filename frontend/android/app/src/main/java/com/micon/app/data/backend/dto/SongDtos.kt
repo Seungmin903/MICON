@@ -65,6 +65,14 @@ data class MediaDto(
     val sha256: String? = null,
     /** 백엔드 확장 요청 항목: 만료 있는 재생 URL */
     val playbackUrl: String? = null,
+    val playbackUrlExpiresAt: String? = null,
+)
+
+/** `GET /songs/{songId}/mr` 응답. 키 전환 시 큰 연습 데이터 묶음을 다시 받지 않는다. */
+data class InstrumentalDto(
+    val songId: String,
+    val selectedKey: Int = 0,
+    val instrumental: MediaDto? = null,
 )
 
 data class SectionDto(
