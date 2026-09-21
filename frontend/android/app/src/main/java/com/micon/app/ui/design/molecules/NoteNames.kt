@@ -14,6 +14,18 @@ import kotlin.math.roundToInt
  */
 object NoteNames {
 
+    /** 설정 "음 이름 표기". 앱 전체 표기가 따라 바뀐다. 값은 [MiconApplication] 이 SharedPreferences 에서 복원한다 */
+    enum class Notation(val label: String) { SOLFEGE("도레미"), LETTERS("CDE") }
+
+    private val _notation = kotlinx.coroutines.flow.MutableStateFlow(Notation.SOLFEGE)
+    val notation: kotlinx.coroutines.flow.StateFlow<Notation> = _notation
+    fun setNotation(value: Notation) { _notation.value = value }
+
+    /** 설정을 따르는 표기: 도레미면 "중간 도", CDE 면 "C4" */
+    fun display(midi: Int): String = if (_notation.value == Notation.LETTERS) scientific(midi) else friendly(midi)
+    fun displayRange(lowMidi: Int, highMidi: Int): String =
+        if (_notation.value == Notation.LETTERS) scientificRange(lowMidi, highMidi) else rangeText(lowMidi, highMidi)
+
     private val syllables = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
 
     /** 1~10 은 고유어로 읽는 게 자연스럽다. "다섯 음 높아요" */
@@ -23,6 +35,14 @@ object NoteNames {
     fun octaveOf(midi: Int): Int = floor(midi / 12.0).toInt() - 1
 
     fun syllableOf(midi: Int): String = syllables[((midi % 12) + 12) % 12]
+
+    private val letters = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+
+    /** 과학 표기 "C4" · "G♯3". 설정의 음 이름 표기가 CDE 일 때, 그리고 차트 축처럼 짧아야 하는 곳에 쓴다 */
+    fun scientific(midi: Int): String = letters[((midi % 12) + 12) % 12] + octaveOf(midi)
+
+    /** "C3 – C5" */
+    fun scientificRange(lowMidi: Int, highMidi: Int): String = "${scientific(lowMidi)} – ${scientific(highMidi)}"
 
     /**
      * 옥타브 → 높낮이 말. 2 아래와 6 위는 양 끝으로 모은다 —

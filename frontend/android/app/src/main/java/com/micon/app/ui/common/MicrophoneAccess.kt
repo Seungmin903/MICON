@@ -27,11 +27,8 @@ fun rememberMicrophoneAccess(onAllowed: () -> Unit, onDenied: () -> Unit,
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) { blocked = false; allowed() } else { blocked = true; denied() }
     }
-    if (purpose) AlertDialog(onDismissRequest = { purpose = false; onDeclined?.invoke() },
-        title = { Text("목소리를 들려주세요") },
-        text = { Text(explanation) },
-        confirmButton = { TextButton(onClick = { purpose = false; permission.launch(Manifest.permission.RECORD_AUDIO) }) { Text("계속") } },
-        dismissButton = { TextButton(onClick = { purpose = false; onDeclined?.invoke() }) { Text("나중에") } })
+    // 사전 안내 팝업은 두지 않는다 — 시스템 권한 창이 이미 같은 말을 하고, 창이 두 번 뜨면 성가시다.
+    LaunchedEffect(purpose) { if (purpose) { purpose = false; permission.launch(Manifest.permission.RECORD_AUDIO) } }
     if (blocked) AlertDialog(onDismissRequest = { blocked = false },
         title = { Text("마이크 권한이 필요해요") },
         text = { Text("권한을 허용하면 측정을 시작할 수 있어요. 요청 창이 나오지 않으면 앱 설정에서 마이크를 허용해 주세요.") },

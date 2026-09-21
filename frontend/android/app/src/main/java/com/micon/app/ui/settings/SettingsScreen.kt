@@ -146,6 +146,9 @@ fun SettingsScreen(
                 Column(Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
                     SettingsMenuRow(Icons.Outlined.FavoriteBorder, "선호 장르/가수 수정", onClick = onEditPreferences)
                     SettingsDivider()
+                    // 음 이름 표기(도레미/CDE) — 바꾸면 앱 전체 표기가 따라 바뀐다
+                    NotationSettingRow()
+                    SettingsDivider()
                     SettingsMenuRow(Icons.Outlined.Lock, "비밀번호 변경", onClick = onChangePassword)
                     SettingsDivider()
                     SettingsMenuRow(Icons.AutoMirrored.Outlined.Logout, if (loggingOut) "로그아웃 중…" else "로그아웃") {
