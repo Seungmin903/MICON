@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -102,9 +103,11 @@ fun CompactDisc(
     artist: String? = null,
     size: Dp = CompactDiscSize.row,
     spinning: Boolean = false,
+    /** 한 바퀴 시간. 기본 12초(느린 대기 회전), 플레이어 재생 중은 5.5초 */
+    spinPeriodMs: Int = 12_000,
     contentDescription: String? = null,
 ) {
-    val angle = rememberDiscAngle(spinning)
+    val angle = rememberDiscAngle(spinning, spinPeriodMs)
     val describedAs = contentDescription
     // 글자를 읽을 수 있는 크기부터만 "인쇄 라벨" 을 찍는다. 랙 미니는 색과 허브만.
     val printLabel = size >= 96.dp
@@ -274,7 +277,7 @@ private fun DrawScope.drawGlossAndRim() {
  * 화면을 벗어나면 컴포저블이 사라지므로 애니메이션도 함께 끝난다.
  */
 @Composable
-private fun rememberDiscAngle(spinning: Boolean): Float {
+private fun rememberDiscAngle(spinning: Boolean, periodMs: Int): Float {
     val context = LocalContext.current
     val inspecting = LocalInspectionMode.current
     val animationsOn = remember(context) {
@@ -296,17 +299,16 @@ private fun rememberDiscAngle(spinning: Boolean): Float {
     }
 
     val active = spinning && resumed && animationsOn && !inspecting
-    if (!active) return 0f
 
-    val transition = rememberInfiniteTransition(label = "cd-spin")
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 12_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "cd-angle",
-    )
-    return angle
+    // 멈추면 그 각도에서 선다 — 일시정지한 CD 가 0° 로 튀어 돌아가지 않게
+    val angle = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(active, periodMs) {
+        if (!active) return@LaunchedEffect
+        while (true) {
+            val from = angle.value % 360f
+            angle.snapTo(from)
+            angle.animateTo(from + 360f, tween(durationMillis = periodMs, easing = LinearEasing))
+        }
+    }
+    return angle.value
 }
