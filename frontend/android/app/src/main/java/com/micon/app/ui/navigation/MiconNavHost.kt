@@ -257,7 +257,7 @@ private fun MiconNavHost(
         }
         composable(Routes.CHANGE_PASSWORD) {
             if (isGuest || !accessGranted) return@composable
-            ChangePasswordScreen(onBack = { nav.popBackStack() })
+            ChangePasswordScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() })
         }
         composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {

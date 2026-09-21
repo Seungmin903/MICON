@@ -9,6 +9,7 @@ public enum ErrorCode {
     INVALID_GOOGLE_ID_TOKEN(HttpStatus.UNAUTHORIZED, "INVALID_GOOGLE_ID_TOKEN", "구글 계정을 확인하지 못했습니다. 다시 시도해주세요."),
     GOOGLE_LOGIN_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "GOOGLE_LOGIN_NOT_CONFIGURED", "구글 로그인이 아직 설정되지 않았습니다."),
     INVALID_CURRENT_PASSWORD(HttpStatus.UNAUTHORIZED, "INVALID_CURRENT_PASSWORD", "현재 비밀번호가 올바르지 않습니다."),
+    PASSWORD_UNCHANGED(HttpStatus.BAD_REQUEST, "PASSWORD_UNCHANGED", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
     ACCOUNT_NOT_ACTIVE(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_ACTIVE", "현재 이용할 수 없는 계정입니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "유효하지 않은 갱신 토큰입니다."),
     INVALID_RESET_CODE(HttpStatus.BAD_REQUEST, "INVALID_RESET_CODE", "인증 코드가 올바르지 않거나 만료되었습니다."),

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.micon.app.appContainer
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.NetworkAuthRepository
+import com.micon.app.data.backend.dto.PasswordChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.ui.common.BackHeader
@@ -179,19 +180,24 @@ private fun SettingsDivider() {
     HorizontalDivider(color = GreyLight, modifier = Modifier.padding(start = 39.dp))
 }
 
-/** 로그인 화면과 같은 입력창·버튼 규격을 쓰는 회원 비밀번호 변경 화면. */
+/** 로그인 화면과 같은 입력창·버튼 규격을 사용하는 회원 비밀번호 변경 화면. */
 @Composable
-fun ChangePasswordScreen(onBack: () -> Unit) {
+fun ChangePasswordScreen(onBack: () -> Unit, onLogout: () -> Unit) {
+    val context = LocalContext.current
+    val backend = context.appContainer.backend
+    val scope = rememberCoroutineScope()
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var notice by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var changing by remember { mutableStateOf(false) }
     val newPasswordValid = isValidPassword(newPassword)
     val confirmationMatches = confirmPassword.isNotEmpty() && confirmPassword == newPassword
     val canSubmit = currentPassword.isNotBlank() && newPasswordValid && confirmationMatches
 
+    BackHandler(enabled = changing) { }
     Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
-        BackHeader("비밀번호 변경", onBack)
+        BackHeader("비밀번호 변경", { if (!changing) onBack() })
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.Start,
@@ -201,22 +207,16 @@ fun ChangePasswordScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text("현재 비밀번호를 확인한 뒤 새로운 비밀번호로 변경합니다.", fontSize = 13.5.sp, lineHeight = 22.sp, color = Grey)
             Spacer(Modifier.height(24.dp))
-            AuthTextField(currentPassword, { currentPassword = it; notice = null }, "현재 비밀번호", isPassword = true)
+            AuthTextField(currentPassword, { currentPassword = it; error = null }, "현재 비밀번호", isPassword = true)
             Spacer(Modifier.height(10.dp))
             AuthTextField(
-                newPassword,
-                { newPassword = it; notice = null },
-                "새로운 비밀번호",
-                isPassword = true,
+                newPassword, { newPassword = it; error = null }, "새로운 비밀번호", isPassword = true,
                 helper = PASSWORD_GUIDE,
                 helperColor = if (newPasswordValid) GreenChipText else if (newPassword.isEmpty()) Grey else Pink,
             )
             Spacer(Modifier.height(10.dp))
             AuthTextField(
-                confirmPassword,
-                { confirmPassword = it; notice = null },
-                "새로운 비밀번호 확인",
-                isPassword = true,
+                confirmPassword, { confirmPassword = it; error = null }, "새로운 비밀번호 확인", isPassword = true,
                 helper = when {
                     confirmPassword.isEmpty() -> null
                     confirmationMatches -> "비밀번호가 일치합니다."
@@ -224,13 +224,37 @@ fun ChangePasswordScreen(onBack: () -> Unit) {
                 },
                 helperColor = if (confirmationMatches) GreenChipText else Pink,
             )
-            notice?.let { Text(it, color = Grey, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
+            error?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
             Spacer(Modifier.height(24.dp))
             AuthPrimaryButton(
-                text = "변경",
-                onClick = { notice = "비밀번호 변경 API 연결 후 사용할 수 있어요." },
+                text = if (changing) "변경 중…" else "변경",
+                onClick = {
+                    changing = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val response = backend.api.changePassword(PasswordChangeRequest(currentPassword, newPassword))
+                            if (!response.isSuccessful) {
+                                error = when (response.code()) {
+                                    401 -> "현재 비밀번호가 올바르지 않습니다."
+                                    400 -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                                    else -> "비밀번호를 변경하지 못했습니다."
+                                }
+                            } else {
+                                currentPassword = ""; newPassword = ""; confirmPassword = ""
+                                TokenManager.clear()
+                                Toast.makeText(context, "비밀번호가 변경되었습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                onLogout()
+                            }
+                        } catch (_: Exception) {
+                            error = "연결을 확인한 뒤 다시 시도해주세요."
+                        } finally {
+                            changing = false
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canSubmit,
+                enabled = canSubmit && !changing,
             )
             Spacer(Modifier.height(40.dp))
         }
