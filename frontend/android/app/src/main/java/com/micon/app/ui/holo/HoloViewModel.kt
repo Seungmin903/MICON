@@ -53,8 +53,9 @@ class HoloViewModel(
 
     data class State(
         val stage: Stage = Stage.RANGE,
-        /** 1단계에서 측정한 음역. 2단계 결과 카드의 음역은 이 값을 쓴다 */
-        val range: RangeReport? = null,
+        /** 1단계에서 잰 음역(또는 지난 측정값). 2단계 결과 카드의 음역은 이 값을 쓴다 */
+        val measuredLow: Int? = null,
+        val measuredHigh: Int? = null,
         val phase: Phase = Phase.IDLE,
         val query: String = "",
         val suggestions: List<SongSummary> = emptyList(),
@@ -128,10 +129,24 @@ class HoloViewModel(
         }
     }
 
-    /** 1단계 음역 측정이 끝났다. 결과를 안고 2단계(음색)로 넘어간다 */
+    /** 1단계 음역 측정이 끝났다. 잰 값을 안고 2단계(음색)로 넘어간다 */
     fun rangeMeasured(range: RangeReport?) {
         if (_state.value.stage == Stage.TIMBRE) return
-        _state.update { it.copy(stage = Stage.TIMBRE, range = range, phase = Phase.IDLE, error = null) }
+        _state.update { it.copy(stage = Stage.TIMBRE, measuredLow = range?.lowMidi, measuredHigh = range?.highMidi,
+            phase = Phase.IDLE, error = null) }
+    }
+
+    /**
+     * 음역은 건너뛰고 음색(노래)만 다시 본다 — 분석 탭의 "노래로 분석하기".
+     * 음역은 지난 측정값을 그대로 쓴다. 없으면 1단계부터 하게 둔다.
+     */
+    fun startTimbreOnly() {
+        val last = store.read(ownerId)
+        if (last == null) { _state.update { State(hasPrevious = it.hasPrevious) }; return }
+        tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
+        _state.update {
+            State(hasPrevious = true, stage = Stage.TIMBRE, measuredLow = last.lowMidi, measuredHigh = last.highMidi)
+        }
     }
 
     fun backToRange() {
@@ -243,9 +258,10 @@ class HoloViewModel(
         val file = capture.stop() ?: wav
         val snapshot = synchronized(frames) { frames.toList() }
         val picked = _state.value.picked
-        val measured = _state.value.range
+        val low = _state.value.measuredLow
+        val high = _state.value.measuredHigh
         val result = HoloRangeAnalyzer.analyze(snapshot, picked?.id, picked?.title, picked?.artist)
-            ?.let { r -> if (measured != null) r.withMeasuredRange(measured) else r }
+            ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high) else r }
         if (result == null || !result.usable) {
             _state.update { it.copy(phase = Phase.ERROR, error = "목소리가 충분히 잡히지 않았어요. 조금 더 크게, 4초 이상 불러 주세요.") }
             file?.delete()

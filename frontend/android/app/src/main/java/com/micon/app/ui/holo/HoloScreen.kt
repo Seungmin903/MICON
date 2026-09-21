@@ -340,8 +340,10 @@ private fun HoloChrome(
 ) {
     Box(Modifier.fillMaxSize().background(HoloBase)) {
         HoloBackground()
+        // 로고·구체는 남는 공간을 나눠 갖고, 안내와 버튼은 필요한 만큼 차지한다.
+        // 고정 비율로 두면 글자 크게 설정에서 버튼과 문구가 잘린다.
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(bottom = 14.dp)) {
-            Box(Modifier.fillMaxWidth().weight(0.11f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 62.dp, max = 96.dp).weight(0.11f, fill = false), contentAlignment = Alignment.Center) {
                 androidx.compose.animation.AnimatedVisibility(visible = logoVisible, enter = fadeIn(tween(450)), exit = fadeOut(tween(450))) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MiconMark(height = 26.dp, onDark = true)
@@ -351,11 +353,13 @@ private fun HoloChrome(
                     }
                 }
             }
-            Box(Modifier.fillMaxWidth().weight(0.46f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Globe(scale = globeScale, absorbing = absorbing)
             }
-            Box(Modifier.fillMaxWidth().weight(0.19f).padding(horizontal = 28.dp), contentAlignment = Alignment.Center) { middle() }
-            Box(Modifier.fillMaxWidth().weight(0.24f).padding(horizontal = 24.dp), contentAlignment = Alignment.TopCenter, content = bottom)
+            Box(Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(horizontal = 24.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center) { middle() }
+            Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp),
+                contentAlignment = Alignment.BottomCenter, content = bottom)
         }
         error?.let { msg ->
             Surface(
@@ -380,11 +384,15 @@ private fun HoloChrome(
 @Composable
 private fun HoloButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(56.dp).clip(CircleShape)
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(CircleShape)
             .background(Color.White.copy(alpha = if (enabled) 1f else 0.6f))
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = HoloButtonText, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+    ) {
+        Text(text, color = HoloButtonText, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, maxLines = 2)
+    }
 }
 
 /** 홀로·결과 화면이 같은 인스턴스를 본다 — 루트(Activity 범위)에서 만들어 넘긴다 */

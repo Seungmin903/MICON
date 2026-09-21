@@ -55,9 +55,7 @@ data class HoloResult(
      * 1단계에서 제대로 잰 음역으로 갈아 끼운다. 2단계(노래) 녹음으로 계산한 음역은 곡이 쓰는
      * 범위에 갇혀 실제보다 좁다 — 음역은 측정값을, 안정성·호흡·템포는 노래 녹음을 쓴다.
      */
-    fun withMeasuredRange(range: com.micon.app.range.RangeReport): HoloResult {
-        val low = range.lowMidi ?: return this
-        val high = range.highMidi ?: return this
+    fun withMeasuredRange(low: Int, high: Int): HoloResult {
         if (high - low < 5) return this
         val cl = comfortLow.coerceIn(low, high)
         val ch = comfortHigh.coerceIn(cl, high)

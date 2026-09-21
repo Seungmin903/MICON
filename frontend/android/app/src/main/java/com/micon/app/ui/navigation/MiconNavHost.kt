@@ -301,8 +301,10 @@ private fun MiconNavHost(
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
             AnalysisScreen(
-                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } },
-                onMeasureRange = { nav.navigate(Routes.VOICE_ONBOARDING) { launchSingleTop = true } },
+                onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
+                // 노래로 분석하기 — 음역은 지난 값을 쓰고 음색(노래)만 다시 본다
+                onSingAnalyze = { holo.startTimbreOnly(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
+                onMeasureRange = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
                 onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,

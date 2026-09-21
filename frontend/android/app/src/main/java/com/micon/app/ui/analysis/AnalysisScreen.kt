@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,9 +68,11 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun AnalysisScreen(
-    /** 첫 화면(홀로) 30초 분석 — 한 번에 음역·음색을 본다 */
+    /** 처음부터 — 음역 측정 → 음색 측정 */
     onAnalyze: () -> Unit,
-    /** 음역 측정 → 음색 측정 두 단계 온보딩 */
+    /** 음색만 다시 — 노래를 불러 음색을 본다. 음역은 지난 값을 쓴다 */
+    onSingAnalyze: () -> Unit = onAnalyze,
+    /** 음역만 다시 */
     onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
     onDetail: () -> Unit,
@@ -103,7 +107,7 @@ fun AnalysisScreen(
         } else {
             MyVoiceCard(view, onDetail)
             if (view.artists.isNotEmpty()) SimilarCard(view)
-            MiconCard(kind = MiconCardKind.Tinted, modifier = Modifier.clickable(onClick = onAnalyze)) {
+            MiconCard(kind = MiconCardKind.Tinted, modifier = Modifier.clickable(onClick = onSingAnalyze)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("노래로 분석하기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -182,9 +186,14 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
             }
             ticks.forEach { (m, _) -> drawLine(Color(0xFFBDB8D0), Offset(size.width * f(m), trackTop + trackH), Offset(size.width * f(m), size.height), 1.dp.toPx()) }
         }
-        Box(Modifier.fillMaxWidth().height(16.dp)) {
-            ticks.forEach { (m, label) ->
-                Text(label, Modifier.fillMaxWidth(f(m).coerceAtLeast(0.001f)).wrapContentWidth(Alignment.End), fontSize = 12.sp, color = muted, maxLines = 1)
+        // 눈금 글자는 3등분한 칸에 왼쪽·가운데·오른쪽으로 둔다. 비율 폭 상자에 넣으면
+        // 칸이 글자보다 좁아 "낮은 도" 가 잘렸다.
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+            ticks.forEachIndexed { i, (_, label) ->
+                Text(
+                    label, Modifier.weight(1f), fontSize = 12.sp, color = muted,
+                    textAlign = when (i) { 0 -> TextAlign.Start; 1 -> TextAlign.Center; else -> TextAlign.End },
+                )
             }
         }
     }
@@ -199,14 +208,17 @@ private fun SimilarCard(v: VoiceView) {
             Text("${v.artists.size}명", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             v.artists.take(3).forEach { (name, image, pct) ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     CompactDisc(title = name, imageUrl = image, size = 56.dp)
                     Spacer(Modifier.height(4.dp))
-                    Text("$name $pct%", fontSize = 12.sp, maxLines = 1)
+                    Text(name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                    Text("$pct%", fontSize = 12.sp, fontFamily = MiconMonoFamily,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
+            repeat(3 - v.artists.take(3).size) { Spacer(Modifier.weight(1f)) }
         }
     }
 }
