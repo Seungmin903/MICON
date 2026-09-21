@@ -3,6 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -10,10 +11,12 @@ from fastapi.testclient import TestClient
 from app import create_app
 from demo import generate, write_json
 from engine import Engine, DEFAULTS, MODEL_KEYS
-from genres import genre_key
+import genres as genre_rules
+from genres import canonical
 from adapters import matrices
 from repository import Repository, created_timestamp
 from timbre_recommender.shelves import score_all_tracks, build_shelves
+from timbre_recommender.composition import FINAL_SCORE_COMPOSITION_VERSION, MAX_SONGS_PER_ARTIST
 
 
 class LabTest(unittest.TestCase):
@@ -46,9 +49,13 @@ class LabTest(unittest.TestCase):
         rows = score_all_tracks(self.engine.catalog, self.engine.ranges, matrices(case["query"]),
                                 query_profile=case["pitchProfile"], genres=case["genres"])
         production = build_shelves(rows, top_k=10, genres=case["genres"], range_enabled=True, seed=42)[0]["items"]
-        for side in ["baseline", "candidate"]:
-            self.assertEqual([p["track_id"] for p in production], [p["track_id"] for p in result[side]["recommendations"]])
-            self.assertEqual([p["final_score"] for p in production], [p["final_score"] for p in result[side]["recommendations"]])
+        # 현행(baseline)은 언제나 운영 그대로다.
+        self.assertEqual([p["track_id"] for p in production], [p["track_id"] for p in result["baseline"]["recommendations"]])
+        self.assertEqual([p["final_score"] for p in production], [p["final_score"] for p in result["baseline"]["recommendations"]])
+        # 후보는 기본값에서 언어 게이트를 쓰지 않는다(대안). 그것만 켜면 다시 운영과 같아야 한다.
+        same = self.engine.run(case, dict(DEFAULTS, useLanguageGate=True))
+        self.assertEqual([p["track_id"] for p in production], [p["track_id"] for p in same["candidate"]["recommendations"]])
+        self.assertEqual([p["final_score"] for p in production], [p["final_score"] for p in same["candidate"]["recommendations"]])
 
     def test_gate_diagnostics_and_selected_pool_agree(self):
         result = self.engine.run(self.repo.case("case_demo"), DEFAULTS)
@@ -63,15 +70,36 @@ class LabTest(unittest.TestCase):
         selected = {r["track_id"] for r in result["baseline"]["recommendations"]}
         self.assertTrue(selected.issubset(eligible))
 
-    def test_final_score_composition_uses_the_same_eligible_pool_without_axis_quota(self):
-        result = self.engine.run(self.repo.case("case_demo"), dict(DEFAULTS, compositionMode="finalScore"))
+    def test_current_mode_delegates_to_the_production_final_score_composer(self):
+        result = self.engine.run(self.repo.case("case_demo"), DEFAULTS)
         recommendations = result["candidate"]["recommendations"]
         self.assertTrue(recommendations)
-        self.assertTrue(all(item["axis"] == "FINAL_SCORE" for item in recommendations))
+        self.assertEqual(DEFAULTS["compositionMode"], "finalScore")
+        # 운영 compose_by_final_score 의 응답 모양. 축 할당이 없으므로 axis 는 비어 있다.
+        self.assertTrue(all(item["axis"] is None and item["label"] == "최종 점수 순" for item in recommendations))
+        self.assertTrue(all(item["composition_version"] == FINAL_SCORE_COMPOSITION_VERSION for item in recommendations))
         self.assertEqual(
             [item["final_score"] for item in recommendations],
             sorted((item["final_score"] for item in recommendations), reverse=True),
         )
+
+    def test_current_mode_applies_the_production_artist_cap(self):
+        result = self.engine.run(self.repo.case("case_demo"), dict(DEFAULTS, useRangeGate=False, topK=10))
+        for side in ["baseline", "candidate"]:
+            counts = Counter(item["artist"] for item in result[side]["recommendations"])
+            self.assertTrue(counts)
+            self.assertLessEqual(max(counts.values()), MAX_SONGS_PER_ARTIST, side)
+
+    def test_range_gate_uses_the_current_outside_time_ratio_rule(self):
+        result = self.engine.run(self.repo.case("case_demo"), DEFAULTS)
+        rows = result["candidate"]["rankings"]["ecapa"]
+        codes = {code for r in rows for code in (e["code"] for e in r["exclusions"])}
+        self.assertIn("OUTSIDE_RANGE", codes)
+        # 핵심 음역 초과 반음은 운영 조건이 아니므로 기본값에서는 아무도 떨어뜨리지 않는다.
+        self.assertNotIn("CORE_EXCESS", codes)
+        strict = self.engine.run(self.repo.case("case_demo"), dict(DEFAULTS, maxCoreExcess=0))
+        self.assertIn("CORE_EXCESS", {code for r in strict["candidate"]["rankings"]["ecapa"]
+                                      for code in (e["code"] for e in r["exclusions"])})
 
     def test_failed_analysis_and_successful_callback_distinct(self):
         j = self.client.get("/api/jobs/job_demo_failed", auth=self.auth).json()
@@ -232,55 +260,102 @@ class LabTest(unittest.TestCase):
         self.assertIn("대표 벡터", case["warning"])
 
     def test_genre_labels_join_korean_db_and_english_catalog_tags(self):
-        self.assertEqual(genre_key("랩/힙합"), genre_key("Hip-Hop"))
-        self.assertEqual(genre_key("댄스/팝"), genre_key("Dance"))
-        self.assertEqual(genre_key("포크/어쿠스틱"), genre_key("Folk"))
-        self.assertIsNone(genre_key("존재하지 않는 장르"))
+        # 기준 표기는 DB 라벨 자신이다. 예전 영어 태그와 표기 변형은 DB 라벨로 접힌다.
+        self.assertEqual(canonical("Hip-Hop"), "랩/힙합")
+        self.assertEqual(canonical("Dance"), "댄스/팝")
+        self.assertEqual(canonical("록/메탈"), "락/메탈")
+        self.assertEqual(canonical("발라드"), "발라드")
+        self.assertIsNone(canonical("존재하지 않는 장르"))
         labels = self.engine.info()["genres"]["labels"]
-        self.assertEqual({row["label"]: row["key"] for row in labels},
-                         {"Ballad": "ballad", "Dance": "dance", "Soundtrack": "ost", "Hip-Hop": "hiphop"})
+        self.assertEqual({row["label"]: row["canonical"] for row in labels},
+                         {"발라드": "발라드", "댄스/팝": "댄스/팝", "OST": "OST", "Hip-Hop": "랩/힙합"})
         self.assertEqual(self.engine.info()["genres"]["untaggedTrackCount"], 0)
 
-    def test_genre_choice_without_weight_keeps_the_current_top_k(self):
+    def test_genre_choice_without_pushdown_keeps_the_current_top_k(self):
         case = self.repo.case("case_demo")
         current = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5))
-        chosen = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"]))
+        chosen = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5, selectedGenres=["댄스/팝"]))
         self.assertEqual([p["track_id"] for p in current["candidate"]["recommendations"]],
                          [p["track_id"] for p in chosen["candidate"]["recommendations"]])
-        self.assertEqual(chosen["candidate"]["genre"]["bonusPerMatch"], 0)
+        self.assertEqual(chosen["candidate"]["genre"]["penaltyPerMiss"], 0)
 
-    def test_genre_weight_pulls_preferred_genre_into_top_k(self):
+    def test_pushdown_keeps_unselected_genres_out_of_top_k(self):
         case = self.repo.case("case_demo")
-        settings = dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"])
-        for mode in ["twoAxisQuota", "finalScore"]:
+        settings = dict(DEFAULTS, useRangeGate=False, topK=5, selectedGenres=["댄스/팝"])
+        for mode in ["finalScore", "twoAxisQuota"]:
             with self.subTest(mode=mode):
-                off = self.engine.run(case, dict(settings, compositionMode=mode, genreWeight=0))["candidate"]
-                on = self.engine.run(case, dict(settings, compositionMode=mode, genreWeight=1))["candidate"]
-                self.assertEqual(off["genre"]["matchedInTopK"], 1)
+                off = self.engine.run(case, dict(settings, compositionMode=mode, genrePushdown=0))["candidate"]
+                on = self.engine.run(case, dict(settings, compositionMode=mode, genrePushdown=1))["candidate"]
+                self.assertLess(off["genre"]["matchedInTopK"], on["genre"]["matchedInTopK"])
+                # 합성 카탈로그의 댄스 곡 3곡이 전부 Top-5 에 들어온다. 남는 자리만 다른 장르가 채운다.
                 self.assertEqual(on["genre"]["matchedInTopK"], 3)
-                # 선택 장르가 위로 올라오고, 같은 장르 안에서는 음색 순서가 남는다.
-                self.assertTrue(all(p["genreMatch"] for p in on["recommendations"][:3]))
-                self.assertEqual(on["genre"]["bonusPerMatch"], on["genre"]["scoreSpan"])
+                selected_ids = {p["track_id"] for p in on["recommendations"] if p["genreMatch"]}
+                self.assertEqual(selected_ids, {"demo-07", "demo-08", "demo-09"})
+                # 후보 풀 자체는 그대로다. 감점은 걸러내는 게 아니라 순위를 미는 것이다.
                 self.assertEqual(off["eligibleCount"], on["eligibleCount"])
+
+    def test_pushdown_is_scaled_to_the_top_k_competition_band_not_the_whole_spread(self):
+        case = self.repo.case("case_demo")
+        side = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5,
+                                          selectedGenres=["댄스/팝"], genrePushdown=1))["candidate"]
+        info = side["genre"]
+        self.assertAlmostEqual(info["band"], info["bandTop"] - info["bandCutoff"], places=6)
+        self.assertAlmostEqual(info["penaltyPerMiss"], info["band"], places=6)
+        scores = [row["finalScore"] for row in side["rankings"]["ecapa"] if row["eligible"]]
+        # 전체 점수 폭보다 좁아야 한다. 전체 폭을 쓰면 슬라이더가 곧바로 하드 필터가 된다.
+        self.assertLess(info["band"], max(scores) - min(scores))
+
+    def test_pushdown_is_not_a_hard_filter(self):
+        """장르가 달라도 음색이 압도적이면 뚫고 들어올 수 있어야 한다."""
+        case = self.repo.case("case_demo")
+        # demo-00 은 쿼리 본인 구간이라 점수가 압도적으로 높다. 그 장르를 빼고 밀어내도 남아야 한다.
+        side = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, topK=5,
+                                          selectedGenres=["댄스/팝"], genrePushdown=1))["candidate"]
+        self.assertIn("demo-00", [p["track_id"] for p in side["recommendations"]])
+        self.assertTrue(side["genre"]["breakthroughs"])
+        self.assertTrue(all(not entry["genres"] or "댄스/팝" not in entry["genres"]
+                            for entry in side["genre"]["breakthroughs"]))
+
+    def test_language_gate_is_off_by_default_and_can_be_switched_back_on(self):
+        case = self.repo.case("case_demo")
+        off = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, selectedGenres=["발라드"]))["candidate"]
+        on = self.engine.run(case, dict(DEFAULTS, useRangeGate=False, selectedGenres=["발라드"],
+                                        useLanguageGate=True))["candidate"]
+        self.assertFalse(off["genre"]["languageGate"])
+        self.assertEqual(off["genre"]["languageExcludedCount"], 0)
+        # 현행 방식을 켜면 영어 곡 demo-03 이 언어 때문에 빠진다.
+        self.assertTrue(on["genre"]["languageGate"])
+        self.assertEqual(on["genre"]["languageExcludedCount"], 1)
+        self.assertGreater(off["eligibleCount"], on["eligibleCount"])
+        # 현행(baseline)은 언제나 운영 그대로이므로 언어 게이트가 걸린 상태다.
+        self.assertTrue(off["genre"]["languageGate"] is False)
+
+    def test_untagged_songs_are_not_pushed_down(self):
+        """장르 메타데이터가 없다는 이유로 곡이 조용히 사라지면 안 된다."""
+        self.assertTrue(genre_rules.track_matches({"genres": []}, {"댄스/팝"}))
+        self.assertTrue(genre_rules.track_matches({}, {"댄스/팝"}))
+        self.assertTrue(genre_rules.track_matches({"genres": ["K-Pop"]}, {"댄스/팝"}))
+        self.assertFalse(genre_rules.track_matches({"genres": ["발라드"]}, {"댄스/팝"}))
 
     def test_baseline_ignores_the_experiment_genre_choice(self):
         result = self.engine.run(self.repo.case("case_demo"),
-                                 dict(DEFAULTS, useRangeGate=False, topK=5, preferredGenres=["댄스/팝"], genreWeight=1))
-        self.assertEqual(result["baseline"]["genre"]["preferred"], ["발라드"])
+                                 dict(DEFAULTS, useRangeGate=False, topK=5, selectedGenres=["댄스/팝"], genrePushdown=1))
+        self.assertEqual(result["baseline"]["genre"]["selected"], ["발라드"])
         self.assertEqual(result["baseline"]["genre"]["source"], "case")
-        self.assertEqual(result["baseline"]["genre"]["weight"], 0)
+        self.assertEqual(result["baseline"]["genre"]["pushdown"], 0)
+        self.assertTrue(result["baseline"]["genre"]["languageGate"])
         self.assertEqual(result["candidate"]["genre"]["source"], "experiment")
 
     def test_unknown_genre_label_is_reported_not_silently_dropped(self):
         result = self.engine.run(self.repo.case("case_demo"),
-                                 dict(DEFAULTS, useRangeGate=False, preferredGenres=["없는장르"], genreWeight=1))
+                                 dict(DEFAULTS, useRangeGate=False, selectedGenres=["없는장르"], genrePushdown=1))
         self.assertEqual(result["candidate"]["genre"]["unknownLabels"], ["없는장르"])
-        self.assertEqual(result["candidate"]["genre"]["matchedCatalogCount"], 0)
+        self.assertEqual(result["candidate"]["genre"]["canonical"], [])
 
     def test_genre_settings_validation(self):
-        for settings in [{"genreWeight": 1.5}, {"genreWeight": -0.1}, {"preferredGenres": "발라드"},
-                         {"preferredGenres": ["발라드", "발라드"]}, {"preferredGenres": [""]},
-                         {"preferredGenres": ["가" * 41]}, {"preferredGenres": ["장르"] * 13}]:
+        for settings in [{"genrePushdown": 3.5}, {"genrePushdown": -0.1}, {"selectedGenres": "발라드"},
+                         {"selectedGenres": ["발라드", "발라드"]}, {"selectedGenres": [""]},
+                         {"selectedGenres": ["가" * 41]}, {"selectedGenres": ["장르"] * 13}]:
             with self.subTest(settings=settings):
                 response = self.client.post("/api/experiments", auth=self.auth,
                                             json={"requestId": "case_demo", "settings": settings})

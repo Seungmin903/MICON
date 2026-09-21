@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from engine import Engine
+from engine import Engine, DEFAULTS
 from repository import Repository
 from ownership import OwnerResolver
 from session_insights import SessionInsightsResolver
@@ -24,18 +24,23 @@ class Settings(BaseModel):
     ecapaWeight: float = Field(default=.5, ge=0, le=1)
     centroidWeight: float = Field(default=.3, ge=0, le=1)
     timbreWeight: float = Field(default=.75, ge=0, le=1)
-    maxKeyShift: int = Field(default=3, ge=0, le=6)
-    maxCoreExcess: float = Field(default=0, ge=0, le=12)
+    maxKeyShift: int = Field(default=DEFAULTS["maxKeyShift"], ge=0, le=6)
+    # 운영 현행 음역 게이트. 핵심 음역 초과 반음(maxCoreExcess)은 실험 전용 추가 조건으로 남긴다.
+    maxOutsideRangeRatio: float = Field(default=DEFAULTS["maxOutsideRangeRatio"], ge=0, le=1)
+    maxCoreExcess: float = Field(default=DEFAULTS["maxCoreExcess"], ge=0, le=12)
     minRangeScore: float = Field(default=.35, ge=0, le=1)
-    minProfileConfidence: float = Field(default=.55, ge=0, le=1)
+    minProfileConfidence: float = Field(default=DEFAULTS["minProfileConfidence"], ge=0, le=1)
     useRangeGate: bool = True
     topK: int = Field(default=10, ge=1, le=50)
-    compositionMode: Literal["twoAxisQuota", "finalScore"] = "twoAxisQuota"
-    # 0 이면 현행과 같다(장르는 언어 게이트로만). 비우면 입력 case 에 저장된 취향을 쓴다.
-    genreWeight: float = Field(default=0.0, ge=0, le=1)
-    preferredGenres: list[str] = Field(default_factory=list, max_length=12)
+    compositionMode: Literal["finalScore", "twoAxisQuota"] = "finalScore"
+    # 선택 안 한 장르를 밀어내는 세기. 0 이면 장르를 순위에 쓰지 않는다.
+    # 단위는 Top-K 경쟁 구간(1위-커트라인)의 배수. 실측에서 상위 점수가 촘촘해 1배로는 약해 3배까지 연다.
+    genrePushdown: float = Field(default=0.0, ge=0, le=3)
+    selectedGenres: list[str] = Field(default_factory=list, max_length=12)
+    # 현행 방식(장르를 언어로 바꿔 하드 필터). 대안 검증에서는 끈 채로 본다.
+    useLanguageGate: bool = False
 
-    @field_validator("preferredGenres")
+    @field_validator("selectedGenres")
     @classmethod
     def _check_genre_labels(cls, value: list[str]) -> list[str]:
         cleaned = [label.strip() for label in value]

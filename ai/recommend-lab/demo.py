@@ -35,15 +35,16 @@ def generate(directory, count=16):
         path = index / f"{key}.npy"
         np.save(path, x, allow_pickle=False)
         file_records[key] = {"filename": path.name, "shape": list(x.shape), "dtype": "float32", "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-    # 장르 실험을 확인할 수 있도록 합성 카탈로그에도 장르를 섞어 둔다.
-    demo_genres = {4: ["Hip-Hop"], 7: ["Dance"], 8: ["Dance"], 9: ["Dance"],
-                   10: ["Soundtrack", "Ballad"], 11: ["Soundtrack"]}
+    # 장르 실험을 확인할 수 있도록 합성 카탈로그에도 장르를 섞어 둔다. 표기는 DB 라벨로 통일하고,
+    # demo-04 만 예전 영어 태그로 남겨 레거시 표기 접기와 운영 RAP_TAGS 를 함께 확인한다.
+    demo_genres = {4: ["Hip-Hop"], 7: ["댄스/팝"], 8: ["댄스/팝"], 9: ["댄스/팝"],
+                   10: ["OST", "발라드"], 11: ["OST"]}
     tracks, profiles = [], {}
     for i in range(count):
         tid = f"demo-{i:02}"
         tracks.append({"track_id": tid, "artist": f"합성 가수 {chr(65+i//3)}", "title": f"테스트 곡 {i+1}",
                        "metadata": {"song_id": tid, "language": "eng" if i == 3 else "kor", "batch_id": "synthetic-demo",
-                                    "genres": demo_genres.get(i, ["Ballad"])},
+                                    "genres": demo_genres.get(i, ["발라드"])},
                        "arrays": {k: {"offset": i*3, "count": 3} for k in MODEL_KEYS}})
         low = 51 + i
         hist = np.zeros(60); hist[low-36:low+10-36] = 1

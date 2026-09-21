@@ -1,94 +1,140 @@
-"""선호 장르를 후보 점수에 반영하는 실험 규칙. 운영 코어는 장르를 언어 판정에만 쓴다.
+"""장르를 추천에 반영하는 실험 규칙. 운영 코어는 장르를 언어 판정에만 쓴다.
 
-운영(`timbre_recommender`)에서 설문 장르가 하는 일은 `allowed_languages()` 의 언어
-게이트 하나뿐이다. 스타일 태그를 만드는 `selected_tags()` 는 테스트 말고 어디에서도
-호출되지 않는다. 그래서 회원이 "발라드"를 골라도 어떤 곡이 뽑히는지는 달라지지 않는다.
-이 모듈은 **실험실에서만** 쓰는 장르 가산점을 정의한다. 운영 코어는 건드리지 않는다.
+현행 운영 흐름은 이렇다.
 
-- 카탈로그 `metadata.genres` 는 DB 라벨(한글, 예: "랩/힙합")이고, 예전 번들과 합성
-  데이터는 영어 태그("Hip-Hop")다. 두 표기를 같은 canonical key 로 모아 비교한다.
-- 가산점은 그 입력의 점수 분포 폭(span = 최고 - 최저)에 비례한다. 영향력 100% 는
-  "선호 장르가 먼저, 같은 장르 안에서는 음색 순"과 같은 뜻이 되고 0% 는 현행과 같다.
-  절대값을 쓰면 입력마다 점수 폭이 달라 슬라이더의 같은 위치가 다른 세기가 된다.
+1. 사용자가 장르를 고른다.
+2. 장르를 **언어**로 바꾼다(`발라드·댄스·록` → 한국어, `팝·영어곡` → 영어, `J-Pop` → 일본어).
+3. 그 언어가 아닌 곡을 후보에서 통째로 뺀다.
+4. 남은 곡끼리 ECAPA·Singer-BYOL·음역 점수로 경쟁한다.
+5. 같은 언어 안에서 "발라드냐 댄스냐"는 순위에 **전혀** 반영되지 않는다.
+
+이 모듈이 실험하는 대안은 다음 세 가지다. 운영 코어는 건드리지 않는다.
+
+- **DB 장르로 통일.** 기준 표기는 DB 라벨(`발라드`, `랩/힙합`, `J-POP` …)이다. 예전 번들과
+  설문에 남아 있는 영어 태그(`Ballad`, `Hip-Hop`)와 표기 변형(`록/메탈`)은 DB 라벨로 접어 넣는다.
+  canonical 값이 곧 DB 라벨이므로 따로 외울 코드값이 없다.
+- **언어 게이트 폐기.** 장르를 언어로 바꾸지 않는다. J-POP 을 안 고른 사람에게 J-POP 이 안 뜨는 것은
+  언어 필터가 아니라 아래 감점으로 이뤄진다.
+- **선택 안 한 장르 감점.** 하드 필터가 아니라 점수를 깎는다. 그래서 음색이 압도적으로 닮은 곡은
+  장르가 달라도 올라올 수 있다. 감점 크기의 기준은 **Top-K 경쟁 구간**이다(아래).
+
+## 감점 크기를 Top-K 경쟁 구간에 맞추는 이유
+
+전체 점수 분포 폭(최고−최저)을 기준으로 삼으면 슬라이더를 조금만 올려도 사실상 하드 필터가 된다.
+실제 입력에서 전체 폭은 0.52인데 Top-10 안에서 1위와 10위의 차이는 0.14밖에 안 되기 때문이다.
+그래서 기준을 `band = 1위 점수 − K위 점수`(둘 다 감점 전 점수)로 잡는다.
+
+- `감점 = 밀어내기 × band`
+- 밀어내기 100% → 선택 안 한 곡은 **감점 전 1위보다 높아야** Top-K 에 들어온다. 즉 "진짜 음색이
+  똑같은 수준" 이 아니면 안 뜬다.
+- 밀어내기 50% → Top-K 구간의 절반쯤 앞서야 들어온다.
+- 밀어내기 0% → 장르를 아예 안 본다(언어 게이트까지 끄면 장르 무관).
 """
 
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping, Sequence
 
-# 표기가 달라도 같은 장르로 보는 별칭. 키는 소문자·공백 제거 후 비교한다.
-# 한글은 현재 DB 라벨, 영어는 예전 카탈로그 번들과 합성 데이터의 태그.
-GENRE_ALIASES = {
-    "발라드": "ballad", "ballad": "ballad",
-    "락/메탈": "rock", "록/메탈": "rock", "락": "rock", "록": "rock",
-    "rock": "rock", "metal": "rock", "alternative": "rock",
-    "ost": "ost", "soundtrack": "ost",
-    "알앤비/소울": "rnb", "r&b/소울": "rnb", "r&b": "rnb", "rnb": "rnb", "soul": "rnb",
-    "댄스/팝": "dance", "댄스": "dance", "dance": "dance", "electronic": "dance",
-    "인디": "indie", "indie": "indie", "singer-songwriter": "indie",
-    "성인가요": "trot", "트로트": "trot", "trot": "trot",
-    "포크/어쿠스틱": "folk", "포크": "folk", "folk": "folk",
-    "j-pop": "jpop", "jpop": "jpop", "j팝": "jpop", "일본곡": "jpop", "anime": "jpop",
-    "팝": "pop", "pop": "pop", "영어곡": "pop", "global-pop": "pop",
-    "랩/힙합": "hiphop", "힙합": "hiphop", "hip-hop": "hiphop", "hip hop": "hiphop", "rap": "hiphop",
-    "클래식": "classic", "classical": "classic",
-    "재즈": "jazz", "jazz": "jazz",
-    "레게": "reggae", "reggae": "reggae",
-    "k-pop": "kpop", "kpop": "kpop", "케이팝": "kpop",
-    "holiday": "holiday",
+# 기준 표기는 DB 장르 라벨이다. 왼쪽은 들어올 수 있는 다른 표기, 오른쪽이 DB 라벨.
+# 소문자·공백 제거 후 비교한다. DB 라벨 자신도 키로 넣어 둔다.
+DB_LABEL_ALIASES = {
+    "발라드": "발라드", "ballad": "발라드",
+    "락/메탈": "락/메탈", "록/메탈": "락/메탈", "락": "락/메탈", "록": "락/메탈",
+    "rock": "락/메탈", "metal": "락/메탈", "alternative": "락/메탈",
+    "ost": "OST", "soundtrack": "OST",
+    "알앤비/소울": "알앤비/소울", "r&b/소울": "알앤비/소울", "r&b": "알앤비/소울",
+    "rnb": "알앤비/소울", "soul": "알앤비/소울",
+    "댄스/팝": "댄스/팝", "댄스": "댄스/팝", "dance": "댄스/팝", "electronic": "댄스/팝",
+    "인디": "인디", "indie": "인디", "singer-songwriter": "인디",
+    "성인가요": "성인가요", "트로트": "성인가요", "trot": "성인가요",
+    "포크/어쿠스틱": "포크/어쿠스틱", "포크": "포크/어쿠스틱", "folk": "포크/어쿠스틱",
+    "j-pop": "J-POP", "jpop": "J-POP", "j팝": "J-POP", "일본곡": "J-POP", "anime": "J-POP",
+    "팝": "팝", "pop": "팝", "영어곡": "팝", "global-pop": "팝",
+    "랩/힙합": "랩/힙합", "힙합": "랩/힙합", "hip-hop": "랩/힙합", "hip hop": "랩/힙합", "rap": "랩/힙합",
+    "클래식": "클래식", "classical": "클래식",
+    "재즈": "재즈", "jazz": "재즈",
+    "레게": "레게", "reggae": "레게",
 }
 
-# 특정 스타일이 아니라 "한국 대중가요" 정도의 범용 태그. 운영 `selected_tags()` 도 K-Pop 을
-# 항상 취향 안으로 본다. 이 태그**만** 달린 곡은 어떤 선호 장르에도 맞는 것으로 센다.
-GENERIC_KEYS = frozenset({"kpop"})
+# 스타일이 아니라 "한국 대중가요" 정도의 범용 태그. 이 태그만 달린 곡은 어떤 선택에도 맞는 것으로 보고
+# 감점하지 않는다. 운영 `selected_tags()` 도 K-Pop 을 항상 취향 안으로 봤다.
+GENERIC_LABELS = frozenset({"K-Pop", "KPOP", "케이팝"})
+_GENERIC_KEYS = frozenset(label.strip().lower() for label in GENERIC_LABELS)
 
 
-def genre_key(label: Any) -> str | None:
-    """표기가 다른 장르 라벨을 하나의 canonical key 로. 모르는 라벨이면 None."""
+def canonical(label: Any) -> str | None:
+    """어떤 표기로 들어오든 DB 장르 라벨로. 모르는 라벨이면 None."""
     if label is None:
         return None
-    return GENRE_ALIASES.get(str(label).strip().lower())
+    return DB_LABEL_ALIASES.get(str(label).strip().lower())
 
 
-def genre_keys(labels: Iterable[Any] | None) -> set[str]:
-    return {key for key in (genre_key(label) for label in labels or ()) if key}
+def canonical_set(labels: Iterable[Any] | None) -> set[str]:
+    return {name for name in (canonical(label) for label in labels or ()) if name}
 
 
 def unknown_labels(labels: Iterable[Any] | None) -> list[str]:
-    """canonical key 를 못 찾은 라벨. 조용히 무시하지 않고 화면에 알린다."""
+    """DB 라벨로 못 접은 것. 조용히 무시하지 않고 화면에 알린다."""
     return [str(label).strip() for label in labels or ()
-            if label is not None and str(label).strip() and not genre_key(label)]
+            if label is not None and str(label).strip() and not canonical(label)
+            and str(label).strip().lower() not in _GENERIC_KEYS]
 
 
 def track_genres(metadata: Mapping[str, Any] | None) -> list[str]:
     return [str(g) for g in (metadata or {}).get("genres") or []]
 
 
-def track_matches(metadata: Mapping[str, Any] | None, preferred: set[str]) -> bool:
-    """이 곡이 선호 장르 안인가. 범용 태그뿐인 곡은 안으로 본다."""
-    if not preferred:
-        return False
-    keys = genre_keys(track_genres(metadata))
-    if not keys:
-        return False
-    return bool(keys & preferred) or keys <= GENERIC_KEYS
+def is_generic_only(metadata: Mapping[str, Any] | None) -> bool:
+    labels = [g.strip().lower() for g in track_genres(metadata) if g and g.strip()]
+    return bool(labels) and all(label in _GENERIC_KEYS for label in labels)
 
 
-def preferred_labels(selected: Sequence[Any] | None, case_genres: Sequence[Any] | None) -> list[str]:
+def track_matches(metadata: Mapping[str, Any] | None, selected: set[str]) -> bool:
+    """이 곡이 선택한 장르 안인가.
+
+    장르를 모르는 곡(태그 없음·미매칭)과 범용 태그뿐인 곡은 감점하지 않는다. 메타데이터가
+    비어 있다는 이유로 곡이 조용히 사라지면 안 되기 때문이다. 화면에 그 수를 따로 표시한다.
+    """
+    if not selected:
+        return True
+    names = canonical_set(track_genres(metadata))
+    if not names:
+        return True
+    return bool(names & selected) or is_generic_only(metadata)
+
+
+def has_known_genre(metadata: Mapping[str, Any] | None) -> bool:
+    return bool(canonical_set(track_genres(metadata)))
+
+
+def selected_labels(chosen: Sequence[Any] | None, case_genres: Sequence[Any] | None) -> list[str]:
     """실험에서 고른 장르가 있으면 그것을, 없으면 입력 case 에 저장된 취향을 쓴다."""
-    chosen = [str(g).strip() for g in selected or () if g is not None and str(g).strip()]
-    if chosen:
-        return chosen
+    picked = [str(g).strip() for g in chosen or () if g is not None and str(g).strip()]
+    if picked:
+        return picked
     return [str(g).strip() for g in case_genres or () if g is not None and str(g).strip()]
 
 
-def bonus_unit(scores: Iterable[float], weight: float) -> tuple[float, float]:
-    """(선호 장르 한 곡에 더할 점수, 점수 분포 폭). 영향력 100% = 폭만큼 = 장르 우선."""
-    values = [float(s) for s in scores]
-    span = (max(values) - min(values)) if values else 0.0
-    if not (weight > 0) or span <= 0:
-        return 0.0, span
-    return float(weight) * span, span
+def competition_band(scores: Iterable[float], top_k: int) -> tuple[float, float, float]:
+    """(band, 1위 점수, K위 커트라인). band = 1위 − K위. Top-K 진입을 가르는 실제 점수 폭이다."""
+    values = sorted((float(s) for s in scores), reverse=True)
+    if not values:
+        return 0.0, 0.0, 0.0
+    top = values[0]
+    cutoff = values[min(max(int(top_k), 1), len(values)) - 1]
+    band = top - cutoff
+    if band <= 0:
+        # Top-K 안이 전부 동점이면 전체 폭으로 물러선다. 그것도 0이면 감점할 근거가 없다.
+        band = top - values[-1]
+    return max(band, 0.0), top, cutoff
+
+
+def penalty_unit(scores: Iterable[float], weight: float, top_k: int) -> tuple[float, float, float, float]:
+    """(선택 안 한 곡에서 뺄 점수, band, 1위 점수, 커트라인)."""
+    band, top, cutoff = competition_band(scores, top_k)
+    if not (weight > 0) or band <= 0:
+        return 0.0, band, top, cutoff
+    return float(weight) * band, band, top, cutoff
 
 
 def catalog_summary(tracks: Iterable[Any]) -> list[dict[str, Any]]:
@@ -99,5 +145,5 @@ def catalog_summary(tracks: Iterable[Any]) -> list[dict[str, Any]]:
             name = label.strip()
             if name:
                 counts[name] = counts.get(name, 0) + 1
-    return [{"label": label, "key": genre_key(label), "count": count}
+    return [{"label": label, "canonical": canonical(label), "count": count}
             for label, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))]

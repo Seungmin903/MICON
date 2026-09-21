@@ -13,6 +13,7 @@
 <main>
   <section class="intro"><div><span class="eyebrow">RECOMMENDATION LAB</span><h1>어떤 곡이 닮았고<br>왜 후보에서 빠졌을까요?</h1><p>현재 배치의 두 모델 지도와 음역 게이트를 같은 입력으로 비교합니다.</p></div><div id="catalogInfo" class="catalog-meta"></div></section>
   <div id="error" role="alert" hidden></div>
+  <div id="catalogNotice" class="catalog-notice" role="status" hidden></div>
   <section class="panel job-panel"><div class="section-title"><div><h2>Job 상태 · 회원 음역 · 닮은 가수</h2><p class="muted">요청 회원의 등록 음역과 가수 순위, 계산·전달·저장 상태를 따로 확인합니다.</p></div></div>
     <form id="jobForm"><input id="jobId" aria-label="job-id" placeholder="job-id 입력" autocomplete="off" required><button type="submit">상태 조회</button></form><div id="jobDetail" aria-live="polite"><p class="muted">요청을 선택하거나 job-id를 입력해 주세요.</p></div>
   </section>
@@ -26,18 +27,18 @@
       <button type="button" class="subtle preset" data-preset="current">현행 점수</button>
       <button type="button" class="subtle preset" data-preset="global">전체 음색만 보기</button>
       <button type="button" class="subtle preset" data-preset="range">음역·키 우선 보기</button>
-      <button type="button" class="subtle preset" data-preset="genre">선호 장르 우선 보기</button>
+      <button type="button" class="subtle preset" data-preset="genre">선택 장르만 남기듯 보기</button>
     </div>
     <div class="parameter-layout">
       <section class="parameter-group" aria-labelledby="compositionControls">
         <h3 id="compositionControls">Top-K 조립 방식</h3>
         <article class="parameter-card">
-          <div class="parameter-head"><label for="compositionMode">후보를 어떤 규칙으로 Top-K에 넣을지</label><output id="compositionModeValue">현행: ECAPA · BYOL · 합의 축 할당</output></div>
+          <div class="parameter-head"><label for="compositionMode">후보를 어떤 규칙으로 Top-K에 넣을지</label><output id="compositionModeValue">현행: 최종 점수 순</output></div>
           <select id="compositionMode">
-            <option value="twoAxisQuota">현행 축별 할당 (2:2:1 비율)</option>
-            <option value="finalScore">할당 없음 — 최종 점수 순</option>
+            <option value="finalScore">현행 최종 점수 순 (가수당 최대 2곡)</option>
+            <option value="twoAxisQuota">구 방식 — ECAPA·BYOL·합의 축 할당 (2:2:1)</option>
           </select>
-          <p id="compositionModeHelp">현행은 두 모델 축과 합의 축에서 먼저 곡을 고른 뒤 최종 점수로 정렬합니다. 후보 풀·점수식·음역 게이트는 바꾸지 않습니다.</p>
+          <p id="compositionModeHelp">현행은 게이트를 통과한 후보를 final score 순으로 담고, 한 가수의 곡은 최대 2곡까지만 넣습니다. 축별 2:2:1 할당은 이전 방식이며 지금은 비교용입니다.</p>
         </article>
       </section>
       <section class="parameter-group" aria-labelledby="scoreControls">
@@ -59,23 +60,26 @@
         </article>
       </section>
       <section class="parameter-group genre-group" aria-labelledby="genreControls">
-        <h3 id="genreControls">장르 취향</h3>
+        <h3 id="genreControls">장르</h3>
+        <div class="genre-current">현행은 고른 장르를 <strong>언어로 바꿔서</strong>(발라드·댄스·록 → 한국어, 팝 → 영어, J-Pop → 일본어) 그 언어가 아닌 곡을 통째로 뺄 뿐, 같은 언어 안에서 발라드냐 댄스냐는 순위에 전혀 반영하지 않습니다. 아래는 그 대신 <strong>장르를 직접 순위에 쓰는</strong> 안입니다.</div>
         <article class="parameter-card">
-          <div class="parameter-head"><label for="genreWeight">장르가 추천에 미치는 영향</label><output id="genreWeightValue">0% · 현행과 같음</output></div>
-          <input id="genreWeight" type="range" min="0" max="1" step="0.05" value="0">
-          <p id="genreWeightHelp">현행은 선호 장르를 언어(한국어·영어·일본어) 판정에만 쓰고, 어떤 곡을 뽑을지에는 쓰지 않습니다. 그래서 0%가 곧 현행 동작입니다. 올릴수록 선호 장르 곡에 점수를 더해 축별 선발과 최종 순서를 함께 밀어 올립니다.</p>
+          <div class="parameter-head"><label for="genrePushdown">선택 안 한 장르 밀어내기</label><output id="genrePushdownValue">0배 · 장르를 순위에 쓰지 않음</output></div>
+          <input id="genrePushdown" type="range" min="0" max="3" step="0.1" value="0">
+          <p id="genrePushdownHelp">고르지 않은 장르의 곡에서 점수를 뺍니다. 빼는 양의 단위는 <strong>Top-K 경쟁 구간</strong>(감점 전 1위 점수 − K위 커트라인)이고, 슬라이더는 그 배수입니다. 실제 입력에서 상위 점수가 촘촘해 1배로는 몇 곡이 남으므로 2~3배가 "거의 안 뜸"에 해당합니다. 후보에서 빼는 게 아니라 미는 것이라, 음색이 압도적으로 닮은 곡은 장르가 달라도 올라올 수 있습니다.</p>
         </article>
         <article class="parameter-card">
-          <div class="parameter-head"><span id="genreChoiceLabel" class="pseudo-label">선호 장르</span><output id="genreChoiceValue">입력에 저장된 취향 사용</output></div>
+          <div class="parameter-head"><span id="genreChoiceLabel" class="pseudo-label">선택 장르</span><output id="genreChoiceValue">입력에 저장된 취향 사용</output></div>
           <div id="genreChips" class="genre-chips" role="group" aria-labelledby="genreChoiceLabel"><p class="muted">카탈로그 장르를 불러오는 중…</p></div>
-          <p id="genreChoiceHelp">카탈로그에 실제로 있는 장르만 고를 수 있습니다. 아무것도 고르지 않으면 이 요청에 저장된 취향을 그대로 씁니다. 왼쪽 현행 결과는 언제나 저장된 취향을 씁니다.</p>
+          <p id="genreChoiceHelp">표기는 DB 장르 라벨로 통일했습니다. 카탈로그에 실제로 있는 라벨만 고를 수 있고, 예전 영어 태그는 같은 DB 라벨로 접어서 셉니다. 아무것도 고르지 않으면 이 요청에 저장된 취향을 그대로 씁니다. 장르를 모르는 곡은 감점하지 않습니다.</p>
+          <label class="check gate-inline"><input id="useLanguageGate" type="checkbox">현행 언어 게이트도 함께 걸기 (끄는 게 대안)</label>
         </article>
       </section>
       <details class="parameter-group filter-controls">
         <summary><span><strong>후보 필터와 표시 개수</strong><small>음역 게이트를 얼마나 엄격하게 적용할지 조절합니다</small></span><span class="details-hint">펼치기</span></summary>
         <div class="filter-grid">
-          <article class="parameter-card compact"><div class="parameter-head"><label for="maxKeyShift">허용 키 변화</label><output id="maxKeyShiftValue">±3 반음</output></div><input id="maxKeyShift" type="range" min="0" max="6" step="1" value="3"><p>원곡을 이 범위 안에서 옮겨 부를 수 있어야 후보가 됩니다.</p></article>
-          <article class="parameter-card compact"><div class="parameter-head"><label for="maxCoreExcess">핵심 음역 초과 허용</label><output id="maxCoreExcessValue">0 반음</output></div><input id="maxCoreExcess" type="range" min="0" max="12" step="0.5" value="0"><p>곡의 핵심 음역이 회원 음역을 넘는 허용 폭입니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="maxKeyShift">허용 키 변화</label><output id="maxKeyShiftValue">±4 반음</output></div><input id="maxKeyShift" type="range" min="0" max="6" step="1" value="4"><p>원곡을 이 범위 안에서 옮겨 부를 수 있어야 후보가 됩니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="maxOutsideRangeRatio">음역 밖 시간 비율 허용</label><output id="maxOutsideRangeRatioValue">5%</output></div><input id="maxOutsideRangeRatio" type="range" min="0" max="0.5" step="0.01" value="0.05"><p>현행 음역 게이트입니다. 최적 키에서도 회원 음역 밖에 머무는 시간이 이 비율을 넘으면 후보에서 뺍니다.</p></article>
+          <article class="parameter-card compact"><div class="parameter-head"><label for="maxCoreExcess">핵심 음역 초과 허용 (실험)</label><output id="maxCoreExcessValue">제한 없음</output></div><input id="maxCoreExcess" type="range" min="0" max="12" step="0.5" value="12"><p>운영이 더 이상 쓰지 않는 옛 조건입니다. 기본값은 제한 없음이고, 낮추면 실험용 추가 조건이 됩니다.</p></article>
           <article class="parameter-card compact"><div class="parameter-head"><label for="minRangeScore">최소 음역 점수</label><output id="minRangeScoreValue">0.35</output></div><input id="minRangeScore" type="range" min="0" max="1" step="0.05" value="0.35"><p>낮출수록 더 많은 곡이 음역 후보로 남습니다.</p></article>
           <article class="parameter-card compact"><div class="parameter-head"><label for="minProfileConfidence">최소 곡 음역 신뢰도</label><output id="minProfileConfidenceValue">0.55</output></div><input id="minProfileConfidence" type="range" min="0" max="1" step="0.05" value="0.55"><p>카탈로그 곡의 음역 프로파일을 신뢰할 최소 수준입니다.</p></article>
           <label class="number-control">최종 추천 개수<input id="topK" type="number" min="1" max="50" step="1" value="10"></label>
