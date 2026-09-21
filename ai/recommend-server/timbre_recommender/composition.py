@@ -20,6 +20,7 @@ from typing import Any, Iterable, Mapping, Sequence
 from .pitch_range import MAX_OUTSIDE_RANGE_RATIO
 
 COMPOSITION_VERSION = "two-axis-quota-v2-artist-cap"
+FINAL_SCORE_COMPOSITION_VERSION = "final-score-v1"
 
 # 할당. 클라이언트는 이 값을 알 필요 없다(응답 algorithm.composition 에 실림). top_k 가 5 를 넘으면 같은 비율로 늘린다.
 QUOTA = {"ecapa": 2, "singer_byol": 2, "consensus": 1}
@@ -288,10 +289,100 @@ def compose_two_axis(
     }
 
 
+def compose_by_final_score(
+    ranked: Sequence[Mapping[str, Any]],
+    *,
+    top_k: int,
+    genres: Iterable[str] = (),
+    range_enabled: bool = False,
+    min_range_score: float = DEFAULT_MIN_RANGE_SCORE,
+    scoring_version: str,
+) -> dict[str, Any]:
+    """통과한 후보를 축별 할당 없이 ``final_score`` 순으로 반환한다."""
+    genres = list(genres)
+    allowed = allowed_languages(genres)
+    with_song = [item for item in ranked if song_id_of(item.get("metadata"))]
+    no_song_count = len(ranked) - len(with_song)
+    if allowed is None:
+        gated = list(with_song)
+    else:
+        gated = [item for item in with_song if track_language(item.get("metadata")) in (None, *allowed)]
+    language_excluded = len(with_song) - len(gated)
+    if range_enabled:
+        def range_ok(item: Mapping[str, Any]) -> bool:
+            fit = item.get("range_fit")
+            return (
+                bool(fit)
+                and bool(fit.get("catalogProfileReliable", True))
+                and float(fit.get("score", 0.0)) >= min_range_score
+                and _outside_range_ratio(fit) <= MAX_OUTSIDE_RANGE_RATIO
+            )
+        pool = [item for item in gated if range_ok(item)]
+    else:
+        pool = list(gated)
+    range_excluded = len(gated) - len(pool)
+    ordered = []
+    artist_counts: dict[str, int] = {}
+    for item in sorted(pool, key=lambda item: (-float(item["final_score"]), item["track_id"])):
+        artist = _artist_key(item)
+        if artist_counts.get(artist, 0) >= MAX_SONGS_PER_ARTIST:
+            continue
+        ordered.append(item)
+        artist_counts[artist] = artist_counts.get(artist, 0) + 1
+        if len(ordered) == top_k:
+            break
+    recommendations = []
+    for position, item in enumerate(ordered, start=1):
+        fit = item.get("range_fit") if range_enabled else None
+        recommendations.append({
+            "position": position,
+            "track_id": item["track_id"],
+            "song_id": song_id_of(item.get("metadata")),
+            "title": item["title"],
+            "artist": item["artist"],
+            "metadata": _public_metadata(item.get("metadata")),
+            "axis": None,
+            "label": "최종 점수 순",
+            "axis_scores": None,
+            "axis_rank": None,
+            "confidence": None,
+            "timbre_score": round(float(item["timbre_score"]), 6),
+            "range_fit": fit,
+            "recommended_key": int(fit["keyShift"]) if fit else None,
+            "final_score": round(float(item["final_score"]), 6),
+            "scoring_version": scoring_version,
+            "composition_version": FINAL_SCORE_COMPOSITION_VERSION,
+        })
+    return {
+        "recommendations": recommendations,
+        "composition": {
+            "version": FINAL_SCORE_COMPOSITION_VERSION,
+            "selection": "final_score",
+            "order": ORDER_RULE,
+            "candidate_count": len(pool),
+            "max_songs_per_artist": MAX_SONGS_PER_ARTIST,
+            "unique_artist_count": len(artist_counts),
+        },
+        "language_gate": {
+            "enabled": allowed is not None,
+            "genres": genres,
+            "allowed": sorted(allowed) if allowed is not None else None,
+            "excluded_count": language_excluded,
+        },
+        "range_filter": {
+            "enabled": range_enabled,
+            "min_score": min_range_score,
+            "max_outside_range_ratio": MAX_OUTSIDE_RANGE_RATIO,
+            "excluded_count": range_excluded,
+        },
+        "catalog_filter": {"excluded_without_song_id": no_song_count},
+    }
+
+
 def apply_composition(result: dict[str, Any], *, top_k: int, genres: Iterable[str] = ()) -> dict[str, Any]:
     """`scoring.recommend()` 결과(top_k 를 크게 준 것)를 최종 응답 모양으로 바꾼다. API 와 샘플 스크립트가 같이 쓴다."""
     algorithm = result["algorithm"]
-    composed = compose_two_axis(
+    composed = compose_by_final_score(
         result["recommendations"],
         top_k=top_k,
         genres=genres,
