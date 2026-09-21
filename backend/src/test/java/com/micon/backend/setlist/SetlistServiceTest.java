@@ -88,15 +88,13 @@ class SetlistServiceTest {
 	}
 
 	@Test
-	void rejectsNonFavoriteAndInvalidOrder() {
+	void allowsNonFavoriteAndRejectsInvalidOrder() {
 		var created = service.create(7L, "연습곡");
 		jdbcTemplate.update("DELETE FROM FAVORITE_SONG WHERE user_id = 7 AND song_id = 2");
 
-		assertThatThrownBy(() -> service.addSong(7L, created.setlistId(), "2"))
-			.isInstanceOfSatisfying(BusinessException.class, exception ->
-				assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.SONG_NOT_FAVORITED));
-
+		service.addSong(7L, created.setlistId(), "2");
 		service.addSong(7L, created.setlistId(), "1");
+		assertThat(service.getSetlist(7L, created.setlistId()).songs()).hasSize(2);
 		assertThatThrownBy(() -> service.reorderSongs(7L, created.setlistId(), List.of("1", "1"), null))
 			.isInstanceOfSatisfying(BusinessException.class, exception ->
 				assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_SETLIST_ORDER));

@@ -68,9 +68,6 @@ public class SetlistService {
 		if (!setlistRepository.songExists(songId)) {
 			throw new SongNotFoundException(songId);
 		}
-		if (!setlistRepository.isFavorite(userId, songId)) {
-			throw new BusinessException(ErrorCode.SONG_NOT_FAVORITED);
-		}
 		setlistRepository.addSong(setlistId, songId);
 		return detail(setlistRepository.findOwned(setlist.setlistId(), userId).orElseThrow());
 	}

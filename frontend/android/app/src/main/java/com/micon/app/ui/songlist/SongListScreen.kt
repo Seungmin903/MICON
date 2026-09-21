@@ -246,22 +246,57 @@ fun SongListScreen(
         } else {
             MiconHeader(onSettings = onSettings, onLogin = onLogin)
         }
+        SongCatalogContent(
+            state = state,
+            onQueryChange = vm::setQuery,
+            onGenreChange = vm::setGenre,
+            onRefresh = vm::refresh,
+            onLoadMore = vm::loadMore,
+            onSongClick = onSongClick,
+            likedIds = liked,
+            onLike = ::like,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** 연습 곡 선택과 세트리스트 곡 추가가 함께 사용하는 전체 곡 카탈로그 UI. */
+@Composable
+fun SongCatalogContent(
+    state: SongListViewModel.State,
+    onQueryChange: (String) -> Unit,
+    onGenreChange: (Long?) -> Unit,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
+    onSongClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    likedIds: Set<String>? = null,
+    onLike: (String) -> Unit = {},
+    excludedIds: Set<String> = emptySet(),
+    searchPlaceholder: String = "노래나 가수를 검색해 보세요",
+) {
+    val visibleSongs = state.songs.filterNot { it.id in excludedIds }
+    LaunchedEffect(visibleSongs.size, state.hasMore, state.loading, state.loadingMore, excludedIds) {
+        if (!state.loading && !state.loadingMore && visibleSongs.isEmpty() && state.hasMore) onLoadMore()
+    }
+    Column(modifier) {
         MiconSearchBar(
             state.query,
-            vm::setQuery,
+            onQueryChange,
             Modifier.padding(horizontal = 20.dp),
-            placeholder = "노래나 가수를 검색해 보세요",
+            placeholder = searchPlaceholder,
             prototypeStyle = true,
         )
+        Spacer(Modifier.height(12.dp))
         if (state.genres.isNotEmpty()) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                GenreFilterChip("전체", state.selectedGenreId == null) { vm.setGenre(null) }
+                GenreFilterChip("전체", state.selectedGenreId == null) { onGenreChange(null) }
                 state.genres.forEach { genre ->
                     GenreFilterChip(genre.name, state.selectedGenreId == genre.genreId) {
-                        vm.setGenre(genre.genreId)
+                        onGenreChange(genre.genreId)
                     }
                 }
             }
@@ -269,34 +304,35 @@ fun SongListScreen(
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (state.loading) "불러오는 중…" else "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${state.songs.size}곡 표시" else ""),
+                if (state.loading) "불러오는 중…" else "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${visibleSongs.size}곡 표시" else ""),
                 fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),
             )
         }
         Spacer(Modifier.height(4.dp))
         HorizontalDivider(color = GreyLight)
         when {
-            state.error != null -> RetryBlock(state.error!!, vm::refresh)
+            state.error != null -> RetryBlock(state.error!!, onRefresh)
             state.loading && state.songs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             else -> {
                 val listState = rememberLazyListState()
                 // 끝에 가까워지면 다음 페이지. 불러오는 중·실패·더 없음이면 기다리지 않는다(실패는 꼬리의 "다시 시도").
                 LoadMoreOnScrollEnd(listState, enabled = state.hasMore && !state.loadingMore && state.moreError == null,
-                    itemCount = state.songs.size, key = state.page, onLoadMore = vm::loadMore)
+                    itemCount = visibleSongs.size, key = state.page, onLoadMore = onLoadMore)
                 LazyColumn(Modifier.fillMaxSize(), state = listState) {
-                    items(state.songs, key = { it.id }) { song ->
+                    items(visibleSongs, key = { it.id }) { song ->
                         SongRow(
                             title = song.title,
                             artist = song.artist,
                             imageUrl = song.imageUrl,
                             onClick = { onSongClick(song.id) },
-                            liked = song.id in liked,
-                            onLike = { like(song.id) },
+                            keyBadge = state.keys[song.id],
+                            liked = likedIds?.let { song.id in it },
+                            onLike = { onLike(song.id) },
                             compactCd = true,
                         )
                     }
-                    if (state.songs.isEmpty()) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }
-                    item { LoadMoreFooter(loading = state.loadingMore, error = state.moreError, onRetry = vm::loadMore) }
+                    if (visibleSongs.isEmpty() && !state.hasMore) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }
+                    item { LoadMoreFooter(loading = state.loadingMore, error = state.moreError, onRetry = onLoadMore) }
                 }
             }
         }
@@ -307,13 +343,14 @@ fun SongListScreen(
 private fun GenreFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = if (selected) Purple else GreyLight,
+        shape = RoundedCornerShape(24.dp),
+        color = if (selected) Purple else Color.White,
+        border = BorderStroke(1.dp, if (selected) Purple else Color(0xFFE1DFE8)),
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            color = if (selected) Color.White else Grey,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            color = if (selected) Color.White else Ink,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
         )

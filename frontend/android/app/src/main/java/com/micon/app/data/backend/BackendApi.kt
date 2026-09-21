@@ -174,7 +174,7 @@ interface BackendApi {
     @DELETE("setlist/{setlistId}")
     suspend fun deleteSetlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<Any>>
 
-    /** 찜한 곡만 추가된다(400 SONG_NOT_FAVORITED). 바뀐 상세를 돌려준다. */
+    /** 찜 여부와 관계없이 곡을 추가하고 바뀐 상세를 돌려준다. */
     @POST("setlist/{setlistId}/{songId}")
     suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: String): Response<ApiResponse<SetlistDetailDto>>
 

@@ -19,7 +19,7 @@ data class SetlistDetail(val id: Long, val name: String, val songs: List<Setlist
 /**
  * 세트리스트. 백엔드 `SetlistController`(`/setlists`)만 본다.
  *
- * 서버 규칙: 이름 1~100자(공백 제거), 곡 추가는 **찜한 곡만**(400 SONG_NOT_FAVORITED), 남의 리스트는 404 SETLIST_NOT_FOUND.
+ * 서버 규칙: 이름 1~100자(공백 제거), 곡 추가는 전체 곡 카탈로그에서 가능하며 남의 리스트는 404 SETLIST_NOT_FOUND.
  * 순서 변경(`PUT /setlists/{id}/song-order`)은 서버가 지원하지만 앱 화면에 아직 드래그 정렬이 없어 쓰지 않는다.
  */
 interface SetlistRepository {
