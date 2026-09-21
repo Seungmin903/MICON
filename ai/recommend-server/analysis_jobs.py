@@ -24,10 +24,13 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from artist_catalog import public_response
+import librosa
 import numpy as np
 import soundfile as sf
 
+from mr_detection import detect_mr_suspected
 from recommendation_api import _configuration_status, _replace_with_retry
+from separation import separate
 from timbre_recommender.embedding import embed_vocal_audio
 
 
@@ -315,7 +318,8 @@ def _attempt_no(job: dict[str, Any]) -> int:
         return 1
 
 
-def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, metadata: dict[str, Any],
+                    preprocessing_version: str = "raw-legacy-v0") -> dict[str, dict[str, Any]]:
     """컴포넌트별 COMPLETED 콜백 본문.
 
     segmentInfo 는 명세의 세 필드에 embeddings 를 더한다. 구간별 벡터가 없으면 추천 점수의 70%가 사라진다.
@@ -345,7 +349,7 @@ def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, me
         out[component] = {
             "requestId": job["requestId"], "jobId": job["jobId"], "component": component, "attemptNo": attempt,
             "status": "COMPLETED", "modelKey": component,
-            "modelVersion": metadata["models"][key]["checkpoint_sha256"], "dimension": dimension,
+            "modelVersion": f"{metadata['models'][key]['checkpoint_sha256']}+{preprocessing_version}", "dimension": dimension,
             "embedding": [round(float(v), 7) for v in mean],
             "segmentInfo": {
                 "segmentDurationSeconds": metadata["window_seconds"],
@@ -395,6 +399,22 @@ def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _timbre_part(job: dict[str, Any]) -> str:
     return next(part for part in TIMBRE_PARTS if part in job["files"])
+
+
+def _separator_device(requested: str) -> str:
+    if requested != "auto":
+        return requested
+    import torch
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def _prepare_separation_input(source: Path, destination: Path) -> None:
+    """Mel-Band requires 44.1 kHz while app recordings can be 48 kHz."""
+    signal, sample_rate = sf.read(source, dtype="float32", always_2d=True)
+    if sample_rate != 44_100:
+        signal = librosa.resample(signal.T, orig_sr=sample_rate, target_sr=44_100,
+                                  res_type="soxr_hq", axis=-1).T
+    sf.write(destination, signal, 44_100, subtype="PCM_16")
 
 
 def process(job_id: str) -> None:
@@ -469,13 +489,38 @@ def _finish(job_id: str, components: dict[str, Any]) -> None:
 
 def _timbre_callbacks(job, audio, prefix, config):
     _limit_torch_threads()
+    detection = detect_mr_suspected(audio)
+    embedding_audio = audio
+    preprocessing_version = "raw-clean-v1"
+    if detection["requiresSeparation"]:
+        root = ANALYSIS_DIR / job["jobId"]
+        separation_input = root / "separation-input.wav"
+        try:
+            _prepare_separation_input(audio, separation_input)
+            vocals, _, separation_info = separate(
+                separation_input, root / "vocal-separation", _separator_device(config.get("device", "auto")),
+                backend="melband", allow_fallback=False,
+            )
+        except Exception as error:
+            detection["separation"] = {"status": "FAILED", "failureReason": str(error)[:500]}
+            _update(job["jobId"], mrDetection=detection)
+            raise
+        detection["separation"] = {"status": "COMPLETED", **separation_info}
+        detection["embeddingInput"] = "separated-vocals"
+        embedding_audio = vocals
+        preprocessing_version = "sep-melband-kim-v1"
+    else:
+        detection["embeddingInput"] = "raw-recording"
+    detection["preprocessingVersion"] = preprocessing_version
+    _update(job["jobId"], mrDetection=detection)
     metadata = embed_vocal_audio(
-        audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
+        embedding_audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
         singer_checkpoint_root=config["singer_checkpoint_root"], device=config.get("device", "auto"),
         batch_size=8, max_segments=12, min_segments=5, force=True,
     )
     return build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
-                           np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata)
+                           np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata,
+                           preprocessing_version)
 
 
 def _range_callback(job, audio):
