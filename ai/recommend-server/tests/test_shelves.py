@@ -72,7 +72,7 @@ class BuildShelvesTest(unittest.TestCase):
         ids = [it["track_id"] for it in voice]
         self.assertEqual(ids[0], "01")                                              # 음색 1위
         self.assertNotIn("10", ids)                                                 # |키| 5 초과
-        self.assertTrue(all(it["axis"] in ("ECAPA", "SINGER_BYOL", "CONSENSUS") and it["label"] for it in voice))
+        self.assertTrue(all(it["axis"] is None and it["label"] == "최종 점수 순" for it in voice))
         self.assertTrue(all(it["shelf"] == "voice" for it in voice))
 
     def test_voice_gate_rejects_more_than_five_percent_outside_range(self) -> None:

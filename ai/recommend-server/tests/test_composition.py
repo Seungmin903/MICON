@@ -11,6 +11,7 @@ from schemas import Job, RangeFit, Recommendation
 import timbre_recommender.composition as composition
 from timbre_recommender.composition import (
     allowed_languages,
+    compose_by_final_score,
     compose_two_axis,
     song_id_of,
     track_language,
@@ -90,6 +91,26 @@ class ComposeTest(unittest.TestCase):
         for r in recs:
             Recommendation.model_validate(r)
 
+    def test_final_score_selection_uses_no_axis_quota(self) -> None:
+        ranked = [
+            _item("ecapa-only", .99, .20),
+            _item("byol-only", .20, .99),
+            _item("balanced-1", .80, .80),
+            _item("balanced-2", .76, .76),
+            _item("balanced-3", .74, .74),
+        ]
+        out = compose_by_final_score(ranked, top_k=3, range_enabled=True, scoring_version="s")
+        recs = out["recommendations"]
+        self.assertEqual([r["track_id"] for r in recs], ["balanced-1", "balanced-2", "balanced-3"])
+        self.assertTrue(all(r["axis"] is None and r["label"] == "최종 점수 순" for r in recs))
+        self.assertEqual(out["composition"]["version"], "final-score-v1")
+        self.assertEqual(out["composition"]["selection"], "final_score")
+        self.assertEqual(out["composition"]["order"], "final_score desc")
+        self.assertEqual(out["composition"]["candidate_count"], 5)
+        self.assertEqual(out["composition"]["max_songs_per_artist"], 2)
+        for recommendation in recs:
+            Recommendation.model_validate(recommendation)
+
     def test_final_recommendations_cap_each_artist_at_two_songs(self) -> None:
         ranked = [
             _item("A", .99, .70, artist="same"),
@@ -98,7 +119,7 @@ class ComposeTest(unittest.TestCase):
             _item("D", .80, .98, artist="other"),
             _item("E", .79, .97, artist="third"),
         ]
-        out = compose_two_axis(ranked, top_k=5, range_enabled=True, scoring_version="s")
+        out = compose_by_final_score(ranked, top_k=5, range_enabled=True, scoring_version="s")
         artists = [item["artist"] for item in out["recommendations"]]
         self.assertEqual(artists.count("same"), 2)
         self.assertTrue(all(artists.count(artist) <= 2 for artist in set(artists)))

@@ -42,6 +42,9 @@ MAX_BYTES = 250 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
 CANDIDATE_POOL = 400  # compose 전에 후보 전체를 받는다. 최종 개수는 topK 가 정한다.
 MAX_TOP_K = 50        # 섹션당 최대 곡 수. BE 가 필터(성별·언어)용으로 넉넉히 저장할 수 있게 20 → 50 (2026-09-09)
+# 음색 추천 정책: ECAPA 80%, Singer-BYOL 20%; 곡 전체 평균과 구간 매칭은 동등하게 본다.
+# song_fit 등 별도 API의 기본 점수 정책은 이 변경에 포함하지 않는다.
+VOICE_RANKER_CONFIG = RankerConfig(base_ecapa_weight=.80, centroid_weight=.50, segment_weight=.50)
 LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
@@ -149,6 +152,7 @@ def build_result(
     artist_query = {k: np.vstack([catalog.embeddings(t, k) for t in fav]) for k in ("ecapa", "singer_byol")} if fav else None
     rows = score_all_tracks(
         catalog, ranges, query, query_profile=pitch_profile if range_enabled else None, mode=mode, genres=genres, artist_query=artist_query,
+        config=VOICE_RANKER_CONFIG,
     )
     rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
     if seed is None:
