@@ -1,6 +1,6 @@
 # 7키 반주 분산 생성
 
-원키 898곡에서 `-3, -2, -1, +1, +2, +3` 반주를 Opus 128kbps로 만든다. 원본과 S3 원키 객체는 수정하지 않는다.
+원키 반주 목록에서 `-3, -2, -1, +1, +2, +3` 반주를 Opus 128kbps로 만든다. 원본과 S3 원키 객체는 수정하지 않는다.
 
 ## 중앙 노트북 준비
 
@@ -50,4 +50,4 @@ python registry.py register --manifest work\merged.json --apply
 python registry.py rollback --manifest work\merged.json
 ```
 
-등록은 기존 행이 같은 경로·크기·SHA-256이면 건너뛴다. 값이 다르면 전체 트랜잭션을 중단한다. 롤백은 manifest와 경로·SHA-256이 정확히 일치하는 5,388개 행만 대상으로 한다.
+등록은 시작 전에 manifest의 모든 `songId`가 `song` 테이블에 존재하는지 확인한다. 기존 행이 같은 경로·크기·SHA-256이면 건너뛰고, 값이 다르거나 대상 곡이 없으면 전체 트랜잭션을 중단한다. 롤백은 manifest와 경로·SHA-256이 정확히 일치하는 행만 대상으로 한다.
