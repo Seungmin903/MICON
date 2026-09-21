@@ -322,12 +322,14 @@ def command_presign(args: argparse.Namespace) -> None:
     for row in variants:
         checksum = base64.b64encode(bytes.fromhex(row["sha256"])).decode("ascii")
         params = {"Bucket": args.bucket, "Key": row["objectKey"], "ContentType": MIME,
-                  "ServerSideEncryption": "AES256", "ChecksumSHA256": checksum}
+                  "ServerSideEncryption": "AES256", "ChecksumSHA256": checksum,
+                  "IfNoneMatch": "*"}
         url = client.generate_presigned_url("put_object", Params=params, ExpiresIn=args.expires)
         plans.setdefault(int(row["shard"]), []).append({
             "songId": row["songId"], "semitones": row["semitones"], "relativeOutput": row["relativeOutput"],
             "objectKey": row["objectKey"], "bytes": row["bytes"], "sha256": row["sha256"], "url": url,
-            "headers": {"Content-Type": MIME, "x-amz-server-side-encryption": "AES256", "x-amz-checksum-sha256": checksum},
+            "headers": {"Content-Type": MIME, "x-amz-server-side-encryption": "AES256",
+                        "x-amz-checksum-sha256": checksum, "If-None-Match": "*"},
         })
     output = Path(args.output_dir)
     for shard, uploads in plans.items():
