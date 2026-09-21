@@ -19,6 +19,10 @@ public class JdbcRecommendationPreferenceReader implements RecommendationPrefere
     @Override
     public Preferences findByUserId(long userId) {
         Map<String, Object> parameters = Map.of("userId", userId);
+        // Read the version first: under the transaction's consistent snapshot, lists below are the same version.
+        Long version = jdbcTemplate.query("""
+                SELECT preference_version FROM user_setting WHERE user_id = :userId
+                """, parameters, resultSet -> resultSet.next() ? resultSet.getLong(1) : 0L);
         List<String> genres = jdbcTemplate.queryForList("""
                 SELECT COALESCE(genre.preference_label, genre.name)
                 FROM user_genre_preference preference
@@ -33,6 +37,6 @@ public class JdbcRecommendationPreferenceReader implements RecommendationPrefere
                 WHERE preference.user_id = :userId
                 ORDER BY singer.name, singer.singer_id
                 """, parameters, String.class);
-        return new Preferences(genres, artists);
+        return new Preferences(version == null ? 0L : version, genres, artists);
     }
 }

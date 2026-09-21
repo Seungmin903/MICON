@@ -120,6 +120,7 @@ fun PreferenceSurveyScreen(
                     NetworkPreferenceRepository(container.backend.retrofit.create(PreferenceApi::class.java)),
                     SharedPreferenceDraftStore(context), userId, isEditing,
                     isCurrentUser = { TokenManager.getUserId() == userId && TokenManager.isLoggedIn() },
+                    refreshRecommendations = { container.recommend.regenerate() },
                 )
             }
         }
