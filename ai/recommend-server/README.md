@@ -116,6 +116,28 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 ## 테스트
 
+### TIMBRE MR 혼입 게이트
+
+TIMBRE 녹음은 임베딩 전에 `mr_detection.detect_mr_suspected` 로 한 번 판정한다. 분류기가 아니라 에너지 게이트이며,
+스피커로 MR 을 튼 게 분명한 녹음만 느린 보컬 분리 경로로 보낸다. 0.5초 창(0.25초 hop) 의 단시간 RMS 에서
+
+- `lowEnergyFloorRatio = p20/p80 >= 0.30` — 노래하지 않는 구간의 음량이 노래 구간만큼 크다
+- `dynamicRangeP95P10 = p95/p10 <= 8.0` — 녹음 전체의 음량 변화 폭이 좁다
+
+두 조건을 **모두** 만족할 때만 `SUSPECTED` 다. 한쪽만 걸리는 헤드폰 녹음에 분리 지연을 얹지 않기 위한 것이다.
+임계값은 `MICON_MR_ENERGY_FLOOR_RATIO`, `MICON_MR_MAX_DYNAMIC_RANGE` 로 조정한다.
+
+판정과 근거는 `job.json` 의 `mrDetection` 에 남는다(`status`, `displayLabel`, `reasonCodes`, `metrics`,
+`embeddingInput`, `preprocessingVersion`, 분리한 경우 `separation`). 추천 실험실 사이드바의 `MR 의심` 배지가 이 기록을 읽는다.
+
+- `SUSPECTED` → 44.1kHz PCM16 으로 변환 후 Mel-Band 로 분리하고 보컬만 임베딩한다. `preprocessingVersion=sep-melband-kim-v1`.
+- 그 외 → 원본을 그대로 임베딩한다. `preprocessingVersion=raw-clean-v1`.
+- 콜백 `modelVersion` 은 `<checkpoint_sha256>+<preprocessingVersion>` 이라 어느 입력으로 만든 임베딩인지 사후에 구분된다.
+- 사용자 녹음 분리에는 `allow_fallback=False` 를 쓴다. Mel-Band 가 실패하면 HTDemucs 로 조용히 내려가지 않고,
+  실패 사유를 `mrDetection.separation` 에 남긴 뒤 원본 녹음으로 임베딩을 계속한다.
+
+
+
 ### 가수 ID 로컬 스냅샷 및 표시용 가수 이름
 
 사용자 정정에 따라 **ID만 반환하도록 전환한 작업은 철회했다.** 추천 곡의 `title`·`artist`,
