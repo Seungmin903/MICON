@@ -7,12 +7,16 @@ import com.micon.app.data.onboarding.*
 import com.micon.app.data.voice.VoiceProfileMapper
 import com.micon.app.data.singanalysis.SavedRecording
 import com.micon.app.range.RangeReport
+import com.micon.app.range.RangeProtocol
+import com.micon.app.range.onboardingPreview
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class OnboardingRangeStatus { NOT_STARTED, RUNNING, READY, FAILED }
 
 data class VoiceOnboardingState(
     val draftId: String, val revision: Long = 0,
@@ -22,14 +26,18 @@ data class VoiceOnboardingState(
     val error: String? = null, val serviceAvailable: Boolean = false,
     val recovering: Boolean = false,
     val savedReceipt: ProfileSaveReceipt? = null,
+    val rangePreview: RangeReport? = null,
+    val rangeMeasurementId: String? = null,
+    val rangeAnalysisStatus: OnboardingRangeStatus = OnboardingRangeStatus.NOT_STARTED,
+    val rangeAnalysisError: String? = null,
     val songGuideCompleted: Boolean = false,
     val songGuideError: String? = null,
     val analysisGuideCompleted: Boolean = false,
     val rangeGuideCompleted: Boolean = false,
     val stageGuideError: String? = null,
 ) {
-    /** The song stage opens only after the range result has been verified and stored on this device. */
-    val canSelectSong get() = range != null
+    val canSelectSong get() = range != null || rangePreview != null
+    val waitingForRange get() = rangeAnalysisStatus == OnboardingRangeStatus.RUNNING
     val needsInitialTimbreAnalysis get() = progress == null || (progress.sessionStatus == VoiceSessionStatus.RANGE_IN_PROGRESS &&
         progress.analysisId == null && progress.ecapa == ComponentStatus.PENDING && progress.byol == ComponentStatus.PENDING)
     val needsNewRecording get() = progress?.sessionStatus == VoiceSessionStatus.INSUFFICIENT_DATA ||
@@ -37,6 +45,7 @@ data class VoiceOnboardingState(
     val analysisInputError get() = if (needsNewRecording) "분석에 쓸 목소리 구간이 부족해요. 노래를 다시 불러 주세요."
         else VoiceOnboardingInput.problem(draftId, range, recording)
     val canRetryAnalysis get() = serviceAvailable && !busy && !saving && !saved && !expired && !recovering &&
+        !waitingForRange && rangeAnalysisStatus != OnboardingRangeStatus.FAILED &&
         !needsNewRecording && progress?.sessionStatus?.closed != true
     val canAnalyze get() = canRetryAnalysis && progress?.canSave != true && progress?.analyzing != true &&
         analysisInputError == null
@@ -44,7 +53,8 @@ data class VoiceOnboardingState(
         (component != AnalysisComponent.ARTIST_SEARCH ||
             (progress?.ecapa == ComponentStatus.COMPLETED && progress.byol == ComponentStatus.COMPLETED))
     val canSave get() = serviceAvailable && range?.availability == "available" && recording != null &&
-        progress?.canSave == true && !busy && !saving && !saved && !expired && !recovering
+        progress?.canSave == true && !busy && !saving && !saved && !expired && !recovering &&
+        !waitingForRange && rangeAnalysisStatus != OnboardingRangeStatus.FAILED
 }
 
 class VoiceOnboardingViewModel(
@@ -54,15 +64,18 @@ class VoiceOnboardingViewModel(
     private val now: () -> Long = System::currentTimeMillis,
     private val isCurrentOwner: () -> Boolean = { true },
     private val onDispose: () -> Unit = {},
+    private val rangeAnalysis: OnboardingRangeAnalysis? = null,
 ) : ViewModel() {
     private val restored = persistence.draft()
     private var expiresAtMillis = restored.expiresAtMillis
     private val expired = expiresAtMillis?.let { it <= now() } == true
+    private val restoredPendingRange = if (expired) null else rangeAnalysis?.pending()
+    private val restoredRangePreview = restoredPendingRange?.submission?.onboardingPreview()
     private val mutableState = MutableStateFlow(VoiceOnboardingState(
         restored.draftId, restored.revision,
-        range = if (expired) null else persistence.range(),
+        range = if (expired || restoredPendingRange != null) null else persistence.range(),
         recording = if (expired) null else persistence.recording(restored.recordingId),
-        expired = expired, serviceAvailable = gateway.available,
+        expired = expired, serviceAvailable = gateway.available, rangePreview = restoredRangePreview,
         songGuideCompleted = restored.songGuideCompleted,
         analysisGuideCompleted = restored.analysisGuideCompleted,
         rangeGuideCompleted = restored.rangeGuideCompleted,
@@ -71,12 +84,15 @@ class VoiceOnboardingViewModel(
     private var job: Job? = null
     private var recoveryJob: Job? = null
     private var artistJob: Job? = null
+    private var rangeJob: Job? = null
+    private var rangeGeneration = 0
     private var autoAnalyzedRecordingId: String? = null
     private var recoveryGeneration = 0
     private var disposed = false
-    private var serverSessionId = state.value.range?.backendSessionId ?: restored.serverSessionId
+    private var serverSessionId = if (restoredPendingRange != null) null else state.value.range?.backendSessionId ?: restored.serverSessionId
     init {
         if (expired && isCurrentOwner()) persistence.clearDraft()
+        else if (restoredRangePreview != null) rangeMeasurementSaved(checkNotNull(restoredPendingRange).submission.sessionId)
         else if (ownerId != null && serverSessionId != null && isCurrentOwner()) {
             val sessionId = checkNotNull(serverSessionId)
             val draftId = state.value.draftId
@@ -108,6 +124,27 @@ class VoiceOnboardingViewModel(
                 }
             }
         }
+    }
+
+    /** The next screen needs only a saved eligible measurement; model input remains unavailable. */
+    fun rangeMeasurementSaved(measurementId: String): Boolean {
+        if (disposed || !isCurrentOwner() || checkExpired() || state.value.saving || state.value.saved) return false
+        if (state.value.rangeMeasurementId == measurementId && state.value.canSelectSong) return true
+        val pending = rangeAnalysis?.pending()?.takeIf { it.submission.sessionId == measurementId } ?: return false
+        val preview = pending.submission.onboardingPreview() ?: return false
+        stopRangeAnalysis()
+        stopRecovery()
+        job?.cancel()
+        serverSessionId = null
+        mutableState.update { it.copy(range = null, rangePreview = preview, rangeMeasurementId = measurementId,
+            rangeAnalysisStatus = OnboardingRangeStatus.NOT_STARTED, rangeAnalysisError = null,
+            progress = null, busy = false, error = null, songGuideError = null,
+            analysisGuideCompleted = true, rangeGuideCompleted = true, stageGuideError = null,
+            songGuideCompleted = restored.songGuideCompleted && it.draftId == restored.draftId &&
+                restoredPendingRange?.submission?.sessionId == measurementId) }
+        persist()
+        startRangeAnalysis(measurementId)
+        return true
     }
 
     fun completeSongGuide(): Boolean {
@@ -144,6 +181,46 @@ class VoiceOnboardingViewModel(
         }
     }
 
+    fun retryRangeAnalysis() {
+        if (state.value.rangeAnalysisStatus != OnboardingRangeStatus.FAILED || !isCurrentOwner() || checkExpired()) return
+        state.value.rangeMeasurementId?.let(::startRangeAnalysis)
+    }
+
+    private fun startRangeAnalysis(measurementId: String) {
+        val analysis = rangeAnalysis ?: return
+        if (analysis.pending()?.submission?.sessionId != measurementId) return
+        val draftId = state.value.draftId
+        val generation = ++rangeGeneration
+        fun current() = !disposed && isCurrentOwner() && !state.value.expired && !state.value.saved &&
+            state.value.draftId == draftId && state.value.rangeMeasurementId == measurementId && rangeGeneration == generation
+        mutableState.update { it.copy(rangeAnalysisStatus = OnboardingRangeStatus.RUNNING, rangeAnalysisError = null) }
+        rangeJob = viewModelScope.launch {
+            try {
+                val report = analysis.submit()
+                if (!current() || checkExpired()) return@launch
+                check(RangeProtocol.supports(report.protocolVersion) && report.availability == "available" && report.lowMidi != null && report.highMidi != null &&
+                    report.lowMidi in 0..127 && report.highMidi in report.lowMidi..127)
+                check(if (ownerId == null) report.verification == "device_measured" else
+                    report.verification == "model_verified" && (report.backendSessionId ?: 0) > 0) {
+                    "검증된 음역 결과를 확인하지 못했어요."
+                }
+                serverSessionId = report.backendSessionId
+                mutableState.update { it.copy(range = report, rangePreview = null,
+                    rangeAnalysisStatus = OnboardingRangeStatus.READY, rangeAnalysisError = null, error = null) }
+                persist()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                if (current()) mutableState.update { it.copy(rangeAnalysisStatus = OnboardingRangeStatus.FAILED,
+                    rangeAnalysisError = "음역 분석 결과를 확인하지 못했어요. 다시 확인하거나 음역을 다시 측정해 주세요.") }
+            }
+        }
+    }
+
+    private fun stopRangeAnalysis() {
+        rangeGeneration++
+        rangeJob?.cancel()
+    }
+
     fun analyzeWhenReady() {
         val current = state.value
         val recordingId = current.recording?.id ?: return
@@ -152,16 +229,13 @@ class VoiceOnboardingViewModel(
         analyze()
     }
 
-    /** Called from the range result page once the verified report is stored. A new range restarts the song stage. */
     fun rangeReady(): Boolean {
         if (!isCurrentOwner() || checkExpired()) return false
         val report = persistence.range() ?: return false
         if (report.availability != "available") return false
         stopRecovery()
-        job?.cancel()
         serverSessionId = report.backendSessionId
-        mutableState.update { it.copy(range = report, progress = null, busy = false, error = null,
-            songGuideCompleted = false, songGuideError = null) }
+        mutableState.update { it.copy(range = report, error = null) }
         persist()
         return true
     }
@@ -231,6 +305,12 @@ class VoiceOnboardingViewModel(
 
     fun cancelAnalysis() {
         if (!isCurrentOwner() || state.value.saving) return
+        if (state.value.waitingForRange) {
+            stopRangeAnalysis()
+            mutableState.update { it.copy(rangeAnalysisStatus = OnboardingRangeStatus.FAILED,
+                rangeAnalysisError = "음역 분석 확인을 중단했어요. 측정 녹음은 보관되어 있어요.") }
+            return
+        }
         stopRecovery()
         job?.cancel()
         val result = state.value.progress
@@ -301,6 +381,7 @@ class VoiceOnboardingViewModel(
         if (state.value.saving || !isCurrentOwner()) return
         stopRecovery()
         job?.cancel()
+        stopRangeAnalysis()
         autoAnalyzedRecordingId = null
         val draft = persistence.startNewDraft()
         expiresAtMillis = null
@@ -313,10 +394,13 @@ class VoiceOnboardingViewModel(
         if (!isCurrentOwner()) return
         stopRecovery()
         job?.cancel()
+        stopRangeAnalysis()
         autoAnalyzedRecordingId = null
         serverSessionId = null
         mutableState.update { it.copy(revision = it.revision + 1, busy = false, saving = false,
-            range = null, recording = null, progress = null, songGuideCompleted = false, songGuideError = null) }
+            range = null, rangePreview = null, rangeMeasurementId = null,
+            rangeAnalysisStatus = OnboardingRangeStatus.NOT_STARTED, rangeAnalysisError = null,
+            recording = null, progress = null, songGuideCompleted = false, songGuideError = null) }
         persistence.clearDraft()
     }
 
@@ -367,5 +451,6 @@ class VoiceOnboardingViewModel(
         }
     }
 
-    override fun onCleared() { disposed = true; recoveryJob?.cancel(); artistJob?.cancel(); job?.cancel(); onDispose() }
+    override fun onCleared() { disposed = true; recoveryJob?.cancel(); artistJob?.cancel(); rangeJob?.cancel();
+        job?.cancel(); onDispose() }
 }

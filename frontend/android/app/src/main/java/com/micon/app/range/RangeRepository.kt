@@ -25,6 +25,8 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     private val directory = (storageDirectory ?: File(context.filesDir, "guided-range-preview")).apply { mkdirs() }
     private val preview by lazy { modelApi ?: RangePreviewClient(BuildConfig.RANGE_PREVIEW_BASE_URL).api }
     private val pendingFile = File(directory, "pending.json")
+    private val freeCheckpointFile = File(directory, "free-range-checkpoint.json")
+    private val freeCheckpointAdapter = Json.moshi.adapter(FreeRangeCheckpoint::class.java)
     private val reportFile = File(directory, "report.json")
     private val lastSessionFile = File(directory, "last-session-report.json")
     private val completedTargetsFile = File(directory, "completed-targets.json")
@@ -35,6 +37,13 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     private var finalized = false
     @Volatile private var closed = false
     fun audio(id: String) = File(directory, "$id.wav")
+    fun freeCheckpoint(): FreeRangeCheckpoint? = runCatching {
+        freeCheckpointAdapter.fromJson(readAtomic(freeCheckpointFile))
+    }.getOrNull()?.takeIf { audio(it.id).isFile }
+    @Synchronized fun saveFreeCheckpoint(checkpoint: FreeRangeCheckpoint) {
+        atomicWrite(freeCheckpointFile, freeCheckpointAdapter.toJson(checkpoint))
+    }
+    @Synchronized fun clearFreeCheckpoint() { android.util.AtomicFile(freeCheckpointFile).delete() }
     private fun readAtomic(file: File) = android.util.AtomicFile(file).openRead().bufferedReader().use { it.readText() }
     fun pending(): PendingRange? = runCatching { pendingAdapter.fromJson(readAtomic(pendingFile)) }
         .getOrNull()?.takeIf { RangeProtocol.supports(it.submission.protocolVersion) }
@@ -46,6 +55,7 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
             it.verification == if (deviceOnly) "device_measured" else "model_verified" } ?: localReport()
 
     fun discardPending() {
+        clearFreeCheckpoint()
         pending()?.let { if (!RangeDiagnostics.retainsAudio(appContext, it.submission.sessionId)) audio(it.submission.sessionId).delete() }
         android.util.AtomicFile(pendingFile).delete()
     }
@@ -55,6 +65,7 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         if (checkpoint && finalized) return
         if (!checkpoint) finalized = true
         atomicWrite(pendingFile, pendingAdapter.toJson(pending))
+        if (!checkpoint) clearFreeCheckpoint()
     }
 
     @Synchronized private fun atomicWrite(file: File, text: String) {
@@ -141,7 +152,8 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
     @Synchronized fun closeTemporary() { closed = true; clear() }
 
     /** AudioRecord may be interrupted before stop() finalizes the header. PCM remains recoverable. */
-    private fun repairWav(file: File, rate: Int) {
+    fun repairWav(file: File, rate: Int) {
+        require(rate in setOf(16000, 44100, 48000)) { "지원하지 않는 녹음 형식입니다." }
         check(file.isFile && file.length() > 44) { "녹음이 없습니다. 다시 측정해 주세요." }
         val bytes = ((file.length() - 44) / 2 * 2).toInt()
         val h = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)

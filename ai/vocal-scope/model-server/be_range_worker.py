@@ -7,6 +7,7 @@ import sys
 
 from guided_range import analyze
 from range_models import Submission
+from guided_range_v8 import analyze_free
 
 
 def submission_from_meta(meta):
@@ -23,9 +24,12 @@ def submission_from_meta(meta):
 def main():
     audio, meta_file, output = (Path(value) for value in sys.argv[1:4])
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    submission = submission_from_meta(meta)
-    previous = json.loads(Path(sys.argv[4]).read_text(encoding="utf-8")) if len(sys.argv) > 4 else None
-    report = analyze(audio, submission, previous)
+    if meta.get("protocolVersion") == "guided-range-v8":
+        report = analyze_free(audio, meta)
+    else:
+        submission = submission_from_meta(meta)
+        previous = json.loads(Path(sys.argv[4]).read_text(encoding="utf-8")) if len(sys.argv) > 4 else None
+        report = analyze(audio, submission, previous)
     report.update(verification="model_verified", analysisId=str(meta["analysisId"]))
     temporary = output.with_suffix(".tmp")
     temporary.write_text(json.dumps(report, ensure_ascii=False, allow_nan=False), encoding="utf-8")

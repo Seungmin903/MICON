@@ -25,9 +25,9 @@ public final class VoiceSessionRequest {
             @NotBlank @Size(max = 100) String stopReason,
             @NotBlank @Size(max = 50) String lowerBoundaryStatus,
             @NotBlank @Size(max = 50) String upperBoundaryStatus,
-            @NotNull JsonNode attempts,
+            JsonNode attempts,
             @NotBlank @Size(max = 20) String contractVersion,
-            @NotNull JsonNode sampling, JsonNode registerEvents) {}
+            JsonNode sampling, JsonNode registerEvents, JsonNode stages) {}
     public record NoteResult(@NotNull BigDecimal midi, @NotBlank String status,
                              BigDecimal accuracy, BigDecimal stability, Integer holdMs) {}
     public record DeviceRangeResult(

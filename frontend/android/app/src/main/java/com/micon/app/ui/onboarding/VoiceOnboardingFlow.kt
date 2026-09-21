@@ -26,6 +26,7 @@ import com.micon.app.data.onboarding.*
 import com.micon.app.range.RangeReport
 import com.micon.app.ui.common.*
 import com.micon.app.ui.report.GuidedRangeScreen
+import com.micon.app.ui.report.FreeRangeScreen
 import com.micon.app.ui.report.RangeResultCards
 import com.micon.app.ui.report.VoiceReportContent
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
@@ -41,7 +42,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
     val vm: VoiceOnboardingViewModel = viewModel(key = "voice-onboarding-$ownerId", factory = viewModelFactory {
         initializer { VoiceOnboardingViewModel(ownerId, store, gateway,
             isCurrentOwner = { if (ownerId == null) !TokenManager.isLoggedIn() else TokenManager.getUserId() == ownerId },
-            onDispose = store::disposeGuest) }
+            onDispose = store::disposeGuest, rangeAnalysis = store.rangeAnalysis) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     var confirmExit by remember { mutableStateOf(false) }
@@ -93,19 +94,23 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             }
             composable("measure") {
                 BackHandler { leave() }
-                // The range stage finishes on its own result page; the song stage opens only from there.
+                // 음역 측정과 음색 측정(노래 부르기)은 한 흐름으로 잇지 않는다. 측정이 끝나면 그 화면의 결과
+                // 페이지에서 멈추고, 사용자가 "노래로 음색 측정하기" 를 눌러야 다음 단계가 열린다.
+                val measurementSaved: (String) -> Unit = { measurementId -> vm.rangeMeasurementSaved(measurementId) }
                 fun continueToTimbre() {
-                    if (vm.rangeReady() && nav.currentDestination?.route == "measure") {
+                    if (state.canSelectSong && nav.currentDestination?.route == "measure") {
                         nav.navigate("song-guide") {
                             popUpTo("measure") { inclusive = true }
                             launchSingleTop = true
                         }
                     }
                 }
-                GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = {
-                    store.rangeRepository.clear()
-                    nav.navigate("measure") { popUpTo("measure") { inclusive = true } }
-                }, repository = store.rangeRepository, onboardingIntro = true, onTimbreMeasurement = ::continueToTimbre)
+                if (store.rangeRepository.pending()?.submission?.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) {
+                    GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
+                        repository = store.rangeRepository, onboardingIntro = true,
+                        onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
+                } else FreeRangeScreen(onBack = ::leave, repository = store.rangeRepository,
+                    onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
             }
             composable("song-guide") {
                 BackHandler { leave() }
@@ -144,7 +149,8 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                         vm.newRecording()
                         nav.navigate("pick") { popUpTo("result") { inclusive = true } }
                     },
-                    onRestart = vm::restart)
+                    onRestart = vm::restart,
+                    onRetryRange = vm::retryRangeAnalysis)
             }
         }
     }
@@ -160,6 +166,7 @@ fun VoiceOnboardingResultScreen(
     state: VoiceOnboardingState, isGuest: Boolean,
     onExit: () -> Unit, onLogin: () -> Unit, onAnalyze: () -> Unit, onCancel: () -> Unit,
     onRetry: (AnalysisComponent) -> Unit, onSave: () -> Unit, onRecordAgain: () -> Unit, onRestart: () -> Unit,
+    onRetryRange: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         BackHeader("목소리 분석 결과", onBack = { if (!state.saving) onExit() })
@@ -177,15 +184,25 @@ fun VoiceOnboardingResultScreen(
                     onRetry = onRetry)
             }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
-            if (!isGuest && state.serviceAvailable && !state.busy && !state.recovering && !state.saved && progress?.canSave != true) {
+            if (state.rangeAnalysisStatus == OnboardingRangeStatus.FAILED) {
+                Text(state.rangeAnalysisError ?: "음역 분석 결과를 확인하지 못했어요.", color = Red,
+                    modifier = Modifier.testTag("onboarding_range_error"))
+                OutlinePurpleButton("음역 분석 다시 확인하기", onRetryRange,
+                    Modifier.fillMaxWidth().testTag("onboarding_range_retry"))
+                OutlinePurpleButton("음역 다시 측정하기", onRestart, Modifier.fillMaxWidth())
+            }
+            if (!isGuest && state.serviceAvailable && !state.busy && !state.recovering && !state.waitingForRange &&
+                state.rangeAnalysisStatus != OnboardingRangeStatus.FAILED && !state.saved && progress?.canSave != true) {
                 state.analysisInputError?.takeUnless { it == state.error }?.let {
                     Text(it, color = Red, modifier = Modifier.testTag("onboarding_input_error"))
                 }
             }
-            if (state.busy || state.recovering) {
+            if (state.busy || state.recovering || state.waitingForRange) {
                 LinearProgressIndicator(Modifier.fillMaxWidth().testTag("onboarding_analysis_wait"))
+                if (state.waitingForRange) Text("음역 분석 결과를 확인하고 있어요.", color = Grey)
                 TextButton(onClick = onCancel) { Text("분석 확인 중단") }
-            } else if (state.serviceAvailable && !state.saved && !state.expired && progress?.canSave != true) {
+            } else if (state.serviceAvailable && !state.saved && !state.expired &&
+                state.rangeAnalysisStatus != OnboardingRangeStatus.FAILED && progress?.canSave != true) {
                 OutlinePurpleButton("분석 다시 확인하기", onAnalyze, Modifier.fillMaxWidth(), enabled = !isGuest && state.canAnalyze)
             }
             if (state.expired) PrimaryButton("새로 측정하기", onRestart, Modifier.fillMaxWidth())

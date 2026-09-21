@@ -42,6 +42,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
         val pausedForIntro: Boolean = false, val resumingIntro: Boolean = false,
         val introLeaving: Boolean = false, val permissionMissing: Boolean = false,
         val diagnosticMessage: String? = null,
+        val savedMeasurementId: String? = null,
         val inputCheck: RangeInputCheck = RangeInputCheck(), val inputChecking: Boolean = false,
         val canSupplement: Boolean = true,
     )
@@ -90,7 +91,8 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
                 runCatching { inputQuality.inspect(restored.submission, repository.audio(restored.submission.sessionId), restored.sampleRate, true) }
                     .getOrElse { RangeInputCheck(message = "녹음 파일을 확인할 수 없어요. 음역을 다시 측정해 주세요.") }
             }
-            _state.update { it.copy(inputCheck = result) }
+            _state.update { it.copy(inputCheck = result,
+                savedMeasurementId = restored.submission.sessionId.takeIf { result.ready && !submitOnFinish && restored.submission.onboardingPreview() != null }) }
         }
         viewModelScope.launch(Dispatchers.Default) {
             for (captured in frameChannel) {
@@ -454,7 +456,8 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
                 pausedForIntro = false, resumingIntro = false, introLeaving = false, session = session.view(), hasPending = saved,
                 hasAttempts = submission.attempts.isNotEmpty(), stopReason = submission.stopReason,
                 error = if (saved) error else "측정 기록을 저장하지 못했어요. 저장 공간을 확인해 주세요.",
-                preparationFailed = preparationFailed, previewMidi = submission.startMidi ?: 60) }
+                preparationFailed = preparationFailed, previewMidi = submission.startMidi ?: 60,
+                savedMeasurementId = submission.sessionId.takeIf { saved && !submitOnFinish && submission.onboardingPreview() != null }) }
             if (submitOnFinish && saved && !preparationFailed && _state.value.inputCheck.ready) retryUpload()
         }
     }
@@ -478,7 +481,7 @@ class GuidedRangeViewModel(context: Context, extension: Boolean = false,
     fun discardPending() {
         finishing.set(true)
         inputJob?.cancel(); cueJob?.cancel(); captureWatchdog?.cancel()
-        _state.update { it.copy(running = false, inputCheck = RangeInputCheck()) }
+        _state.update { it.copy(running = false, savedMeasurementId = null, inputCheck = RangeInputCheck()) }
         capture.stop()
         repository.discardPending()
         _state.update { it.copy(hasPending = false, error = null) }

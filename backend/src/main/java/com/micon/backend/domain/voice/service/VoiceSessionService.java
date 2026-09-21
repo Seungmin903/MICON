@@ -75,7 +75,7 @@ public class VoiceSessionService {
     @Transactional
     public VoiceSessionResponse.Session saveDeviceRange(Long userId, String guestToken, long sessionId,
             VoiceSessionRequest.DeviceRangeResult request) {
-        if (!"guided-range-v7".equals(request.protocolVersion())) {
+        if (!java.util.Set.of("guided-range-v7", "guided-range-v8").contains(request.protocolVersion())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 음역 측정 버전입니다.");
         }
         validateDeviceRange(request);
@@ -112,7 +112,8 @@ public class VoiceSessionService {
         if (guest.range == null) {
             guest.rangeMeasurementId = request.measurementId();
             guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
-                    request.measurementStatus(), request.qualityStatus());
+                    request.measurementStatus(), request.qualityStatus(), null,
+                    request.protocolVersion(), null, null);
             guest.rangeStatus = request.measurementStatus();
             guest.rangeFingerprint = fingerprint;
             guest.refreshStatus();
@@ -401,7 +402,8 @@ public class VoiceSessionService {
         return new VoiceSessionResponse.Session(s.getId(), null, s.getStatus(), s.getRangeStatus(), s.getTimbreStatus(),
                 s.getArtistSearchStatus(), s.getResultVersion(), profiles.findByUserId(s.getUser().getId()).isPresent(),
                 true, s.getExpiresAt(), r == null ? null : new VoiceSessionResponse.Range(
-                r.getFullLowMidi(), r.getFullHighMidi(), r.getMeasurementStatus(), r.getQualityStatus()));
+                r.getFullLowMidi(), r.getFullHighMidi(), r.getMeasurementStatus(), r.getQualityStatus(),
+                r.getNoteResults(), r.getRuleVersion(), r.getStableLowMidi(), r.getStableHighMidi()));
     }
 
     private GuestSession guestByToken(String token) {

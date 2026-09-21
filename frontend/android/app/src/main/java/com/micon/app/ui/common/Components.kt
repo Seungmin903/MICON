@@ -149,14 +149,20 @@ fun MiconSearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "노래를 검색해보세요",
+    prototypeStyle: Boolean = false,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth().height(54.dp),
-        shape = RoundedCornerShape(27.dp),
-        color = GreyBg,
-        shadowElevation = 3.dp,
+        modifier = modifier.fillMaxWidth().height(if (prototypeStyle) 52.dp else 54.dp),
+        shape = RoundedCornerShape(if (prototypeStyle) 16.dp else 27.dp),
+        color = if (prototypeStyle) Color.White else GreyBg,
+        border = if (prototypeStyle) BorderStroke(1.dp, Color(0xFFE4E2EE)) else null,
+        shadowElevation = if (prototypeStyle) 0.dp else 3.dp,
     ) {
         Row(Modifier.padding(start = 18.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (prototypeStyle) {
+                Icon(Icons.Outlined.Search, "검색", Modifier.size(22.dp), tint = Grey)
+                Spacer(Modifier.width(10.dp))
+            }
             Box(Modifier.weight(1f)) {
                 if (value.isEmpty()) Text(placeholder, color = Grey, fontSize = 16.sp)
                 BasicTextField(
@@ -167,7 +173,7 @@ fun MiconSearchBar(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Icon(Icons.Outlined.Search, "검색", Modifier.size(28.dp), tint = Grey)
+            if (!prototypeStyle) Icon(Icons.Outlined.Search, "검색", Modifier.size(28.dp), tint = Grey)
         }
     }
 }
@@ -187,6 +193,42 @@ fun VinylArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier, fallbac
             }
         }
         Image(painterResource(R.drawable.lp_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
+    }
+}
+
+/**
+ * 곡 선택 화면용 CD 아트. 앨범 커버가 있으면 원형으로 표시하고, 없으면 시안의 은은한
+ * 보라색 CD 그라데이션을 사용한다. CD 안에는 곡명이나 대체 문자를 표시하지 않는다.
+ */
+@Composable
+fun CdArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(size).clip(CircleShape).background(
+            Brush.sweepGradient(
+                listOf(
+                    Color(0xFFEFEAFF), Color(0xFFDCD6F8), Color(0xFFF6F3FF),
+                    Color(0xFFD5CDF4), Color(0xFFEFEAFF),
+                ),
+            ),
+        ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Canvas(Modifier.fillMaxSize()) {
+            val diameter = this.size.minDimension
+            val ring = diameter * 0.37f
+            drawCircle(Color.White.copy(alpha = 0.28f), radius = ring, style = Stroke(width = 1.dp.toPx()))
+            drawCircle(Color.White.copy(alpha = 0.20f), radius = diameter * 0.44f, style = Stroke(width = 1.dp.toPx()))
+            drawCircle(Color.White, radius = diameter * 0.115f)
+            drawCircle(Color(0x1A1E1B33), radius = diameter * 0.115f, style = Stroke(width = 1.dp.toPx()))
+        }
     }
 }
 
@@ -226,13 +268,14 @@ fun SongRow(
     /** 가수명 옆 작은 칩(예: "가사 싱크", "가사만"). null 이면 없음 */
     subBadge: String? = null,
     subBadgeColor: Color = Purple,
+    compactCd: Boolean = true,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        VinylArt(imageUrl, 76.dp, fallbackText = title)
-        Spacer(Modifier.width(16.dp))
+        if (compactCd) CdArt(imageUrl, 56.dp) else VinylArt(imageUrl, 76.dp, fallbackText = title)
+        Spacer(Modifier.width(if (compactCd) 12.dp else 16.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(6.dp))
