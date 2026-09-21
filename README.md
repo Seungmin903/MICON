@@ -21,7 +21,7 @@ FE(Android), BE, AI, 문서를 하나의 저장소에서 관리하는 모노레�
 ## 최초 1회 (클론 후)
 
 ```bash
-git lfs install                          # 33 MB 개발용 샘플 DB(*.sqlite)가 LFS 로 관리된다
+git lfs install                          # 저장소의 대용량 테스트 자산을 받기 위해 필요하다
 git clone https://lab.ssafy.com/s15-ai-speech-sub1/S15P21B110.git
 cd S15P21B110
 git config --unset core.hooksPath        # 예전에 .githooks 로 바꿔둔 사람만. 저장소에 훅은 없다
@@ -31,7 +31,7 @@ Android 앱 빌드 절차는 [frontend/android/README.md](frontend/android/READM
 팀원별 준비물·로컬 실행·실기기 연결은 [로컬 실행 안내](docs/operations/LOCAL_DEVELOPMENT.md)를 먼저 확인한다.
 현재 운영 환경의 적용 결과와 미완료 범위는 [서버 설정 기록](docs/operations/SERVER_BOOTSTRAP.md), [배포 준비 체크리스트](docs/operations/DEPLOYMENT_READINESS.md)에 구분해 기록한다.
 
-운영 구조는 **SSAFY 서버의 BE·MySQL + 개인 AWS 계정의 비공개 S3**다. 버킷·인증·권한·팀원 로컬 데이터 업로드 안내는 [S3 운영 계약](docs/operations/S3_VOICE_STORAGE.md), 전체 환경변수는 [BE 실행 계약](docs/operations/BACKEND_RUNTIME_CONTRACT.md)을 따른다. 2026-09-09 개인 버킷·BE 전용 IAM·서버 키 저장 및 CLI 업로드/GET/삭제 검증을 완료했다. BE 컨테이너 연결·앱/DB/AI 통합과 팀원 업로더 발급은 미완료이며, 파일 업로드와 DB 적재는 별도 절차다.
+운영 구조는 **SSAFY 서버의 BE·MySQL + 개인 AWS 계정의 비공개 S3**다. Android는 곡 카탈로그와 연습 자산을 BE API로 조회하며 로컬 카탈로그 SQLite를 APK에 포함하지 않는다. 버킷·인증·권한은 [S3 운영 계약](docs/operations/S3_VOICE_STORAGE.md), 전체 환경변수는 [BE 실행 계약](docs/operations/BACKEND_RUNTIME_CONTRACT.md), 현재 배포·QA 상태는 [배포 준비 체크리스트](docs/operations/DEPLOYMENT_READINESS.md)를 따른다.
 
 ## Git 규칙 요약
 
