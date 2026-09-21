@@ -34,6 +34,14 @@ public class SongQueryRepository {
 			         AND LOWER(COALESCE(search_si.name, '')) LIKE :queryPattern
 			   ))
 			""";
+	private static final String GENRE_CONDITION = """
+			AND (:genreId IS NULL OR EXISTS (
+			    SELECT 1
+			    FROM song_genre filtered_song_genre
+			    WHERE filtered_song_genre.song_id = s.song_id
+			      AND filtered_song_genre.genre_id = :genreId
+			))
+			""";
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -49,11 +57,17 @@ public class SongQueryRepository {
 
 	/** 회원의 선호 장르와 일치하는 장르 수가 많은 곡을 먼저 조회한다. */
 	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId) {
+		return findPage(query, size, offset, userId, null);
+	}
+
+	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 반환한다. */
+	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId, Long genreId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms
+				SELECT s.song_id, s.title, s.duration_ms,
+				       NULLIF(sm.display_image_url, '') AS image_url
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
-				""" + SEARCH_CONDITION + """
+				""" + SEARCH_CONDITION + GENRE_CONDITION + """
 				ORDER BY (
 				    SELECT COUNT(*)
 				    FROM song_genre preferred_song_genre
@@ -67,6 +81,7 @@ public class SongQueryRepository {
 				""";
 		MapSqlParameterSource params = searchParameters(query)
 				.addValue("userId", userId)
+				.addValue("genreId", genreId)
 				.addValue("size", size)
 				.addValue("offset", offset);
 		List<SongRow> songs = jdbcTemplate.query(sql, params, SONG_ROW_MAPPER);
@@ -76,53 +91,38 @@ public class SongQueryRepository {
 					song.songId(),
 					song.title(),
 					artists.getOrDefault(song.songId(), List.of()),
-					null,
+					song.imageUrl(),
 					null,
 					song.durationMs()
 				))
 				.toList();
 	}
 
-	/** 곡별 Spotify 트랙 ID를 조회한다. */
-	public Map<String, String> findTrackIds(List<String> songIds) {
-		if (songIds.isEmpty()) {
-			return Collections.emptyMap();
-		}
-		String sql = """
-				SELECT song_id, track_id
-				FROM song_metadata
-				WHERE song_id IN (:songIds)
-				  AND track_id IS NOT NULL
-				  AND track_id <> ''
-				""";
-		Map<String, String> trackIds = new LinkedHashMap<>();
-		List<Map.Entry<String, String>> rows = jdbcTemplate.query(
-			sql,
-			Map.of("songIds", songIds),
-			(resultSet, rowNumber) -> Map.entry(
-				resultSet.getString("song_id"),
-				resultSet.getString("track_id")
-			)
-		);
-		rows.forEach(row -> trackIds.put(row.getKey(), row.getValue()));
-		return trackIds;
-	}
-
 	// 기능: count 조건으로 데이터베이스를 조회한다.
 	public long count(String query) {
+		return count(query, null);
+	}
+
+	/** 장르 필터를 적용한 곡 수를 반환한다. */
+	public long count(String query, Long genreId) {
 		String sql = """
 				SELECT COUNT(*)
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
-				""" + SEARCH_CONDITION;
-		Long count = jdbcTemplate.queryForObject(sql, searchParameters(query), Long.class);
+				""" + SEARCH_CONDITION + GENRE_CONDITION;
+		Long count = jdbcTemplate.queryForObject(
+			sql,
+			searchParameters(query).addValue("genreId", genreId),
+			Long.class
+		);
 		return count == null ? 0 : count;
 	}
 
 	// 기능: findDetail 조건으로 데이터베이스를 조회한다.
 	public Optional<SongDetailRow> findDetail(String songId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms, sm.track_id,
+				SELECT s.song_id, s.title, s.duration_ms,
+				       NULLIF(sm.display_image_url, '') AS image_url,
 				       CASE
 				           WHEN ready_analysis.analysis_id IS NOT NULL
 				            AND sm.lyrics_synced IS NOT NULL
@@ -242,6 +242,7 @@ public class SongQueryRepository {
 	private static final RowMapper<SongRow> SONG_ROW_MAPPER = (resultSet, rowNumber) -> new SongRow(
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
+		resultSet.getString("image_url"),
 		getNullableLong(resultSet, "duration_ms")
 	);
 
@@ -249,7 +250,7 @@ public class SongQueryRepository {
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
-		resultSet.getString("track_id"),
+		resultSet.getString("image_url"),
 		getNullableBoolean(resultSet, "practice_ready"),
 		resultSet.getString("album_name"),
 		resultSet.getObject("release_date", LocalDate.class),
@@ -271,14 +272,14 @@ public class SongQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	private record SongRow(String songId, String title, Long durationMs) {
+	private record SongRow(String songId, String title, String imageUrl, Long durationMs) {
 	}
 
 	public record SongDetailRow(
 		String songId,
 		String title,
 		Long durationMs,
-		String trackId,
+		String imageUrl,
 		Boolean practiceReady,
 		String albumName,
 		LocalDate releaseDate,

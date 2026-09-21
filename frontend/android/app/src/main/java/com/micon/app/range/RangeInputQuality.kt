@@ -16,6 +16,22 @@ class RangeInputQuality {
     @Synchronized fun inspect(submission: RangeSubmission, file: File, rate: Int, finalized: Boolean = false): RangeInputCheck {
         val duration = Pcm16MonoWav.duration(file, rate, finalized)
             ?: return RangeInputCheck(message = if (finalized) "녹음 파일을 확인할 수 없어요. 음역을 다시 측정해 주세요." else "녹음 구간 확인 중…", canSupplement = !finalized)
+        if (submission.protocolVersion == RangeProtocol.FREE_VERSION) {
+            if (metadataProblem(submission) != null || duration + .15 < submission.durationSeconds)
+                return RangeInputCheck(message = "측정 정보와 녹음이 맞지 않아요. 다시 측정해 주세요.", canSupplement = false)
+            val usable = submission.stages.count { stage ->
+                val left = ceil(stage.holdStart * rate).toLong()
+                val right = floor(stage.holdEnd * rate).toLong()
+                if (right <= left || right > (duration * rate).toLong()) return@count false
+                val samples = Pcm16MonoWav.samples(file, left, (right - left).toInt())
+                if (samples.isEmpty()) return@count false
+                val energy = samples.sumOf { it.toDouble() * it } / samples.size
+                val clipped = samples.count { abs(it) >= .99f }.toDouble() / samples.size
+                energy >= maxOf(.001, submission.noiseRms * 3.16).let { it * it } && clipped <= .01
+            }
+            return RangeInputCheck(usable == 3, usable,
+                if (usable == 3) "음역 분석 준비 완료" else "측정한 음의 녹음 구간을 확인하지 못했어요.", canSupplement = false)
+        }
         if (finalized && submission.attempts.any { it.runEndReason in setOf("checkpoint", "in_progress") }) {
             return RangeInputCheck(message = "완료되지 않은 음의 기록이 있어요. 음역을 다시 측정해 주세요.", canSupplement = false)
         }
@@ -51,6 +67,35 @@ class RangeInputQuality {
         fun metadataProblem(s: RangeSubmission): String? {
             if (!RangeProtocol.supports(s.protocolVersion) || !s.noiseRms.isFinite() || s.noiseRms !in 0.0..1.0 ||
                 !s.durationSeconds.isFinite() || s.durationSeconds <= 0 || s.startMidi !in 36..84) return "invalid session"
+            if (s.protocolVersion == RangeProtocol.FREE_VERSION) {
+                if (s.mode != "basic" || s.parentAnalysisId != null || s.attempts.isNotEmpty() ||
+                    s.stages.map { it.kind } != listOf("comfort", "down", "up") || s.durationSeconds > 180.0)
+                    return "invalid free range stages"
+                var previousEnd = 0.0
+                for ((index, stage) in s.stages.withIndex()) {
+                    // Comfort ends as soon as its note is held; a sweep always runs its fixed mission.
+                    val sweep = index > 0
+                    val length = stage.end - stage.start
+                    val badLength = if (sweep) length < FreeRangeSession.MISSION_SECONDS - .1 ||
+                        length > FreeRangeSession.MAX_STAGE_SECONDS + .6
+                    else length > FreeRangeSession.COMFORT_TIMEOUT_SECONDS + .5
+                    val minimumHold = if (sweep) FreeRangeSession.EXTREME_HOLD_SECONDS else FreeRangeSession.HOLD_SECONDS
+                    val values = listOf(stage.start, stage.end, stage.startMidi, stage.endpointMidi,
+                        stage.holdStart, stage.holdEnd)
+                    if (values.any { !it.isFinite() } || stage.start < previousEnd - .001 ||
+                        stage.start < 0 || stage.end > s.durationSeconds + .05 || badLength ||
+                        stage.holdStart < stage.start || stage.holdEnd > stage.end ||
+                        stage.holdEnd - stage.holdStart < minimumHold - .05 ||
+                        stage.startMidi !in 36.0..84.0 || stage.endpointMidi !in 36.0..84.0)
+                        return "invalid free range window"
+                    previousEnd = stage.end
+                }
+                if (s.stages[1].startMidi - s.stages[1].endpointMidi < 2.0 ||
+                    s.stages[2].endpointMidi - s.stages[2].startMidi < 2.0 ||
+                    s.stages.drop(1).any { it.holdStart - it.start < FreeRangeSession.ENDPOINT_OFFSET_SECONDS - .05 })
+                    return "missing sweep"
+                return null
+            }
             if (s.mode == "extension" && s.parentAnalysisId.isNullOrBlank() || s.mode == "basic" && s.parentAnalysisId != null) return "invalid parent"
             if (s.protocolVersion in setOf("guided-range-v6", "guided-range-v7")) {
                 val sampling = s.sampling ?: return "missing sampling"

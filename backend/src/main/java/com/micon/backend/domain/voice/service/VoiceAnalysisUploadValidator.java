@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import tools.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,12 +45,60 @@ public class VoiceAnalysisUploadValidator {
             throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
                     "음역 분석에는 WAV 파일만 제출할 수 있습니다.");
         }
-        if (!"guided-range-v7".equals(request.protocolVersion())
-                || !"v1".equals(request.contractVersion())
-                || !request.attempts().isArray() || request.attempts().isEmpty()) {
+        boolean v7 = "guided-range-v7".equals(request.protocolVersion())
+                && "v1".equals(request.contractVersion())
+                && request.attempts() != null && request.attempts().isArray() && !request.attempts().isEmpty()
+                && request.sampling() != null && request.sampling().isObject();
+        boolean v8 = "guided-range-v8".equals(request.protocolVersion())
+                && "v2".equals(request.contractVersion()) && "basic".equals(request.mode())
+                && request.parentAnalysisId() == null
+                && (request.attempts() == null || request.attempts().isEmpty())
+                && (request.sampling() == null || request.sampling().isNull())
+                && validFreeStages(request.stages(), request.durationSeconds().doubleValue());
+        if (!v7 && !v8) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST,
-                    "guided-range-v7 음역 측정 메타데이터가 올바르지 않습니다.");
+                    "음역 측정 메타데이터가 올바르지 않습니다.");
         }
+    }
+
+    // Each sweep stage is a fixed mission; comfort still ends on a held note.
+    private static final double MISSION_SECONDS = 15;
+    private static final double MAX_STAGE_SECONDS = 45;
+    private static final double COMFORT_TIMEOUT_SECONDS = 30;
+    private static final double COMFORT_HOLD_SECONDS = 1.5;
+    private static final double SWEEP_HOLD_SECONDS = .3;
+    private static final double ENDPOINT_OFFSET_SECONDS = .5;
+
+    private boolean validFreeStages(JsonNode stages, double duration) {
+        if (stages == null || !stages.isArray() || stages.size() != 3) return false;
+        String[] kinds = {"comfort", "down", "up"};
+        double previousEnd = 0;
+        for (int index = 0; index < 3; index++) {
+            JsonNode stage = stages.get(index);
+            if (stage == null || !kinds[index].equals(stage.path("kind").asText())) return false;
+            for (String field : new String[]{"start", "end", "holdStart", "holdEnd", "startMidi", "endpointMidi"}) {
+                if (!stage.path(field).isNumber()) return false;
+            }
+            double start = stage.path("start").asDouble(), end = stage.path("end").asDouble();
+            double holdStart = stage.path("holdStart").asDouble(), holdEnd = stage.path("holdEnd").asDouble();
+            double startMidi = stage.path("startMidi").asDouble(), endpointMidi = stage.path("endpointMidi").asDouble();
+            boolean sweep = index > 0;
+            double length = end - start;
+            boolean badLength = sweep
+                    ? length < MISSION_SECONDS - .1 || length > MAX_STAGE_SECONDS + .6
+                    : length > COMFORT_TIMEOUT_SECONDS + .5;
+            double minimumHold = (sweep ? SWEEP_HOLD_SECONDS : COMFORT_HOLD_SECONDS) - .05;
+            if (!Double.isFinite(start) || !Double.isFinite(end) || !Double.isFinite(holdStart) || !Double.isFinite(holdEnd)
+                    || !Double.isFinite(startMidi) || !Double.isFinite(endpointMidi)
+                    || start < previousEnd || badLength || end > duration + .1
+                    || holdStart < start || holdEnd > end || holdEnd - holdStart < minimumHold
+                    || sweep && holdStart - start < ENDPOINT_OFFSET_SECONDS - .05
+                    || startMidi < 36 || startMidi > 84 || endpointMidi < 36 || endpointMidi > 84
+                    || index == 1 && startMidi - endpointMidi < 2
+                    || index == 2 && endpointMidi - startMidi < 2) return false;
+            previousEnd = end;
+        }
+        return true;
     }
 
     private void validateFile(MultipartFile file) {

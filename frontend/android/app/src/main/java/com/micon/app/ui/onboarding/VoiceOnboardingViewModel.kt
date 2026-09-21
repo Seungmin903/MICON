@@ -198,7 +198,7 @@ class VoiceOnboardingViewModel(
             try {
                 val report = analysis.submit()
                 if (!current() || checkExpired()) return@launch
-                check(report.protocolVersion == RangeProtocol.VERSION && report.availability == "available" && report.lowMidi != null && report.highMidi != null &&
+                check(RangeProtocol.supports(report.protocolVersion) && report.availability == "available" && report.lowMidi != null && report.highMidi != null &&
                     report.lowMidi in 0..127 && report.highMidi in report.lowMidi..127)
                 check(if (ownerId == null) report.verification == "device_measured" else
                     report.verification == "model_verified" && (report.backendSessionId ?: 0) > 0) {

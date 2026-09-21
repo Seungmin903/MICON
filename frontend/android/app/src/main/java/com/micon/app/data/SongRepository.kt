@@ -14,6 +14,10 @@ interface SongRepository {
     /** 제목·가수 검색. query 가 비면 전체. 서버 페이지 크기 최대 100. */
     suspend fun search(query: String = "", page: Int = 0, size: Int = 50): SongPage
 
+    /** 장르가 선택되면 해당 장르만 검색한다. 기존 구현체는 장르 미지원 시 전체 검색으로 동작한다. */
+    suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage =
+        search(query, page, size)
+
     /** 곡 상세. 없는 곡(404)은 null. */
     suspend fun detail(songId: String): SongDetail?
 
@@ -22,6 +26,13 @@ interface SongRepository {
      * 준비되지 않은 곡은 [PracticeAssetsNotReadyException](409), 미리 렌더되지 않은 키는 [UnsupportedPracticeKeyException](422).
      */
     suspend fun practiceAssets(songId: String, selectedKey: Int = 0): PracticeAssets
+
+    /**
+     * 키 전환에 필요한 반주 한 건. 원격 구현은 가벼운 `/songs/{id}/mr` API를 사용한다.
+     * 테스트/로컬 구현은 별도 구현 없이 기존 연습 리소스 조회로 동작한다.
+     */
+    suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia =
+        practiceAssets(songId, selectedKey).instrumental
 
     /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
     suspend fun karaokeNotes(songId: String): List<KaraokeNote>? =
@@ -115,6 +126,8 @@ data class InstrumentalMedia(
     val fileBytes: Long?,
     val sha256: String?,
     val playbackUrl: String?,
+    /** ISO-8601. 이 시각 60초 전부터 URL을 새로 발급한다. */
+    val playbackUrlExpiresAt: String? = null,
 )
 
 /** 곡 구간 (`song_section`). 시간은 ms. */

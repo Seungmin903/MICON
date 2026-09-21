@@ -23,8 +23,16 @@ class BackendRequestException(val status: Int, val code: String?, message: Strin
 /** 곡 카탈로그의 백엔드 구현. 경로는 `/api/v1/` 기준 상대 경로([BackendApi]). */
 class RemoteSongRepository(private val api: BackendApi) : SongRepository {
 
-    override suspend fun search(query: String, page: Int, size: Int): SongPage {
-        val body = api.songs(query.trim(), page.coerceAtLeast(0), size.coerceIn(1, 100)).unwrapData()
+    override suspend fun search(query: String, page: Int, size: Int): SongPage =
+        search(query, page, size, null)
+
+    override suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage {
+        val body = api.songs(
+            query = query.trim(),
+            genreId = genreId,
+            page = page.coerceAtLeast(0),
+            size = size.coerceIn(1, 100),
+        ).unwrapData()
         return SongPage(
             items = body.content.map { it.toSummary() },
             page = body.page, size = body.size, totalElements = body.totalElements, totalPages = body.totalPages,
@@ -47,6 +55,20 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
             }
         }
         return response.unwrapData().toAssets()
+    }
+
+    override suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia {
+        val response = api.instrumental(songId, selectedKey)
+        if (!response.isSuccessful) {
+            val error = response.errorEnvelope()
+            when (response.code()) {
+                409 -> throw PracticeAssetsNotReadyException(error?.message ?: "연습 데이터가 아직 준비되지 않았습니다.")
+                422 -> throw UnsupportedPracticeKeyException(error?.message ?: "지원하지 않는 연습 키입니다.")
+            }
+        }
+        val body = response.unwrapData()
+        check(body.songId == songId && body.selectedKey == selectedKey) { "요청한 곡과 반주 정보가 일치하지 않습니다." }
+        return body.instrumental.toMedia()
     }
 
     // ------------------------------------------------------------------ 매핑
@@ -73,14 +95,17 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
         )
     }
 
+    private fun com.micon.app.data.backend.dto.MediaDto?.toMedia() = InstrumentalMedia(
+        mediaId = this?.mediaId, filePath = this?.filePath, mimeType = this?.mimeType,
+        fileBytes = this?.fileBytes, sha256 = this?.sha256, playbackUrl = this?.playbackUrl,
+        playbackUrlExpiresAt = this?.playbackUrlExpiresAt,
+    )
+
     private fun PracticeAssetsDto.toAssets() = PracticeAssets(
         songId = songId,
         title = title,
         selectedKey = selectedKey,
-        instrumental = InstrumentalMedia(
-            mediaId = instrumental?.mediaId, filePath = instrumental?.filePath, mimeType = instrumental?.mimeType,
-            fileBytes = instrumental?.fileBytes, sha256 = instrumental?.sha256, playbackUrl = instrumental?.playbackUrl,
-        ),
+        instrumental = instrumental.toMedia(),
         lyricsPlain = lyricsPlain,
         lyricsSynced = (lyricsSynced as? String)?.takeIf { it.isNotBlank() },
         targetNotes = targetNotes.orEmpty(),

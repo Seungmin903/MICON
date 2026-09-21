@@ -69,7 +69,7 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                         request.measuredAt(), request.protocolVersion(), request.mode(), request.parentAnalysisId(),
                         request.startMidi(), request.noiseRms(), request.durationSeconds(), request.stopReason(),
                         request.lowerBoundaryStatus(), request.upperBoundaryStatus(), request.attempts(),
-                        request.contractVersion(), request.sampling(), request.registerEvents()))
+                        request.contractVersion(), request.sampling(), request.registerEvents(), request.stages()))
                 .contentType(MediaType.APPLICATION_JSON);
         var response = restClient.post().uri("/voice-analysis-jobs")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -129,5 +129,6 @@ public class HttpVoiceAnalysisJobGateway implements VoiceAnalysisJobGateway {
                                  String stopReason, String lowerBoundaryStatus, String upperBoundaryStatus,
                                  tools.jackson.databind.JsonNode attempts, String contractVersion,
                                  tools.jackson.databind.JsonNode sampling,
-                                 tools.jackson.databind.JsonNode registerEvents) { }
+                                 tools.jackson.databind.JsonNode registerEvents,
+                                 tools.jackson.databind.JsonNode stages) { }
 }

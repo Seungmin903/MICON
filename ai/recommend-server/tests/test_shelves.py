@@ -11,7 +11,7 @@ from timbre_recommender.shelves import (
 )
 
 
-def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",), rap=False, melodic=True, excess=0.0, artist_sim=None, hi_excess=-3, hi_ratio=0.0):
+def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",), rap=False, melodic=True, excess=0.0, artist_sim=None, hi_excess=-3, hi_ratio=0.0, outside_ratio=0.03):
     return {
         "track_id": tid, "song_id": f"tj-{tid}", "title": f"t-{tid}", "artist": artist,
         "metadata": {"genres": list(genres), "languages": "kor", "tj_id": f"TJ-{tid}", "album_name": None, "display_image_url": None, "release_date": "2020-01-01"},
@@ -19,7 +19,8 @@ def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",
         "timbre_score": timbre, "is_rap": rap, "artist_similarity": artist_sim, "melodic": melodic,
         "range_fit": {"scoringVersion": "v", "score": 0.95, "coverage": 0.97, "centerScore": 0.9, "spanFit": 1.0, "softFit": 0.9, "keyShift": key,
                       "songCoreLowMidi": 57, "songCoreHighMidi": 69, "catalogProfileReliable": True,
-                      "totalCoreExcessSemitones": excess, "lowCoreExcessSemitones": 0.0, "highCoreExcessSemitones": excess},
+                      "totalCoreExcessSemitones": excess, "lowCoreExcessSemitones": 0.0, "highCoreExcessSemitones": excess,
+                      "outsideRangeRatio": outside_ratio},
         "final_score": 0.75 * timbre + 0.25 * 0.95,
         "coverage0": cov0, "center0": center0, "high_excess0": hi_excess, "high_ratio0": hi_ratio,
     }
@@ -71,8 +72,34 @@ class BuildShelvesTest(unittest.TestCase):
         ids = [it["track_id"] for it in voice]
         self.assertEqual(ids[0], "01")                                              # 음색 1위
         self.assertNotIn("10", ids)                                                 # |키| 5 초과
-        self.assertTrue(all(it["axis"] in ("ECAPA", "SINGER_BYOL", "CONSENSUS") and it["label"] for it in voice))
+        self.assertTrue(all(it["axis"] is None and it["label"] == "최종 점수 순" for it in voice))
         self.assertTrue(all(it["shelf"] == "voice" for it in voice))
+
+    def test_voice_gate_rejects_more_than_five_percent_outside_range(self) -> None:
+        rows = [
+            _row("12", "통과", timbre=.9, outside_ratio=.05),
+            _row("13", "제외", timbre=.99, outside_ratio=.051),
+        ]
+        shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
+        ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
+        self.assertIn("12", ids)
+        self.assertNotIn("13", ids)
+
+    def test_voice_gate_accepts_four_semitones_and_rejects_five(self) -> None:
+        rows = [
+            _row("15", "네반음", timbre=.9, key=4),
+            _row("16", "다섯반음", timbre=.99, key=5),
+        ]
+        shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
+        ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
+        self.assertIn("15", ids)
+        self.assertNotIn("16", ids)
+
+    def test_voice_gate_does_not_reject_a_small_core_excess_when_time_ratio_passes(self) -> None:
+        rows = [_row("14", "통과", timbre=.9, excess=1.0, outside_ratio=.03)]
+        shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
+        ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
+        self.assertIn("14", ids)
 
     def test_original_key_sorted_by_center_not_timbre(self) -> None:
         # 합성 행이 11개뿐이라 top_k 를 작게: A 가 우선순위로 다 가져가면 B 가 비는 것이 정상 동작이다
@@ -104,7 +131,7 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertEqual([i["track_id"] for i in da["items"]], [i["track_id"] for i in db["items"]])   # 같은 시드 → 같은 순서
         others = {i["track_id"] for s in a if s["key"] != "discovery" for i in s["items"]}
         self.assertEqual({i["track_id"] for i in da["items"]}, {r["track_id"] for r in self.rows} - others)  # 나머지 전부, 장르 무관
-        self.assertIn("검정치마", {i["artist"] for i in da["items"]})              # 선택 장르(OST)여도 제외하지 않는다
+        self.assertIn("폴킴", {i["artist"] for i in da["items"]})                  # 선택 장르(OST)여도 제외하지 않는다
 
     def test_selected_foreign_languages_are_in_taste_for_every_style(self) -> None:
         rows = [_row("en", "English artist", timbre=.8, key=4, genres=("Jazz",)),

@@ -14,15 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class SongService {
 
 	private final SongQueryRepository songQueryRepository;
-	private final SongImageEnrichmentService imageEnrichmentService;
 
 	// 기능: 필요한 의존성과 초기값을 받아 SongService 객체를 생성한다.
-	public SongService(
-		SongQueryRepository songQueryRepository,
-		SongImageEnrichmentService imageEnrichmentService
-	) {
+	public SongService(SongQueryRepository songQueryRepository) {
 		this.songQueryRepository = songQueryRepository;
-		this.imageEnrichmentService = imageEnrichmentService;
 	}
 
 	// 기능: search 조회 유스케이스를 수행하고 응답 데이터를 구성한다.
@@ -32,15 +27,16 @@ public class SongService {
 
 	/** 로그인 회원은 저장한 선호 장르와 많이 일치하는 곡부터 조회한다. */
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId) {
+		return search(query, page, size, userId, null);
+	}
+
+	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 조회한다. */
+	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId) {
 		long offset = (long) page * size;
-		List<SongResponse.Summary> songsWithoutImages = songQueryRepository.findPage(query, size, offset, userId);
-		List<SongResponse.Summary> songs = imageEnrichmentService.enrich(
-			songsWithoutImages,
-			songQueryRepository.findTrackIds(
-				songsWithoutImages.stream().map(SongResponse.Summary::songId).toList()
-			)
+		List<SongResponse.Summary> songs = songQueryRepository.findPage(
+			query, size, offset, userId, genreId
 		);
-		long totalElements = songQueryRepository.count(query);
+		long totalElements = songQueryRepository.count(query, genreId);
 		return PageResponse.of(songs, page, size, totalElements);
 	}
 
@@ -49,16 +45,13 @@ public class SongService {
 		SongQueryRepository.SongDetailRow song = songQueryRepository.findDetail(songId)
 				.orElseThrow(() -> new SongNotFoundException(songId));
 		List<String> artists = songQueryRepository.findArtists(songId);
-		SongImageEnrichmentService.ImageResult image = imageEnrichmentService.enrich(
-			songId, song.trackId(), song.title(), artists
-		);
 		return new SongResponse.Detail(
 			song.songId(),
 			song.title(),
 			artists,
 			song.albumName(),
-			image.imageUrl(),
-			image.imageSourceUrl(),
+			song.imageUrl(),
+			null,
 			song.releaseDate(),
 			song.durationMs(),
 			song.originalKey(),

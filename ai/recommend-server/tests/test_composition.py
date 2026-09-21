@@ -11,17 +11,18 @@ from schemas import Job, RangeFit, Recommendation
 import timbre_recommender.composition as composition
 from timbre_recommender.composition import (
     allowed_languages,
+    compose_by_final_score,
     compose_two_axis,
     song_id_of,
     track_language,
 )
 
 
-def _item(track_id: str, ecapa: float, byol: float, *, tj: str | None = "TJ-00001", lang: str = "kor", range_score: float | None = 0.9):
+def _item(track_id: str, ecapa: float, byol: float, *, artist: str | None = None, tj: str | None = "TJ-00001", lang: str = "kor", range_score: float | None = 0.9):
     return {
         "track_id": track_id,
         "title": f"title-{track_id}",
-        "artist": "artist",
+        "artist": artist or f"artist-{track_id}",
         "metadata": {"tj_id": tj, "languages": lang, "genres": ["K-Pop"], "album_name": "a", "display_image_url": None, "release_date": "2020-01-01"},
         "models": {
             "ecapa": {"absolute_score": ecapa, "match_consistency": 0.7},
@@ -30,7 +31,7 @@ def _item(track_id: str, ecapa: float, byol: float, *, tj: str | None = "TJ-0000
         "timbre_score": (ecapa + byol) / 2,
         "final_score": (ecapa + byol) / 2,
         "range_fit": None if range_score is None else {
-            "scoringVersion": "vocal-range-keyshift-continuous-v2", "score": range_score, "coverage": 0.9, "centerScore": 0.9,
+            "scoringVersion": "vocal-range-keyshift-continuous-v2", "score": range_score, "coverage": 0.97, "outsideRangeRatio": 0.03, "centerScore": 0.9,
             "spanFit": 1.0, "softFit": 0.8, "keyShift": -2, "songCoreLowMidi": 55, "songCoreHighMidi": 67, "catalogProfileReliable": True,
         },
     }
@@ -89,6 +90,40 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(out["composition"]["order"], "final_score desc")
         for r in recs:
             Recommendation.model_validate(r)
+
+    def test_final_score_selection_uses_no_axis_quota(self) -> None:
+        ranked = [
+            _item("ecapa-only", .99, .20),
+            _item("byol-only", .20, .99),
+            _item("balanced-1", .80, .80),
+            _item("balanced-2", .76, .76),
+            _item("balanced-3", .74, .74),
+        ]
+        out = compose_by_final_score(ranked, top_k=3, range_enabled=True, scoring_version="s")
+        recs = out["recommendations"]
+        self.assertEqual([r["track_id"] for r in recs], ["balanced-1", "balanced-2", "balanced-3"])
+        self.assertTrue(all(r["axis"] is None and r["label"] == "최종 점수 순" for r in recs))
+        self.assertEqual(out["composition"]["version"], "final-score-v1")
+        self.assertEqual(out["composition"]["selection"], "final_score")
+        self.assertEqual(out["composition"]["order"], "final_score desc")
+        self.assertEqual(out["composition"]["candidate_count"], 5)
+        self.assertEqual(out["composition"]["max_songs_per_artist"], 2)
+        for recommendation in recs:
+            Recommendation.model_validate(recommendation)
+
+    def test_final_recommendations_cap_each_artist_at_two_songs(self) -> None:
+        ranked = [
+            _item("A", .99, .70, artist="same"),
+            _item("B", .98, .69, artist="same"),
+            _item("C", .97, .68, artist="same"),
+            _item("D", .80, .98, artist="other"),
+            _item("E", .79, .97, artist="third"),
+        ]
+        out = compose_by_final_score(ranked, top_k=5, range_enabled=True, scoring_version="s")
+        artists = [item["artist"] for item in out["recommendations"]]
+        self.assertEqual(artists.count("same"), 2)
+        self.assertTrue(all(artists.count(artist) <= 2 for artist in set(artists)))
+        self.assertEqual(out["composition"]["max_songs_per_artist"], 2)
 
     def test_response_schema_rejects_unplayable_positive_six_key(self) -> None:
         fit = dict(self.ranked[0]["range_fit"])

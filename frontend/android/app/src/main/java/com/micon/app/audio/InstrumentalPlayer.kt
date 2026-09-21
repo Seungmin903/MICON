@@ -17,8 +17,8 @@ import okhttp3.OkHttpClient
  * 반주(Opus/ogg) 스트리밍 재생. Media3 ExoPlayer.
  * 메인 스레드에서 만들고 호출할 것. 화면을 떠날 때 [release].
  *
- * 반주는 **항상 원키 파일 하나**만 받고, 키 조절은 [keyShift] 로 재생기 안에서 처리한다.
- * 반음마다 파일을 만들어 S3 에 올리면 저장 부담이 커지기 때문이다.
+ * 키별로 미리 렌더된 반주 URL을 받아 재생한다. 키 전환은 ViewModel이 현재 위치를 저장한 뒤
+ * 새 미디어를 준비하고 같은 위치로 이동하는 방식으로 처리한다.
  */
 class InstrumentalPlayer(context: Context, okHttp: OkHttpClient) {
     @OptIn(UnstableApi::class)
@@ -51,20 +51,13 @@ class InstrumentalPlayer(context: Context, okHttp: OkHttpClient) {
     }
 
     /**
-     * 반주 키(반음). 원키 파일을 그대로 두고 재생하면서 음높이만 옮긴다.
-     *
-     * 속도를 1.0 으로 고정하므로 템포와 길이는 그대로고 음높이만 움직인다. 한 옥타브가 12반음이니
-     * 비율은 2^(반음/12) 이다. 새 미디어를 불러도 값이 유지되도록 setter 에서 다시 적용한다.
-     *
-     * **연습을 시작하기 전에만 바꾼다.** 재생 중에 바꾸면 오디오 버퍼가 비워지면서 소리가 튀고,
-     * 시프트 처리로 생기는 출력 지연이 달라져 채점 타이밍 기준이 흔들린다. 시작 전에 고정하면
-     * 그 지연은 상수라 자동 지연 보정이 흡수한다.
+     * 곡 상세의 짧은 미리듣기 전용 로컬 피치 설정. 연습 화면은 이 값을 사용하지 않고 키별 S3 파일을 교체한다.
      */
     var keyShift: Int = 0
         set(value) {
             field = value
             val ratio = Math.pow(2.0, value / 12.0).toFloat()
-            player.playbackParameters = PlaybackParameters(/* speed = */ 1f, /* pitch = */ ratio)
+            player.playbackParameters = PlaybackParameters(1f, ratio)
         }
 
     val positionSec: Double get() = player.currentPosition / 1000.0

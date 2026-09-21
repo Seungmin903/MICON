@@ -53,7 +53,6 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         RangeResultCards(report)
         AdditionalVoiceReportCards(report)
-        if (onExtend != null && report.availability == "available" && report.lowMidi != null && report.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) OutlinePurpleButton("빈 음·경계 더 확인하기", onExtend, Modifier.fillMaxWidth())
     }
 }
 
@@ -80,7 +79,8 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
         }
         MiconCard(Modifier.testTag("range-map-card")) {
             Text("음역대 지도", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            val relative = report.protocolVersion == "guided-range-v4" || com.micon.app.range.RangeProtocol.buffered(report.protocolVersion)
+            val relative = report.protocolVersion == "guided-range-v4" || com.micon.app.range.RangeProtocol.buffered(report.protocolVersion) ||
+                report.protocolVersion == com.micon.app.range.RangeProtocol.FREE_VERSION
             val rangeMap = report.continuousRangeMap()
             val rows = if (relative) listOfNotNull(
                 rangeMap.overall?.let { RangeRow("전체 음역", it[0], it[1], PurpleMid) },
@@ -106,7 +106,6 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
                 GuidedRangeKeyboard(report.notes, noteName = ReportNoteNames::note, showPassedLegend = false)
             }
         }
-        RangeStabilityCard(report, overview = reportTab)
     }
 }
 

@@ -12,6 +12,12 @@ import recommendation_api
 
 
 class RecommendationApiTestCase(unittest.TestCase):
+    def test_voice_recommendation_uses_the_approved_score_weights(self) -> None:
+        config = recommendation_api.VOICE_RANKER_CONFIG
+        self.assertEqual(config.base_ecapa_weight, .80)
+        self.assertEqual(config.centroid_weight, .50)
+        self.assertEqual(config.segment_weight, .50)
+
     def test_operational_readiness_requires_backend_catalog_mapping(self) -> None:
         catalog = SimpleNamespace(tracks=[])
         with (
