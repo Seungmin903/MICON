@@ -24,6 +24,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,8 +83,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.appContainer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import com.micon.app.data.SongSummary
+import com.micon.app.ui.design.atoms.MiconSearchField
+import com.micon.app.ui.design.molecules.SongRow
+import com.micon.app.range.FreeRangeSession
+import com.micon.app.range.RangeRepository
+import com.micon.app.range.onboardingPreview
 import com.micon.app.ui.common.rememberMicrophoneAccess
+import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.report.FreeRangeViewModel
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconMark
 import com.micon.app.ui.design.tokens.MiconLogoFamily
@@ -112,78 +128,240 @@ private val Muted = Color(0xFF6B6B78)
 @Composable
 fun HoloScreen(
     onResult: () -> Unit,
-    /** 이전 결과가 있을 때 "나중에" — 분석 탭으로 */
+    /** 분석을 미루고 둘러보기 — 분석 탭으로 */
     onSkip: (() -> Unit)? = null,
     vm: HoloViewModel,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
-    val rec = state.phase == HoloViewModel.Phase.REC || state.phase == HoloViewModel.Phase.LOADING
     LightStatusBarIcons()
+    if (state.stage == HoloViewModel.Stage.RANGE) RangeStage(vm, onSkip) else TimbreStage(vm, onResult, onSkip)
+}
 
+// ---------------------------------------------------------------- 1단계: 음역
+
+/**
+ * 음역 측정. 재는 일은 develop 의 자유 발성 15초 미션(FreeRangeViewModel)이 그대로 하고,
+ * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 15초 → 높은 음 15초.
+ */
+@Composable
+private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?) {
+    val context = LocalContext.current
+    val repository = remember { RangeRepository(context.applicationContext) }
+    val rangeVm: FreeRangeViewModel = viewModel(key = "holo-range", factory = viewModelFactory {
+        initializer { FreeRangeViewModel(context.applicationContext, repository, true) }
+    })
+    val rs by rangeVm.state.collectAsStateWithLifecycle()
+    val view = rs.view
+    val start = rememberMicrophoneAccess(onAllowed = rangeVm::start, onDenied = { })
+    val preview = remember(rs.savedId) { rs.savedId?.let { repository.pending()?.submission?.onboardingPreview() } }
+
+    val done = view.phase == "done"
+    val running = rs.recording
+    val progress = ((view.completed + stageProgressOf(view)) / 3.0).toFloat().coerceIn(0f, 1f)
+
+    HoloChrome(
+        logoVisible = !running,
+        globeScale = if (running) 0.85f + progress * 1.1f else 1f,
+        absorbing = running,
+        topPill = if (!running && onSkip != null) "나중에 ›" to onSkip else null,
+        error = rs.error,
+        middle = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (done) "음역을 다 쟀어요" else view.message,
+                    color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                )
+                if (running && (view.phase == "down" || view.phase == "up")) {
+                    Text(
+                        if (view.remainingSeconds > 0) "남은 시간 " + ceil(view.remainingSeconds).toInt() + "초" else "조금만 더 불러 주세요",
+                        color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp, fontFamily = MiconMonoFamily,
+                    )
+                    view.extremeMidi?.let {
+                        val label = if (view.phase == "down") "가장 낮은" else "가장 높은"
+                        Text("지금까지 " + label + " 음 " + NoteNames.display(it.roundToInt()),
+                            color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                    }
+                }
+                val low = preview?.lowMidi
+                val high = preview?.highMidi
+                if (done && low != null && high != null) {
+                    Text(NoteNames.displayRange(low, high), color = Color.White, fontSize = 17.sp,
+                        fontFamily = MiconMonoFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        bottom = {
+            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    if (done) "이제 노래로 음색을 봐요" else "1단계 · 음역 측정  " + (view.completed.coerceAtMost(2) + 1) + "/3",
+                    color = Color.White.copy(alpha = 0.88f), fontSize = 12.5.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.25f))) {
+                    Box(Modifier.fillMaxWidth(progress).fillMaxSize().background(Color.White))
+                }
+                when {
+                    done -> HoloButton("노래로 음색 측정하기") { vm.rangeMeasured(preview) }
+                    rs.busy -> HoloButton("정리하는 중…", enabled = false) {}
+                    running -> Text("듣고 있어요", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    rs.error != null -> HoloButton("이 단계 다시 하기", onClick = rangeVm::retryStage)
+                    else -> HoloButton("음역 측정 시작", onClick = start)
+                }
+            }
+        },
+    )
+}
+
+private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.phase) {
+    "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.MISSION_SECONDS).coerceIn(0.0, 1.0)
+    "done" -> 1.0
+    else -> 0.0
+}
+
+// ---------------------------------------------------------------- 2단계: 음색
+
+/** 노래로 음색을 본다. 간주는 건너뛰므로 실제로 부르는 시간만 쌓인다. */
+@Composable
+private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> Unit)?) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    val rec = state.phase == HoloViewModel.Phase.REC || state.phase == HoloViewModel.Phase.LOADING
     var flood by remember { mutableStateOf(false) }
-    LaunchedEffect(state.phase) {
-        if (state.phase == HoloViewModel.Phase.DONE) { flood = true }
-    }
+    LaunchedEffect(state.phase) { if (state.phase == HoloViewModel.Phase.DONE) flood = true }
     BackHandler(enabled = rec) { vm.reset() }
-
     val requestMic = rememberMicrophoneAccess(onAllowed = vm::start, onDenied = { })
+    var pickerOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { vm.loadCatalog() }
 
+    HoloChrome(
+        logoVisible = !rec,
+        globeScale = if (rec) 0.8f + state.progress * 1.2f else 1f,
+        absorbing = rec,
+        topPill = when {
+            rec -> "결과 바로 보기 ›" to vm::finishEarly
+            onSkip != null -> "나중에 ›" to onSkip
+            else -> null
+        },
+        error = state.error,
+        middle = {
+            if (rec && state.lyrics.isNotEmpty()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                    state.lyrics.forEachIndexed { i, line ->
+                        val cur = i == state.lyricIndex
+                        Text(
+                            line, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            color = if (cur) Color.White else Color.White.copy(alpha = 0.44f),
+                            fontSize = if (cur) 21.sp else 16.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                    if (state.interlude) Text("간주는 건너뛸게요", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                }
+            } else if (!rec) {
+                Text("2단계 · 노래로 음색을 봐요", color = Color.White, fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
+        },
+        bottom = {
+            if (rec) PillPlayer(state, Modifier.align(Alignment.BottomCenter))
+            else Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val picked = state.picked
+                Text(
+                    picked?.let { it.title + " · " + it.artist } ?: "부를 노래를 골라 주세요",
+                    color = Color.White, fontSize = 14.sp, fontWeight = if (picked != null) FontWeight.Bold else FontWeight.Normal,
+                    textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) { pickerOpen = true }
+                if (picked != null) HoloButton("이 곡으로 시작하기", onClick = requestMic)
+            }
+        },
+        flood = flood, onFloodCovered = onResult, onFloodDone = { flood = false },
+    )
+    if (pickerOpen) SongPickerSheet(
+        query = state.query, results = state.suggestions, catalog = state.catalog, loading = state.catalogLoading,
+        onQuery = vm::onQuery, onPick = { vm.pick(it); pickerOpen = false }, onClose = { pickerOpen = false },
+    )
+}
+
+/**
+ * 부를 노래 고르기. 검색창만 두면 무엇을 쳐야 할지 알 수 없어서, 열자마자 곡 목록이 보이고
+ * 검색은 그 위에서 좁히는 방식이다. 시트라서 키보드가 올라와도 목록이 밀려 올라간다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SongPickerSheet(
+    query: String,
+    results: List<SongSummary>,
+    catalog: List<SongSummary>,
+    loading: Boolean,
+    onQuery: (String) -> Unit,
+    onPick: (SongSummary) -> Unit,
+    onClose: () -> Unit,
+) {
+    val shown = if (query.isBlank()) catalog else results
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
+            Text("부를 노래 고르기", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text("아는 노래일수록 음색이 잘 잡혀요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+            MiconSearchField(query, onQuery, "제목이나 가수로 좁히기")
+            Spacer(Modifier.height(8.dp))
+            when {
+                loading && shown.isEmpty() -> Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                shown.isEmpty() -> Text("찾는 곡이 없어요", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 24.dp))
+                else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    items(shown, key = { it.id }) { song ->
+                        SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- 공통 껍데기
+
+/** 홀로 화면 뼈대 — 배경·로고·구체·가운데·하단. 세로는 전부 비율이라 기기 크기를 가리지 않는다 */
+@Composable
+private fun HoloChrome(
+    logoVisible: Boolean,
+    globeScale: Float,
+    absorbing: Boolean,
+    topPill: Pair<String, () -> Unit>?,
+    error: String?,
+    middle: @Composable () -> Unit,
+    bottom: @Composable BoxScope.() -> Unit,
+    flood: Boolean = false,
+    onFloodCovered: () -> Unit = {},
+    onFloodDone: () -> Unit = {},
+) {
     Box(Modifier.fillMaxSize().background(HoloBase)) {
         HoloBackground()
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(bottom = 14.dp),
-        ) {
-            // 로고 줄 11%
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(bottom = 14.dp)) {
             Box(Modifier.fillMaxWidth().weight(0.11f), contentAlignment = Alignment.Center) {
-                androidx.compose.animation.AnimatedVisibility(visible = !rec, enter = fadeIn(tween(450)), exit = fadeOut(tween(450))) {
+                androidx.compose.animation.AnimatedVisibility(visible = logoVisible, enter = fadeIn(tween(450)), exit = fadeOut(tween(450))) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MiconMark(height = 26.dp, onDark = true)
                         Spacer(Modifier.width(8.dp))
-                        Text("MICON", color = Color.White, fontFamily = MiconLogoFamily, fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = 1.5.sp)
+                        Text("MICON", color = Color.White, fontFamily = MiconLogoFamily, fontWeight = FontWeight.Black,
+                            fontSize = 26.sp, letterSpacing = 1.5.sp)
                     }
                 }
             }
-            // 구체 flex:1
             Box(Modifier.fillMaxWidth().weight(0.46f), contentAlignment = Alignment.Center) {
-                Globe(scale = state.globeScale, absorbing = rec)
+                Globe(scale = globeScale, absorbing = absorbing)
             }
-            // 가사 19%
-            Box(Modifier.fillMaxWidth().weight(0.19f).padding(horizontal = 28.dp), contentAlignment = Alignment.Center) {
-                androidx.compose.animation.AnimatedVisibility(visible = rec && state.lyrics.isNotEmpty(), enter = fadeIn(tween(450)), exit = fadeOut(tween(300))) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                        state.lyrics.forEachIndexed { i, line ->
-                            val cur = i == state.lyricIndex
-                            Text(
-                                line, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                color = if (cur) Color.White else Color.White.copy(alpha = 0.44f),
-                                fontSize = if (cur) 21.sp else 16.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        }
-                    }
-                }
-            }
-            // 하단 24%
-            Box(Modifier.fillMaxWidth().weight(0.24f).padding(horizontal = 24.dp), contentAlignment = Alignment.TopCenter) {
-                if (!rec) {
-                    IdleBottom(state, vm::onQuery, vm::pick, vm::clearSuggestions, onStart = requestMic)
-                } else {
-                    PillPlayer(state, Modifier.align(Alignment.BottomCenter))
-                }
-            }
+            Box(Modifier.fillMaxWidth().weight(0.19f).padding(horizontal = 28.dp), contentAlignment = Alignment.Center) { middle() }
+            Box(Modifier.fillMaxWidth().weight(0.24f).padding(horizontal = 24.dp), contentAlignment = Alignment.TopCenter, content = bottom)
         }
-        // 오류
-        state.error?.let { msg ->
-            if (!rec) Surface(
+        error?.let { msg ->
+            Surface(
                 Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 8.dp, start = 24.dp, end = 24.dp),
                 color = Color.White.copy(alpha = 0.94f), shape = RoundedCornerShape(14.dp),
             ) { Text(msg, Modifier.padding(12.dp, 10.dp), color = Ink, fontSize = 13.sp) }
-        }
-        // 우상단 pill: rec 이면 "결과 바로 보기", idle 이면 "나중에"(이전 결과가 있을 때)
-        val topPill: Pair<String, () -> Unit>? = when {
-            rec -> "결과 바로 보기 ›" to vm::finishEarly
-            // 분석을 미루고 둘러볼 길은 항상 열어 둔다 — 마이크를 못 쓰는 상황에서 앱이 막히면 안 된다
-            onSkip != null -> "나중에 ›" to onSkip
-            else -> null
         }
         if (topPill != null) {
             Box(
@@ -194,8 +372,19 @@ fun HoloScreen(
                 contentAlignment = Alignment.Center,
             ) { Text(topPill.first, color = Color.White, fontSize = 12.sp, fontFamily = MiconMonoFamily) }
         }
-        Flood(active = flood, onCovered = { onResult() }, onDone = { flood = false })
+        Flood(active = flood, onCovered = onFloodCovered, onDone = onFloodDone)
     }
+}
+
+/** 홀로 화면의 흰 알약 버튼 */
+@Composable
+private fun HoloButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().height(56.dp).clip(CircleShape)
+            .background(Color.White.copy(alpha = if (enabled) 1f else 0.6f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, color = HoloButtonText, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 }
 
 /** 홀로·결과 화면이 같은 인스턴스를 본다 — 루트(Activity 범위)에서 만들어 넘긴다 */
@@ -339,85 +528,6 @@ private fun gooEffect(): androidx.compose.ui.graphics.RenderEffect? {
 
 // ---------------------------------------------------------------- idle bottom
 
-@Composable
-private fun IdleBottom(
-    state: HoloViewModel.State,
-    onQuery: (String) -> Unit,
-    onPick: (SongSummary) -> Unit,
-    onDismiss: () -> Unit,
-    onStart: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                Text("검색 없이 진행하면 ", color = Color.White.copy(alpha = 0.88f), fontSize = 12.5.sp)
-                Text("간편 분석", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                Text("으로 진행돼요", color = Color.White.copy(alpha = 0.88f), fontSize = 12.5.sp)
-            }
-            var focused by remember { mutableStateOf(false) }
-            Box(
-                Modifier.fillMaxWidth().height(56.dp).clip(CircleShape)
-                    .background(Color.White.copy(alpha = if (focused) 0.30f else 0.18f))
-                    .border(1.5.dp, Color.White.copy(alpha = if (focused) 1f else 0.92f), CircleShape)
-                    .padding(horizontal = 18.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Search, null, tint = Color.White, modifier = Modifier.size(19.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Box(Modifier.weight(1f)) {
-                        // 360dp 폭에서 잘리지 않는 길이로. 안내 문장은 검색창 위에 따로 있다.
-                        if (state.query.isEmpty()) Text("분석받고 싶은 노래 검색", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp, maxLines = 1)
-                        BasicTextField(
-                            value = state.query, onValueChange = onQuery, singleLine = true,
-                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                            cursorBrush = SolidColor(Color.White),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { state.suggestions.firstOrNull()?.let(onPick) ?: onDismiss() }),
-                            modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
-                        )
-                    }
-                    if (state.searching) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                }
-            }
-            Box(
-                Modifier.fillMaxWidth().height(56.dp).clip(CircleShape).background(Color.White).clickable(onClick = onStart),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (state.phase == HoloViewModel.Phase.LOADING) CircularProgressIndicator(Modifier.size(22.dp), color = HoloButtonText, strokeWidth = 2.5.dp)
-                else Text("목소리 분석하기", color = HoloButtonText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        // 제안 팝업 — 검색창 위
-        if (state.suggestions.isNotEmpty() || (state.query.isNotBlank() && state.picked == null && !state.searching && state.suggestions.isEmpty())) {
-            Surface(
-                Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(bottom = 56.dp + 14.dp + 56.dp + 8.dp),
-                color = Color.White.copy(alpha = 0.97f), shape = RoundedCornerShape(20.dp), shadowElevation = 12.dp,
-            ) {
-                Column {
-                    if (state.suggestions.isEmpty()) {
-                        Text("찾는 곡이 없어요 · 그냥 진행하면 간편 분석이에요", Modifier.padding(16.dp, 14.dp), color = Muted, fontSize = 13.sp)
-                    }
-                    state.suggestions.take(4).forEachIndexed { i, s ->
-                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFEFECF8)))
-                        Row(
-                            Modifier.fillMaxWidth().clickable { onPick(s) }.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CompactDisc(title = s.title, artist = s.artist, imageUrl = s.imageUrl, size = 36.dp)
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(s.title, color = Ink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(s.artist, color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------- rec bottom
 
 @Composable
@@ -433,10 +543,10 @@ private fun PillPlayer(state: HoloViewModel.State, modifier: Modifier = Modifier
         Column(Modifier.weight(1f)) {
             val s = state.elapsedSec.toInt().coerceIn(0, 30)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(picked?.title ?: "간편 분석", color = Ink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(picked?.title ?: "노래", color = Ink, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Text("0:${"%02d".format(s)} / 0:30", color = Muted, fontSize = 12.sp, fontFamily = MiconMonoFamily)
             }
-            Text(picked?.artist ?: "아— 하고 편하게 소리내 주세요", color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(picked?.artist.orEmpty(), color = Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(Color(0xFFE4E0F2))) {
                 Box(

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -34,7 +35,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.micon.app.ui.design.atoms.MiconMark
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.micon.app.R
 import com.micon.app.ui.design.tokens.MiconSpace
 
 /**
@@ -121,7 +125,13 @@ fun MiconAppBar(
             Spacer(Modifier.width(MiconSpace.sm))
         }
         if (showMark) {
-            MiconMark(height = 19.dp)
+            // 연습 탭과 같은 MICON 로고로 모든 탭 헤더를 통일한다
+            Image(
+                painter = painterResource(R.drawable.micon_logo),
+                contentDescription = "MICON",
+                modifier = Modifier.height(22.dp).width(88.dp),
+                contentScale = ContentScale.Fit,
+            )
             Spacer(Modifier.width(MiconSpace.xs))
         }
         if (title != null) {

@@ -14,8 +14,12 @@ import com.micon.app.data.holo.HoloRangeAnalyzer
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.backend.dto.toLiveNotes
+import com.micon.app.range.RangeReport
 import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.LyricSheet
+import com.micon.app.scoring.SectionMap
+import com.micon.app.scoring.SongSections
 import com.micon.app.ui.design.molecules.NoteNames
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -44,10 +48,19 @@ class HoloViewModel(
 ) : ViewModel() {
     enum class Phase { IDLE, LOADING, REC, DONE, ERROR }
 
+    /** 1단계 음역(15초 미션) → 2단계 음색(노래 부르기). 두 단계를 한 흐름으로 잇지 않는다. */
+    enum class Stage { RANGE, TIMBRE }
+
     data class State(
+        val stage: Stage = Stage.RANGE,
+        /** 1단계에서 측정한 음역. 2단계 결과 카드의 음역은 이 값을 쓴다 */
+        val range: RangeReport? = null,
         val phase: Phase = Phase.IDLE,
         val query: String = "",
         val suggestions: List<SongSummary> = emptyList(),
+        /** 검색 전에도 고를 수 있게 미리 받아 두는 곡 목록 */
+        val catalog: List<SongSummary> = emptyList(),
+        val catalogLoading: Boolean = false,
         val searching: Boolean = false,
         val picked: SongSummary? = null,
         /** 0..30 */
@@ -59,6 +72,10 @@ class HoloViewModel(
         val error: String? = null,
         /** 이전 결과가 있어 "나중에" 로 건너뛸 수 있는가 */
         val hasPrevious: Boolean = false,
+        /** 간주를 건너뛰지 않고 실제로 부른 시간(초). 2단계는 이 값으로 끝난다 */
+        val sungSec: Double = 0.0,
+        /** 지금 간주 구간을 지나가는 중 */
+        val interlude: Boolean = false,
         /** 서버 저장 상태 문구(결과 화면 하단) */
         val saving: Boolean = false,
         val saved: Boolean = false,
@@ -68,7 +85,7 @@ class HoloViewModel(
         val analysisFinished: Boolean = false,
         val saveError: String? = null,
     ) {
-        val progress: Float get() = (elapsedSec / DURATION_SEC).toFloat().coerceIn(0f, 1f)
+        val progress: Float get() = (sungSec / SING_SECONDS).toFloat().coerceIn(0f, 1f)
         val globeScale: Float get() = if (phase == Phase.REC) 0.8f + Math.pow(progress.toDouble(), 1.08).toFloat() * 1.2f else 1f
     }
 
@@ -83,6 +100,9 @@ class HoloViewModel(
     private var wav: File? = null
     private var sheet: LyricSheet? = null
     private var songStartSec = 0.0
+    private var sections: SectionMap = SectionMap.EMPTY
+    private var sungAccum = 0.0
+    private var lastTickPos = -1.0
     private var dataVersion: String? = null
     private var tick: Job? = null
     private var searchJob: Job? = null
@@ -97,6 +117,27 @@ class HoloViewModel(
     }
 
     fun previousResult(): HoloResult? = store.read(ownerId)
+
+    /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
+    fun loadCatalog() {
+        if (_state.value.catalog.isNotEmpty() || _state.value.catalogLoading) return
+        _state.update { it.copy(catalogLoading = true) }
+        viewModelScope.launch {
+            val items = runCatching { songs.search("", 0, 40).items }.getOrDefault(emptyList())
+            _state.update { it.copy(catalog = items, catalogLoading = false) }
+        }
+    }
+
+    /** 1단계 음역 측정이 끝났다. 결과를 안고 2단계(음색)로 넘어간다 */
+    fun rangeMeasured(range: RangeReport?) {
+        if (_state.value.stage == Stage.TIMBRE) return
+        _state.update { it.copy(stage = Stage.TIMBRE, range = range, phase = Phase.IDLE, error = null) }
+    }
+
+    fun backToRange() {
+        tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
+        _state.update { State(hasPrevious = it.hasPrevious) }
+    }
 
     // ---- 검색 ----
     fun onQuery(q: String) {
@@ -130,6 +171,8 @@ class HoloViewModel(
                 else { sheet = null; songStartSec = 0.0 }
                 val file = File(File(appContext.filesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
                 wav = file
+                sungAccum = 0.0
+                lastTickPos = -1.0
                 capture.start(file, onError = { e -> _state.update { it.copy(phase = Phase.ERROR, error = e.message ?: "마이크를 열지 못했어요.") } }) { f ->
                     synchronized(frames) { frames.add(f) }
                 }
@@ -140,9 +183,24 @@ class HoloViewModel(
                     while (true) {
                         val t = capture.capturedSeconds
                         val now = if (picked != null) player.positionSec else t
+                        // 간주는 건너뛴다. 반주를 기다리느라 부르는 시간이 늘어나지 않게.
+                        var inInterlude = false
+                        if (picked != null) {
+                            val gap = sections.interludeAt(now)
+                            if (gap != null) {
+                                val target = sections.leadBefore(gap.end)
+                                if (target > now + 0.3) { player.seekTo(target); lastTickPos = target } else inInterlude = true
+                            }
+                        }
+                        // 실제로 부른 시간만 센다(곡이 없으면 녹음 시간 그대로)
+                        if (picked == null) sungAccum = t
+                        else {
+                            if (lastTickPos >= 0 && now > lastTickPos && !inInterlude) sungAccum += (now - lastTickPos).coerceAtMost(0.5)
+                            lastTickPos = now
+                        }
                         val (l, i) = lyricsAt(now)
-                        _state.update { it.copy(elapsedSec = t, lyrics = l, lyricIndex = i) }
-                        if (t >= DURATION_SEC) { finish(); break }
+                        _state.update { it.copy(elapsedSec = t, sungSec = sungAccum, interlude = inInterlude, lyrics = l, lyricIndex = i) }
+                        if (sungAccum >= SING_SECONDS) { finish(); break }
                         delay(120)
                     }
                 }
@@ -157,8 +215,10 @@ class HoloViewModel(
         val assets = songs.practiceAssets(song.id)
         val url = assets.instrumental.playbackUrl ?: throw IllegalStateException("이 곡은 반주가 아직 준비되지 않았어요.")
         dataVersion = assets.dataVersion
-        val built = LyricLines.build(emptyList(), assets.lyricsSynced, assets.lyricsPlain)
+        val notes = assets.targetNotes.toLiveNotes(assets.timeSignature)
+        val built = LyricLines.build(notes, assets.lyricsSynced, assets.lyricsPlain)
         sheet = built
+        sections = SongSections.build(notes, built.lines)
         // 첫 가사 1초 전부터. 하이라이트 구간이 있으면 거기부터 — 30초 안에 가장 특징적인 목소리가 담긴다.
         val highlight = assets.sections.firstOrNull { it.sectionType.equals("CHORUS", true) || it.sectionName.trim() == "하이라이트" }
         songStartSec = (highlight?.startMs?.div(1000.0) ?: built.lines.firstOrNull()?.start?.minus(1.0) ?: 0.0).coerceAtLeast(0.0)
@@ -183,7 +243,9 @@ class HoloViewModel(
         val file = capture.stop() ?: wav
         val snapshot = synchronized(frames) { frames.toList() }
         val picked = _state.value.picked
+        val measured = _state.value.range
         val result = HoloRangeAnalyzer.analyze(snapshot, picked?.id, picked?.title, picked?.artist)
+            ?.let { r -> if (measured != null) r.withMeasuredRange(measured) else r }
         if (result == null || !result.usable) {
             _state.update { it.copy(phase = Phase.ERROR, error = "목소리가 충분히 잡히지 않았어요. 조금 더 크게, 4초 이상 불러 주세요.") }
             file?.delete()
@@ -265,6 +327,8 @@ class HoloViewModel(
     }
 
     companion object {
+        /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
+        const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }

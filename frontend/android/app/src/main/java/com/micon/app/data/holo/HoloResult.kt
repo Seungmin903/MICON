@@ -50,6 +50,27 @@ data class HoloResult(
     val profileSaved: Boolean = false,
 ) {
     val octaves: Double get() = (highMidi - lowMidi) / 12.0
+
+    /**
+     * 1단계에서 제대로 잰 음역으로 갈아 끼운다. 2단계(노래) 녹음으로 계산한 음역은 곡이 쓰는
+     * 범위에 갇혀 실제보다 좁다 — 음역은 측정값을, 안정성·호흡·템포는 노래 녹음을 쓴다.
+     */
+    fun withMeasuredRange(range: com.micon.app.range.RangeReport): HoloResult {
+        val low = range.lowMidi ?: return this
+        val high = range.highMidi ?: return this
+        if (high - low < 5) return this
+        val cl = comfortLow.coerceIn(low, high)
+        val ch = comfortHigh.coerceIn(cl, high)
+        val (fixLow, fixHigh) = if (ch - cl >= 4) cl to ch else {
+            val c = (low + high) / 2
+            (c - (high - low) / 4).coerceAtLeast(low) to (c + (high - low) / 4).coerceAtMost(high)
+        }
+        val span = fixHigh - fixLow
+        return copy(
+            lowMidi = low, highMidi = high, comfortLow = fixLow, comfortHigh = fixHigh,
+            recommendLow = fixLow + (span * 0.15).roundToInt(), recommendHigh = fixHigh - (span * 0.15).roundToInt(),
+        )
+    }
     val usable: Boolean get() = voicedSec >= 4.0 && highMidi - lowMidi >= 5
 }
 

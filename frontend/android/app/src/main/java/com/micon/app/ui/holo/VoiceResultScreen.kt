@@ -155,7 +155,6 @@ private fun RangeMapCard(r: HoloResult) {
         listOf(
             Triple("전체 음역", Ser1, 0f to 1f),
             Triple("편안한 음역", Ser2, f(r.comfortLow) to f(r.comfortHigh)),
-            Triple("추천곡 음역", Ser3, f(r.recommendLow) to f(r.recommendHigh)),
         ).forEachIndexed { i, (label, color, seg) ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.width(80.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,12 +165,6 @@ private fun RangeMapCard(r: HoloResult) {
                 GrowBar(color, seg.first, seg.second, delayMs = 100 * i)
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            "전체는 ${NoteNames.scientific(r.lowMidi)}–${NoteNames.scientific(r.highMidi)}지만, 힘 안 들이고 부를 수 있는 구간은 " +
-                "${NoteNames.scientific(r.comfortLow)}–${NoteNames.scientific(r.comfortHigh)}예요.",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -234,11 +227,6 @@ private fun StabilityCard(r: HoloResult) {
                 }
             }
         }
-        val bestLabel = labels[best]
-        val nextLabel = labels.getOrNull(best + 1) ?: bestLabel
-        val thinFrom = labels.getOrNull((best + 2).coerceAtMost(labels.lastIndex)) ?: nextLabel
-        Text("${bestLabel}–${nextLabel}에서 음정이 가장 흔들리지 않았어요. ${thinFrom} 위로는 소리가 얇아집니다.",
-            style = MaterialTheme.typography.bodyMedium, color = muted)
     }
 }
 
