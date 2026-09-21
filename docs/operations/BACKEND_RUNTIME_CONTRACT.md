@@ -23,6 +23,8 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | DB_USERNAME | root | 운영 전용 최소권한 계정, root 기본값 사용 금지 권고 |
 | DB_PASSWORD | 빈 값 | 운영에서는 별도 비밀값 주입, 빈 값 사용 금지 권고 |
 | JWT_SECRET | 기본값 없음 | 코드가 UTF-8 32바이트 이상 요구. 충분한 무작위성의 비밀값 사용; PEM/APK 서명키와 별개 |
+| GOOGLE_WEB_CLIENT_ID | 빈 값 | Google ID 토큰의 `aud`와 일치해야 하는 OAuth 2.0 Web client ID. Android의 Google 로그인 설정과 같은 Google Cloud 프로젝트에서 발급하며, client secret이 아니므로 런타임 환경에 명시 주입 |
+| GOOGLE_JWK_SET_URI | `https://www.googleapis.com/oauth2/v3/certs` | Google ID 토큰 서명 검증에 쓰는 공개 JWK Set HTTPS 주소. 기본 Google 주소를 사용하면 생략 가능하며, 임의 URL로 바꾸기 전에는 발급자·키 회전 계약을 함께 검토 |
 | ACCESS_LOG_LEVEL | INFO | `micon.access` 전용 로그 수준. DEBUG는 정상 health/background DB 조회까지 포함. 토큰·본문·SQL 값은 기록하지 않음. [조회 방법](BACKEND_ACCESS_LOGS.md) |
 | DB_ACCESS_LOG_ENABLED | true | DataSource 쿼리/연결 실패 메타데이터 수집 여부. 변경 시 BE 재생성 필요 |
 | DB_ACCESS_SLOW_QUERY_MS | 1000 | 이 시간 이상 걸린 쿼리는 WARN. SQL 원문/파라미터/결과는 제외 |

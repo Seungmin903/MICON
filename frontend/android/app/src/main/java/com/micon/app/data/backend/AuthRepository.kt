@@ -5,6 +5,7 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.AuthResponse
 import com.micon.app.data.backend.dto.EmailAuthRequest
+import com.micon.app.data.backend.dto.GoogleAuthRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -15,6 +16,7 @@ class AuthRequestException(val status: Int?, message: String) : Exception(messag
 
 interface AuthRepository {
     suspend fun login(email: String, password: String)
+    suspend fun loginWithGoogle(idToken: String)
     suspend fun signup(email: String, password: String)
     suspend fun restoreIdentity()
     suspend fun logout()
@@ -26,6 +28,10 @@ class NetworkAuthRepository(
 ) : AuthRepository {
     override suspend fun login(email: String, password: String) {
         establishSession(api.login(EmailAuthRequest(email.trim(), password)).authData(signup = false))
+    }
+
+    override suspend fun loginWithGoogle(idToken: String) {
+        establishSession(api.googleLogin(GoogleAuthRequest(idToken)).authData(signup = false))
     }
 
     override suspend fun signup(email: String, password: String) {

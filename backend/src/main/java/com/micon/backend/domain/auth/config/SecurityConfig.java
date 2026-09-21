@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties({AuthProperties.class, PasswordResetProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, GoogleAuthProperties.class, PasswordResetProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/voice-analysis-sessions", "/voice-analysis-sessions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/embedding-catalog/active").permitAll()
                         .requestMatchers(HttpMethod.GET, "/internal/catalog-media/vocal-stems/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh",
+                        .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/google", "/auth/refresh",
                                 "/auth/password-reset-requests", "/auth/password-reset-verifications",
                                 "/auth/password-resets").permitAll()
                         .anyRequest().authenticated())

@@ -61,6 +61,13 @@ public class User {
         this.updatedAt = this.createdAt;
     }
 
+    public static User social(String email) {
+        User user = new User(email, null);
+        user.authType = AuthType.SOCIAL;
+        user.emailVerified = true;
+        return user;
+    }
+
     public Long getId() {
         return id;
     }
