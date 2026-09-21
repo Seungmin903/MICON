@@ -41,7 +41,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
     val vm: VoiceOnboardingViewModel = viewModel(key = "voice-onboarding-$ownerId", factory = viewModelFactory {
         initializer { VoiceOnboardingViewModel(ownerId, store, gateway,
             isCurrentOwner = { if (ownerId == null) !TokenManager.isLoggedIn() else TokenManager.getUserId() == ownerId },
-            onDispose = store::disposeGuest, rangeAnalysis = store.rangeAnalysis) }
+            onDispose = store::disposeGuest) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     var confirmExit by remember { mutableStateOf(false) }
@@ -93,15 +93,19 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
             }
             composable("measure") {
                 BackHandler { leave() }
-                GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
-                    repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = { measurementId ->
-                        if (vm.rangeMeasurementSaved(measurementId) && nav.currentDestination?.route == "measure") {
-                            nav.navigate("song-guide") {
-                                popUpTo("measure") { inclusive = true }
-                                launchSingleTop = true
-                            }
+                // The range stage finishes on its own result page; the song stage opens only from there.
+                fun continueToTimbre() {
+                    if (vm.rangeReady() && nav.currentDestination?.route == "measure") {
+                        nav.navigate("song-guide") {
+                            popUpTo("measure") { inclusive = true }
+                            launchSingleTop = true
                         }
-                    })
+                    }
+                }
+                GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = {
+                    store.rangeRepository.clear()
+                    nav.navigate("measure") { popUpTo("measure") { inclusive = true } }
+                }, repository = store.rangeRepository, onboardingIntro = true, onTimbreMeasurement = ::continueToTimbre)
             }
             composable("song-guide") {
                 BackHandler { leave() }
@@ -140,8 +144,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                         vm.newRecording()
                         nav.navigate("pick") { popUpTo("result") { inclusive = true } }
                     },
-                    onRestart = vm::restart,
-                    onRetryRange = vm::retryRangeAnalysis)
+                    onRestart = vm::restart)
             }
         }
     }
@@ -157,7 +160,6 @@ fun VoiceOnboardingResultScreen(
     state: VoiceOnboardingState, isGuest: Boolean,
     onExit: () -> Unit, onLogin: () -> Unit, onAnalyze: () -> Unit, onCancel: () -> Unit,
     onRetry: (AnalysisComponent) -> Unit, onSave: () -> Unit, onRecordAgain: () -> Unit, onRestart: () -> Unit,
-    onRetryRange: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         BackHeader("목소리 분석 결과", onBack = { if (!state.saving) onExit() })
@@ -175,25 +177,15 @@ fun VoiceOnboardingResultScreen(
                     onRetry = onRetry)
             }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
-            if (state.rangeAnalysisStatus == OnboardingRangeStatus.FAILED) {
-                Text(state.rangeAnalysisError ?: "음역 분석 결과를 확인하지 못했어요.", color = Red,
-                    modifier = Modifier.testTag("onboarding_range_error"))
-                OutlinePurpleButton("음역 분석 다시 확인하기", onRetryRange,
-                    Modifier.fillMaxWidth().testTag("onboarding_range_retry"))
-                OutlinePurpleButton("음역 다시 측정하기", onRestart, Modifier.fillMaxWidth())
-            }
-            if (!isGuest && state.serviceAvailable && !state.busy && !state.recovering && !state.waitingForRange &&
-                state.rangeAnalysisStatus != OnboardingRangeStatus.FAILED && !state.saved && progress?.canSave != true) {
+            if (!isGuest && state.serviceAvailable && !state.busy && !state.recovering && !state.saved && progress?.canSave != true) {
                 state.analysisInputError?.takeUnless { it == state.error }?.let {
                     Text(it, color = Red, modifier = Modifier.testTag("onboarding_input_error"))
                 }
             }
-            if (state.busy || state.recovering || state.waitingForRange) {
+            if (state.busy || state.recovering) {
                 LinearProgressIndicator(Modifier.fillMaxWidth().testTag("onboarding_analysis_wait"))
-                if (state.waitingForRange) Text("음역 분석 결과를 확인하고 있어요.", color = Grey)
                 TextButton(onClick = onCancel) { Text("분석 확인 중단") }
-            } else if (state.serviceAvailable && !state.saved && !state.expired &&
-                state.rangeAnalysisStatus != OnboardingRangeStatus.FAILED && progress?.canSave != true) {
+            } else if (state.serviceAvailable && !state.saved && !state.expired && progress?.canSave != true) {
                 OutlinePurpleButton("분석 다시 확인하기", onAnalyze, Modifier.fillMaxWidth(), enabled = !isGuest && state.canAnalyze)
             }
             if (state.expired) PrimaryButton("새로 측정하기", onRestart, Modifier.fillMaxWidth())

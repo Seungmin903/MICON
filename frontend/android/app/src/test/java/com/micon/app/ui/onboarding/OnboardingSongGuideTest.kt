@@ -98,6 +98,19 @@ class OnboardingSongGuideTest {
         assertNull(model.state.value.songGuideError)
     }
 
+    @Test fun verifiedRangeFromTheResultPageReopensTheSongGuideForTheNewMeasurement() {
+        val store = Store().apply { data = data.copy(songGuideCompleted = true) }
+        val model = VoiceOnboardingViewModel(null, store, PendingVoiceOnboardingGateway())
+        assertFalse(model.state.value.canSelectSong)
+        assertFalse(model.rangeReady())
+        store.report = range
+        assertTrue(model.rangeReady())
+        assertTrue(model.state.value.canSelectSong)
+        assertFalse(model.state.value.songGuideCompleted)
+        assertFalse(store.data.songGuideCompleted)
+        assertEquals("song-guide", onboardingInitialDestination(model.state.value))
+    }
+
     @Test fun expiredAndSignedOutOwnersCannotConfirmTheGuide() {
         val store = Store().apply { report = range }
         val signedOut = VoiceOnboardingViewModel(1, store, PendingVoiceOnboardingGateway(), isCurrentOwner = { false })

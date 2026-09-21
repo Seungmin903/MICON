@@ -52,7 +52,6 @@ class VoiceOnboardingStore(context: Context, val ownerId: Long?,
         deviceOnly = backendApi == null || ownerId == null,
         serverGateway = if (backendApi != null && ownerId != null)
             BackendRangeAnalysisGateway(backendApi, ownerId, File(directory, "range-link.json")) else null)
-    val rangeAnalysis: OnboardingRangeAnalysis = RepositoryOnboardingRangeAnalysis(rangeRepository)
     val recordings = SingAnalysisRecordingStore(context, storageDirectory = File(directory, "recordings"))
     private val draftAdapter = Json.moshi.adapter(VoiceOnboardingDraft::class.java)
     private val profileAdapter = Json.moshi.adapter(SavedVoiceOnboardingProfile::class.java)

@@ -52,17 +52,14 @@ import kotlinx.coroutines.flow.first
 fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean = false, onRestart: () -> Unit = onDone,
     repository: com.micon.app.range.RangeRepository? = null,
     onTimbreMeasurement: (() -> Unit)? = null,
-    onMeasurementSaved: ((String) -> Unit)? = null,
     onboardingIntro: Boolean = false,
 ) {
     val context = LocalContext.current
     val vm: GuidedRangeViewModel = viewModel(factory = viewModelFactory {
         initializer { GuidedRangeViewModel(context.applicationContext, extension, repository ?: com.micon.app.range.RangeRepository(context),
-            submitOnFinish = onMeasurementSaved == null, awaitAnchorConfirmation = onboardingIntro,
-            awaitNoiseConfirmation = onboardingIntro) }
+            awaitAnchorConfirmation = onboardingIntro, awaitNoiseConfirmation = onboardingIntro) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
-    OnboardingRangeTransition(state.savedMeasurementId, onMeasurementSaved)
     SideEffect { vm.displayed(state.session) }
     val start = com.micon.app.ui.common.rememberMicrophoneAccess(vm::start, vm::permissionDenied)
     val automaticPreparation = com.micon.app.ui.common.rememberMicrophoneAccess(vm::startAutomaticPreparation, vm::permissionDenied,
@@ -129,13 +126,6 @@ fun GuidedRangeScreen(onBack: () -> Unit, onDone: () -> Unit, extension: Boolean
                         }
                         PrimaryButton("편한 시작음 다시 찾기", { vm.discardPending(); onRestart() }, Modifier.fillMaxWidth(), enabled = !state.previewPlaying)
                         OutlinePurpleButton("여기서 나가기", onDone, Modifier.fillMaxWidth())
-                    } else if (onMeasurementSaved != null && state.savedMeasurementId != null) {
-                        // Navigation follows local persistence, without rendering the range result page.
-                    } else if (onMeasurementSaved != null && (state.finished || state.hasPending)) {
-                        Text("음역을 다시 측정해 주세요", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text("프로필을 만들 수 있을 때까지 측정하면 음색 테스트로 넘어갈 수 있어요.", color = Grey)
-                        PrimaryButton("음역 다시 측정하기", onRestart, Modifier.fillMaxWidth())
-                        TextButton(onClick = onBack) { Text("여기서 나가기") }
                     } else if (state.finished || state.hasPending) {
                         Text(if (state.report == null) "이번에 측정한 결과" else "이번에 확인한 음역", fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         when (state.stopReason) {
@@ -331,12 +321,4 @@ private fun OnboardingFadeIn(visible: Boolean, content: @Composable () -> Unit) 
     val transition = remember { MutableTransitionState(false) }
     transition.targetState = visible
     AnimatedVisibility(transition, enter = fadeIn(tween(300)), exit = ExitTransition.None) { content() }
-}
-
-@Composable
-internal fun OnboardingRangeTransition(measurementId: String?, onSaved: ((String) -> Unit)?) {
-    val currentCallback by rememberUpdatedState(onSaved)
-    LaunchedEffect(measurementId) {
-        measurementId?.let { currentCallback?.invoke(it) }
-    }
 }
