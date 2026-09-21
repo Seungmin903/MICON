@@ -242,7 +242,11 @@ async function run(){
   settings.selectedGenres=[...state.genres];settings.useLanguageGate=$('useLanguageGate').checked;
   try{const result=await api('api/experiments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:id,settings})}); if(epoch!==state.epoch)return;
     state.result=result; $('results').hidden=false;renderResults();$('experimentState').textContent=(result.inputWarning||'고정 입력 case 재생 완료')+' · '+(result.rangeAvailable?'음역 입력 있음':'음역 입력 없음: 기본값은 음색 단독 fallback');
-  }catch(e){if(epoch===state.epoch){error(e.message);$('experimentState').textContent='실험 실패: '+e.message;}}
+  }catch(e){if(epoch===state.epoch){
+    // 서버가 모르는 설정 이름을 받았다는 건 열어 둔 탭이 예전 app.js 를 들고 있다는 뜻이다.
+    const stale=/extra_forbidden|Extra inputs are not permitted/.test(e.message);
+    const shown=stale?'이 페이지가 예전 버전입니다. 실험실 코드가 그 뒤에 바뀌었으니 새로고침(Ctrl+Shift+R) 후 다시 실행해 주세요.':e.message;
+    error(shown);$('experimentState').textContent='실험 실패: '+shown;}}
   finally{state.busy=false;$('run').disabled=!$('caseSelect').value;if(state.pendingAutoRun){state.pendingAutoRun=false;scheduleAutoRun();}}
 }
 function genreTags(item){
