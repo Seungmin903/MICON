@@ -21,23 +21,23 @@ from .composition import (
     AXIS_NAME,
     GENRE_LANGUAGE,
     allowed_languages,
-    compose_two_axis,
+    compose_by_final_score,
     song_id_of,
     track_language,
 )
 from .contracts import MODEL_KEYS, SCORING_VERSION
-from .pitch_range import COMFORT_PADDING_SEMITONES, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
+from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
 from .scoring import RankerConfig, _absolute_similarity, _model_track_score
 
-SHELVES_VERSION = "shelves-v1"
+SHELVES_VERSION = "shelves-v3-final-score-time-ratio-gate"
 
 # 사용자 평가 후 조정할 값
 MIN_PROFILE_CONFIDENCE = 0.55          # 곡 음표 신뢰도 하한 (곡예사2 0.47 제외, 정국 0.63 유지)
-VOICE_MAX_KEY_SHIFT = 3                # A: 이 폭 안의 키 조정으로 부담 0 이면 "부를 수 있는 곡"
+VOICE_MAX_KEY_SHIFT = 4                # A: 이 폭 안의 키 조정으로 부담 0 이면 "부를 수 있는 곡"
 ORIGINAL_KEY_MIN_COVERAGE = 0.95       # B
 CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상한(+여유)보다 이만큼 높음
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
-RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop"}
+RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop", "랩/힙합"}   # DB genre 테이블은 한글 라벨을 쓴다
 # 한국곡 설문 장르 → 스타일 태그. 외국어 선택은 아래 언어 판정으로 처리한다.
 # K-Pop 은 범용 태그라 항상 "취향 안"으로 본다.
 GENRE_TAGS = {
@@ -50,7 +50,7 @@ GENRE_TAGS = {
     "랩/힙합": {"Hip-Hop"}, "포크/어쿠스틱": {"Folk", "Singer-Songwriter"}, "성인가요": {"Trot"},
 }
 SHELF_META = {
-    "voice": ("내 목소리와 닮은 곡", "음색 유사도 순. 음역은 게이트만(키 ±3 안에서 부담 없음). 키는 부르는 방법으로 표시"),
+    "voice": ("내 목소리와 닮은 곡", "최종 점수 순. 음역은 게이트만(키 ±4, 음역 밖 시간 비율 ≤ 5%). 키는 부르는 방법으로 표시"),
     "original_key": ("키 안 바꾸고 바로 부를 곡", "최적 키 0 · 원키 커버리지 ≥ 0.95. 곡 중심음이 내 중심음에 가까운 순"),
     "favorite_artists": ("선호 가수 좋아하면", "선호 가수 본인 곡 먼저, 이어서 선호 가수 목소리와 닮은 가수의 곡"),
     "challenge": ("고음 한 단계 도전", "원키에서 곡 상한이 내 상한보다 1~3반음 높고 그 구간이 3~20%인 곡. 고음 비율 작은 순 (실험)"),
@@ -182,13 +182,15 @@ def build_shelves(
 
     def singable(r):   # 음역 조건이 있는 섹션의 공통 게이트
         fit = r.get("range_fit")
-        return range_enabled and r["melodic"] and fit is not None and fit["totalCoreExcessSemitones"] == 0
+        outside_ratio = float(fit.get("outsideRangeRatio", 1.0 - float(fit.get("coverage", 0.0)))) if fit else 1.0
+        return (range_enabled and r["melodic"] and fit is not None
+                and outside_ratio <= MAX_OUTSIDE_RANGE_RATIO)
 
-    # A. 내 목소리: 두 축 할당(라벨 실험 유지) → final_score 순. 게이트: 부를 수 있고 |키| ≤ 3, 랩 제외
+    # A. 내 목소리: 최종 점수 순. 게이트: 부를 수 있고 |키| ≤ 4, 랩 제외
     pool_a = [r for r in rows if not r["is_rap"] and (not range_enabled or (singable(r) and abs(int(r["range_fit"]["keyShift"])) <= VOICE_MAX_KEY_SHIFT))]
-    composed = compose_two_axis(pool_a, top_k=top_k, genres=(), range_enabled=range_enabled, scoring_version=SCORING_VERSION)
+    composed = compose_by_final_score(pool_a, top_k=top_k, genres=(), range_enabled=range_enabled, scoring_version=SCORING_VERSION)
     by_id = {r["track_id"]: r for r in pool_a}
-    emit("voice", [(by_id[it["track_id"]], {"axis_scores": it["axis_scores"], "confidence": it["confidence"]}, it["axis"], it["label"]) for it in composed["recommendations"]],
+    emit("voice", [(by_id[it["track_id"]], {}, it["axis"], it["label"]) for it in composed["recommendations"]],
          {"composition": composed["composition"]})
 
     # B. 키 안 바꾸고: 최적 키 0 · 원키 커버리지 ≥ 0.95 → 중심음 근접 순 (음색 미사용)

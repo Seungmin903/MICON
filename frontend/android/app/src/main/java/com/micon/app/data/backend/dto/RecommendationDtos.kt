@@ -34,6 +34,10 @@ data class RecommendationDto(
     val profileId: Long? = null,
     val sourceSessionId: Long? = null,
     val profileVersion: Long? = null,
+    /** Recommendation input preference snapshot. null denotes a pre-versioning result. */
+    val preferenceVersion: Long? = null,
+    /** Current account preference version returned by the backend. */
+    val currentPreferenceVersion: Long? = null,
 )
 
 /** RecommendationResponse.Shelf. key: voice · original_key · favorite_artists · challenge · discovery */

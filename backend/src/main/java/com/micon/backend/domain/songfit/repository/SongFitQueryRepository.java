@@ -36,8 +36,8 @@ public class SongFitQueryRepository {
 	public Optional<UserRangeRow> findUserRange(Long userId, Long analysisId) {
 		String sql = """
 			SELECT vas.status AS session_status, vrm.measurement_status,
-			       vrm.full_low_midi AS stable_low_midi,
-			       vrm.full_high_midi AS stable_high_midi
+			       CASE WHEN vrm.rule_version = 'guided-range-v8' THEN vrm.stable_low_midi ELSE vrm.full_low_midi END AS stable_low_midi,
+			       CASE WHEN vrm.rule_version = 'guided-range-v8' THEN vrm.stable_high_midi ELSE vrm.full_high_midi END AS stable_high_midi
 			FROM user_voice_profile uvp
 			JOIN voice_analysis_session vas ON vas.session_id = uvp.session_id
 			LEFT JOIN voice_range_measurement vrm ON vrm.session_id = vas.session_id

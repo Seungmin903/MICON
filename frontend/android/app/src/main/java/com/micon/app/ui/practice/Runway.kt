@@ -42,7 +42,8 @@ fun Runway(
     val textPaint = remember { Paint().apply { isAntiAlias = true } }
     val ink = Color(ScoringUi.COLOR_INK)
     val muted = Color(ScoringUi.COLOR_MUTED)
-    val nowColor = Color(ScoringUi.COLOR_NOW)
+    val nowColor = Color(0xFF6C5CE7)
+    val runwayBackground = Color(0xFFF7F5FC)
 
     // 보이는 음표에 맞춰 세로 범위를 움직인다(부드럽게 따라감) — 곡 전체 음역으로 고정하면 막대가 너무 얇아진다
     val view = remember { doubleArrayOf(Double.NaN, Double.NaN) }
@@ -66,7 +67,7 @@ fun Runway(
         fun midiToY(midi: Double) = 8f * dp + ((high - midi) * rowHeight).toFloat()
         val barHeight = maxOf(6f * dp, rowHeight * 0.8f)
 
-        drawRect(Color(ScoringUi.COLOR_PAPER), size = Size(width, height))
+        drawRect(runwayBackground, size = Size(width, height))
 
         // 옥타브 선 + 음이름 (노래방식: 2옥 도)
         textPaint.textSize = 10f * dp
@@ -76,7 +77,7 @@ fun Runway(
             drawLine(ink.copy(alpha = if (midi % 12 == 0) 0.18f else 0.09f), Offset(0f, y), Offset(width, y))
             val label = com.micon.app.scoring.KaraokeNames.koreanShort(midi)
             val labelW = textPaint.measureText(label)
-            drawRect(Color(ScoringUi.COLOR_PAPER).copy(alpha = 0.85f), topLeft = Offset(2f * dp, y - 12f * dp), size = Size(labelW + 4f * dp, 12f * dp))
+            drawRect(runwayBackground.copy(alpha = 0.85f), topLeft = Offset(2f * dp, y - 12f * dp), size = Size(labelW + 4f * dp, 12f * dp))
             textPaint.color = android.graphics.Color.argb(255, 0x9A, 0xA1, 0x9C)
             drawContext.canvas.nativeCanvas.drawText(label, 4f * dp, y - 3f * dp, textPaint)
         }
@@ -127,8 +128,17 @@ fun Runway(
         }
         drawPath(path, Color(0xFF6C5CE7), style = Stroke(width = 3f * dp, cap = androidx.compose.ui.graphics.StrokeCap.Round))
         // 현재 위치선
+        drawRect(
+            nowColor.copy(alpha = 0.08f),
+            topLeft = Offset(nowX - 9f * dp, 0f),
+            size = Size(18f * dp, plotBottom - 14f * dp),
+        )
+        drawRect(
+            nowColor.copy(alpha = 0.16f),
+            topLeft = Offset(nowX - 5f * dp, 0f),
+            size = Size(10f * dp, plotBottom - 14f * dp),
+        )
         drawRect(nowColor, topLeft = Offset(nowX - 1f * dp, 0f), size = Size(2f * dp, plotBottom - 14f * dp))
-        drawRect(ink, topLeft = Offset(nowX - 1f * dp, 0f), size = Size(2f * dp, plotBottom - 14f * dp), style = Stroke(width = 1f))
         textPaint.textSize = 10f * dp
         textPaint.color = android.graphics.Color.argb(255, 0x69, 0x73, 0x6C)
         drawContext.canvas.nativeCanvas.drawText(ScoringMath.formatTime(nowSec), nowX + 6f * dp, plotBottom - 3f * dp, textPaint)

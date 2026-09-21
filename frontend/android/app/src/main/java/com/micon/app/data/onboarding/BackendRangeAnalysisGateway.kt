@@ -53,7 +53,7 @@ class BackendRangeAnalysisGateway(private val api: BackendApi, private val owner
         meta["measurementId"] = submission.sessionId
         meta["measuredAt"] = link.measuredAt
         meta["attemptNo"] = 1
-        meta["contractVersion"] = "v1"
+        meta["contractVersion"] = if (submission.protocolVersion == RangeProtocol.FREE_VERSION) "v2" else "v1"
         meta["parentAnalysisId"] = submission.parentAnalysisId?.toLongOrNull()
         val accepted = api.submitRange(link.sessionId,
             MultipartBody.Part.createFormData("file", wav.name, wav.asRequestBody("audio/wav".toMediaType())),
@@ -68,7 +68,8 @@ class BackendRangeAnalysisGateway(private val api: BackendApi, private val owner
                 return RangeReport(submission.protocolVersion, notes, range.lowMidi?.toInt(), range.highMidi?.toInt(),
                     emptyList(), submission.stopReason, submission.lowerBoundaryStatus, submission.upperBoundaryStatus,
                     "available", analysisId = checkNotNull(link.analysisId).toString(), verification = "model_verified",
-                    backendSessionId = link.sessionId, sampling = submission.sampling)
+                    backendSessionId = link.sessionId, sampling = submission.sampling,
+                    stableLowMidi = range.stableLowMidi, stableHighMidi = range.stableHighMidi)
             }
             if (result.rangeStatus in setOf("FAILED", "INSUFFICIENT_DATA") ||
                 result.components.any { it.component == "RANGE" && it.status in setOf("FAILED", "INSUFFICIENT_DATA", "CANCELED") }) {

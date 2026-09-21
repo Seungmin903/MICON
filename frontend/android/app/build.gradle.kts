@@ -171,8 +171,11 @@ dependencies {
     // --- Image ---
     implementation(libs.coil.compose)
 
-    // --- Login (Google / Kakao / Naver). 필요할 때 주석 해제하고 MiconApplication 의 Kakao init 도 켠다 ---
-    // implementation(libs.bundles.login)
+    // --- Login (Google / Kakao / Naver) ---
+    implementation(libs.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
 
     // --- Test ---
     testImplementation(libs.junit)

@@ -36,13 +36,11 @@ class SongQueryRepositoryTest {
 		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0);
 
 		assertThat(repository.count("아이유")).isEqualTo(1);
-		assertThat(repository.findTrackIds(List.of("tj-00281")))
-			.containsEntry("tj-00281", "spotify-track-good-day");
 		assertThat(songs).singleElement().satisfies(song -> {
 			assertThat(song.songId()).isEqualTo("tj-00281");
 			assertThat(song.title()).isEqualTo("좋은 날");
 			assertThat(song.artists()).containsExactly("아이유");
-			assertThat(song.imageUrl()).isNull();
+			assertThat(song.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
 			assertThat(song.imageSourceUrl()).isNull();
 			assertThat(song.durationMs()).isEqualTo(233_000L);
 		});
@@ -50,16 +48,46 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void returnsAllSongsOnTheRequestedPageWhenQueryIsBlank() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, null);
 
-		assertThat(repository.count("")).isEqualTo(2);
+		assertThat(repository.countCatalog()).isEqualTo(2);
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("밤편지", "좋은 날");
 	}
 
 	@Test
+	void appliesOffsetToCatalogPagesWithoutChangingTheirOrder() {
+		assertThat(repository.findCatalogPage(1, 0, null)).extracting(SongResponse.Summary::title)
+			.containsExactly("밤편지");
+		assertThat(repository.findCatalogPage(1, 1, null)).extracting(SongResponse.Summary::title)
+			.containsExactly("좋은 날");
+	}
+
+	@Test
+	void filtersSongsByGenre() {
+		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, null, 22L);
+
+		assertThat(songs).extracting(SongResponse.Summary::title).containsExactly("밤편지");
+		assertThat(repository.count("", 22L)).isEqualTo(1);
+	}
+
+	@Test
+	void combinesGenreAndTextSearch() {
+		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0, null, 22L);
+
+		assertThat(songs).isEmpty();
+		assertThat(repository.count("아이유", 22L)).isZero();
+	}
+
+	@Test
+	void returnsNoSongsForAnUnknownGenre() {
+		assertThat(repository.findPage("", 20, 0, null, 999L)).isEmpty();
+		assertThat(repository.count("", 999L)).isZero();
+	}
+
+	@Test
 	void placesSongsMatchingTheUsersPreferredGenresFirst() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 30L);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, 30L);
 
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("좋은 날", "밤편지");
@@ -67,10 +95,20 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void keepsTheDefaultOrderWhenTheUserHasNoPreferredGenres() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, 31L);
+		List<SongResponse.Summary> songs = repository.findCatalogPage(20, 0, 31L);
 
 		assertThat(songs).extracting(SongResponse.Summary::title)
 			.containsExactly("밤편지", "좋은 날");
+	}
+
+	@Test
+	void keepsTitleTjNumberAndArtistSearchBehaviorOnTheSearchPath() {
+		assertThat(repository.findPage("좋은", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
+		assertThat(repository.findPage("33791", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
+		assertThat(repository.findPage("아이유", 20, 0)).extracting(SongResponse.Summary::songId)
+			.containsExactly("tj-00281");
 	}
 
 	@Test
@@ -78,6 +116,7 @@ class SongQueryRepositoryTest {
 		SongQueryRepository.SongDetailRow detail = repository.findDetail("tj-00281").orElseThrow();
 
 		assertThat(detail.originalKey()).isEqualTo("A♭ Major");
+		assertThat(detail.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
 		assertThat(detail.bpm()).isEqualByComparingTo("128.500");
 		assertThat(detail.practiceReady()).isTrue();
 		assertThat(repository.findArtists("tj-00281")).containsExactly("아이유");
@@ -160,8 +199,10 @@ class SongQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO SONG_SINGER VALUES (11, 'tj-00999', 1)");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (20, 'K-POP')");
 		jdbcTemplate.update("INSERT INTO GENRE VALUES (21, '발라드')");
+		jdbcTemplate.update("INSERT INTO GENRE VALUES (22, '인디')");
 		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 20, TRUE)");
 		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00281', 21, FALSE)");
+		jdbcTemplate.update("INSERT INTO SONG_GENRE VALUES ('tj-00999', 22, TRUE)");
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES
 			(100, 'tj-00281', 'COMPLETED', 'A♭ Major', 128.500, 56.00, 81.00, TIMESTAMP '2026-09-01 10:00:00'),

@@ -23,7 +23,9 @@ public record RecommendationResponse(
         List<Shelf> shelves,
         Long profileId,
         Long sourceSessionId,
-        Long profileVersion
+        Long profileVersion,
+        Long preferenceVersion,
+        Long currentPreferenceVersion
 ) {
     public record Shelf(String key, String title, String metric, int order, List<Song> items) {}
 

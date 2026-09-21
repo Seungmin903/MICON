@@ -167,7 +167,8 @@ def _separate_melband(input_wav: Path, output_dir: Path, device: str) -> tuple[P
 
 # ----------------------------------------------------------------------------- public API
 
-def separate(input_wav: Path, output_dir: Path, device: str, backend: str | None = None) -> tuple[Path, Path, dict[str, Any]]:
+def separate(input_wav: Path, output_dir: Path, device: str, backend: str | None = None,
+             *, allow_fallback: bool = True) -> tuple[Path, Path, dict[str, Any]]:
     """Return (vocals.wav, instrumental.wav, info).  `info` records the backend actually used."""
     backend = normalize_backend(backend)
     started = time.perf_counter()
@@ -178,6 +179,8 @@ def separate(input_wav: Path, output_dir: Path, device: str, backend: str | None
             info["seconds"] = round(time.perf_counter() - started, 1)
             return vocals, instrumental, info
         except Exception as error:  # noqa: BLE001 - any failure → keep the job alive with the old model
+            if not allow_fallback:
+                raise RuntimeError(f"Mel-Band 보컬 분리 실패: {type(error).__name__}: {str(error)[:200]}") from error
             fallback_reason = f"{type(error).__name__}: {str(error)[:200]}"
             started = time.perf_counter()
             vocals, instrumental = _separate_htdemucs(input_wav, output_dir, device)

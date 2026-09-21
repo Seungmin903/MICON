@@ -18,20 +18,23 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
 
     Optional<Recommendation> findFirstByUserIdOrderByGeneratedAtDescIdDesc(Long userId);
 
-    @Query("""
-            select r from Recommendation r
-            where r.user.id = :userId
-              and r.profileVersion = r.voiceProfile.profileVersion
-              and r.sourceSessionId = r.voiceProfile.session.id
-            order by r.generatedAt desc, r.id desc
-            """)
+    @Query(value = """
+            SELECT r.* FROM recommendation r
+            JOIN user_voice_profile profile ON profile.profile_id = r.profile_id
+            LEFT JOIN user_setting setting_value ON setting_value.user_id = r.user_id
+            WHERE r.user_id = :userId
+              AND r.profile_version = profile.profile_version
+              AND r.source_session_id = profile.session_id
+              AND r.preference_version = COALESCE(setting_value.preference_version, 0)
+            ORDER BY r.generated_at DESC, r.recommendation_id DESC
+            """, nativeQuery = true)
     List<Recommendation> findCurrentByUserId(@Param("userId") Long userId,
                                             org.springframework.data.domain.Pageable pageable);
 
     boolean existsByVoiceProfileIdAndStatus(Long profileId, RecommendationStatus status);
 
-    boolean existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndStatus(
-            Long profileId, Long profileVersion, Long sourceSessionId, RecommendationStatus status);
+    boolean existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndPreferenceVersionAndStatus(
+            Long profileId, Long profileVersion, Long sourceSessionId, Long preferenceVersion, RecommendationStatus status);
 
     List<Recommendation> findByStatusAndJobIdIsNotNullOrderByGeneratedAt(RecommendationStatus status);
 

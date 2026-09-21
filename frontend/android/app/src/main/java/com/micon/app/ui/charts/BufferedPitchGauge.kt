@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import kotlin.math.*
 
@@ -26,8 +27,9 @@ fun BufferedPitchGauge(target: Int, currentMidi: Double?, referenceMidi: Double?
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         PitchHoldRing(ScoringMath.midiName(target), hold, holdLabel = "인정 유지")
         Spacer(Modifier.height(8.dp))
-        Text(if (referenceMidi == null) "시작 높이를 잡고 있어요" else
-            "고정 중심 ${ScoringMath.midiName(referenceMidi)} · 목표 ${ScoringMath.midiName(target)}", color = Grey, fontSize = 12.sp)
+        val centerLabel = if (referenceMidi == null) "시작 높이를 잡고 있어요" else
+            "고정 중심 ${ScoringMath.midiName(referenceMidi)} · 목표 ${ScoringMath.midiName(target)}"
+        Text(sharpNoteText(centerLabel, 12.sp), color = Grey, fontSize = 12.sp)
         Canvas(Modifier.fillMaxWidth().height(110.dp).semantics {
             contentDescription = "음정 영역 ${zone ?: "준비"} · 정상 45 cents 이내 · 완충 100 cents 이내"
         }) {

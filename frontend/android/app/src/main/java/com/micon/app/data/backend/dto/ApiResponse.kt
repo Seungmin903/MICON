@@ -26,6 +26,12 @@ data class EmailAuthRequest(
     val deviceName: String? = "MICON Android",
 )
 
+data class GoogleAuthRequest(
+    val idToken: String,
+    val deviceId: String? = null,
+    val deviceName: String? = "MICON Android",
+)
+
 data class AuthResponse(
     val userId: Long,
     val email: String,
@@ -40,4 +46,5 @@ data class PasswordResetIssued(val requestId: String, val expiresAt: String)
 data class PasswordResetVerifyRequest(val requestId: String, val code: String)
 data class PasswordResetVerified(val resetToken: String, val expiresAt: String)
 data class PasswordResetChangeRequest(val newPassword: String)
+data class PasswordChangeRequest(val currentPassword: String, val newPassword: String)
 data class WithdrawRequest(val currentPassword: String)

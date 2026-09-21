@@ -27,10 +27,12 @@ class JdbcRecommendationPreferenceReaderTest {
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS singer (singer_id BIGINT PRIMARY KEY, name VARCHAR(100) NOT NULL)");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS user_genre_preference (user_id BIGINT, genre_id BIGINT)");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS user_singer_preference (user_id BIGINT, singer_id BIGINT)");
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS user_setting (user_id BIGINT PRIMARY KEY, preference_version BIGINT NOT NULL DEFAULT 0)");
         jdbcTemplate.update("DELETE FROM user_genre_preference");
         jdbcTemplate.update("DELETE FROM user_singer_preference");
         jdbcTemplate.update("DELETE FROM genre");
         jdbcTemplate.update("DELETE FROM singer");
+        jdbcTemplate.update("DELETE FROM user_setting");
     }
 
     @Test
@@ -39,11 +41,13 @@ class JdbcRecommendationPreferenceReaderTest {
         jdbcTemplate.update("INSERT INTO singer VALUES (1, '태연'), (2, '아이유')");
         jdbcTemplate.update("INSERT INTO user_genre_preference VALUES (7, 1), (7, 2)");
         jdbcTemplate.update("INSERT INTO user_singer_preference VALUES (7, 1), (7, 2)");
+        jdbcTemplate.update("INSERT INTO user_setting VALUES (7, 3)");
 
         RecommendationPreferenceReader.Preferences preferences = reader.findByUserId(7L);
 
         assertThat(preferences.genres()).containsExactly("록", "발라드");
         assertThat(preferences.artists()).containsExactly("아이유", "태연");
+        assertThat(preferences.version()).isEqualTo(3L);
     }
 
     @Test

@@ -5,7 +5,8 @@ import kotlin.math.ln
 /** Protocol values are duplicated in the Python evaluator and checked with shared fixtures. */
 object RangeProtocol {
     const val VERSION = "guided-range-v7"
-    fun supports(version: String) = version in setOf("guided-range-v1", "guided-range-v2", "guided-range-v3", "guided-range-v4", "guided-range-v5", "guided-range-v6", VERSION)
+    const val FREE_VERSION = "guided-range-v8"
+    fun supports(version: String) = version in setOf("guided-range-v1", "guided-range-v2", "guided-range-v3", "guided-range-v4", "guided-range-v5", "guided-range-v6", VERSION, FREE_VERSION)
     fun buffered(version: String) = version in setOf("guided-range-v5", "guided-range-v6", "guided-range-v7")
     const val FULL_HOLD_SECONDS = 2.5
     const val PASS_HOLD_SECONDS = 1.0
@@ -72,6 +73,13 @@ data class RangeAttempt(
 
 data class RegisterEvent(val t: Double, val register: String)
 
+/** Exact WAV windows for the target-free protocol. Failed retries are never listed. */
+data class FreeRangeStage(
+    val kind: String, val start: Double, val end: Double,
+    val startMidi: Double, val endpointMidi: Double,
+    val holdStart: Double, val holdEnd: Double,
+)
+
 fun RangeSubmission.needsPreparationRetry(): Boolean = protocolVersion == "guided-range-v1" && mode == "basic" &&
     stopReason in setOf("anchor_not_matched", "input_quality", "model_limit") &&
     attempts.none { it.clientStatus == "passed" }
@@ -85,6 +93,7 @@ data class RangeSubmission(
     val lowerBoundaryStatus: String, val upperBoundaryStatus: String,
     val attempts: List<RangeAttempt>, val registerEvents: List<RegisterEvent>, val keepOriginal: Boolean = false,
     val sampling: RangeSampling? = null,
+    val stages: List<FreeRangeStage> = emptyList(),
 )
 
 data class RangeMap(val overall: List<Int>? = null, val stable: List<Int>? = null,
@@ -105,6 +114,8 @@ data class RangeReport(
     val sampling: RangeSampling? = null,
     val rangeMap: RangeMap? = null,
     val backendSessionId: Long? = null,
+    val stableLowMidi: Double? = null,
+    val stableHighMidi: Double? = null,
 )
 
 data class RangeAnalysis(val analysisId: String, val status: String, val error: String? = null)

@@ -11,9 +11,14 @@ public final class VoiceSessionResponse {
                           LocalDateTime expiresAt, Range range) {}
     public record Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
                         String qualityStatus,
-                        @com.fasterxml.jackson.annotation.JsonRawValue String noteResults) {
+                        @com.fasterxml.jackson.annotation.JsonRawValue String noteResults,
+                        String protocolVersion, BigDecimal stableLowMidi, BigDecimal stableHighMidi) {
         public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus, String qualityStatus) {
-            this(lowMidi, highMidi, measurementStatus, qualityStatus, null);
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, null, null, null, null);
+        }
+        public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
+                     String qualityStatus, String noteResults) {
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, noteResults, null, null, null);
         }
     }
 }

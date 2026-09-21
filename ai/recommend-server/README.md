@@ -105,7 +105,7 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 | `position` | 목록 위치 1~. **`final_score` 내림차순**이라 앞일수록 적합. 화면의 "적합할수록 크게" 규칙과 같은 뜻. 클라이언트 재정렬 금지 |
 | `song_id` | BE JSON 추천에서는 숫자 DB song_id. 활성 카탈로그 짝표로 변환하며 TJ 번호로 추측하지 않는다. 로컬 데모는 문자열 ID도 허용 |
 | `shelf`, `metrics` | 소속 섹션 key 와 그 섹션의 표시 지표(`coverage0`·`center0`·`artist_similarity`·`high_ratio0`·`genre` …) |
-| `axis`, `label` | `voice` 섹션에서만. 어떤 할당으로 뽑혔나 (`two-axis-quota-v1`, 2:2:1). `ECAPA`(목소리 물성) · `SINGER_BYOL`(부르는 방식) · `CONSENSUS`(두 축 모두 상위 10위 안). 다른 섹션은 null |
+| `axis`, `label` | `voice` 섹션은 `final-score-v1`로 축별 할당 없이 최종 점수 순으로 뽑는다. 따라서 `axis`는 null이고 `label`은 `최종 점수 순`이다. 다른 섹션도 `axis`는 null이다. |
 | `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |
 | `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(`-6..+5`반음). 둘은 함께 null이거나 같은 키여야 한다 |
 | `final_score` | 최종 점수. 클라이언트 계산 금지 |
@@ -115,6 +115,28 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 게이트 규칙: `genres` 없음 → 전체 언어. `팝`→en, 그 외 장르→ko. 카탈로그 언어는 ISO 639-2(kor/eng/jpn), mul·zxx 는 항상 통과. 값은 `timbre_recommender/composition.py` 상단 상수.
 
 ## 테스트
+
+### TIMBRE MR 혼입 게이트
+
+TIMBRE 녹음은 임베딩 전에 `mr_detection.detect_mr_suspected` 로 한 번 판정한다. 분류기가 아니라 에너지 게이트이며,
+스피커로 MR 을 튼 게 분명한 녹음만 느린 보컬 분리 경로로 보낸다. 0.5초 창(0.25초 hop) 의 단시간 RMS 에서
+
+- `lowEnergyFloorRatio = p20/p80 >= 0.30` — 노래하지 않는 구간의 음량이 노래 구간만큼 크다
+- `dynamicRangeP95P10 = p95/p10 <= 8.0` — 녹음 전체의 음량 변화 폭이 좁다
+
+두 조건을 **모두** 만족할 때만 `SUSPECTED` 다. 한쪽만 걸리는 헤드폰 녹음에 분리 지연을 얹지 않기 위한 것이다.
+임계값은 `MICON_MR_ENERGY_FLOOR_RATIO`, `MICON_MR_MAX_DYNAMIC_RANGE` 로 조정한다.
+
+판정과 근거는 `job.json` 의 `mrDetection` 에 남는다(`status`, `displayLabel`, `reasonCodes`, `metrics`,
+`embeddingInput`, `preprocessingVersion`, 분리한 경우 `separation`). 추천 실험실 사이드바의 `MR 의심` 배지가 이 기록을 읽는다.
+
+- `SUSPECTED` → 44.1kHz PCM16 으로 변환 후 Mel-Band 로 분리하고 보컬만 임베딩한다. `preprocessingVersion=sep-melband-kim-v1`.
+- 그 외 → 원본을 그대로 임베딩한다. `preprocessingVersion=raw-clean-v1`.
+- 콜백 `modelVersion` 은 `<checkpoint_sha256>+<preprocessingVersion>` 이라 어느 입력으로 만든 임베딩인지 사후에 구분된다.
+- 사용자 녹음 분리에는 `allow_fallback=False` 를 쓴다. Mel-Band 가 실패하면 HTDemucs 로 조용히 내려가지 않고,
+  실패 사유를 `mrDetection.separation` 에 남긴 뒤 원본 녹음으로 임베딩을 계속한다.
+
+
 
 ### 가수 ID 로컬 스냅샷 및 표시용 가수 이름
 

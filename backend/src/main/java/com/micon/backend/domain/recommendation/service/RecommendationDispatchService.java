@@ -40,7 +40,7 @@ public class RecommendationDispatchService {
         RecommendationLifecycleService.Created created = lifecycle.create(userId, input, requestedMode);
         try {
             RecommendationJobGateway.Result result = gateway.submit(
-                    new RecommendationJobGateway.Command(input, requestedMode, TOP_K));
+                    new RecommendationJobGateway.Command(created.recommendationId(), input, requestedMode, TOP_K));
             if (result == null || result.jobId() == null || result.jobId().isBlank()) {
                 throw new IllegalStateException("AI response does not contain jobId");
             }

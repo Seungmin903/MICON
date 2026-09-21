@@ -72,7 +72,7 @@ class RangeCopyCleanupTest {
         for(fontScale in listOf(1f,1.6f)) {
             compose.runOnIdle { scale.value=fontScale }
             compose.onNodeWithTag("range-hold-feedback").assertTextEquals("현재 음을 유지해주세요")
-            compose.onNodeWithText("C♯4 듣기").performScrollTo().assertIsDisplayed().performClick()
+            compose.onNodeWithText("C#4 듣기").performScrollTo().assertIsDisplayed().performClick()
             listOf("현재 음:","지금 인정 유지","현재 합산","최장 인정","이탈 감점","고정 중심", "정상 ±45",
                 "가성으로 전환했어요","측정 중 판정은","빈 건반은","지금 높이를","고음 탐색","경과",
                 "지금 부를 음", "초록 건반은").forEach {
@@ -95,7 +95,7 @@ class RangeCopyCleanupTest {
         compose.onNodeWithTag("range-hold-feedback").assertTextEquals("통과")
         compose.runOnIdle { state.value=state.value.copy(waitingForCue=true) }
         compose.onNodeWithTag("range-hold-feedback").assertTextEquals("")
-        compose.onNodeWithText("C♯4 재생 중…").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("C#4 재생 중…").performScrollTo().assertIsNotEnabled()
     }
     @Test fun reportsKeepMetricsAndCardsWithoutExplanatoryCopy() {
         val m=RangeMetrics(10.0,13.4,.8,1.0,.58,continuousHoldSeconds=.58,actualMidi=51.9,creditedMidi=52,

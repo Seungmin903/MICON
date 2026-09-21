@@ -21,7 +21,7 @@ import java.io.File
 
 class OnboardingSongGuideScreenTest {
     @get:Rule val compose = createComposeRule()
-    @Test fun linesAccumulateAndButtonWaitsThenFadeBlocksDuplicateNavigation() {
+    @Test fun timbreGuideUsesTheNewCopyAndFadeBlocksDuplicateNavigation() {
         var nexts = 0
         var finished = 0
         var backs = 0
@@ -31,32 +31,22 @@ class OnboardingSongGuideScreenTest {
             CompositionLocalProvider(LocalOnboardingChrome provides chrome,
                 LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
                 Box(Modifier.requiredSize(360.dp, 640.dp)) {
-                    OnboardingSongGuideScreen(onBack = { backs++ }, onNext = { nexts++; true },
+                    OnboardingSongGuideScreen(nickname = "유림", onBack = { backs++ }, onNext = { nexts++; true },
                         onFinished = { finished++ })
                 }
             }
         } }
         compose.mainClock.advanceTimeBy(350)
-        compose.onNodeWithText("잘했어요!").assertIsDisplayed()
-        compose.onNodeWithText("이제 노래 하나를 선택해주세요,").assertDoesNotExist()
-        compose.onNodeWithText("다음으로").assertDoesNotExist()
-        compose.mainClock.advanceTimeBy(1500)
-        compose.onNodeWithText("잘했어요!").assertIsDisplayed()
-        compose.onNodeWithText("이제 노래 하나를 선택해주세요,").assertIsDisplayed()
-        compose.onNodeWithText("노래를 불러서 테스트를 진행할게요").assertDoesNotExist()
-        compose.mainClock.advanceTimeBy(1500)
-        compose.mainClock.advanceTimeBy(400)
-        listOf("잘했어요!", "이제 노래 하나를 선택해주세요,", "노래를 불러서 테스트를 진행할게요", "다음으로").forEach {
-            compose.onNodeWithText(it).assertIsDisplayed()
-        }
+        compose.onNodeWithText("지금부터는 유림님이 노래할때 어떤 목소리를 가졌는지 분석할거에요").assertIsDisplayed()
+        compose.onNodeWithText("노래 선택하기").assertIsDisplayed()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         File(context.getExternalFilesDir(null), "onboarding-song-guide-large-font.png").outputStream().use {
             compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
         compose.onNodeWithContentDescription("뒤로").performClick()
-        compose.onNodeWithText("다음으로").performClick()
+        compose.onNodeWithText("노래 선택하기").performClick()
         compose.mainClock.advanceTimeByFrame()
-        compose.onNodeWithText("다음으로").assertIsNotEnabled().performTouchInput { click() }
+        compose.onNodeWithText("노래 선택하기").assertIsNotEnabled().performTouchInput { click() }
         compose.mainClock.advanceTimeBy(150)
         compose.onNodeWithTag("onboarding-song-guide").assertExists()
         compose.runOnIdle { assertTrue(chrome.dark); assertEquals(0, finished) }
@@ -73,20 +63,35 @@ class OnboardingSongGuideScreenTest {
         var navigated = 0
         val error = mutableStateOf<String?>(null)
         compose.setContent { MiconTheme {
-            OnboardingSongGuideScreen(error.value, onBack = {}, onNext = {
+            OnboardingSongGuideScreen(error = error.value, onBack = {}, onNext = {
                 attempts++
                 error.value = if (attempts == 1) "저장 실패" else null
                 attempts > 1
             }, onFinished = { navigated++ })
         } }
         compose.mainClock.advanceTimeBy(4000)
-        compose.onNodeWithText("다음으로").performClick()
+        compose.onNodeWithText("노래 선택하기").performClick()
         compose.onNodeWithText("저장 실패").assertIsDisplayed()
-        compose.onNodeWithText("잘했어요!").assertIsDisplayed()
-        compose.onNodeWithText("노래를 불러서 테스트를 진행할게요").assertIsDisplayed()
+        compose.onNodeWithText("지금부터는 노래할때 어떤 목소리를 가졌는지 분석할거에요").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, navigated) }
-        compose.onNodeWithText("다음으로").performClick()
+        compose.onNodeWithText("노래 선택하기").performClick()
         compose.mainClock.advanceTimeBy(400)
         compose.runOnIdle { assertEquals(2, attempts); assertEquals(1, navigated) }
+    }
+
+    @Test fun stageGuideFitsLargeFontAndUsesGenericCopyWithoutNickname() {
+        val chrome = OnboardingChromeState()
+        compose.setContent { MiconTheme {
+            CompositionLocalProvider(LocalOnboardingChrome provides chrome,
+                LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
+                Box(Modifier.requiredSize(360.dp, 640.dp)) {
+                    OnboardingStageGuideScreen(analysisGuideCopy(null), "다음", "onboarding-analysis-guide",
+                        onBack = {}, onNext = { false }, onFinished = {})
+                }
+            }
+        } }
+        compose.onNodeWithText("두 단계에 따라 목소리를 분석할거에요").assertIsDisplayed()
+        compose.onNodeWithText("다음").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(chrome.dark) }
     }
 }

@@ -33,6 +33,7 @@ import com.micon.app.ui.charts.GuidedRadarHexagon
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.RangeNoteNames
 import com.micon.app.ui.common.ReportNoteNames
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.theme.*
 import java.util.Locale
@@ -52,7 +53,6 @@ fun RangeReportCards(report: RangeReport, onExtend: (() -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         RangeResultCards(report)
         AdditionalVoiceReportCards(report)
-        if (onExtend != null && report.availability == "available" && report.lowMidi != null && report.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) OutlinePurpleButton("빈 음·경계 더 확인하기", onExtend, Modifier.fillMaxWidth())
     }
 }
 
@@ -69,16 +69,18 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
                     else -> "기본 결과"
                 } + " · 측정한 음 " + s.measuredNoteCount + "개", fontSize = 12.sp, color = Grey)
             }
-            Text(if (report.lowMidi != null && report.highMidi != null)
+            val rangeLabel = if (report.lowMidi != null && report.highMidi != null)
                 (if (reportTab) ReportNoteNames.range(report.lowMidi, report.highMidi)
-                    else RangeNoteNames.range(report.lowMidi, report.highMidi)) else "확정된 안정 음역이 없어요",
+                    else RangeNoteNames.range(report.lowMidi, report.highMidi)) else "확정된 안정 음역이 없어요"
+            Text(sharpNoteText(rangeLabel, 24.sp),
                 modifier = Modifier.fillMaxWidth(), fontSize = 24.sp, lineHeight = 34.sp,
                 fontWeight = FontWeight.SemiBold, color = Purple,
                 style = TextStyle.Default.copy(lineBreak = LineBreak.Heading))
         }
         MiconCard(Modifier.testTag("range-map-card")) {
             Text("음역대 지도", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            val relative = report.protocolVersion == "guided-range-v4" || com.micon.app.range.RangeProtocol.buffered(report.protocolVersion)
+            val relative = report.protocolVersion == "guided-range-v4" || com.micon.app.range.RangeProtocol.buffered(report.protocolVersion) ||
+                report.protocolVersion == com.micon.app.range.RangeProtocol.FREE_VERSION
             val rangeMap = report.continuousRangeMap()
             val rows = if (relative) listOfNotNull(
                 rangeMap.overall?.let { RangeRow("전체 음역", it[0], it[1], PurpleMid) },
@@ -100,13 +102,10 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
                 labelWidth = 108.dp, noteCells = true,
                 labelOf = if (reportTab) ReportNoteNames::note else RangeNoteNames::short)
             if (reportTab) {
-                Spacer(Modifier.height(18.dp))
-                Text("음역", color = Grey, fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
-                GuidedRangeKeyboard(report.notes, noteName = ReportNoteNames::note)
+                GuidedRangeKeyboard(report.notes, noteName = ReportNoteNames::note, showPassedLegend = false)
             }
         }
-        RangeStabilityCard(report, overview = reportTab)
     }
 }
 
@@ -212,7 +211,8 @@ private fun RangeStabilityLegend() {
 
 @Composable
 private fun RangeNoteDetails(note: RangeNote) {
-    Text("${RangeNoteNames.full(note.midi)} · ${noteStatus(note.status)}", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+    Text(sharpNoteText("${RangeNoteNames.full(note.midi)} · ${noteStatus(note.status)}", 18.sp),
+        fontSize = 18.sp, fontWeight = FontWeight.Bold,
         style = TextStyle.Default.copy(lineBreak = LineBreak.Heading))
     if (note.status in setOf("unmeasured", "insufficient_quality", "needs_review")) {
         Text(when (note.status) {

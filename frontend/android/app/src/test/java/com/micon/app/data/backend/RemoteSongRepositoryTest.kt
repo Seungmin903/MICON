@@ -67,6 +67,14 @@ class RemoteSongRepositoryTest {
         assertNull(song.imageUrl)
     }
 
+    @Test fun `song list sends the selected genre id`() = runBlocking {
+        server.enqueue(ok("""{"content":[],"page":0,"size":20,"totalElements":0,"totalPages":0}"""))
+
+        repo.search(query = "아이유", page = 0, size = 20, genreId = 21)
+
+        assertEquals("/api/v1/songs?query=%EC%95%84%EC%9D%B4%EC%9C%A0&genreId=21&page=0&size=20", server.takeRequest().path)
+    }
+
     @Test fun `song detail maps analysis and readiness`() = runBlocking {
         server.enqueue(ok("""{"songId":7,"title":"빈잔","artists":["남진"],"albumName":"남진 골든","imageUrl":"https://img/7.jpg","releaseDate":"1982-03-01","durationMs":200000,"originalKey":"E♭ major","bpm":96.5,"genres":["트로트","발라드"],"lowestMidi":50.0,"highestMidi":69.0,"favorite":true,"practiceReady":true}"""))
         val detail = checkNotNull(repo.detail("7"))
@@ -125,6 +133,20 @@ class RemoteSongRepositoryTest {
         try { repo.practiceAssets("1", 3); fail("422 must throw") } catch (e: UnsupportedPracticeKeyException) {
             assertNotNull(e.message)
         }
+    }
+
+    @Test fun `instrumental uses lightweight mr endpoint and keeps expiration`() = runBlocking {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        server.enqueue(ok("""{"songId":"$id","selectedKey":-3,"instrumental":{
+            "mediaId":91,"filePath":"catalog/x/instrumental/$id/instrumental_key-3.opus","mimeType":"audio/ogg",
+            "fileBytes":4100000,"sha256":"abc","playbackUrl":"https://s3.example/key-3",
+            "playbackUrlExpiresAt":"2026-09-21T02:00:00Z"}}"""))
+
+        val media = repo.instrumental(id, -3)
+
+        assertEquals("/api/v1/songs/$id/mr?selectedKey=-3", server.takeRequest().path)
+        assertEquals("https://s3.example/key-3", media.playbackUrl)
+        assertEquals("2026-09-21T02:00:00Z", media.playbackUrlExpiresAt)
     }
 
     /** karaokeNotes 의 기본 구현이 409 를 null 로 바꾸는지 (서버에 409 응답을 하나 더 준비해 확인) */

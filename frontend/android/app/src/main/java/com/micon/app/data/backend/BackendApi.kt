@@ -4,8 +4,10 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.AuthResponse
 import com.micon.app.data.backend.dto.CurrentUser
 import com.micon.app.data.backend.dto.EmailAuthRequest
+import com.micon.app.data.backend.dto.GoogleAuthRequest
 import com.micon.app.data.backend.dto.PageDto
 import com.micon.app.data.backend.dto.PracticeAssetsDto
+import com.micon.app.data.backend.dto.InstrumentalDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
 import com.micon.app.data.backend.dto.TokenPair
@@ -64,6 +66,9 @@ interface BackendApi {
     @POST("auth/login")
     suspend fun login(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
+    @POST("auth/google")
+    suspend fun googleLogin(@Body body: GoogleAuthRequest): Response<ApiResponse<AuthResponse>>
+
     @POST("auth/signup")
     suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
 
@@ -88,15 +93,23 @@ interface BackendApi {
     @HTTP(method = "DELETE", path = "users/me", hasBody = true)
     suspend fun withdraw(@Body body: WithdrawRequest): Response<ApiResponse<Any>>
 
+    @PATCH("users/me/password")
+    suspend fun changePassword(@Body body: PasswordChangeRequest): Response<ApiResponse<Any>>
+
     /** Refresh has no JSON body; its bearer credential is the refresh token. */
     @POST("auth/refresh")
     fun refreshTokenSync(@Header("Authorization") authorization: String): Call<ApiResponse<TokenPair>>
 
     // ---- 곡 카탈로그 (SongController · PracticeAssetController) ----
 
-    /** 제목·가수 검색. size 최대 100. */
+    /** 제목·가수 검색. genreId가 있으면 해당 장르에 연결된 곡만 반환한다. size 최대 100. */
     @GET("songs")
-    suspend fun songs(@Query("query") query: String, @Query("page") page: Int, @Query("size") size: Int): Response<ApiResponse<PageDto<SongSummaryDto>>>
+    suspend fun songs(
+        @Query("query") query: String,
+        @Query("genreId") genreId: Long? = null,
+        @Query("page") page: Int,
+        @Query("size") size: Int,
+    ): Response<ApiResponse<PageDto<SongSummaryDto>>>
 
     @GET("songs/{songId}")
     suspend fun song(@Path("songId") songId: String): Response<ApiResponse<SongDetailDto>>
@@ -104,6 +117,10 @@ interface BackendApi {
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+
+    /** 키별 반주와 만료 URL만 조회한다. */
+    @GET("songs/{songId}/mr")
+    suspend fun instrumental(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int): Response<ApiResponse<InstrumentalDto>>
 
     // ---- 추천·곡 적합도 (RecommendationController · RecommendationQueryController · SongFitController) ----
 
@@ -160,7 +177,7 @@ interface BackendApi {
     @DELETE("setlist/{setlistId}")
     suspend fun deleteSetlist(@Path("setlistId") setlistId: Long): Response<ApiResponse<Any>>
 
-    /** 찜한 곡만 추가된다(400 SONG_NOT_FAVORITED). 바뀐 상세를 돌려준다. */
+    /** 찜 여부와 관계없이 곡을 추가하고 바뀐 상세를 돌려준다. */
     @POST("setlist/{setlistId}/{songId}")
     suspend fun addSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: String): Response<ApiResponse<SetlistDetailDto>>
 

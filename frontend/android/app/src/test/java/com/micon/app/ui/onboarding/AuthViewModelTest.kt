@@ -131,6 +131,17 @@ class AuthViewModelTest {
         assertEquals(0, auth.loginCalls)
     }
 
+    @Test fun `google completion authenticates`() = runTest {
+        val auth = FakeAuth()
+        val model = AuthViewModel(auth)
+
+        model.submitGoogle("google-id-token")
+        advanceUntilIdle()
+
+        assertTrue(model.state.value.authenticated)
+        assertEquals(1, auth.loginCalls)
+    }
+
     private fun signedIn() = MemoryTokenStore().apply { saveSession(42, "access", "refresh") }
 
     private class FakeAuth : AuthRepository {
@@ -143,6 +154,10 @@ class AuthViewModelTest {
         override suspend fun login(email: String, password: String) {
             loginCalls++
             loginWait?.await()
+            loginFailure?.let { throw it }
+        }
+        override suspend fun loginWithGoogle(idToken: String) {
+            loginCalls++
             loginFailure?.let { throw it }
         }
         override suspend fun signup(email: String, password: String) { signupCalls++ }

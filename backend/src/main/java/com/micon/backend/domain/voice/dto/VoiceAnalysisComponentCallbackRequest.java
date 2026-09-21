@@ -26,6 +26,8 @@ public record VoiceAnalysisComponentCallbackRequest(
         String protocolVersion,
         BigDecimal lowMidi,
         BigDecimal highMidi,
+        BigDecimal stableLowMidi,
+        BigDecimal stableHighMidi,
         JsonNode noteResults,
         String measurementStatus,
         String qualityStatus,
@@ -33,6 +35,17 @@ public record VoiceAnalysisComponentCallbackRequest(
         String catalogVersion,
         List<Artist> artists
 ) {
+    public VoiceAnalysisComponentCallbackRequest(String requestId, String jobId, String component,
+            Status status, String modelKey, String modelVersion, Integer dimension, List<Double> embedding,
+            JsonNode segmentInfo, JsonNode qualityMetrics, String failureCode, String failureReason,
+            LocalDateTime processedAt, Integer attemptNo, String measurementId, String protocolVersion,
+            BigDecimal lowMidi, BigDecimal highMidi, JsonNode noteResults, String measurementStatus,
+            String qualityStatus, Long resultVersion, String catalogVersion, List<Artist> artists) {
+        this(requestId, jobId, component, status, modelKey, modelVersion, dimension, embedding,
+                segmentInfo, qualityMetrics, failureCode, failureReason, processedAt, attemptNo,
+                measurementId, protocolVersion, lowMidi, highMidi, null, null, noteResults,
+                measurementStatus, qualityStatus, resultVersion, catalogVersion, artists);
+    }
     public enum Status {
         RUNNING,
         COMPLETED,

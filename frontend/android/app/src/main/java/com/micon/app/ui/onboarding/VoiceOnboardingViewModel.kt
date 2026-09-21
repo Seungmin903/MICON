@@ -32,7 +32,9 @@ data class VoiceOnboardingState(
     val rangeAnalysisError: String? = null,
     val songGuideCompleted: Boolean = false,
     val songGuideError: String? = null,
-    val embeddingMap: EcapaEmbeddingMap? = null,
+    val analysisGuideCompleted: Boolean = false,
+    val rangeGuideCompleted: Boolean = false,
+    val stageGuideError: String? = null,
 ) {
     val canSelectSong get() = range != null || rangePreview != null
     val waitingForRange get() = rangeAnalysisStatus == OnboardingRangeStatus.RUNNING
@@ -75,15 +77,14 @@ class VoiceOnboardingViewModel(
         recording = if (expired) null else persistence.recording(restored.recordingId),
         expired = expired, serviceAvailable = gateway.available, rangePreview = restoredRangePreview,
         songGuideCompleted = restored.songGuideCompleted,
+        analysisGuideCompleted = restored.analysisGuideCompleted,
+        rangeGuideCompleted = restored.rangeGuideCompleted,
         error = if (expired) "이전 분석이 만료됐어요. 음역부터 새로 측정해 주세요." else null))
     val state = mutableState.asStateFlow()
     private var job: Job? = null
     private var recoveryJob: Job? = null
     private var artistJob: Job? = null
     private var rangeJob: Job? = null
-    private var embeddingJob: Job? = null
-    private var embeddingSessionId: Long? = null
-    private var embeddingGeneration = 0
     private var rangeGeneration = 0
     private var autoAnalyzedRecordingId: String? = null
     private var recoveryGeneration = 0
@@ -134,11 +135,11 @@ class VoiceOnboardingViewModel(
         stopRangeAnalysis()
         stopRecovery()
         job?.cancel()
-        clearEmbeddingMap()
         serverSessionId = null
         mutableState.update { it.copy(range = null, rangePreview = preview, rangeMeasurementId = measurementId,
             rangeAnalysisStatus = OnboardingRangeStatus.NOT_STARTED, rangeAnalysisError = null,
             progress = null, busy = false, error = null, songGuideError = null,
+            analysisGuideCompleted = true, rangeGuideCompleted = true, stageGuideError = null,
             songGuideCompleted = restored.songGuideCompleted && it.draftId == restored.draftId &&
                 restoredPendingRange?.submission?.sessionId == measurementId) }
         persist()
@@ -151,8 +152,7 @@ class VoiceOnboardingViewModel(
         if (disposed || !isCurrentOwner() || checkExpired() || !current.canSelectSong || current.saving) return false
         if (current.songGuideCompleted) return true
         return try {
-            persistence.write(VoiceOnboardingDraft(current.draftId, current.revision, current.recording?.id,
-                expiresAtMillis, serverSessionId, songGuideCompleted = true))
+            persistence.write(current.toDraft(songGuideCompleted = true))
             mutableState.update { it.copy(songGuideCompleted = true, songGuideError = null) }
             true
         } catch (_: Exception) {
@@ -161,35 +161,24 @@ class VoiceOnboardingViewModel(
         }
     }
 
-    /** A result session is queried once, independently of artist polling and recomposition. */
-    fun loadEmbeddingMap() {
-        val owner = ownerId ?: return
-        val current = state.value
-        val progress = current.progress ?: return
-        val session = progress.sessionId.toLongOrNull()?.takeIf { it > 0 } ?: return
-        if (disposed || !isCurrentOwner() || current.expired || progress.ecapa != ComponentStatus.COMPLETED ||
-            current.range == null || current.range.backendSessionId?.let { it != session } == true ||
-            embeddingSessionId == session) return
-        clearEmbeddingMap()
-        embeddingSessionId = session
-        val generation = embeddingGeneration
-        val draftId = current.draftId
-        embeddingJob = viewModelScope.launch {
-            val fetched = try { gateway.ecapaEmbeddingMap(owner, session)?.usableFor(session) }
-                catch (e: CancellationException) { throw e }
-                catch (_: Exception) { null }
-            if (!disposed && isCurrentOwner() && !state.value.expired && embeddingGeneration == generation &&
-                state.value.draftId == draftId && state.value.progress?.sessionId == session.toString()) {
-                mutableState.update { it.copy(embeddingMap = fetched) }
-            }
-        }
-    }
+    fun completeAnalysisGuide(): Boolean = completeStageGuide(analysis = true)
 
-    private fun clearEmbeddingMap() {
-        embeddingGeneration++
-        embeddingJob?.cancel()
-        embeddingSessionId = null
-        mutableState.update { it.copy(embeddingMap = null) }
+    fun completeRangeGuide(): Boolean = completeStageGuide(analysis = false)
+
+    private fun completeStageGuide(analysis: Boolean): Boolean {
+        val current = state.value
+        if (disposed || !isCurrentOwner() || checkExpired() || current.saving) return false
+        if (analysis && current.analysisGuideCompleted || !analysis && current.rangeGuideCompleted) return true
+        return try {
+            val next = if (analysis) current.copy(analysisGuideCompleted = true, stageGuideError = null)
+                else current.copy(analysisGuideCompleted = true, rangeGuideCompleted = true, stageGuideError = null)
+            persistence.write(next.toDraft())
+            mutableState.value = next
+            true
+        } catch (_: Exception) {
+            mutableState.update { it.copy(stageGuideError = "진행 상태를 저장하지 못했어요. 다시 시도해 주세요.") }
+            false
+        }
     }
 
     fun retryRangeAnalysis() {
@@ -209,7 +198,7 @@ class VoiceOnboardingViewModel(
             try {
                 val report = analysis.submit()
                 if (!current() || checkExpired()) return@launch
-                check(report.protocolVersion == RangeProtocol.VERSION && report.availability == "available" && report.lowMidi != null && report.highMidi != null &&
+                check(RangeProtocol.supports(report.protocolVersion) && report.availability == "available" && report.lowMidi != null && report.highMidi != null &&
                     report.lowMidi in 0..127 && report.highMidi in report.lowMidi..127)
                 check(if (ownerId == null) report.verification == "device_measured" else
                     report.verification == "model_verified" && (report.backendSessionId ?: 0) > 0) {
@@ -257,7 +246,6 @@ class VoiceOnboardingViewModel(
         job?.cancel()
         if (state.value.recording?.id != recording.id) {
             autoAnalyzedRecordingId = null
-            clearEmbeddingMap()
         }
         mutableState.update { it.copy(recording = recording, revision = it.revision + 1,
             progress = null, busy = false, saving = false, saved = false, savedReceipt = null, error = null) }
@@ -382,7 +370,6 @@ class VoiceOnboardingViewModel(
         if (state.value.saving || !isCurrentOwner()) return
         stopRecovery()
         job?.cancel()
-        clearEmbeddingMap()
         autoAnalyzedRecordingId = null
         persistence.deleteRecording(state.value.recording?.id)
         mutableState.update { it.copy(recording = null, progress = null, busy = false, saved = false, savedReceipt = null,
@@ -395,7 +382,6 @@ class VoiceOnboardingViewModel(
         stopRecovery()
         job?.cancel()
         stopRangeAnalysis()
-        clearEmbeddingMap()
         autoAnalyzedRecordingId = null
         val draft = persistence.startNewDraft()
         expiresAtMillis = null
@@ -409,7 +395,6 @@ class VoiceOnboardingViewModel(
         stopRecovery()
         job?.cancel()
         stopRangeAnalysis()
-        clearEmbeddingMap()
         autoAnalyzedRecordingId = null
         serverSessionId = null
         mutableState.update { it.copy(revision = it.revision + 1, busy = false, saving = false,
@@ -431,9 +416,21 @@ class VoiceOnboardingViewModel(
 
     private fun persist() {
         val current = state.value
-        if (!disposed && isCurrentOwner()) persistence.write(VoiceOnboardingDraft(current.draftId, current.revision,
-            current.recording?.id, expiresAtMillis, serverSessionId, current.songGuideCompleted))
+        if (!disposed && isCurrentOwner()) persistence.write(current.toDraft())
     }
+
+    private fun VoiceOnboardingState.toDraft(
+        songGuideCompleted: Boolean = this.songGuideCompleted,
+    ) = VoiceOnboardingDraft(
+        draftId = draftId,
+        revision = revision,
+        recordingId = recording?.id,
+        expiresAtMillis = expiresAtMillis,
+        serverSessionId = serverSessionId,
+        songGuideCompleted = songGuideCompleted,
+        analysisGuideCompleted = analysisGuideCompleted,
+        rangeGuideCompleted = rangeGuideCompleted,
+    )
 
     private fun stopRecovery() {
         recoveryGeneration++
@@ -455,5 +452,5 @@ class VoiceOnboardingViewModel(
     }
 
     override fun onCleared() { disposed = true; recoveryJob?.cancel(); artistJob?.cancel(); rangeJob?.cancel();
-        embeddingJob?.cancel(); job?.cancel(); onDispose() }
+        job?.cancel(); onDispose() }
 }

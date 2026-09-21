@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.micon.app.ui.design.organisms.FloatingNavBar
+import com.micon.app.ui.design.organisms.LocalTabBarPadding
+import com.micon.app.ui.design.tokens.MiconSpace
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +46,14 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.core.network.SessionEvents
+import com.micon.app.BuildConfig
+import com.micon.app.ui.design.catalog.DesignCatalogScreen
 import com.micon.app.ui.evaluation.PracticeHistoryScreen
+import com.micon.app.ui.holo.HoloScreen
+import com.micon.app.ui.analysis.AnalysisScreen
+import com.micon.app.ui.holo.VoiceResultScreen
+import com.micon.app.ui.holo.holoViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micon.app.ui.favorites.FavoritesScreen
 import com.micon.app.ui.favorites.SetlistScreen
 import com.micon.app.ui.onboarding.LoginScreen
@@ -54,27 +62,17 @@ import com.micon.app.ui.onboarding.PreferenceSurveyScreen
 import com.micon.app.ui.onboarding.SignupScreen
 import com.micon.app.ui.onboarding.SplashScreen
 import com.micon.app.ui.practice.PracticeScreen
-import com.micon.app.ui.recommend.RecommendScreen
+import com.micon.app.ui.recommend.RecommendDeckScreen
 import com.micon.app.ui.recommend.SongCarousel
-import com.micon.app.ui.report.QuickAnalysisScreen
-import com.micon.app.ui.report.VoiceReportScreen
-import com.micon.app.ui.singanalysis.SingAnalysisScreen
-import com.micon.app.ui.singanalysis.SingAnalysisSongPickerScreen
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
+import com.micon.app.ui.settings.ChangePasswordScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
-import com.micon.app.ui.songdetail.SongDetailColors
-import com.micon.app.ui.songdetail.SongDetailSystemBars
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
-import com.micon.app.ui.theme.GreyLight
-import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Ink
-import com.micon.app.ui.common.MiconHeader
-import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.LocalOnboardingChrome
 import com.micon.app.ui.common.OnboardingChromeState
-import com.micon.app.ui.common.OnboardingSystemBars
 
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
 @Composable
@@ -90,9 +88,7 @@ fun MiconRoot() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val onboardingChrome = remember { OnboardingChromeState() }
-    val darkOnboarding = currentRoute == Routes.VOICE_ONBOARDING && onboardingChrome.dark
-    if (darkOnboarding) OnboardingSystemBars()
-    if (currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH) SongDetailSystemBars()
+    val darkOnboarding = false
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
     // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
     val context = LocalContext.current
@@ -111,25 +107,32 @@ fun MiconRoot() {
         }
     }
     LaunchedEffect(currentRoute, accessGranted) {
-        val publicRoutes = setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
+        val publicRoutes = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
         if (currentRoute != null && currentRoute !in publicRoutes && !accessGranted) {
             // Also guards restored back stacks and incoming protected deep links.
             nav.replaceAll(Routes.REPORT)
         }
     }
 
-    CompositionLocalProvider(LocalOnboardingChrome provides onboardingChrome) {
-        Scaffold(
-            containerColor = when {
-                darkOnboarding -> Ink
-                currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH -> SongDetailColors.background
-                else -> Color.White
-            },
-            bottomBar = { if (showBottomBar) MiconBottomBar(nav, currentRoute, backStack?.arguments?.getString("source")) },
-        ) { padding ->
+    CompositionLocalProvider(
+        LocalOnboardingChrome provides onboardingChrome,
+        LocalTabBarPadding provides if (showBottomBar) MiconSpace.navBarContentPadding else 0.dp,
+    ) {
+        // 새 화면은 MiconScreen 이 상태바·내비 바 여백을 스스로 처리한다(전면 배경·홀로 화면 가능).
+        // 아직 옛 헤더를 쓰는 화면만 여기서 시스템 바를 피해 준다 — 옮길 때마다 migratedRoutes 에 넣는다.
+        val legacy = currentRoute !in migratedRoutes
+        Box(
+            Modifier.fillMaxSize().background(
+                when {
+                    darkOnboarding -> Ink
+                    legacy -> Color.White
+                    else -> MaterialTheme.colorScheme.background
+                },
+            ),
+        ) {
             MiconNavHost(
                 nav = nav,
-                modifier = Modifier.padding(padding),
+                modifier = if (legacy) Modifier.systemBarsPadding() else Modifier,
                 initialRoute = session.initialRoute,
                 accessGranted = accessGranted,
                 isGuest = session.guest,
@@ -143,14 +146,19 @@ fun MiconRoot() {
                     if (it) session.verified = false
                 },
             )
+            if (showBottomBar) {
+                MiconTabBar(currentRoute, onNavigate = nav::openBottomTab, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
 }
 
-@Composable
-private fun MiconBottomBar(nav: NavHostController, currentRoute: String?, source: String?) {
-    MiconTabBar(currentRoute, source, onNavigate = nav::openBottomTab)
-}
+/** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
+private val migratedRoutes: Set<String?> = setOf(
+    Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND,
+    Routes.SONG, Routes.SONG_MATCH, Routes.EVALUATION, Routes.RESULT,
+    Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY, Routes.EDIT_PREFERENCES, Routes.SETTINGS,
+)
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
 internal fun NavHostController.openBottomTab(route: String) {
@@ -173,32 +181,11 @@ internal fun NavHostController.openBottomTab(route: String) {
     popBackStack(route, inclusive = false)
 }
 
-/** Shared with device previews so their navigation chrome is the real app chrome. */
+/** 물방울 탭바. 탭 루트에서만 보이므로 하위 화면 → 탭 매핑은 없다. */
 @Composable
-internal fun MiconTabBar(currentRoute: String?, source: String? = null, onNavigate: (String) -> Unit = {}) {
-    val detail = currentRoute == Routes.SONG || currentRoute == Routes.SONG_MATCH
-    val selectedColor = if (detail) SongDetailColors.accent else Purple
-    val muted = if (detail) SongDetailColors.muted else Grey
-    NavigationBar(containerColor = if (detail) SongDetailColors.background else Color.White, tonalElevation = 0.dp) {
-        BottomTab.entries.forEach { tab ->
-            val selected = currentRoute == tab.route ||
-                (currentRoute == Routes.SONG_MATCH && tab == BottomTab.RECOMMEND) ||
-                (currentRoute == Routes.SONG && tab.route == (source ?: Routes.PRACTICE)) ||
-                (tab == BottomTab.FAVORITES && currentRoute == Routes.SETLIST)
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onNavigate(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = tab.label, Modifier.size(26.dp)) },
-                label = { Text(tab.label, fontSize = 12.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = selectedColor, selectedTextColor = selectedColor,
-                    unselectedIconColor = muted, unselectedTextColor = muted,
-                    indicatorColor = Color.Transparent,
-                ),
-            )
-        }
-    }
-    @Suppress("UNUSED_VARIABLE") val divider = GreyLight
+internal fun MiconTabBar(currentRoute: String?, onNavigate: (String) -> Unit = {}, modifier: Modifier = Modifier) {
+    val selected = BottomTab.entries.firstOrNull { it.route == currentRoute } ?: BottomTab.REPORT
+    FloatingNavBar(selected = selected.tab, onSelect = { onNavigate(BottomTab.of(it).route) }, modifier = modifier)
 }
 
 @Composable
@@ -234,9 +221,33 @@ private fun MiconNavHost(
     }
     fun checkSession() { onGuest(false); onVerified(false); nav.replaceAll(Routes.SPLASH) }
 
+    val holo = holoViewModel()
+    /** 홀로에서 탭으로 나갈 때: 로그인돼 있으면 세션 확인 뒤 메인, 아니면 게스트로 */
+    fun leaveHolo(destination: String) {
+        if (TokenManager.isLoggedIn()) { session.rememberDestinationRoute(destination); checkSession() }
+        else { onVerified(false); onGuest(true); nav.replaceAll(destination) }
+    }
+
     NavHost(navController = nav, startDestination = initialRoute, modifier = modifier) {
 
-        // ---- 온보딩 ----
+        // ---- 첫 화면: 목소리 분석 → 결과 ----
+        composable(Routes.HOLO) {
+            HoloScreen(vm = holo, onResult = { nav.navigate(Routes.VOICE_RESULT) { launchSingleTop = true } },
+                onSkip = { leaveHolo(Routes.REPORT) })
+        }
+        composable(Routes.VOICE_RESULT) {
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
+                // 회원: 서버 프로필로 저장 → 추천 탭. 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
+                onSave = {
+                    if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
+                    else { session.rememberDestinationRoute(Routes.HOLO); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
+                },
+                onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
+        }
+
         composable(Routes.SPLASH) {
             SplashScreen(onLoggedIn = { goMain() }, onNeedLogin = { goLogin() },
                 onNeedSurvey = { nav.replaceAll(Routes.SURVEY) })
@@ -246,10 +257,15 @@ private fun MiconNavHost(
                 onLoggedIn = { checkSession() },
                 onSignup = { nav.navigate(Routes.SIGNUP) },
                 onFindPassword = { nav.navigate(Routes.PASSWORD_RESET) },
+                onGuest = { goGuest() },
             )
         }
         composable(Routes.PASSWORD_RESET) {
             PasswordResetScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack(Routes.LOGIN, inclusive = false) })
+        }
+        composable(Routes.CHANGE_PASSWORD) {
+            if (isGuest || !accessGranted) return@composable
+            ChangePasswordScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() })
         }
         composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {
@@ -266,8 +282,8 @@ private fun MiconNavHost(
         composable(Routes.RECOMMEND) {
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
-            else RecommendScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
-                onAnalyze = { nav.navigate(Routes.VOICE_ONBOARDING) })
+            else RecommendDeckScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
+                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (isGuest || !accessGranted) return@composable
@@ -283,40 +299,43 @@ private fun MiconNavHost(
                 carouselIds = ids.toList(), artwork = artwork, onSongSelected = { currentId = it })
         }
 
-        // ---- 탭: 리포트 ----
+        // ---- 탭: 분석 (이전 리포트) ----
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
-            VoiceReportScreen(
-                onQuickAnalysis = { nav.navigate(Routes.VOICE_ONBOARDING) },
+            AnalysisScreen(
+                onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
+                // 노래로 분석하기 — 음역은 지난 값을 쓰고 음색(노래)만 다시 본다
+                onSingAnalyze = { holo.startTimbreOnly(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
+                onMeasureRange = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
+                onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
+        composable(Routes.VOICE_RESULT_VIEW) {
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
+        }
         composable(Routes.QUICK_ANALYSIS) {
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
         }
+        // 옛 온보딩 화면은 쓰지 않는다 — 두 단계 온보딩은 첫 화면(홀로)이 한다
         composable(Routes.VOICE_ONBOARDING) {
-            if (!accessGranted) return@composable
-            com.micon.app.ui.onboarding.VoiceOnboardingFlow(isGuest,
-                onExit = { if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT) },
-                onLogin = {
-                    if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT)
-                    openLogin()
-                })
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.VOICE_ONBOARDING) { inclusive = true } } }
         }
-        // 불러서 분석하기: 곡 선택 → 범위 선택(전곡·2절·하이라이트) → 카운트인 → 가사만 보며 부르기(WAV 녹음) → 저장 완료
+        // 불러서 분석하기 옛 경로는 첫 화면(홀로)으로 — 같은 일을 홀로가 한다
+
         composable(Routes.SING_ANALYSIS_PICK) {
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_PICK) { inclusive = true } } }
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.SING_ANALYSIS_PICK) { inclusive = true } } }
         }
         composable(
             Routes.SING_ANALYSIS_RUN,
             arguments = listOf(navArgument("songId") { type = NavType.StringType }),
             deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.SING_ANALYSIS_RUN}" }),
-        ) { entry ->
-            if (!accessGranted) return@composable
-            LaunchedEffect(Unit) { nav.navigate(Routes.VOICE_ONBOARDING) { popUpTo(Routes.SING_ANALYSIS_RUN) { inclusive = true } } }
+        ) {
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.SING_ANALYSIS_RUN) { inclusive = true } } }
         }
 
         // ---- 탭: 연습 ----
@@ -393,8 +412,18 @@ private fun MiconNavHost(
         // ---- 설정 ----
         composable(Routes.SETTINGS) {
             if (isGuest || !accessGranted) return@composable
-            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goGuest() },
-                onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) })
+            SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() },
+                onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) },
+                onChangePassword = { nav.navigate(Routes.CHANGE_PASSWORD) })
+        }
+
+        // ---- 개발용: 디자인 카탈로그 (adb shell am start -d "micon://app/dev/catalog") ----
+        // 리디자인 부품(토큰·원자·분자·유기체)을 한 화면에 모아 둔 곳. 새 화면을 만들기 전에
+        // 여기서 부품을 고르고, 토큰을 바꿨을 때 앱 전체에 어떻게 퍼지는지 여기서 본다.
+        // release 빌드에는 들어가지 않는다.
+        composable(Routes.DEV_CATALOG, deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_CATALOG}" })) {
+            if (!BuildConfig.DEBUG) return@composable
+            DesignCatalogScreen(onBack = { nav.popBackStack() })
         }
 
         // ---- 개발용: 음성 프로필 예시를 채우고 리포트 탭으로 (adb shell am start -d "micon://app/dev/seed-profile") ----
@@ -411,27 +440,27 @@ private fun MiconNavHost(
 
 @Composable
 private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Color.White)) {
-        MiconHeader(onLogin = openLogin)
-        Column(
-            Modifier.fillMaxSize().padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("아직 표시할 $title 콘텐츠가 없어요", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+    com.micon.app.ui.design.organisms.MiconScreen(
+        appBar = { com.micon.app.ui.common.MiconHeader(onLogin = openLogin) },
+    ) {
+        com.micon.app.ui.design.atoms.MiconCard(kind = com.micon.app.ui.design.atoms.MiconCardKind.Elevated) {
+            Text("로그인하면 $title 을 쓸 수 있어요", style = MaterialTheme.typography.titleMedium)
+            Text("분석 결과와 연습 기록을 계정에 안전하게 보관해요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
-            Text("로그인하면 나만의 $title 콘텐츠를 이용할 수 있어요", fontSize = 14.sp, color = Grey)
-            Spacer(Modifier.height(24.dp))
-            PrimaryButton("로그인하기", openLogin, Modifier.fillMaxWidth())
+            com.micon.app.ui.design.atoms.MiconButton("로그인하기", openLogin, Modifier.fillMaxWidth())
         }
     }
 }
 
 /** Survives configuration changes, but a fresh process must validate its server session. */
 class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
-    val initialRoute = if (TokenManager.isLoggedIn()) Routes.SPLASH else Routes.REPORT
+    /**
+     * 로그인한 사람은 앱을 열면 바로 목소리 분석(홀로)으로, 아직 로그인하지 않았으면 로그인 화면으로.
+     * 분석 결과는 계정에 저장돼야 추천까지 이어지므로, 재기 전에 누구인지 먼저 안다.
+     */
+    val initialRoute = if (TokenManager.isLoggedIn()) Routes.HOLO else Routes.LOGIN
     var verified by mutableStateOf(false)
-    var guest by mutableStateOf(initialRoute == Routes.REPORT)
+    var guest by mutableStateOf(false)
 
     fun rememberDestination(nav: NavHostController) {
         val entry = nav.currentBackStackEntry ?: return
@@ -441,6 +470,7 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
         savedState["loginDestination"] = destination
     }
 
+    fun rememberDestinationRoute(route: String) { savedState["loginDestination"] = route }
     fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
     fun clearDestination() { savedState.remove<String>("loginDestination") }
 }
@@ -451,7 +481,7 @@ internal fun NavHostController.completeInitialPreferenceSurvey(session: Navigati
     session.clearDestination()
     session.guest = false
     session.verified = true
-    replaceAll(Routes.VOICE_ONBOARDING)
+    replaceAll(Routes.HOLO)
 }
 
 /** Discard all protected history, including saved tab stacks, on account/gate changes. */

@@ -5,7 +5,7 @@ import kotlin.math.roundToInt
 
 /** Display names for measured ranges, preserving the octave in F3 → 3옥타브 파. */
 object RangeNoteNames {
-    private val syllables = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
+    private val syllables = arrayOf("도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시")
 
     private fun octave(midi: Int) = floor(midi / 12.0).toInt() - 1
     private fun syllable(midi: Int) = syllables[((midi % 12) + 12) % 12]

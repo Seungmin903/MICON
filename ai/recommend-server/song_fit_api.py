@@ -166,7 +166,8 @@ def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
 # ── 닮은 가수 ─────────────────────────────────────────────────────────────────
 
 def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int,
-                 artists: ArtistCatalog | None = None) -> list[dict[str, Any]]:
+                 artists: ArtistCatalog | None = None,
+                 allowed_track_ids: set[str] | None = None) -> list[dict[str, Any]]:
     """가수별로 그 가수의 모든 곡 구간을 모아 사용자와 견준다. 두 축 점수의 평균으로 순위를 매긴다.
 
     추천의 음색 점수와 같은 함수를 쓴다. 곡 하나가 아니라 가수의 구간 전체가 상대라는 점만 다르다.
@@ -174,7 +175,11 @@ def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int
     artists = artists or ArtistCatalog.load(catalog)
     by_artist: dict[int, list] = {}
     for track in catalog.tracks:
+        if allowed_track_ids is not None and track.track_id not in allowed_track_ids:
+            continue
         by_artist.setdefault(artists.by_track[track.track_id], []).append(track)
+    if not by_artist:
+        raise ValueError("No local catalog track is active in the current DB catalog")
     config = RankerConfig()
     scores: list[dict[str, Any]] = []
     for artist, tracks in by_artist.items():
@@ -195,6 +200,27 @@ def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int
             for rank, item in enumerate(scores[: max(1, min(top_k, MAX_ARTISTS))], start=1)]
 
 
+def _active_track_ids(catalog: CatalogIndex, artists: ArtistCatalog, requested_version: Any) -> set[str]:
+    """DB 가 지금 활성으로 보는 곡만 남긴다. 배치 이름이 바뀌어도 곡이 그대로면 계속 답한다.
+
+    가수 ID 는 로컬 스냅샷에서만 오고(이름으로 추정하지 않는다), 어떤 곡이 후보인지는 DB 가 정한다.
+    BE 짝표를 못 받는 동안에는 예전처럼 로컬 스냅샷 배치와 정확히 같을 때만 답한다.
+    """
+    known = {track.track_id for track in catalog.tracks}
+    linked = catalog_link.song_ids()
+    if not linked:
+        if requested_version != artists.catalog_version:
+            raise ValueError("Requested catalogVersion does not match the local artist snapshot")
+        return known
+    active_batch = catalog_link.status()["batchId"]
+    if requested_version not in (artists.catalog_version, active_batch):
+        raise ValueError("Requested catalogVersion is neither the local snapshot nor the active DB catalog")
+    active = known & set(linked)
+    if len(active) != len(known):
+        log.warning("DB 에서 빠진 곡 %d개를 가수 후보에서 제외합니다", len(known) - len(active))
+    return active
+
+
 def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
     job = JOBS[job_id]
     with _LOCK:
@@ -207,9 +233,10 @@ def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
         query = user_embedding_matrices(payload.get("modelResults"))
         catalog = CatalogIndex.load(config["index_dir"], verify_hashes=True)
         mapping = ArtistCatalog.load(catalog)
-        if payload.get("catalogVersion") != mapping.catalog_version:
-            raise ValueError("Requested catalogVersion does not match the local artist snapshot")
-        artists = rank_artists(query, catalog, int(payload.get("topK") or MAX_ARTISTS), mapping)
+        catalog_link.ensure()
+        allowed = _active_track_ids(catalog, mapping, payload.get("catalogVersion"))
+        artists = rank_artists(query, catalog, int(payload.get("topK") or MAX_ARTISTS), mapping,
+                               allowed_track_ids=allowed)
         body = {"requestId": job["requestId"], "jobId": job_id, "component": "ARTIST_SEARCH",
                 "status": "COMPLETED", "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
                 "processedAt": analysis_jobs._iso(analysis_jobs._now()), "attemptNo": job["attemptNo"],

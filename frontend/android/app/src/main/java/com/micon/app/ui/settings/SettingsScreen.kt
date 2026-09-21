@@ -1,121 +1,84 @@
 package com.micon.app.ui.settings
 
-import androidx.activity.compose.BackHandler
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.PersonOff
-import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.micon.app.BuildConfig
 import com.micon.app.appContainer
-import com.micon.app.data.backend.NetworkAuthRepository
-import com.micon.app.data.backend.dto.WithdrawRequest
 import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.backend.NetworkAuthRepository
+import com.micon.app.data.backend.dto.PasswordChangeRequest
+import com.micon.app.data.backend.dto.WithdrawRequest
+import com.micon.app.data.backend.errorEnvelope
+import com.micon.app.data.backend.unwrapData
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconTextField
-import com.micon.app.ui.theme.Grey
-import com.micon.app.ui.theme.GreyLight
-import com.micon.app.ui.theme.Ink
-import com.micon.app.ui.theme.Pink
-import com.micon.app.ui.theme.Purple
-import kotlinx.coroutines.launch
+import com.micon.app.ui.onboarding.AuthPrimaryButton
+import com.micon.app.ui.onboarding.AuthTextField
+import com.micon.app.ui.onboarding.PASSWORD_GUIDE
+import com.micon.app.ui.onboarding.isValidPassword
+import com.micon.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-/**
- * Figma "설정": 섹션 라벨 + 아이콘 행 + 토글, 회원 탈퇴는 핑크.
- * "원본 녹음 저장" 은 서버 설정(`/users/me/settings`)이 진실 — 업로드는 keepOriginal 을 보내지 않고 서버가 이 값을 쓴다.
- * "음성데이터 삭제" 는 `/users/me/voice-data-deletions` 로 내 녹음·분석을 모두 지운다.
- */
+/** HTML 프로토타입의 카드 구성을 적용한 계정 설정 화면. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onLogout: () -> Unit = {},
+    onEditPreferences: () -> Unit = {},
+    onChangePassword: () -> Unit = {},
+) {
     val context = LocalContext.current
-    val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer {
-        val owner = com.micon.app.core.auth.TokenManager.getUserId()
-        SettingsViewModel(context.appContainer.settings) {
-            // Invalidate in-flight restores before touching this account's files.
-            if (com.micon.app.core.auth.TokenManager.getUserId() == owner) com.micon.app.data.local.UserStore.clearVoiceData()
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                if (owner > 0) com.micon.app.data.onboarding.VoiceOnboardingStore(context.applicationContext, owner).clearVoiceData()
-            }
-        }
-    } })
-    val settingsState by settingsVm.state.collectAsStateWithLifecycle()
-    var showDeleteVoice by remember { mutableStateOf(false) }
-    LaunchedEffect(settingsState.toast) { settingsState.toast?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); settingsVm.consumeToast() } }
     val backend = context.appContainer.backend
     val auth = remember(backend) { NetworkAuthRepository(backend.api) }
     val scope = rememberCoroutineScope()
+    var accountEmail by remember { mutableStateOf<String?>(null) }
+    var accountLoadFailed by remember { mutableStateOf(false) }
     var loggingOut by remember { mutableStateOf(false) }
     var showWithdraw by remember { mutableStateOf(false) }
     var withdrawing by remember { mutableStateOf(false) }
     var withdrawPassword by remember { mutableStateOf("") }
     var withdrawError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = loggingOut) { }
 
-    if (showDeleteVoice) {
-        AlertDialog(
-            onDismissRequest = { showDeleteVoice = false },
-            title = { Text("음성 데이터를 삭제할까요?") },
-            text = { Text("서버에 저장된 내 녹음과 음성 분석 결과가 모두 지워지고 되돌릴 수 없어요. 찜·연습 기록은 남아요.") },
-            confirmButton = { TextButton(onClick = { showDeleteVoice = false; settingsVm.deleteVoiceData() }) { Text("삭제", color = Pink) } },
-            dismissButton = { TextButton(onClick = { showDeleteVoice = false }) { Text("취소") } },
-        )
+    BackHandler(enabled = loggingOut) { }
+    LaunchedEffect(Unit) {
+        runCatching { backend.api.currentUser().unwrapData().email }
+            .onSuccess { accountEmail = it }
+            .onFailure { accountLoadFailed = true }
     }
 
     if (showWithdraw) {
         AlertDialog(
             onDismissRequest = { if (!withdrawing) showWithdraw = false },
-            title = { Text("회원 탈퇴") },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("회원 탈퇴", color = Ink, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("탈퇴하면 기존 계정과 개인 기록에 접근할 수 없습니다. 현재 비밀번호를 입력해주세요.")
+                    Text("탈퇴하면 기존 계정과 개인 기록에 접근할 수 없습니다. 현재 비밀번호를 입력해주세요.", color = Grey)
                     Spacer(Modifier.height(16.dp))
                     MiconTextField("현재 비밀번호", withdrawPassword, { withdrawPassword = it }, "비밀번호", isPassword = true)
                     withdrawError?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
@@ -147,75 +110,159 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
                     },
                 ) { Text(if (withdrawing) "처리 중…" else "탈퇴하기", color = Pink) }
             },
-            dismissButton = { TextButton(enabled = !withdrawing, onClick = { showWithdraw = false }) { Text("취소") } },
+            dismissButton = { TextButton(enabled = !withdrawing, onClick = { showWithdraw = false }) { Text("취소", color = Grey) } },
         )
     }
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
         BackHeader("설정", { if (!loggingOut) onBack() })
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
-            Spacer(Modifier.height(28.dp))
-            SectionTitle("나의 음악 취향")
-            SettingRow(Icons.Outlined.FavoriteBorder, "관심 장르·아티스트 수정") { if (!loggingOut) onEditPreferences() }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(20.dp))
-            SectionTitle("녹음 및 음성 데이터")
-            SettingRow(Icons.Outlined.Mic, "마이크 권한 설정") {
-                runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))) }
-            }
-            SettingRow(Icons.Outlined.Notifications, "알림 설정") { }
-            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Save, null, Modifier.size(26.dp), tint = Ink)
-                Spacer(Modifier.width(22.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("원본 녹음 저장", fontSize = 17.sp, color = Ink)
-                    Text(settingsState.settingsError ?: "비활성화시 분석 후 삭제", fontSize = 14.sp, color = if (settingsState.settingsError != null) Pink else Grey)
-                }
-                Switch(
-                    checked = settingsState.saveOriginalRecording ?: false,
-                    onCheckedChange = settingsVm::setSaveOriginalRecording,
-                    enabled = settingsState.saveOriginalRecording != null && !settingsState.saving,
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Purple, uncheckedTrackColor = GreyLight, uncheckedThumbColor = Color.White, uncheckedBorderColor = GreyLight),
-                )
-            }
-            Spacer(Modifier.height(20.dp))
-            SectionTitle("개인정보 및 보안")
-            SettingRow(Icons.Outlined.Shield, "개인정보 설정") { }
-            SettingRow(Icons.Outlined.Delete, if (settingsState.deleting) "음성데이터 삭제 중…" else "음성데이터 삭제") { if (!settingsState.deleting) showDeleteVoice = true }
-            SettingRow(Icons.Outlined.PersonOff, if (loggingOut) "로그아웃 중…" else "로그아웃") {
-                if (!loggingOut) {
-                    loggingOut = true
-                    scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() }
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(52.dp).background(Purple.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.AccountCircle, null, Modifier.size(30.dp), tint = Purple)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("현재 계정", fontSize = 12.sp, color = Grey)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            accountEmail ?: if (accountLoadFailed) "계정 정보를 불러오지 못했어요" else "불러오는 중…",
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (accountLoadFailed) Pink else Ink,
+                        )
+                    }
                 }
             }
-            SettingRow(Icons.Filled.Cancel, "회원 탈퇴", color = Pink) { if (!loggingOut) showWithdraw = true }
+            Spacer(Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp,
+            ) {
+                Column(Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
+                    SettingsMenuRow(Icons.Outlined.FavoriteBorder, "선호 장르/가수 수정", onClick = onEditPreferences)
+                    SettingsDivider()
+                    // 음 이름 표기(도레미/CDE) — 바꾸면 앱 전체 표기가 따라 바뀐다
+                    NotationSettingRow()
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.Outlined.Lock, "비밀번호 변경", onClick = onChangePassword)
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.AutoMirrored.Outlined.Logout, if (loggingOut) "로그아웃 중…" else "로그아웃") {
+                        if (!loggingOut) {
+                            loggingOut = true
+                            scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() }
+                        }
+                    }
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.Filled.Cancel, "탈퇴", color = Pink) { if (!loggingOut) showWithdraw = true }
+                }
+            }
             Spacer(Modifier.height(32.dp))
-            SectionTitle("개발자")
-            DevRow("백엔드 주소", BuildConfig.API_BASE_URL)
-            DevRow("앱 버전", BuildConfig.VERSION_NAME)
-            Spacer(Modifier.height(40.dp))
         }
     }
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(text, fontSize = 15.sp, color = Grey, modifier = Modifier.padding(bottom = 6.dp))
-}
-
-@Composable
-private fun SettingRow(icon: ImageVector, label: String, color: Color = Ink, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(26.dp), tint = color)
-        Spacer(Modifier.width(22.dp))
-        Text(label, fontSize = 17.sp, color = color, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(24.dp), tint = color)
+private fun SettingsMenuRow(icon: ImageVector, label: String, color: Color = Ink, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 17.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, Modifier.size(23.dp), tint = color)
+        Spacer(Modifier.width(16.dp))
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = color, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(22.dp), tint = if (color == Pink) Pink else Grey)
     }
 }
 
 @Composable
-private fun DevRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 14.sp, color = Ink, fontWeight = FontWeight.Medium, modifier = Modifier.width(96.dp))
-        Text(value, fontSize = 13.sp, color = Grey)
+private fun SettingsDivider() {
+    HorizontalDivider(color = GreyLight, modifier = Modifier.padding(start = 39.dp))
+}
+
+/** 로그인 화면과 같은 입력창·버튼 규격을 사용하는 회원 비밀번호 변경 화면. */
+@Composable
+fun ChangePasswordScreen(onBack: () -> Unit, onLogout: () -> Unit) {
+    val context = LocalContext.current
+    val backend = context.appContainer.backend
+    val scope = rememberCoroutineScope()
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var changing by remember { mutableStateOf(false) }
+    val newPasswordValid = isValidPassword(newPassword)
+    val confirmationMatches = confirmPassword.isNotEmpty() && confirmPassword == newPassword
+    val canSubmit = currentPassword.isNotBlank() && newPasswordValid && confirmationMatches
+
+    BackHandler(enabled = changing) { }
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+        BackHeader("비밀번호 변경", { if (!changing) onBack() })
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Spacer(Modifier.height(28.dp))
+            Text("비밀번호를 변경할게요", fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, color = Ink)
+            Spacer(Modifier.height(8.dp))
+            Text("현재 비밀번호를 확인한 뒤 새로운 비밀번호로 변경합니다.", fontSize = 13.5.sp, lineHeight = 22.sp, color = Grey)
+            Spacer(Modifier.height(24.dp))
+            AuthTextField(currentPassword, { currentPassword = it; error = null }, "현재 비밀번호", isPassword = true)
+            Spacer(Modifier.height(10.dp))
+            AuthTextField(
+                newPassword, { newPassword = it; error = null }, "새로운 비밀번호", isPassword = true,
+                helper = PASSWORD_GUIDE,
+                helperColor = if (newPasswordValid) GreenChipText else if (newPassword.isEmpty()) Grey else Pink,
+            )
+            Spacer(Modifier.height(10.dp))
+            AuthTextField(
+                confirmPassword, { confirmPassword = it; error = null }, "새로운 비밀번호 확인", isPassword = true,
+                helper = when {
+                    confirmPassword.isEmpty() -> null
+                    confirmationMatches -> "비밀번호가 일치합니다."
+                    else -> "비밀번호가 일치하지 않습니다."
+                },
+                helperColor = if (confirmationMatches) GreenChipText else Pink,
+            )
+            error?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
+            Spacer(Modifier.height(24.dp))
+            AuthPrimaryButton(
+                text = if (changing) "변경 중…" else "변경",
+                onClick = {
+                    changing = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val response = backend.api.changePassword(PasswordChangeRequest(currentPassword, newPassword))
+                            if (!response.isSuccessful) {
+                                val backendError = response.errorEnvelope()
+                                error = when (backendError?.code) {
+                                    "INVALID_CURRENT_PASSWORD" -> "현재 비밀번호가 올바르지 않습니다."
+                                    "PASSWORD_UNCHANGED" -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                                    "INVALID_REQUEST" -> backendError.message
+                                    else -> backendError?.message ?: "비밀번호를 변경하지 못했습니다."
+                                }
+                            } else {
+                                currentPassword = ""; newPassword = ""; confirmPassword = ""
+                                TokenManager.clear()
+                                Toast.makeText(context, "비밀번호가 변경되었습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                onLogout()
+                            }
+                        } catch (_: Exception) {
+                            error = "연결을 확인한 뒤 다시 시도해주세요."
+                        } finally {
+                            changing = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = canSubmit && !changing,
+            )
+            Spacer(Modifier.height(40.dp))
+        }
     }
 }

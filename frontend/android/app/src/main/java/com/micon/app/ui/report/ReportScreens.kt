@@ -75,6 +75,7 @@ import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconLogo
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.ReportNoteNames
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.common.SoftChip
 import com.micon.app.ui.theme.GreenBar
 import com.micon.app.ui.theme.Grey
@@ -120,9 +121,6 @@ fun VoiceReportScreen(
     var saved by remember(owner) {
         mutableStateOf<com.micon.app.data.onboarding.SavedVoiceOnboardingProfile?>(null)
     }
-    var embeddingMap by remember(owner) {
-        mutableStateOf<com.micon.app.data.onboarding.EcapaEmbeddingMap?>(null)
-    }
     var reportRefresh by remember(owner) { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, owner) {
@@ -147,53 +145,20 @@ fun VoiceReportScreen(
             }
         }
     }
-    val savedSessionId = saved?.receipt?.sessionId?.toLongOrNull()
-    LaunchedEffect(owner, savedSessionId, reportRefresh) {
-        embeddingMap = null
-        val expectedOwner = owner ?: return@LaunchedEffect
-        val expectedSession = savedSessionId ?: return@LaunchedEffect
-        val fetched = try {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                container.voiceOnboarding.ecapaEmbeddingMap(expectedOwner, expectedSession)
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
-        }
-        if (TokenManager.getUserId() == expectedOwner &&
-            saved?.receipt?.sessionId?.toLongOrNull() == expectedSession) {
-            embeddingMap = fetched?.usableFor(expectedSession)
-        }
-    }
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
             Spacer(Modifier.height(16.dp))
             val current = saved
             if (current != null) {
-                SavedVoiceReportContent(current.range, current.progress, embeddingMap)
+                SavedVoiceReportContent(current.range, current.progress)
             } else if (owner != null && previousAnalysis != null) {
                 Text("이전에 확인한 분석", fontWeight = FontWeight.SemiBold, color = Ink)
                 Spacer(Modifier.height(12.dp))
                 PreviousAnalysisReportCards(checkNotNull(previousAnalysis))
             } else EmptyReport()
             Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun GuestReportHeader(onLogin: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().height(72.dp).padding(start = 20.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiconLogo(barHeight = 20.dp, fontSize = 20.sp)
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = onLogin) {
-            Text("로그인/회원가입", color = InkSoft, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -248,13 +213,12 @@ private fun EmptyReport() {
 internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SimilarArtistsCard(showEmpty = true)
-        EcapaEmbeddingCard(progress = null)
 
         MiconCard {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("나의 음역대", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
                 Text(
-                    ReportNoteNames.range(p.lowMidi, p.highMidi),
+                    sharpNoteText(ReportNoteNames.range(p.lowMidi, p.highMidi), 24.sp),
                     fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold, color = Ink,
                     modifier = Modifier.fillMaxWidth(),
                     style = TextStyle.Default.copy(lineBreak = LineBreak.Heading),
@@ -277,19 +241,11 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
                 labelWidth = 108.dp,
                 labelOf = ReportNoteNames::note,
             )
-            Spacer(Modifier.height(18.dp))
-            Text("음역", fontSize = 13.sp, color = Grey)
             Spacer(Modifier.height(6.dp))
             PianoRangeChart(p.comfortLow, p.comfortHigh, modifier = Modifier.testTag("report-piano"),
                 lowMidi = 36, highMidi = 84, showOctaves = true,
                 caption = "안정 음역 ${ReportNoteNames.range(p.comfortLow, p.comfortHigh)}",
                 labelOf = ReportNoteNames::note)
-        }
-
-        MiconCard {
-            CardTitle("음역별 안정성")
-            Spacer(Modifier.height(10.dp))
-            StabilityLineChart(p.stability, p.stabilityLabels.map(ReportNoteNames::fromScientific))
         }
 
     }

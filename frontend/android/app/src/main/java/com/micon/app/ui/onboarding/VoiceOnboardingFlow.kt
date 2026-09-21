@@ -21,10 +21,12 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.micon.app.appContainer
 import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.local.UserStore
 import com.micon.app.data.onboarding.*
 import com.micon.app.range.RangeReport
 import com.micon.app.ui.common.*
 import com.micon.app.ui.report.GuidedRangeScreen
+import com.micon.app.ui.report.FreeRangeScreen
 import com.micon.app.ui.report.RangeResultCards
 import com.micon.app.ui.report.VoiceReportContent
 import com.micon.app.ui.singanalysis.SingAnalysisScreen
@@ -60,21 +62,59 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                     TextButton(onClick = ::leave) { Text("나가기") }
                 }
             }
+            composable("analysis-guide") {
+                BackHandler { leave() }
+                OnboardingStageGuideScreen(
+                    text = analysisGuideCopy(UserStore.nickname),
+                    buttonLabel = "다음",
+                    testTag = "onboarding-analysis-guide",
+                    error = state.stageGuideError,
+                    onBack = ::leave,
+                    onNext = vm::completeAnalysisGuide,
+                    onFinished = { nav.navigate("range-guide") { launchSingleTop = true } },
+                )
+            }
+            composable("range-guide") {
+                fun back() { if (!nav.popBackStack()) leave() }
+                BackHandler { back() }
+                OnboardingStageGuideScreen(
+                    text = rangeGuideCopy(UserStore.nickname),
+                    buttonLabel = "음역 측정 시작",
+                    testTag = "onboarding-range-stage-guide",
+                    error = state.stageGuideError,
+                    onBack = ::back,
+                    onNext = vm::completeRangeGuide,
+                    onFinished = {
+                        nav.navigate("measure") {
+                            popUpTo(initial) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
             composable("measure") {
                 BackHandler { leave() }
-                GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
-                    repository = store.rangeRepository, onboardingIntro = true, onMeasurementSaved = { measurementId ->
-                        if (vm.rangeMeasurementSaved(measurementId) && nav.currentDestination?.route == "measure") {
-                            nav.navigate("song-guide") {
-                                popUpTo("measure") { inclusive = true }
-                                launchSingleTop = true
-                            }
+                // 음역 측정과 음색 측정(노래 부르기)은 한 흐름으로 잇지 않는다. 측정이 끝나면 그 화면의 결과
+                // 페이지에서 멈추고, 사용자가 "노래로 음색 측정하기" 를 눌러야 다음 단계가 열린다.
+                val measurementSaved: (String) -> Unit = { measurementId -> vm.rangeMeasurementSaved(measurementId) }
+                fun continueToTimbre() {
+                    if (state.canSelectSong && nav.currentDestination?.route == "measure") {
+                        nav.navigate("song-guide") {
+                            popUpTo("measure") { inclusive = true }
+                            launchSingleTop = true
                         }
-                    })
+                    }
+                }
+                if (store.rangeRepository.pending()?.submission?.protocolVersion == com.micon.app.range.RangeProtocol.VERSION) {
+                    GuidedRangeScreen(onBack = ::leave, onDone = ::leave, onRestart = vm::restart,
+                        repository = store.rangeRepository, onboardingIntro = true,
+                        onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
+                } else FreeRangeScreen(onBack = ::leave, repository = store.rangeRepository,
+                    onMeasurementSaved = measurementSaved, onTimbreMeasurement = ::continueToTimbre)
             }
             composable("song-guide") {
                 BackHandler { leave() }
-                OnboardingSongGuideScreen(state.songGuideError, onBack = ::leave,
+                OnboardingSongGuideScreen(UserStore.nickname, state.songGuideError, onBack = ::leave,
                     onNext = vm::completeSongGuide, onFinished = {
                         nav.navigate("pick") {
                             popUpTo("song-guide") { inclusive = true }
@@ -98,9 +138,6 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler(enabled = !state.saving) { leave() }
                 BackHandler(enabled = state.saving) { }
                 OnboardingAutomaticAnalysis(state, vm::analyzeWhenReady)
-                LaunchedEffect(state.progress?.sessionId, state.progress?.ecapa, state.recording?.id) {
-                    vm.loadEmbeddingMap()
-                }
                 VoiceOnboardingResultScreen(state, isGuest,
                     onExit = ::leave,
                     onLogin = { vm.discard(); onLogin() },
@@ -144,8 +181,7 @@ fun VoiceOnboardingResultScreen(
             state.range?.let { range ->
                 VoiceReportContent(range, progress,
                     retryEnabled = !isGuest && state.canRetryAnalysis,
-                    onRetry = onRetry,
-                    embeddingMap = state.embeddingMap)
+                    onRetry = onRetry)
             }
             state.error?.let { Text(it, color = Red, modifier = Modifier.testTag("onboarding_error")) }
             if (state.rangeAnalysisStatus == OnboardingRangeStatus.FAILED) {

@@ -42,6 +42,9 @@ public class Recommendation {
     @Column(name = "profile_version")
     private Long profileVersion;
 
+    @Column(name = "preference_version")
+    private Long preferenceVersion;
+
     @Column(name = "job_id", unique = true, length = 255)
     private String jobId;
 
@@ -84,6 +87,10 @@ public class Recommendation {
     }
 
     public Recommendation(User user, UserVoiceProfile voiceProfile, RecommendationMode mode) {
+        this(user, voiceProfile, mode, 0L);
+    }
+
+    public Recommendation(User user, UserVoiceProfile voiceProfile, RecommendationMode mode, long preferenceVersion) {
         if (user == null || voiceProfile == null) {
             throw new IllegalArgumentException("user and voiceProfile are required");
         }
@@ -94,6 +101,7 @@ public class Recommendation {
         this.voiceProfile = voiceProfile;
         this.sourceSessionId = voiceProfile.getSession().getId();
         this.profileVersion = voiceProfile.getProfileVersion();
+        this.preferenceVersion = preferenceVersion;
         this.mode = mode == null ? RecommendationMode.OVERALL : mode;
         this.status = RecommendationStatus.GENERATING;
         this.progress = 0;
@@ -105,6 +113,7 @@ public class Recommendation {
     public UserVoiceProfile getVoiceProfile() { return voiceProfile; }
     public Long getSourceSessionId() { return sourceSessionId; }
     public Long getProfileVersion() { return profileVersion; }
+    public Long getPreferenceVersion() { return preferenceVersion; }
     public boolean isForCurrentProfile() {
         return profileVersion != null && sourceSessionId != null
                 && profileVersion == voiceProfile.getProfileVersion()

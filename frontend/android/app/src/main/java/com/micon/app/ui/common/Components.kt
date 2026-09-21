@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -64,16 +63,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -89,66 +85,41 @@ import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Paper
 import com.micon.app.ui.theme.Purple
+import com.micon.app.ui.design.atoms.MiconButton
+import com.micon.app.ui.design.atoms.MiconButtonKind
+import com.micon.app.ui.design.organisms.MiconAppBar
 
 // ---------------------------------------------------------------------------
 // 로고 · 헤더
 // ---------------------------------------------------------------------------
 
-/** MICON 로고: 보라 파형 바 5개 + "MICON"(I 만 보라). */
+/** MICON 브랜드 로고 이미지. */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: TextUnit = 22.sp) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(barHeight * 1.35f, barHeight * 1.15f)) {
-            val ratios = listOf(0.45f, 0.75f, 1f, 0.75f, 0.45f)
-            val barW = size.width / 7f
-            val gap = barW * 0.5f
-            val totalH = size.height / 1.15f
-            ratios.forEachIndexed { i, r ->
-                val h = totalH * r
-                val x = i * (barW + gap)
-                val y = (totalH - h) / 2f
-                drawRoundRect(Purple, Offset(x, y), Size(barW, h), CornerRadius(barW / 2f))
-            }
-            // 가운데 바 아래 점
-            drawCircle(Purple, radius = barW * 0.55f, center = Offset(2 * (barW + gap) + barW / 2f, totalH + barW * 0.6f))
-        }
-        Spacer(Modifier.width(6.dp))
-        Text(
-            buildAnnotatedString {
-                append("M")
-                withStyle(SpanStyle(color = Purple)) { append("I") }
-                append("CON")
-            },
-            fontWeight = FontWeight.Black,
-            fontSize = fontSize,
-            color = Ink,
-            letterSpacing = 0.5.sp,
-        )
-    }
+    Image(
+        painter = painterResource(R.drawable.micon_logo),
+        contentDescription = "MICON",
+        modifier = modifier.height(barHeight * 1.15f).width(barHeight * 4.5f),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 /** Figma 공통 헤더. 비회원에게는 계정 아이콘 대신 로그인 버튼만 노출한다. */
 @Composable
 fun MiconHeader(
-    onNotifications: () -> Unit = {},
     onSettings: () -> Unit = {},
     onLogin: (() -> Unit)? = null,
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(64.dp).padding(start = 20.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiconLogo()
-        Spacer(Modifier.weight(1f))
+    MiconAppBar(actions = {
         if (onLogin != null) {
-            TextButton(onClick = onLogin) {
-                Text("로그인", color = Purple, fontWeight = FontWeight.SemiBold)
-            }
+            MiconButton("로그인", onLogin, kind = MiconButtonKind.Text)
         } else {
-            IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
-            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+            IconButton(onClick = onSettings, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Settings, "설정", Modifier.size(24.dp), tint = Ink)
+            }
         }
-    }
+    })
 }
 
 /** 하위 화면 헤더: ← 제목 (오른쪽 액션 슬롯). 아래 얇은 그림자. */
@@ -173,14 +144,20 @@ fun MiconSearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "노래를 검색해보세요",
+    prototypeStyle: Boolean = false,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth().height(54.dp),
-        shape = RoundedCornerShape(27.dp),
-        color = GreyBg,
-        shadowElevation = 3.dp,
+        modifier = modifier.fillMaxWidth().height(if (prototypeStyle) 52.dp else 54.dp),
+        shape = RoundedCornerShape(if (prototypeStyle) 16.dp else 27.dp),
+        color = if (prototypeStyle) Color.White else GreyBg,
+        border = if (prototypeStyle) BorderStroke(1.dp, Color(0xFFE4E2EE)) else null,
+        shadowElevation = if (prototypeStyle) 0.dp else 3.dp,
     ) {
         Row(Modifier.padding(start = 18.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (prototypeStyle) {
+                Icon(Icons.Outlined.Search, "검색", Modifier.size(22.dp), tint = Grey)
+                Spacer(Modifier.width(10.dp))
+            }
             Box(Modifier.weight(1f)) {
                 if (value.isEmpty()) Text(placeholder, color = Grey, fontSize = 16.sp)
                 BasicTextField(
@@ -191,7 +168,7 @@ fun MiconSearchBar(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Icon(Icons.Outlined.Search, "검색", Modifier.size(28.dp), tint = Grey)
+            if (!prototypeStyle) Icon(Icons.Outlined.Search, "검색", Modifier.size(28.dp), tint = Grey)
         }
     }
 }
@@ -211,6 +188,42 @@ fun VinylArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier, fallbac
             }
         }
         Image(painterResource(R.drawable.lp_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
+    }
+}
+
+/**
+ * 곡 선택 화면용 CD 아트. 앨범 커버가 있으면 원형으로 표시하고, 없으면 시안의 은은한
+ * 보라색 CD 그라데이션을 사용한다. CD 안에는 곡명이나 대체 문자를 표시하지 않는다.
+ */
+@Composable
+fun CdArt(imageUrl: String?, size: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(size).clip(CircleShape).background(
+            Brush.sweepGradient(
+                listOf(
+                    Color(0xFFEFEAFF), Color(0xFFDCD6F8), Color(0xFFF6F3FF),
+                    Color(0xFFD5CDF4), Color(0xFFEFEAFF),
+                ),
+            ),
+        ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Canvas(Modifier.fillMaxSize()) {
+            val diameter = this.size.minDimension
+            val ring = diameter * 0.37f
+            drawCircle(Color.White.copy(alpha = 0.28f), radius = ring, style = Stroke(width = 1.dp.toPx()))
+            drawCircle(Color.White.copy(alpha = 0.20f), radius = diameter * 0.44f, style = Stroke(width = 1.dp.toPx()))
+            drawCircle(Color.White, radius = diameter * 0.115f)
+            drawCircle(Color(0x1A1E1B33), radius = diameter * 0.115f, style = Stroke(width = 1.dp.toPx()))
+        }
     }
 }
 
@@ -250,13 +263,14 @@ fun SongRow(
     /** 가수명 옆 작은 칩(예: "가사 싱크", "가사만"). null 이면 없음 */
     subBadge: String? = null,
     subBadgeColor: Color = Purple,
+    compactCd: Boolean = true,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        VinylArt(imageUrl, 76.dp, fallbackText = title)
-        Spacer(Modifier.width(16.dp))
+        if (compactCd) CdArt(imageUrl, 56.dp) else VinylArt(imageUrl, 76.dp, fallbackText = title)
+        Spacer(Modifier.width(if (compactCd) 12.dp else 16.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(6.dp))

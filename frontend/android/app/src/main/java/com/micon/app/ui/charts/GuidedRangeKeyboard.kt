@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.range.RangeNote
 import com.micon.app.ui.common.RangeNoteNames
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import kotlin.math.floor
 import kotlin.math.ceil
@@ -64,7 +65,7 @@ fun GuidedRangeKeyboard(notes: List<RangeNote>, targetMidi: Int? = null, detecte
     val whites = visibleRange.filterNot(::black)
     Column(modifier.fillMaxWidth()) {
         targetMidi?.takeIf { showTargetLabel }?.let { midi ->
-            Text("▼ 지금 부를 음 · ${noteName(midi)}", color = Purple, fontSize = 15.sp,
+            Text(sharpNoteText("▼ 지금 부를 음 · ${noteName(midi)}", 15.sp), color = Purple, fontSize = 15.sp,
                 fontWeight = FontWeight.Bold, modifier = Modifier.testTag("range-current-target"))
             Spacer(Modifier.height(8.dp))
         }
@@ -72,7 +73,8 @@ fun GuidedRangeKeyboard(notes: List<RangeNote>, targetMidi: Int? = null, detecte
             stateDescription = guidedKeyboardOctaves(visibleRange).joinToString(", ") { "$it 옥타브" }
             val rangeDescription = if (mode == GuidedKeyboardMode.THREE_OCTAVES) "${noteName(visibleRange.first)}부터 ${noteName(visibleRange.last)}까지 세 옥타브 건반"
                 else "${noteName(36)}부터 ${noteName(84)}까지 고정 건반"
-            contentDescription = "$rangeDescription, $attempted 개 음 확인, $confirmed 개 음 통과. 초록 건반과 체크는 통과한 음" +
+            contentDescription = "$rangeDescription, $attempted 개 음 확인, $confirmed 개 음 통과" +
+                (if (showPassedLegend) ". 초록 건반과 체크는 통과한 음" else "") +
                 (targetMidi?.let { ", 보라 테두리와 화살표는 지금 부를 음 ${noteName(it)}" } ?: "")
         }) {
             val width = size.width / whites.size

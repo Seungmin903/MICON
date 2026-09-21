@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.micon.app.range.RangeStabilityPlot
 import com.micon.app.ui.common.RangeNoteNames
 import com.micon.app.ui.common.ReportNoteNames
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -81,7 +82,7 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
         ticks.forEach { index ->
             val px = x(low + index)
             drawLine(GreyLight, Offset(px, top), Offset(px, bottom), 1.dp.toPx(), pathEffect = dash)
-            val text = measurer.measure(axisName(low + index), TextStyle(fontSize = 11.sp, color = Grey))
+            val text = measurer.measure(sharpNoteText(axisName(low + index), 11.sp), TextStyle(fontSize = 11.sp, color = Grey))
             drawText(text, topLeft = Offset((px - text.size.width / 2f).coerceIn(0f, (size.width - text.size.width).coerceAtLeast(0f)), bottom + 12.dp.toPx()))
         }
         drawLine(Grey, Offset(left, top), Offset(left, bottom), 1.dp.toPx())

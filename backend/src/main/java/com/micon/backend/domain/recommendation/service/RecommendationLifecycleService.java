@@ -36,12 +36,12 @@ public class RecommendationLifecycleService {
             throw new BusinessException(ErrorCode.RECOMMENDATION_INPUT_NOT_READY,
                     "목소리 프로필이 변경됐습니다. 새 프로필로 다시 요청해 주세요.");
         }
-        if (recommendations.existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndStatus(
-                profileId, input.profileVersion(), input.sourceSessionId(), RecommendationStatus.GENERATING)) {
+        if (recommendations.existsByVoiceProfileIdAndProfileVersionAndSourceSessionIdAndPreferenceVersionAndStatus(
+                profileId, input.profileVersion(), input.sourceSessionId(), input.preferenceVersion(), RecommendationStatus.GENERATING)) {
             throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_GENERATING);
         }
         Recommendation recommendation = recommendations.saveAndFlush(
-                new Recommendation(profile.getUser(), profile, mode));
+                new Recommendation(profile.getUser(), profile, mode, input.preferenceVersion()));
         return new Created(recommendation.getId(), recommendation.getGeneratedAt());
     }
 
