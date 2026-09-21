@@ -201,14 +201,23 @@ def render_one(song: dict[str, Any], key: int, source_root: Path, output_root: P
     output = output_root / song["songId"] / f"instrumental_key{key_suffix(key)}.opus"
     output.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
-    if not output.exists():
+    needs_render = True
+    if output.exists():
+        existing = probe(output)
+        existing_delta_ms = round(abs(float(existing["durationSec"]) - float(song["durationSec"])) * 1000)
+        needs_render = existing["codec"] != "opus" or output.stat().st_size == 0 or existing_delta_ms > 50
+    if needs_render:
         ratio = 2 ** (key / 12)
         with tempfile.NamedTemporaryFile(prefix=output.stem + ".", suffix=".partial.opus", dir=output.parent, delete=False) as handle:
             temporary = Path(handle.name)
         try:
             run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
-                "-map", "0:a:0", "-filter:a", f"rubberband=pitch={ratio:.12f}",
+                "-map", "0:a:0",
+                "-filter:a", (
+                    f"rubberband=pitch={ratio:.12f},"
+                    f"apad=pad_dur=1,atrim=duration={float(song['durationSec']):.6f}"
+                ),
                 "-c:a", "libopus", "-b:a", "128k", "-vbr", "on", "-compression_level", "10",
                 "-application", "audio", str(temporary),
             ])
