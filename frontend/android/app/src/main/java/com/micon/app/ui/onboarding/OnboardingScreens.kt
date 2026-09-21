@@ -192,7 +192,7 @@ fun LoginScreen(
 }
 
 @Composable
-private fun AuthPrimaryButton(
+internal fun AuthPrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -240,7 +240,7 @@ private fun AuthOutlineButton(
 }
 
 @Composable
-private fun AuthTextField(
+internal fun AuthTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
