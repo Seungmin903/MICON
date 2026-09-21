@@ -2,14 +2,11 @@ package com.micon.app.data.favorites
 
 import com.micon.app.core.auth.MemoryTokenStore
 import com.micon.app.core.network.BackendClient
-import com.micon.app.data.backend.BackendRequestException
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -78,14 +75,12 @@ class RemoteSetlistRepositoryTest {
         assertEquals("DELETE", request.method); assertEquals("/api/v1/setlist/5/7", request.path)
     }
 
-    @Test fun `adding an unfavorited song surfaces SONG_NOT_FAVORITED`() = runBlocking {
-        server.enqueue(json(400, """{"code":"SONG_NOT_FAVORITED","message":"찜한 곡만 세트리스트에 추가할 수 있습니다.","data":null}"""))
-        try {
-            repo.addSong(5, "9")
-            fail("expected BackendRequestException")
-        } catch (e: BackendRequestException) {
-            assertEquals(400, e.status); assertEquals("SONG_NOT_FAVORITED", e.code)
-            assertTrue(e.message!!.contains("찜한 곡만"))
-        }
+    @Test fun `an unfavorited song can be added`() = runBlocking {
+        server.enqueue(ok(detail))
+        val result = repo.addSong(5, "9")
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/setlist/5/9", request.path)
+        assertEquals(5, result.id)
     }
 }

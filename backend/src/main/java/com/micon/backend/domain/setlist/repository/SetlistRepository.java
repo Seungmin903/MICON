@@ -120,14 +120,6 @@ public class SetlistRepository {
 		return count("SELECT COUNT(*) FROM song WHERE song_id = :songId", Map.of("songId", songId)) > 0;
 	}
 
-	// 기능: isFavorite 조건으로 데이터베이스를 조회한다.
-	public boolean isFavorite(long userId, String songId) {
-		return count(
-			"SELECT COUNT(*) FROM favorite_song WHERE user_id = :userId AND song_id = :songId",
-			Map.of("userId", userId, "songId", songId)
-		) > 0;
-	}
-
 	// 기능: containsSong에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.
 	public boolean containsSong(Long setlistId, String songId) {
 		return count(

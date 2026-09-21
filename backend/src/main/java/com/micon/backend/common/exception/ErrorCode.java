@@ -18,7 +18,6 @@ public enum ErrorCode {
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "접근 권한이 없습니다."),
     SONG_NOT_FOUND(HttpStatus.NOT_FOUND, "SONG_NOT_FOUND", "곡을 찾을 수 없습니다."),
     SETLIST_NOT_FOUND(HttpStatus.NOT_FOUND, "SETLIST_NOT_FOUND", "세트리스트를 찾을 수 없습니다."),
-    SONG_NOT_FAVORITED(HttpStatus.BAD_REQUEST, "SONG_NOT_FAVORITED", "찜한 곡만 세트리스트에 추가할 수 있습니다."),
     INVALID_SETLIST_ORDER(HttpStatus.BAD_REQUEST, "INVALID_SETLIST_ORDER", "세트리스트 곡 순서가 올바르지 않습니다."),
     SETLIST_CONFLICT(HttpStatus.CONFLICT, "SETLIST_CONFLICT", "세트리스트가 다른 요청에 의해 변경되었습니다."),
     PRACTICE_ASSET_NOT_READY(HttpStatus.CONFLICT, "PRACTICE_ASSET_NOT_READY", "연습 데이터가 아직 준비되지 않았습니다."),

@@ -33,10 +33,11 @@ public class SongService {
 	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 조회한다. */
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId) {
 		long offset = (long) page * size;
-		List<SongResponse.Summary> songs = songQueryRepository.findPage(
-			query, size, offset, userId, genreId
-		);
-		long totalElements = songQueryRepository.count(query, genreId);
+		boolean catalog = (query == null || query.trim().isEmpty()) && genreId == null;
+		List<SongResponse.Summary> songs = catalog
+				? songQueryRepository.findCatalogPage(size, offset, userId)
+				: songQueryRepository.findPage(query, size, offset, userId, genreId);
+		long totalElements = catalog ? songQueryRepository.countCatalog() : songQueryRepository.count(query, genreId);
 		return PageResponse.of(songs, page, size, totalElements);
 	}
 

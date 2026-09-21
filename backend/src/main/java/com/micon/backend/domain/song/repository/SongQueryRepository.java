@@ -98,6 +98,57 @@ public class SongQueryRepository {
 				.toList();
 	}
 
+	/**
+	 * 빈 검색어·장르 미지정 카탈로그 전용 페이지. 추천 탭은 이 경로를 연속으로 호출하므로,
+	 * 검색 조건과 곡마다 실행되던 선호 장르 상관 서브쿼리를 피한다.
+	 */
+	public List<SongResponse.Summary> findCatalogPage(int size, long offset, Long userId) {
+		String sql;
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("size", size)
+				.addValue("offset", offset);
+		if (userId == null) {
+			sql = """
+					SELECT s.song_id, s.title, s.duration_ms,
+					       NULLIF(sm.display_image_url, '') AS image_url
+					FROM song s
+					LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+					ORDER BY s.title, s.song_id
+					LIMIT :size OFFSET :offset
+					""";
+		} else {
+			params.addValue("userId", userId);
+			sql = """
+					SELECT s.song_id, s.title, s.duration_ms,
+					       NULLIF(sm.display_image_url, '') AS image_url
+					FROM song s
+					LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+					LEFT JOIN (
+					    SELECT song_genre.song_id, COUNT(*) AS preferred_genre_count
+					    FROM song_genre
+					    JOIN user_genre_preference preference
+					      ON preference.genre_id = song_genre.genre_id
+					    WHERE preference.user_id = :userId
+					    GROUP BY song_genre.song_id
+					) preferred ON preferred.song_id = s.song_id
+					ORDER BY COALESCE(preferred.preferred_genre_count, 0) DESC, s.title, s.song_id
+					LIMIT :size OFFSET :offset
+					""";
+		}
+		List<SongRow> songs = jdbcTemplate.query(sql, params, SONG_ROW_MAPPER);
+		Map<String, List<String>> artists = findArtists(songs.stream().map(SongRow::songId).toList());
+		return songs.stream()
+				.map(song -> new SongResponse.Summary(
+					song.songId(),
+					song.title(),
+					artists.getOrDefault(song.songId(), List.of()),
+					song.imageUrl(),
+					null,
+					song.durationMs()
+				))
+				.toList();
+	}
+
 	// 기능: count 조건으로 데이터베이스를 조회한다.
 	public long count(String query) {
 		return count(query, null);
@@ -115,6 +166,12 @@ public class SongQueryRepository {
 			searchParameters(query).addValue("genreId", genreId),
 			Long.class
 		);
+		return count == null ? 0 : count;
+	}
+
+	/** 빈 검색어·장르 미지정 카탈로그의 전체 곡 수는 검색 조건용 조인 없이 song 테이블만 센다. */
+	public long countCatalog() {
+		Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM song", new MapSqlParameterSource(), Long.class);
 		return count == null ? 0 : count;
 	}
 
