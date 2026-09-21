@@ -70,9 +70,6 @@ class VoiceOnboardingViewModelTest {
         var artistResult: VoiceAnalysisProgress? = null
         var artistLookups = 0
         var cancels = 0
-        val embeddingQueries = mutableListOf<Pair<Long, Long>>()
-        var embeddingWait: CompletableDeferred<Unit>? = null
-        var embeddingResponse: EcapaEmbeddingMap? = null
         var cancelWait: CompletableDeferred<Unit>? = null
         override suspend fun analyze(request: VoiceOnboardingRequest, retry: AnalysisComponent?,
             onProgress: (VoiceAnalysisProgress) -> Unit): VoiceAnalysisProgress {
@@ -102,70 +99,6 @@ class VoiceOnboardingViewModelTest {
             artistUpdate = onProgress
             artistWait?.await()
             return artistResult ?: result
-        }
-        override suspend fun ecapaEmbeddingMap(ownerId: Long, sessionId: Long): EcapaEmbeddingMap? {
-            embeddingQueries += ownerId to sessionId
-            withContext(NonCancellable) { embeddingWait?.await() }
-            return embeddingResponse
-        }
-    }
-
-    @Test fun embeddingQueryIsIndependentAndRunsOncePerResultSession() = runTest {
-        val map = EcapaEmbeddingMap(7, "pca", "catalog", EcapaPcaPoint(.1, -.2), emptyList())
-        val gateway = Gateway().apply {
-            recovered = ready().copy(sessionId = "7", artistSearch = ComponentStatus.RUNNING)
-            embeddingResponse = map
-            artistWait = CompletableDeferred()
-        }
-        val store = Store().apply { data = data.copy(serverSessionId = 7); report = report?.copy(backendSessionId = 7) }
-        val model = VoiceOnboardingViewModel(1, store, gateway)
-        runCurrent()
-        model.loadEmbeddingMap(); model.loadEmbeddingMap()
-        runCurrent()
-        assertEquals(listOf(1L to 7L), gateway.embeddingQueries)
-        assertEquals(map, model.state.value.embeddingMap)
-        gateway.artistUpdate?.invoke(checkNotNull(gateway.recovered).copy(artistSearch = ComponentStatus.COMPLETED,
-            artists = listOf(SimilarVoiceArtist(1, "Artist", null, .9))))
-        model.loadEmbeddingMap(); runCurrent()
-        assertEquals(1, gateway.embeddingQueries.size)
-        gateway.artistWait?.complete(Unit)
-        advanceUntilIdle()
-    }
-
-    @Test fun embeddingRejectsInvalidSessionAndFiltersNonFiniteCoordinates() = runTest {
-        val gateway = Gateway().apply {
-            recovered = ready().copy(sessionId = "7")
-            embeddingResponse = EcapaEmbeddingMap(8, "pca", "catalog", EcapaPcaPoint(.1, .2), emptyList())
-        }
-        val store = Store().apply { data = data.copy(serverSessionId = 7); report = report?.copy(backendSessionId = 7) }
-        val model = VoiceOnboardingViewModel(1, store, gateway)
-        advanceUntilIdle(); model.loadEmbeddingMap(); advanceUntilIdle()
-        assertNull(model.state.value.embeddingMap)
-        model.newRecording()
-        model.recordingReady(recording())
-        gateway.result = ready().copy(sessionId = "7")
-        gateway.embeddingResponse = EcapaEmbeddingMap(7, "pca", "catalog", EcapaPcaPoint(Double.NaN, .2),
-            listOf(EcapaArtistPoint(1, EcapaPcaPoint(.1, .2)), EcapaArtistPoint(2, EcapaPcaPoint(Double.POSITIVE_INFINITY, .2))))
-        model.analyze(); advanceUntilIdle(); model.loadEmbeddingMap(); advanceUntilIdle()
-        assertNull(model.state.value.embeddingMap?.user)
-        assertEquals(listOf(1L), model.state.value.embeddingMap?.artists?.map { it.artistId })
-    }
-
-    @Test fun lateEmbeddingResponseIsIgnoredAfterNewRecordingOrAccountChange() = runTest {
-        for (changeOwner in listOf(false, true)) {
-            var currentOwner = true
-            val gateway = Gateway().apply {
-                recovered = ready().copy(sessionId = "7")
-                embeddingResponse = EcapaEmbeddingMap(7, "pca", "catalog", EcapaPcaPoint(.1, .2), emptyList())
-                embeddingWait = CompletableDeferred()
-            }
-            val store = Store().apply { data = data.copy(serverSessionId = 7); report = report?.copy(backendSessionId = 7) }
-            val model = VoiceOnboardingViewModel(1, store, gateway, isCurrentOwner = { currentOwner })
-            advanceUntilIdle(); model.loadEmbeddingMap(); runCurrent()
-            if (changeOwner) currentOwner = false else model.newRecording()
-            gateway.embeddingWait?.complete(Unit)
-            advanceUntilIdle()
-            assertNull(model.state.value.embeddingMap)
         }
     }
 

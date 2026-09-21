@@ -22,18 +22,15 @@ import org.junit.Test
 class PreferenceSurveyScreenTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun tabsSwitchWithoutSubmittingAndPhotoCreditsAreAvailable() {
-        var step = -1
+    @Test fun artistStepShowsPhotoCredits() {
         val artist = PreferenceArtist(22, "아이유", imageSourceUrl = "https://commons.wikimedia.org/wiki/File:Example.jpg",
             imageAttribution = "사진 작가", imageLicense = "CC BY 4.0")
         compose.setContent {
             MaterialTheme {
-                PreferenceSurveyContent(PreferenceSurveyState(loading = false, artists = listOf(artist)), onStep = { step = it })
+                PreferenceSurveyContent(PreferenceSurveyState(loading = false, step = 1, artists = listOf(artist)))
             }
         }
-        compose.onNodeWithTag("preferences-next").assertIsNotEnabled()
-        compose.onNodeWithTag("preferences-tab-genres").performClick()
-        compose.runOnIdle { assertEquals(0, step) }
+        compose.onNodeWithTag("preferences-complete").assertIsNotEnabled()
         compose.onNodeWithTag("photo-credits").performClick()
         compose.onNodeWithText("아티스트 사진 출처").assertIsDisplayed()
         compose.onNodeWithText("사진 작가").assertIsDisplayed()
@@ -49,10 +46,10 @@ class PreferenceSurveyScreenTest {
                 )
             }
         }
-        compose.onNodeWithTag("preferences-complete").assertIsNotEnabled()
+        compose.onNodeWithTag("preferences-next").assertIsNotEnabled()
         compose.onNodeWithTag("genre-1").performClick()
         compose.runOnIdle { assertEquals(genre, clicked) }
-        compose.onNodeWithText("장르 0개 선택").assertIsDisplayed()
+        compose.onNodeWithText("0개 선택").assertIsDisplayed()
     }
 
     @Test fun selectedArtistWithMissingImageStaysAccessibleAndCanBeRemovedOutsideSearchResults() {
@@ -70,9 +67,9 @@ class PreferenceSurveyScreenTest {
             }
         }
         compose.onNodeWithTag("artist-22").assertIsOn()
-        compose.onNodeWithTag("preferences-next").assertIsEnabled()
+        compose.onNodeWithTag("preferences-complete").assertIsEnabled()
         compose.onNodeWithText("내 취향으로 시작하기").assertDoesNotExist()
-        compose.onNodeWithText("다음").assertIsDisplayed()
+        compose.onNodeWithText("완료").assertIsDisplayed()
         compose.onNodeWithTag("selected-artist-22").performClick()
         compose.runOnIdle { assertEquals(artist, removed) }
     }
@@ -82,7 +79,7 @@ class PreferenceSurveyScreenTest {
             MaterialTheme {
                 PreferenceSurveyContent(
                     PreferenceSurveyState(
-                        loading = false, step = 0,
+                        loading = false, step = 1,
                         selectedGenres = mapOf(1L to PreferenceGenre(1, "발라드")),
                         selectedArtists = mapOf(22L to PreferenceArtist(22, "아이유")),
                         saveError = "연결이 원활하지 않아요. 다시 시도해주세요.",
@@ -94,7 +91,6 @@ class PreferenceSurveyScreenTest {
         compose.onNodeWithText("다시 저장").assertIsDisplayed()
         compose.onNodeWithText("내 취향으로 시작하기").assertDoesNotExist()
         compose.onNodeWithTag("preferences-complete").assertIsEnabled()
-        compose.onNodeWithTag("preferences-previous").assertIsDisplayed()
     }
 
     @Test fun keyboardSearchShowsClickableArtistNamesWithinThreeHundredDpHeight() {
@@ -135,6 +131,6 @@ class PreferenceSurveyScreenTest {
         compose.onNodeWithTag("selected-artist-22").assertIsDisplayed()
         compose.onNodeWithTag("selected-artist-23").assertIsDisplayed()
         catalogue.forEach { compose.onNodeWithText(it.name, useUnmergedTree = true).assertIsDisplayed() }
-        compose.onNodeWithTag("preferences-next").assertIsDisplayed()
+        compose.onNodeWithTag("preferences-complete").assertIsDisplayed()
     }
 }

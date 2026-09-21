@@ -6,7 +6,7 @@ import kotlin.math.roundToInt
 
 /** live-scoring.tsx L35–45 의 순수 헬퍼. android.* 의존 없음. */
 object ScoringMath {
-    private val NOTE_NAMES = arrayOf("C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B")
+    private val NOTE_NAMES = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
     /** 반음 오차를 한 옥타브 안(−6…+6)으로 접는다. delta - 12·round(delta/12) */
     fun fold(delta: Double): Double = delta - 12.0 * Math.round(delta / 12.0)

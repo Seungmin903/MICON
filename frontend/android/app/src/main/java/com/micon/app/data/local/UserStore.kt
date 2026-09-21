@@ -50,6 +50,7 @@ object UserStore {
     /** Clear account-scoped temporary state before another account can use the app. */
     fun clearUserData() {
         clearVoiceData()
+        nickname = null
         preferredArtists = emptySet()
         preferredGenres = emptySet()
     }

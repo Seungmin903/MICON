@@ -105,6 +105,7 @@ class PracticeViewModel(
         val showRunway: Boolean = true,
         val countdown: Int = 0,
         val buffering: Boolean = false,      // 반주 준비 대기 중
+        val keySwitching: Boolean = false,   // 재생 위치를 유지하며 키별 S3 반주 교체 중
         val nowSec: Double = 0.0,
         val durationSec: Double = 0.0,
         val totals: Totals? = null,
@@ -132,8 +133,13 @@ class PracticeViewModel(
 
     val player = InstrumentalPlayer(appContext, mediaHttp)
     private var audioReleased = false
-    /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). load 에서 채운다. */
+    /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). */
     private var instrumentalUrl: String? = null
+    private val instrumentalCache = KeyedInstrumentalCache()
+    private var keySwitchJob: Job? = null
+    private var pendingKey: Int? = null
+    private var keyChangeCount = 0
+    private var sessionInitialKey: Int? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private val capture = PitchCapture()
     private val cacheDir = appContext.cacheDir
@@ -206,8 +212,8 @@ class PracticeViewModel(
                 require(initialKey in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX) { "지원하지 않는 연습 키예요." }
                 val detail = repo.detail(songId) ?: error("곡을 찾을 수 없습니다: $songId")
                 // 409(준비 안 됨)는 PracticeAssetsNotReadyException 의 서버 메시지를 그대로 화면에 보인다.
-                val assets = repo.practiceAssets(songId, 0)   // 반주는 항상 원키 — 키는 재생기가 실시간으로 옮긴다
-                check(assets.songId == songId && assets.selectedKey == 0) { "요청한 곡과 반주 정보가 일치하지 않습니다." }
+                val assets = repo.practiceAssets(songId, initialKey)
+                check(assets.songId == songId && assets.selectedKey == initialKey) { "요청한 곡과 반주 정보가 일치하지 않습니다." }
                 val karaoke = assets.targetNotes
                 if (karaoke.isEmpty()) error("음표 데이터(song_note)가 없습니다.")
                 notes = karaoke.toLiveNotes(assets.timeSignature)
@@ -225,9 +231,9 @@ class PracticeViewModel(
                 sections = SongSections.build(notes, sheet.lines, barStarts())
                 val url = assets.instrumental.playbackUrl
                     ?: error("반주 재생 주소가 없습니다. 백엔드 practice-assets 응답에 반주 URL(playbackUrl)이 추가되어야 합니다.")
+                instrumentalCache.put(initialKey, assets.instrumental)
                 instrumentalUrl = url
                 player.load(url)
-                player.keyShift = initialKey     // 곡 상세에서 고른 키로 시작 (반주 실시간 시프트)
                 _state.update {
                     it.copy(
                         phase = Phase.READY, title = detail.summary.title, artist = detail.summary.artist, keyName = assets.keyName ?: detail.analysis?.keyName,
@@ -237,6 +243,10 @@ class PracticeViewModel(
                 // 길이는 스트림 메타데이터가 오면 갱신
                 launch {
                     if (player.awaitReady(10_000)) _state.update { it.copy(durationSec = player.durationSec ?: fallbackDuration()) }
+                }
+                // 화면 표시를 막지 않고 나머지 키의 짧은 MR 응답만 미리 받아 둔다. 실패한 키는 선택할 때 다시 조회한다.
+                for (key in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX) {
+                    if (key != initialKey) launch { runCatching { repo.instrumental(songId, key) }.onSuccess { instrumentalCache.put(key, it) } }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(phase = Phase.ERROR, error = e.message ?: e.toString()) }
@@ -272,20 +282,62 @@ class PracticeViewModel(
         scorer?.autoCalibrate = value
     }
 
-    /**
-     * 반주 키 변경 (READY·PAUSED·FINISHED). 반주 파일을 새로 받지 않고 재생기가 음높이만 옮기므로
-     * 즉시 반영된다. 백엔드에는 늘 원키(`selectedKey = 0`)만 요청한다.
-     *
-     * 반주와 채점 기준을 **같이** 옮겨야 한다. 반주만 내리면 목표 음정은 원키로 남아 전부 틀린 것으로
-     * 판정된다. 재생 중에 바꾸지 않는 이유는 [InstrumentalPlayer.keyShift] 주석 참고.
-     */
+    /** 재생 위치를 유지한 채 키별 S3 반주를 교체한다. 연속 요청은 마지막 키만 한 번 더 적용한다. */
     fun changeKey(next: Int) {
         val target = next.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         val s = _state.value
-        if (target == s.keyShift || s.isRunning) return
-        player.keyShift = target      // 반주
-        scorer?.keyShift = target     // 채점 기준
-        _state.update { it.copy(keyShift = target, error = null) }
+        if (target == s.keyShift || s.phase !in setOf(Phase.READY, Phase.RUNNING, Phase.PAUSED)) return
+        pendingKey = target
+        if (keySwitchJob?.isActive == true) return
+        keySwitchJob = viewModelScope.launch {
+            while (true) {
+                val requested = pendingKey ?: break
+                pendingKey = null
+                switchInstrumental(requested)
+            }
+        }
+    }
+
+    private suspend fun switchInstrumental(target: Int) {
+        val before = _state.value
+        if (target == before.keyShift) return
+        val previousUrl = instrumentalUrl ?: return
+        val previousPosition = player.positionSec
+        val resumeRunning = before.phase == Phase.RUNNING
+        tickJob?.cancel(); tickJob = null
+        player.pause()
+        sync = null
+        _state.update { it.copy(keySwitching = true, buffering = true, error = null) }
+        try {
+            val media = instrumentalCache.valid(target) ?: repo.instrumental(songId, target).also { instrumentalCache.put(target, it) }
+            val nextUrl = media.playbackUrl ?: error("선택한 키의 반주 재생 주소가 없습니다.")
+            player.load(nextUrl)
+            check(player.awaitReady(8_000)) { "선택한 키의 반주를 8초 안에 불러오지 못했습니다." }
+            player.seekTo(previousPosition)
+            instrumentalUrl = nextUrl
+            scorer?.keyShift = target
+            sync = null
+            if (resumeRunning) player.play()
+            if (sessionInitialKey != null) keyChangeCount += 1
+            _state.update {
+                it.copy(keyShift = target, nowSec = previousPosition, durationSec = player.durationSec ?: it.durationSec,
+                    keySwitching = false, buffering = false, error = null)
+            }
+        } catch (error: Exception) {
+            player.load(previousUrl)
+            if (player.awaitReady(8_000)) {
+                player.seekTo(previousPosition)
+                if (resumeRunning) player.play()
+            }
+            scorer?.keyShift = before.keyShift
+            sync = null
+            _state.update {
+                it.copy(keyShift = before.keyShift, nowSec = previousPosition, keySwitching = false, buffering = false,
+                    error = "키를 바꾸지 못했습니다. 이전 키로 계속 재생합니다: ${error.message ?: "네트워크 오류"}")
+            }
+        } finally {
+            if (resumeRunning) scorer?.let { active -> tickJob = viewModelScope.launch { tickLoop(active) } }
+        }
     }
 
     // ------------------------------------------------------------------ 재생 제어
@@ -299,6 +351,8 @@ class PracticeViewModel(
         notes.forEach { it.reset() }
         val newScorer = LiveScorer(notes).also { it.keyShift = s.keyShift; it.autoCalibrate = s.autoCalibrate }
         scorer = newScorer
+        sessionInitialKey = s.keyShift
+        keyChangeCount = 0
         sync = null
         _state.update { it.copy(totals = null, measures = emptyList(), lastJudged = null, save = Save(), error = null, loopCount = 0, calibrationMs = 0) }
         if (!capture.isRunning) {
@@ -399,6 +453,8 @@ class PracticeViewModel(
         notes.forEach { it.reset() }
         scorer = null
         sync = null
+        sessionInitialKey = null
+        keyChangeCount = 0
         pendingSeek = null
         saveJob?.cancel()
         cancelOpenPractice()
@@ -533,7 +589,9 @@ class PracticeViewModel(
         val midi = if (voiced) ScoringMath.hzToMidi(frame.f0) else null
         latestCaptureT = frame.t
         val s = sync
-        if (s != null && _state.value.phase == Phase.RUNNING) scorer?.addFrame(Frame(frame.t - s.t + s.mr, midi))
+        if (s != null && _state.value.phase == Phase.RUNNING && !_state.value.keySwitching) {
+            scorer?.addFrame(Frame(frame.t - s.t + s.mr, midi))
+        }
         val nowMs = System.currentTimeMillis()
         if (nowMs - lastMicUpdate > 150) {
             lastMicUpdate = nowMs
@@ -584,16 +642,10 @@ class PracticeViewModel(
 
     // ------------------------------------------------------------------ 연습 기록 저장 (백엔드 /practices)
 
-    /**
-     * 백엔드 세션을 만든다(READY). 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용).
-     *
-     * 키는 늘 **원키(0)** 로 연다. 서버(`PracticeService.create`)는 `selectedKey` 반음의 반주 파일이 READY 인지 검사하는데,
-     * 우리는 원키 반주 하나만 두고 앱이 실시간으로 옮기므로 0 이외 키는 422 로 거절된다(`hasReadyInstrumental`).
-     * 실제로 부른 키는 완료 때 `finalSelectedKey` 로 보낸다([completePractice], BE V29 `initial_key`/`selected_key`).
-     */
+    /** 백엔드 세션을 시작 시 선택한 키로 만든다. 열린 세션이 있으면 그대로 쓴다. */
     private suspend fun openPractice(): Long = practiceMutex.withLock {
         practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
-        val created = practices.create(songId, selectedKey = 0)
+        val created = practices.create(songId, selectedKey = sessionInitialKey ?: _state.value.keyShift)
         practiceId = created.id
         practiceOpen = true
         created.id
@@ -654,12 +706,10 @@ class PracticeViewModel(
     private suspend fun completePractice(id: Long, durationMs: Int): Boolean {
         val key = _state.value.keyShift
         try {
-            // 세션은 원키(0)로 열었으므로 최종 키가 다르면 서버 규칙상 변경 횟수 ≥ 1 이어야 한다(시작 전 1회 고정 = 1).
-            practices.complete(id, durationMs, finalSelectedKey = key, keyChangeCount = if (key != 0) 1 else 0)
+            practices.complete(id, durationMs, finalSelectedKey = key, keyChangeCount = keyChangeCount)
             return true
         } catch (e: BackendRequestException) {
-            // BE(fix/be/practiceSessionKey)는 최종 키에도 그 반음의 반주 파일이 READY 인지 검사한다. 원키 반주만 있는 곡은
-            // 0 이외 키가 422 UNSUPPORTED_PRACTICE_KEY → 키 정보 없이 완료해 기록 자체는 남긴다. 서버가 검사를 풀면 위 호출이 그대로 통과한다.
+            // 키별 반주 등록이 덜 된 운영 환경에서도 결과 저장 자체는 남긴다.
             if (key == 0 || e.status != 422 || e.code != "UNSUPPORTED_PRACTICE_KEY") throw e
             practices.complete(id, durationMs)
             return false

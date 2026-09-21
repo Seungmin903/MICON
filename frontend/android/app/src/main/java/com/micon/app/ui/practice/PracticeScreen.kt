@@ -151,6 +151,13 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                         if (running) {
                             CompactSongTitle(state.title, state.artist)
                             SeekBar(state.nowSec, state.durationSec, enabled = false, onSeek = vm::seekTo)
+                            KeyRow(
+                                state.keyShift,
+                                state.keyName,
+                                state.shiftedKeyName,
+                                enabled = !state.keySwitching,
+                                onChange = vm::changeKey,
+                            )
                         } else if (state.phase == Phase.PAUSED) {
                             CompactSongTitle(state.title, state.artist)
                             SeekBar(state.nowSec, state.durationSec, enabled = false, onSeek = vm::seekTo)
@@ -175,7 +182,13 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                             }
                             if (pauseOptionsExpanded) {
                                 Spacer(Modifier.height(8.dp))
-                                KeyRow(state.keyShift, state.keyName, state.shiftedKeyName, enabled = true, onChange = vm::changeKey)
+                                KeyRow(
+                                    state.keyShift,
+                                    state.keyName,
+                                    state.shiftedKeyName,
+                                    enabled = !state.keySwitching,
+                                    onChange = vm::changeKey,
+                                )
                                 Spacer(Modifier.height(8.dp))
                                 SectionChips(
                                     vm.sections,
@@ -193,7 +206,13 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                         Spacer(Modifier.height(14.dp))
                         SeekBar(state.nowSec, state.durationSec, enabled = state.phase == Phase.READY || state.phase == Phase.FINISHED, onSeek = vm::seekTo)
                         Spacer(Modifier.height(20.dp))
-                        KeyRow(state.keyShift, state.keyName, state.shiftedKeyName, enabled = !running, onChange = vm::changeKey)
+                        KeyRow(
+                            state.keyShift,
+                            state.keyName,
+                            state.shiftedKeyName,
+                            enabled = state.phase == Phase.READY && !state.keySwitching,
+                            onChange = vm::changeKey,
+                        )
                         Spacer(Modifier.height(16.dp))
                         SectionChips(
                             vm.sections,
@@ -245,6 +264,18 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                     }
                 } else if (state.countdown > 0) {
                     Text("${state.countdown}", fontSize = 96.sp, fontWeight = FontWeight.Black, color = Purple)
+                }
+            }
+        }
+
+        if (state.keySwitching) {
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.background(Color.White, RoundedCornerShape(16.dp)).padding(horizontal = 28.dp, vertical = 22.dp)) {
+                    CircularProgressIndicator(color = Purple, modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.height(10.dp))
+                    Text("키 변경 중", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("현재 위치에서 곧 이어집니다", color = Grey, fontSize = 12.sp)
                 }
             }
         }
@@ -319,7 +350,7 @@ private fun SeekBar(positionSec: Double, durationSec: Double, enabled: Boolean, 
     }
 }
 
-/** 반주 키 조절. 렌더 중이면 스피너, 바뀐 키 이름을 함께 보여 준다. */
+/** 키별로 렌더된 S3 반주를 선택한다. */
 @Composable
 private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, enabled: Boolean, onChange: (Int) -> Unit) {
     val canUse = enabled
@@ -327,7 +358,7 @@ private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, ena
         Text("−", fontSize = 22.sp, color = if (canUse && keyShift > ScoringConstants.KEY_SHIFT_MIN) Purple else GreyLight, modifier = Modifier.clickable(enabled = canUse) { onChange(keyShift - 1) }.padding(horizontal = 8.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(if (keyShift == 0) "원키" else (if (keyShift > 0) "+$keyShift key" else "$keyShift key"), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
-            // 키를 바꿔도 반주를 새로 받지 않으므로 기다릴 일이 없다 (재생기가 즉시 음높이를 옮긴다).
+            // 키별 S3 반주로 전환하는 동안에는 상위에서 입력을 막는다.
             val label = when {
                 keyName == null -> null
                 keyShift == 0 -> keyName

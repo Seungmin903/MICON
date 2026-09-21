@@ -12,7 +12,8 @@ import java.util.UUID
 
 data class VoiceOnboardingDraft(val draftId: String, val revision: Long = 0,
     val recordingId: String? = null, val expiresAtMillis: Long? = null,
-    val serverSessionId: Long? = null, val songGuideCompleted: Boolean = false)
+    val serverSessionId: Long? = null, val songGuideCompleted: Boolean = false,
+    val analysisGuideCompleted: Boolean = false, val rangeGuideCompleted: Boolean = false)
 data class SavedVoiceOnboardingProfile(val receipt: ProfileSaveReceipt, val range: RangeReport,
     val progress: VoiceAnalysisProgress)
 

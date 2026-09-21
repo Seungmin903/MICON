@@ -23,23 +23,6 @@ class VoiceSessionAccess(val ownerId: Long?, val guestToken: String? = null) {
 }
 
 data class SimilarVoiceArtist(val artistId: Long, val name: String, val imageUrl: String?, val similarity: Double)
-data class EcapaPcaPoint(val pca1: Double, val pca2: Double) {
-    val finite: Boolean get() = pca1.isFinite() && pca2.isFinite()
-}
-data class EcapaArtistPoint(val artistId: Long, val point: EcapaPcaPoint)
-data class EcapaEmbeddingMap(
-    val sessionId: Long,
-    val projectionId: String,
-    val catalogVersion: String,
-    val user: EcapaPcaPoint?,
-    val artists: List<EcapaArtistPoint>,
-) {
-    /** Reject a response for another analysis and remove coordinates Canvas cannot draw. */
-    fun usableFor(expectedSessionId: Long): EcapaEmbeddingMap? = takeIf { sessionId == expectedSessionId }?.copy(
-        user = user?.takeIf(EcapaPcaPoint::finite),
-        artists = artists.filter { it.point.finite },
-    )
-}
 data class VoiceAnalysisProgress(
     val sessionId: String,
     val version: Long,
@@ -95,8 +78,6 @@ interface VoiceOnboardingGateway {
     suspend fun latestSaved(ownerId: Long): SavedVoiceOnboardingProfile? = null
     suspend fun awaitArtists(ownerId: Long, result: VoiceAnalysisProgress,
         onProgress: (VoiceAnalysisProgress) -> Unit = {}): VoiceAnalysisProgress = result
-    /** Optional future contract. Until an endpoint exists, reports intentionally receive no coordinates. */
-    suspend fun ecapaEmbeddingMap(ownerId: Long, sessionId: Long): EcapaEmbeddingMap? = null
     suspend fun cancel(ownerId: Long, result: VoiceAnalysisProgress) {}
 }
 

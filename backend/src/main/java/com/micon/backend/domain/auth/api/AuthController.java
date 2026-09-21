@@ -1,6 +1,7 @@
 package com.micon.backend.domain.auth.api;
 
 import com.micon.backend.domain.auth.service.EmailAuthService;
+import com.micon.backend.domain.auth.service.GoogleAuthService;
 import com.micon.backend.domain.auth.service.AuthSessionService;
 import com.micon.backend.domain.auth.service.PasswordResetService;
 import com.micon.backend.domain.auth.dto.AuthRequest;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final EmailAuthService emailAuthService;
+    private final GoogleAuthService googleAuthService;
     private final AuthSessionService authSessionService;
     private final PasswordResetService passwordResetService;
 
@@ -41,6 +43,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest.Login request) {
         return ResponseEntity.ok(ApiResponse.success(emailAuthService.login(request)));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(@Valid @RequestBody AuthRequest.GoogleLogin request) {
+        return ResponseEntity.ok(ApiResponse.success(googleAuthService.login(request)));
     }
 
     @PostMapping("/refresh")

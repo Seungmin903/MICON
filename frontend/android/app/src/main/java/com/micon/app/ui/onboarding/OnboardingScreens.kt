@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +63,8 @@ import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
+import com.micon.app.R
+import kotlinx.coroutines.launch
 
 /** Every launch checks server identity and onboarding state; unavailable servers offer retry. */
 @Composable
@@ -115,6 +118,9 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var notice by remember { mutableStateOf<String?>(null) }
+    var googleSignInInProgress by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val loggedIn by rememberUpdatedState(onLoggedIn)
     BackHandler(enabled = state.submitting) { }
     LaunchedEffect(state.authenticated) {
@@ -160,9 +166,24 @@ fun LoginScreen(
             HorizontalDivider(Modifier.weight(1f), color = GreyLight)
         }
         Spacer(Modifier.height(20.dp))
-        AuthOutlineButton("구글로 시작하기", onClick = {
-            if (!state.submitting) notice = "구글 로그인은 준비 중이에요. 이메일로 로그인해주세요."
-        }, modifier = Modifier.fillMaxWidth(), leading = { GoogleG() })
+        AuthOutlineButton(if (googleSignInInProgress) "구글 로그인 중…" else "구글로 시작하기", onClick = {
+            if (state.submitting || googleSignInInProgress) return@AuthOutlineButton
+            notice = null
+            googleSignInInProgress = true
+            coroutineScope.launch {
+                try {
+                    val idToken = GoogleIdTokenProvider.request(
+                        context, context.getString(R.string.google_web_client_id)
+                    )
+                    model.submitGoogle(idToken)
+                } catch (error: GoogleSignInException) {
+                    notice = error.message
+                } finally {
+                    googleSignInInProgress = false
+                }
+            }
+        }, modifier = Modifier.fillMaxWidth(), leading = { GoogleG() },
+            enabled = !state.submitting && !googleSignInInProgress)
         Spacer(Modifier.height(10.dp))
         AuthOutlineButton("로그인 없이 둘러보기", onClick = onGuest,
             modifier = Modifier.fillMaxWidth().testTag("auth_guest"))
@@ -200,9 +221,11 @@ private fun AuthOutlineButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leading: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(56.dp),
         shape = RoundedCornerShape(28.dp),
         border = BorderStroke(1.dp, Color(0xFFE4E2EE)),

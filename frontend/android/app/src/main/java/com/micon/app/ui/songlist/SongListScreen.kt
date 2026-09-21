@@ -50,6 +50,10 @@ import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongPage
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
+import com.micon.app.data.preferences.NetworkPreferenceRepository
+import com.micon.app.data.preferences.PreferenceApi
+import com.micon.app.data.preferences.PreferenceGenre
+import com.micon.app.data.preferences.PreferenceRepository
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.LoadMoreFooter
 import com.micon.app.ui.common.LoadMoreOnScrollEnd
@@ -72,13 +76,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class SongListViewModel(private val repo: SongRepository, private val recommend: RecommendRepository) : ViewModel() {
+class SongListViewModel(
+    private val repo: SongRepository,
+    private val recommend: RecommendRepository,
+    private val preferences: PreferenceRepository,
+) : ViewModel() {
     data class State(
         val query: String = "",
+        val genres: List<PreferenceGenre> = emptyList(),
+        val selectedGenreId: Long? = null,
         val songs: List<SongSummary> = emptyList(),
         val keys: Map<String, Int?> = emptyMap(),   // songId → 추천 키 배지 (RecommendRepository.fit, 없으면 배지 없음)
         val loading: Boolean = true,              // 첫 페이지(또는 검색어 변경) 로딩
-        val totalElements: Long = 0,              // 서버 전체 곡 수 (검색어 기준)
+        val totalElements: Long = 0,              // 서버 전체 곡 수 (검색어·장르 기준)
         val error: String? = null,
         val page: Int = 0,                        // 마지막으로 받은 페이지 번호(0부터)
         val hasMore: Boolean = false,             // 다음 페이지가 있는가
@@ -92,7 +102,10 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
     /** 첫 페이지·다음 페이지 요청 하나만 살아 있다. 검색어가 바뀌면 진행 중인 요청은 버린다. */
     private var pageJob: Job? = null
 
-    init { refresh() }
+    init {
+        refresh()
+        loadGenres()
+    }
 
     fun setQuery(query: String) {
         _state.update { it.copy(query = query) }
@@ -100,17 +113,29 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
         searchJob = viewModelScope.launch { delay(250); refresh() }
     }
 
+    /** 장르가 바뀌면 첫 페이지부터 다시 요청한다. null은 전체 장르다. */
+    fun setGenre(genreId: Long?) {
+        if (_state.value.selectedGenreId == genreId) return
+        _state.update { it.copy(selectedGenreId = genreId) }
+        refresh()
+    }
+
     /**
-     * 백엔드 `GET /songs` 는 제목·가수 검색과 페이지만 지원한다(언어·차트 분류·정렬 필터 없음, 페이지 크기 최대 100).
+     * 백엔드 `GET /songs` 는 제목·가수 검색과 선택 장르·페이지만 지원한다(페이지 크기 최대 100).
      * 첫 페이지를 받고, 나머지는 스크롤이 끝에 닿을 때 [loadMore] 로 이어 받는다(무한 스크롤).
      */
     fun refresh() {
         pageJob?.cancel()
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, moreError = null, loadingMore = false) }
-            val query = _state.value.query
+            val request = _state.value
             try {
-                val page = repo.search(query, page = 0, size = PAGE_SIZE)
+                val page = repo.search(
+                    query = request.query,
+                    page = 0,
+                    size = PAGE_SIZE,
+                    genreId = request.selectedGenreId,
+                )
                 _state.update { it.copy(songs = page.items, totalElements = page.totalElements, loading = false,
                     page = page.page, hasMore = hasNext(page)) }
                 loadKeys(page.items)
@@ -127,7 +152,12 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loadingMore = true, moreError = null) }
             try {
-                val page = repo.search(s.query, page = s.page + 1, size = PAGE_SIZE)
+                val page = repo.search(
+                    query = s.query,
+                    page = s.page + 1,
+                    size = PAGE_SIZE,
+                    genreId = s.selectedGenreId,
+                )
                 _state.update { cur ->
                     val known = cur.songs.mapTo(HashSet()) { it.id }
                     cur.copy(songs = cur.songs + page.items.filter { it.id !in known }, totalElements = page.totalElements,
@@ -151,6 +181,13 @@ class SongListViewModel(private val repo: SongRepository, private val recommend:
         _state.update { it.copy(keys = it.keys + keys) }
     }
 
+    private fun loadGenres() {
+        viewModelScope.launch {
+            runCatching { preferences.getGenres() }
+                .onSuccess { genres -> _state.update { it.copy(genres = genres) } }
+        }
+    }
+
     private companion object { const val PAGE_SIZE = 50 }
 }
 
@@ -170,14 +207,21 @@ fun SongListScreen(
     subtitle: String? = null,
 ) {
     val container = rememberAppContainer()
-    val vm: SongListViewModel = viewModel(factory = viewModelFactory { initializer { SongListViewModel(container.songs, container.recommend) } })
+    val vm: SongListViewModel = viewModel(factory = viewModelFactory {
+        initializer {
+            SongListViewModel(
+                container.songs,
+                container.recommend,
+                NetworkPreferenceRepository(container.backend.retrofit.create(PreferenceApi::class.java)),
+            )
+        }
+    })
     val state by vm.state.collectAsStateWithLifecycle()
     RefreshOnResume { if (!vm.state.value.loading) vm.refresh() }
     val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
     val loggedIn = TokenManager.isLoggedIn()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var selectedGenre by remember { mutableStateOf("전체") }
     // 찜은 서버가 진실. 로그인 상태면 진입 때 캐시를 한 번 맞춘다(비회원은 서버를 부르지 않는다).
     LaunchedEffect(loggedIn) { if (loggedIn) runCatching { container.favorites.refresh() } }
     fun like(songId: String) {
@@ -209,33 +253,20 @@ fun SongListScreen(
             placeholder = "노래나 가수를 검색해 보세요",
             prototypeStyle = true,
         )
-        Spacer(Modifier.height(12.dp))
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            PRACTICE_GENRES.forEach { genre ->
-                val selected = selectedGenre == genre
-                Surface(
-                    onClick = { selectedGenre = genre },
-                    modifier = Modifier.height(36.dp),
-                    shape = RoundedCornerShape(50),
-                    color = if (selected) Purple else Color.White,
-                    border = BorderStroke(1.dp, if (selected) Purple else Color(0xFFE4E2EE)),
-                    shadowElevation = if (selected) 0.dp else 1.dp,
-                ) {
-                    Box(Modifier.padding(horizontal = 15.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            genre,
-                            color = if (selected) Color.White else Ink,
-                            fontSize = 13.5.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        )
+        if (state.genres.isNotEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                GenreFilterChip("전체", state.selectedGenreId == null) { vm.setGenre(null) }
+                state.genres.forEach { genre ->
+                    GenreFilterChip(genre.name, state.selectedGenreId == genre.genreId) {
+                        vm.setGenre(genre.genreId)
                     }
                 }
             }
+            Spacer(Modifier.height(10.dp))
         }
-        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (state.loading) "불러오는 중…" else "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${state.songs.size}곡 표시" else ""),
@@ -272,4 +303,19 @@ fun SongListScreen(
     }
 }
 
-private val PRACTICE_GENRES = listOf("전체", "발라드", "댄스", "R&B", "록/메탈", "힙합", "인디")
+@Composable
+private fun GenreFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = if (selected) Purple else GreyLight,
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            color = if (selected) Color.White else Grey,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        )
+    }
+}

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
@@ -90,7 +91,7 @@ fun RangeMapChart(
                 val span = (axisHigh - axisLow).toFloat()
                 ticks.forEach { m ->
                     val x = size.width * (m - axisLow) / span
-                    val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 11.sp, color = Grey))
+                    val layout = measurer.measure(sharpNoteText(labelOf(m), 11.sp), TextStyle(fontSize = 11.sp, color = Grey))
                     drawText(layout, topLeft = Offset((x - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
                 }
             }
@@ -211,7 +212,7 @@ fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowM
                 else listOf(lowMidi, 55, 60, 67, highMidi)).distinct().forEach { m ->
                 val x = xOf[m] ?: return@forEach
                 val hl = m == hlLow || m == hlHigh
-                val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 10.sp, color = if (hl) Ink else Grey, fontWeight = if (hl) FontWeight.Bold else FontWeight.Normal))
+                val layout = measurer.measure(sharpNoteText(labelOf(m), 10.sp), TextStyle(fontSize = 10.sp, color = if (hl) Ink else Grey, fontWeight = if (hl) FontWeight.Bold else FontWeight.Normal))
                 drawText(layout, topLeft = Offset((x + w / 2 - layout.size.width / 2f).coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)), 0f))
                 if (hl) drawCircle(Purple, 3.dp.toPx(), Offset(x + w / 2, labelH + 1.dp.toPx()))
             }
@@ -227,7 +228,7 @@ fun PianoRangeChart(hlLow: Int, hlHigh: Int, modifier: Modifier = Modifier, lowM
                 drawLine(Purple, Offset(x1, 0f), Offset(x1, size.height), 2f)
                 drawLine(Purple, Offset(x0, size.height), Offset(x1, size.height), 2f)
             }
-            Text(it, fontSize = 11.sp, color = Purple, fontWeight = FontWeight.SemiBold)
+            Text(sharpNoteText(it, 11.sp), fontSize = 11.sp, color = Purple, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -312,7 +313,9 @@ fun PianoTargetKeyboard(
         (lowMidi..highMidi).filter { it == targetMidi || (it % 12 == 0 && abs(it - targetMidi) > 1) }.forEach { m ->   // 기준음 옆 C 라벨은 겹치므로 생략
             val cx = xOf[m] ?: return@forEach
             val isTarget = m == targetMidi
-            val layout = measurer.measure(ScoringMath.midiName(m), TextStyle(fontSize = if (isTarget) 12.sp else 10.sp, color = if (isTarget) Purple else Grey, fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal))
+            val noteSize = if (isTarget) 12.sp else 10.sp
+            val layout = measurer.measure(sharpNoteText(ScoringMath.midiName(m), noteSize), TextStyle(fontSize = noteSize,
+                color = if (isTarget) Purple else Grey, fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal))
             drawText(layout, topLeft = Offset((cx - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), 0f))
         }
         // 감지된 음 마커: 건반 중심 사이를 보간해 연속적으로 이동
@@ -473,7 +476,7 @@ fun KeyChangeGraph(
         for (m in kotlin.math.ceil(lo).toInt()..kotlin.math.floor(hi).toInt()) {
             if (m % 12 != 0 && m % 12 != 7) continue
             drawLine(Color(0xFFE6E6EB), Offset(left, y(m.toDouble())), Offset(size.width, y(m.toDouble())), 1.5f)
-            val layout = measurer.measure(labelOf(m), TextStyle(fontSize = 12.sp, color = Grey))
+            val layout = measurer.measure(sharpNoteText(labelOf(m), 12.sp), TextStyle(fontSize = 12.sp, color = Grey))
             drawText(layout, topLeft = Offset(4f, y(m.toDouble()) - layout.size.height / 2f))
         }
         fun smooth(points: List<Pair<Double, Double>>): Path {
@@ -544,7 +547,7 @@ fun PitchGauge(
                 drawArc(Lavender, 0f, 360f, false, Offset(sw / 2, sw / 2), Size(size.width - sw, size.height - sw), style = Stroke(sw))
                 drawArc(Purple, -90f, 360f * holdProgress.coerceIn(0f, 1f), false, Offset(sw / 2, sw / 2), Size(size.width - sw, size.height - sw), style = Stroke(sw, cap = StrokeCap.Round))
             }
-            Text(targetName, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text(sharpNoteText(targetName, 32.sp), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Ink)
         }
         Spacer(Modifier.height(12.dp))
         Canvas(Modifier.fillMaxWidth().height(gaugeHeight)) {
