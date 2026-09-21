@@ -26,6 +26,12 @@ data class EmailAuthRequest(
     val deviceName: String? = "MICON Android",
 )
 
+data class GoogleAuthRequest(
+    val idToken: String,
+    val deviceId: String? = null,
+    val deviceName: String? = "MICON Android",
+)
+
 data class AuthResponse(
     val userId: Long,
     val email: String,

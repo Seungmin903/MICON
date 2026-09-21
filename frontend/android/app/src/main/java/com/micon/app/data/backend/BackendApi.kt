@@ -4,6 +4,7 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.AuthResponse
 import com.micon.app.data.backend.dto.CurrentUser
 import com.micon.app.data.backend.dto.EmailAuthRequest
+import com.micon.app.data.backend.dto.GoogleAuthRequest
 import com.micon.app.data.backend.dto.PageDto
 import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.SongDetailDto
@@ -63,6 +64,9 @@ interface BackendApi {
 
     @POST("auth/login")
     suspend fun login(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
+
+    @POST("auth/google")
+    suspend fun googleLogin(@Body body: GoogleAuthRequest): Response<ApiResponse<AuthResponse>>
 
     @POST("auth/signup")
     suspend fun signup(@Body body: EmailAuthRequest): Response<ApiResponse<AuthResponse>>
