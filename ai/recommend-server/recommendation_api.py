@@ -521,6 +521,8 @@ def recommendation_status() -> dict[str, Any]:
             ]
         except Exception:
             missing.append("데모 카탈로그 검증")
+    linked = catalog_link.song_ids()
+    local_active = len({item["track_id"] for item in catalog_tracks} & set(linked)) if linked else None
     return {
         "ready": not missing and catalog_link_state["mappedTracks"] > 0,
         "engineReady": not missing,
@@ -531,6 +533,11 @@ def recommendation_status() -> dict[str, Any]:
         "models": ["ECAPA-TDNN VoxCeleb", "Singer-BYOL", "VocalScope CREPE + pYIN"],
         "rangeModes": ["timbre", "range"],
         "catalogLink": catalog_link_state,   # 앱 song_id 짝표. mappedTracks 가 0 이면 BE 에 저장할 수 없다
+        # 로컬 인덱스가 DB 활성 곡을 얼마나 덮는지. dbTracksMissingLocally 가 0 이 아니면 새 번들이 필요하다
+        "catalogCoverage": {"dbActiveTracks": catalog_link_state["mappedTracks"], "localTracks": tracks,
+                            "localTracksActiveInDb": local_active,
+                            "dbTracksMissingLocally": None if local_active is None
+                            else catalog_link_state["mappedTracks"] - local_active},
         "artistCatalog": artist_state,
         "missing": missing,
     }
