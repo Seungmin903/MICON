@@ -460,8 +460,11 @@ private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
 
 /** Survives configuration changes, but a fresh process must validate its server session. */
 class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
-    /** 프로토타입: 앱을 열면 바로 목소리 분석. 로그인·설문은 결과를 저장할 때 만난다 */
-    val initialRoute = Routes.HOLO
+    /**
+     * 로그인한 사람은 앱을 열면 바로 목소리 분석(홀로)으로, 아직 로그인하지 않았으면 로그인 화면으로.
+     * 분석 결과는 계정에 저장돼야 추천까지 이어지므로, 재기 전에 누구인지 먼저 안다.
+     */
+    val initialRoute = if (TokenManager.isLoggedIn()) Routes.HOLO else Routes.LOGIN
     var verified by mutableStateOf(false)
     var guest by mutableStateOf(false)
 

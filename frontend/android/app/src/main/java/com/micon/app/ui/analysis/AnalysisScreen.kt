@@ -90,8 +90,9 @@ fun AnalysisScreen(
     MiconScreen(
         appBar = {
             MiconAppBar(actions = {
+                // 비회원에게는 설정에 쓸 것이 없다 — 로그인만 보여 준다
                 if (onLogin != null) MiconButton("로그인", onLogin, kind = MiconButtonKind.Text)
-                IconButton(onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "설정") }
+                else IconButton(onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "설정") }
             })
         },
         verticalArrangement = Arrangement.spacedBy(14.dp),
