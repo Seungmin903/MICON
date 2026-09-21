@@ -146,7 +146,7 @@ fun VoiceReportScreen(
         }
     }
     Column(Modifier.fillMaxSize().background(Color.White)) {
-        if (onLogin == null) MiconHeader(onSettings = onSettings) else GuestReportHeader(onLogin)
+        MiconHeader(onSettings = onSettings, onLogin = onLogin)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
             VoiceOnboardingEntry(entryState, entry::open, entry::resume, entry::startNew, entry::dismiss)
             Spacer(Modifier.height(16.dp))
@@ -159,20 +159,6 @@ fun VoiceReportScreen(
                 PreviousAnalysisReportCards(checkNotNull(previousAnalysis))
             } else EmptyReport()
             Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun GuestReportHeader(onLogin: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().height(72.dp).padding(start = 20.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiconLogo(barHeight = 20.dp, fontSize = 20.sp)
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = onLogin) {
-            Text("로그인/회원가입", color = InkSoft, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

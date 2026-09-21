@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.RefreshOnResume
+import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -162,7 +163,7 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
     val accent = MaterialTheme.colorScheme.onPrimaryContainer
 
     MiconScreen(
-        appBar = { MiconAppBar(title = "기록", actions = { IconButton(onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "설정") } }) },
+        appBar = { MiconHeader(onSettings = onSettings) },
         verticalArrangement = Arrangement.spacedBy(MiconSpace.sm),
     ) {
         val avg = state.weekAverage

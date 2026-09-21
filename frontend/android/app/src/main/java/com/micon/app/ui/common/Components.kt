@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
@@ -86,6 +85,9 @@ import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.LavenderDeep
 import com.micon.app.ui.theme.Paper
 import com.micon.app.ui.theme.Purple
+import com.micon.app.ui.design.atoms.MiconButton
+import com.micon.app.ui.design.atoms.MiconButtonKind
+import com.micon.app.ui.design.organisms.MiconAppBar
 
 // ---------------------------------------------------------------------------
 // 로고 · 헤더
@@ -106,25 +108,18 @@ fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: Te
 /** Figma 공통 헤더. 비회원에게는 계정 아이콘 대신 로그인 버튼만 노출한다. */
 @Composable
 fun MiconHeader(
-    onNotifications: () -> Unit = {},
     onSettings: () -> Unit = {},
     onLogin: (() -> Unit)? = null,
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(64.dp).padding(start = 20.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiconLogo()
-        Spacer(Modifier.weight(1f))
+    MiconAppBar(actions = {
         if (onLogin != null) {
-            TextButton(onClick = onLogin) {
-                Text("로그인", color = Purple, fontWeight = FontWeight.SemiBold)
-            }
+            MiconButton("로그인", onLogin, kind = MiconButtonKind.Text)
         } else {
-            IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, "알림", Modifier.size(26.dp), tint = Ink) }
-            IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "설정", Modifier.size(26.dp), tint = Ink) }
+            IconButton(onClick = onSettings, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Settings, "설정", Modifier.size(24.dp), tint = Ink)
+            }
         }
-    }
+    })
 }
 
 /** 하위 화면 헤더: ← 제목 (오른쪽 액션 슬롯). 아래 얇은 그림자. */
