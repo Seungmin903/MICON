@@ -1,6 +1,7 @@
 package com.micon.app.ui.songlist
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,6 +65,7 @@ import com.micon.app.ui.common.SongRow
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
+import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.CancellationException
@@ -230,7 +235,7 @@ fun SongListScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Color.White)) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
         if (backTitle != null) {
             BackHeader(backTitle, onBack)
             Spacer(Modifier.height(12.dp))
@@ -241,8 +246,13 @@ fun SongListScreen(
         } else {
             MiconHeader(onSettings = onSettings, onLogin = onLogin)
         }
-        MiconSearchBar(state.query, vm::setQuery, Modifier.padding(horizontal = 20.dp))
-        Spacer(Modifier.height(10.dp))
+        MiconSearchBar(
+            state.query,
+            vm::setQuery,
+            Modifier.padding(horizontal = 20.dp),
+            placeholder = "노래나 가수를 검색해 보세요",
+            prototypeStyle = true,
+        )
         if (state.genres.isNotEmpty()) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -280,9 +290,9 @@ fun SongListScreen(
                             artist = song.artist,
                             imageUrl = song.imageUrl,
                             onClick = { onSongClick(song.id) },
-                            keyBadge = state.keys[song.id],
                             liked = song.id in liked,
                             onLike = { like(song.id) },
+                            compactCd = true,
                         )
                     }
                     if (state.songs.isEmpty()) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }
