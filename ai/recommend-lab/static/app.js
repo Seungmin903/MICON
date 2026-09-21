@@ -12,6 +12,10 @@ async function api(path, options) {
   return body;
 }
 function badge(status) {const value = String(status || 'UNKNOWN'); return el('span', value, 'status ' + (/FAILED|INSUFFICIENT|REJECTED|CONFLICT|UNAVAILABLE/i.test(value)? 'failed' : /COMPLETE|REPLAY_READY|ACCEPTED|AVAILABLE|NO_RESULT/i.test(value)? 'complete' : 'pending'));}
+function mrText(mr) {const input=mr.embeddingInput==='separated-vocals'?'보컬 분리본으로 임베딩':mr.embeddingInput==='raw-recording'?'원본 그대로 임베딩':'임베딩 입력 미기록';
+  const numbers=`바닥 비율 ${mr.lowEnergyFloorRatio ?? '-'} · 동적 범위 ${mr.dynamicRangeP95P10 ?? '-'}`;
+  return [...(mr.reasons || []), numbers, input, mr.separationFailureReason?'분리 실패: '+mr.separationFailureReason:''].filter(Boolean).join('\n');}
+function mrBadge(mr) {const tag=el('span',mr.label,'status mr-flag'); tag.title=mrText(mr); return tag;}
 function ownerText(r) {return r.kind==='case'?'테스트 case':r.loginId?`가입 ID ${r.loginId}`:'가입 ID 확인 불가';}
 function inputInfo(r) {return r?(ownerText(r)+' · '+(r.kind==='case'?'동의받아 저장한 고정 입력 case':'분석 원본 진단 · 당시 추천의 취향과 profile 동일성 보장 안 됨')):'';}
 function tip(event, text) {
@@ -22,7 +26,7 @@ function tip(event, text) {
 function refreshRequestList() {
   const query = $('requestSearch').value.toLowerCase(); $('requests').replaceChildren();
   const memberQuery = query.match(/^(?:회원(?:\s*id)?|user(?:\s*id)?)\s*[:#]?\s*(\d+)$/);
-  const filtered = state.requests.filter(r => memberQuery?String(r.userId)===memberQuery[1].replace(/^0+(?=\d)/,''):[r.id,r.loginId,r.userId,ownerText(r),r.sessionId,r.profileId,r.status,r.title].join(' ').toLowerCase().includes(query));
+  const filtered = state.requests.filter(r => memberQuery?String(r.userId)===memberQuery[1].replace(/^0+(?=\d)/,''):[r.id,r.loginId,r.userId,ownerText(r),r.sessionId,r.profileId,r.status,r.title,r.mrDetection?.label].join(' ').toLowerCase().includes(query));
   for(const r of filtered) {
     const card = el('div', undefined, 'request-card' + (state.selected===r.id?' selected':''));
     card.tabIndex=0; card.setAttribute('role','button'); card.dataset.userId=r.userId || ''; card.dataset.ownerStatus=r.ownerStatus || '';
@@ -31,7 +35,9 @@ function refreshRequestList() {
     check.onclick = e=>e.stopPropagation(); check.onchange=()=>{check.checked?state.shown.add(r.id):state.shown.delete(r.id); drawMaps();};
     head.append(check, el('strong',r.title || `${r.analysisType || '추천'} · ${r.sessionId ? 'S'+r.sessionId : r.profileId ? 'P'+r.profileId : r.kind}`));
     const owner=el('div',ownerText(r),r.loginId?'request-owner':'muted'); owner.title=r.ownerReason || '';
-    card.append(head,owner,el('div',r.id,'request-id'),badge(r.status),el('div',r.createdAt || '생성 시각 미상','muted'));
+    card.append(head,owner,el('div',r.id,'request-id'),badge(r.status));
+    if(r.mrDetection)card.append(mrBadge(r.mrDetection));
+    card.append(el('div',r.createdAt || '생성 시각 미상','muted'));
     if(r.userId)card.append(el('div',`회원번호 ${r.userId}`,'muted'));
     if(!r.replayAvailable) card.append(el('div','상태 조회만 가능','muted'));
     function select(){state.selected=r.id; refreshRequestList(); if(r.kind==='case'){state.inspected='';state.jobEpoch++;$('jobDetail').replaceChildren(el('p','저장 테스트 case입니다. 실제 회원의 음역·가수 접수 결과가 아닙니다.','muted')); $('caseSelect').value=r.id; inputChanged(); } else { $('jobId').value=r.id; inspectJob(r.id); if(r.replayAvailable){ $('caseSelect').value=r.id; inputChanged(); } }}
@@ -106,6 +112,11 @@ async function inspectJob(id, quiet=false) {
   try {
     const j=await api('api/jobs/'+encodeURIComponent(id)); if(epoch!==state.jobEpoch)return;
     const detail=$('jobDetail');detail.replaceChildren(badge(j.status));
+    if(j.mrDetection){const box=el('div',undefined,'mr-detail');const head=el('div',undefined,'component-row');head.append(mrBadge(j.mrDetection),el('span',j.mrDetection.embeddingInput==='separated-vocals'?'보컬 분리본으로 임베딩했습니다.':j.mrDetection.embeddingInput==='raw-recording'?'분리 없이 원본으로 임베딩했습니다.':'임베딩 입력이 기록되지 않았습니다.'));box.append(head);
+      for(const reason of j.mrDetection.reasons)box.append(el('div','· '+reason,'muted'));
+      box.append(el('p',`바닥 비율 ${j.mrDetection.lowEnergyFloorRatio ?? '-'} · 동적 범위 ${j.mrDetection.dynamicRangeP95P10 ?? '-'} · 판정기 ${j.mrDetection.detectorVersion || '미기록'} · 전처리 ${j.mrDetection.preprocessingVersion || '미기록'}`,'muted'));
+      if(j.mrDetection.separationFailureReason)box.append(el('p','보컬 분리 실패: '+j.mrDetection.separationFailureReason,'failure-reason'));
+      box.append(el('p','AI 서버가 녹음 에너지로 내린 판정이며 MR 포함 여부를 단정하지 않습니다.','muted'));detail.append(box);}
     const facts=el('div',undefined,'facts'); facts.append(fact('가입 ID (로그인 이메일)',j.loginId || '확인 불가'),fact('회원번호 (내부 userId)',j.userId || '확인 불가'),fact('회원 확인 근거',j.ownerReason || '회원 연결 기록 없음'),fact('유형',j.analysisType||j.kind),fact('분석 컴포넌트 상태',j.componentStatus||j.status),fact('실패 코드',j.failureCode),fact('session / profile',`${j.sessionId ?? '-'} / ${j.profileId ?? '-'}`),fact('생성 시각',j.createdAt),fact('갱신 시각',j.updatedAt));detail.append(facts);
     if(j.loginIdStatus==='missing')detail.append(el('p','회원번호는 확인됐지만 가입 ID가 제공되지 않았습니다. 회원 연결 데이터 소스에 loginId가 필요합니다.','muted'));
     detail.append(renderVoiceInsights(j));

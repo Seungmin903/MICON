@@ -163,6 +163,45 @@ class LabTest(unittest.TestCase):
         self.assertIn("T", rows[0]["createdAt"])
         self.assertAlmostEqual(created_timestamp(rows[0]["createdAt"]), 1789792327.3118126, delta=1)
 
+    def test_mr_suspected_label_is_surfaced_only_from_recorded_decision(self):
+        analysis = self.root / "mr-analysis"
+        write_json(analysis / "job_mr/job.json", {
+            "jobId": "job_mr", "status": "COMPLETED", "createdAt": "2026-09-21T10:42:41",
+            "meta": {"analysisType": "TIMBRE", "sessionId": 146}, "components": {},
+            "mrDetection": {"detectorVersion": "mr-energy-v1", "status": "SUSPECTED",
+                            "displayLabel": "MR 의심", "requiresSeparation": True,
+                            "reasonCodes": ["QUIET_WINDOWS_LOUD", "LOW_DYNAMIC_RANGE"],
+                            "metrics": {"lowEnergyFloorRatio": 0.383, "dynamicRangeP95P10": 5.9},
+                            "embeddingInput": "separated-vocals",
+                            "separation": {"status": "COMPLETED"}},
+        })
+        write_json(analysis / "job_clean/job.json", {
+            "jobId": "job_clean", "status": "COMPLETED", "createdAt": "2026-09-21T10:40:00",
+            "meta": {"analysisType": "TIMBRE", "sessionId": 147}, "components": {},
+            "mrDetection": {"detectorVersion": "mr-energy-v1", "status": "NOT_SUSPECTED",
+                            "displayLabel": None, "requiresSeparation": False, "reasonCodes": [],
+                            "metrics": {"lowEnergyFloorRatio": 0.08, "dynamicRangeP95P10": 24.1},
+                            "embeddingInput": "raw-recording"},
+        })
+        write_json(analysis / "job_old/job.json", {
+            "jobId": "job_old", "status": "COMPLETED", "createdAt": "2026-09-21T10:38:00",
+            "meta": {"analysisType": "TIMBRE"}, "components": {},
+        })
+        repo = Repository(analysis)
+
+        flags = {row["id"]: row["mrDetection"] for row in repo.list()}
+
+        self.assertIsNone(flags["job_clean"])
+        self.assertIsNone(flags["job_old"])
+        self.assertEqual(flags["job_mr"]["label"], "MR 의심")
+        self.assertEqual(flags["job_mr"]["embeddingInput"], "separated-vocals")
+        self.assertEqual(flags["job_mr"]["lowEnergyFloorRatio"], 0.383)
+        self.assertEqual(flags["job_mr"]["reasons"], [
+            "노래하지 않는 구간의 음량이 노래 구간만큼 큽니다",
+            "녹음 전체의 음량 변화 폭이 좁습니다",
+        ])
+        self.assertEqual(repo.job("job_mr")["mrDetection"], flags["job_mr"])
+
     def test_expired_timbre_uses_linked_artist_search_centroids_for_map(self):
         analysis = self.root / "expired-analysis"
         artist_jobs = self.root / "artist-jobs"

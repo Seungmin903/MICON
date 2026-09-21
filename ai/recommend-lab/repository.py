@@ -62,6 +62,33 @@ def safe_reason(value):
     return text[:700]
 
 
+MR_REASON_TEXT = {
+    "QUIET_WINDOWS_LOUD": "노래하지 않는 구간의 음량이 노래 구간만큼 큽니다",
+    "LOW_DYNAMIC_RANGE": "녹음 전체의 음량 변화 폭이 좁습니다",
+}
+
+
+def mr_flag(job):
+    """Surface the AI server's recorded MR decision. The lab never re-decides it."""
+    recorded = job.get("mrDetection")
+    if not isinstance(recorded, dict) or recorded.get("status") != "SUSPECTED":
+        return None
+    metrics = recorded.get("metrics")
+    metrics = metrics if isinstance(metrics, dict) else {}
+    separation = recorded.get("separation")
+    separation = separation if isinstance(separation, dict) else {}
+    codes = recorded.get("reasonCodes")
+    return {"status": "SUSPECTED", "label": str(recorded.get("displayLabel") or "MR 의심")[:20],
+            "embeddingInput": recorded.get("embeddingInput"),
+            "separationStatus": separation.get("status"),
+            "separationFailureReason": safe_reason(separation.get("failureReason")),
+            "detectorVersion": recorded.get("detectorVersion"),
+            "preprocessingVersion": recorded.get("preprocessingVersion"),
+            "reasons": [MR_REASON_TEXT.get(code, str(code)) for code in (codes if isinstance(codes, list) else [])],
+            "lowEnergyFloorRatio": metrics.get("lowEnergyFloorRatio"),
+            "dynamicRangeP95P10": metrics.get("dynamicRangeP95P10")}
+
+
 class Repository:
     def __init__(self, analysis=None, recommendations=None, cases=None, owners=None, insights=None,
                  artist_jobs=None):
@@ -190,6 +217,7 @@ class Repository:
             "reasonSource": "recorded" if reason else "unavailable",
             "reasonUnavailable": ("실패 원문이 보존되지 않았거나 중간 파일이 만료됐습니다." if failed and not reason else None),
             "audioDeleted": bool(job.get("audioDeleted")), "callbackDetailsAvailable": callback_present,
+            "mrDetection": mr_flag(job),
             "components": components, "metadataChecks": checks,
             "metadataCheckNote": "메타데이터와 현행 계약 조건의 대조이며 원본 콜백의 실패 사유를 대체하지 않습니다.",
             "replayAvailable": replay, "replaySource": replay_source, "replayReason": None if replay else (
