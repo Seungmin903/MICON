@@ -2,177 +2,267 @@ package com.micon.app.ui.settings
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.micon.app.BuildConfig
 import com.micon.app.appContainer
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.backend.NetworkAuthRepository
+import com.micon.app.data.backend.dto.PasswordChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
-import com.micon.app.data.local.UserStore
-import com.micon.app.data.onboarding.VoiceOnboardingStore
-import com.micon.app.ui.design.atoms.CompactDisc
-import com.micon.app.ui.design.atoms.MiconButton
-import com.micon.app.ui.design.atoms.MiconButtonKind
-import com.micon.app.ui.design.atoms.MiconCard
-import com.micon.app.ui.design.atoms.MiconCardKind
-import com.micon.app.ui.design.atoms.MiconField
-import com.micon.app.ui.design.molecules.NoteNames
-import com.micon.app.ui.design.organisms.MiconAppBar
-import com.micon.app.ui.design.organisms.MiconScreen
-import com.micon.app.ui.design.tokens.MiconSpace
+import com.micon.app.data.backend.errorEnvelope
+import com.micon.app.data.backend.unwrapData
+import com.micon.app.ui.common.BackHeader
+import com.micon.app.ui.common.MiconTextField
+import com.micon.app.ui.onboarding.AuthPrimaryButton
+import com.micon.app.ui.onboarding.AuthTextField
+import com.micon.app.ui.onboarding.PASSWORD_GUIDE
+import com.micon.app.ui.onboarding.isValidPassword
+import com.micon.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-private const val PREFS = "micon-settings"
-private const val KEY_NOTATION = "notation"
-
-/** 앱 시작 시 저장된 음 이름 표기를 복원한다 */
-fun restoreNotation(context: android.content.Context) {
-    val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(KEY_NOTATION, null) ?: return
-    runCatching { NoteNames.setNotation(NoteNames.Notation.valueOf(raw)) }
-}
-
-/**
- * 설정 — 프로토타입 `settings`. 프로필 카드 · 행 3개(음 이름 표기 · 원본 녹음 저장 · 선호 수정) · 로그아웃.
- * 음 이름 표기(도레미/CDE)는 여기서 바꾸고 앱 전체가 따라 바뀐다(기기 저장).
- */
+/** HTML 프로토타입의 카드 구성을 적용한 계정 설정 화면. */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferences: () -> Unit = {}) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onLogout: () -> Unit = {},
+    onEditPreferences: () -> Unit = {},
+    onChangePassword: () -> Unit = {},
+) {
     val context = LocalContext.current
-    val vm: SettingsViewModel = viewModel(factory = viewModelFactory { initializer {
-        val owner = TokenManager.getUserId()
-        SettingsViewModel(context.appContainer.settings) {
-            if (TokenManager.getUserId() == owner) UserStore.clearVoiceData()
-            withContext(Dispatchers.IO) { if (owner > 0) VoiceOnboardingStore(context.applicationContext, owner).clearVoiceData() }
-        }
-    } })
-    val state by vm.state.collectAsStateWithLifecycle()
-    val notation by NoteNames.notation.collectAsStateWithLifecycle()
-    LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); vm.consumeToast() } }
     val backend = context.appContainer.backend
     val auth = remember(backend) { NetworkAuthRepository(backend.api) }
     val scope = rememberCoroutineScope()
-    var email by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { email = runCatching { backend.api.currentUser().body()?.data?.email }.getOrNull() }
+    var accountEmail by remember { mutableStateOf<String?>(null) }
+    var accountLoadFailed by remember { mutableStateOf(false) }
     var loggingOut by remember { mutableStateOf(false) }
-    var showDeleteVoice by remember { mutableStateOf(false) }
     var showWithdraw by remember { mutableStateOf(false) }
     var withdrawing by remember { mutableStateOf(false) }
     var withdrawPassword by remember { mutableStateOf("") }
     var withdrawError by remember { mutableStateOf<String?>(null) }
-    BackHandler(enabled = loggingOut) { }
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
-    MiconScreen(appBar = { MiconAppBar(title = "설정", onBack = onBack) }, verticalArrangement = Arrangement.spacedBy(MiconSpace.sm)) {
-        MiconCard(kind = MiconCardKind.Outlined) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CompactDisc(title = (UserStore.nickname ?: "나").take(2), size = 48.dp)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(UserStore.nickname ?: "내 계정", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text(email ?: "", style = MaterialTheme.typography.labelMedium, color = muted)
-                }
-            }
-        }
-        MiconCard(kind = MiconCardKind.Outlined, contentPadding = 0.dp) {
-            SettingRow("음 이름 표기", notation.label) {
-                NoteNames.setNotation(if (notation == NoteNames.Notation.SOLFEGE) NoteNames.Notation.LETTERS else NoteNames.Notation.SOLFEGE)
-                context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(KEY_NOTATION, NoteNames.notation.value.name).apply()
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = MiconSpace.md))
-            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = MiconSpace.md), verticalAlignment = Alignment.CenterVertically) {
-                Text("원본 녹음 저장", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                val on = state.saveOriginalRecording
-                if (on == null) Text(state.settingsError ?: "불러오는 중…", style = MaterialTheme.typography.labelMedium, color = muted)
-                else Switch(checked = on, onCheckedChange = vm::setSaveOriginalRecording, enabled = !state.saving,
-                    colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary, uncheckedTrackColor = Color(0xFFD9D5EA), uncheckedBorderColor = Color.Transparent))
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = MiconSpace.md))
-            SettingRow("좋아하는 장르·가수", "수정", onEditPreferences)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = MiconSpace.md))
-            SettingRow(if (state.deleting) "음성데이터 삭제 중…" else "음성데이터 삭제", "") { if (!state.deleting) showDeleteVoice = true }
-        }
-        MiconButton(if (loggingOut) "로그아웃 중…" else "로그아웃", {
-            if (!loggingOut) { loggingOut = true; scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() } }
-        }, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TextButton({ if (!loggingOut) showWithdraw = true }) { Text("회원 탈퇴", color = Color(0xFFC92A5E), style = MaterialTheme.typography.labelLarge) }
-        }
-        Text("버전 ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    BackHandler(enabled = loggingOut) { }
+    LaunchedEffect(Unit) {
+        runCatching { backend.api.currentUser().unwrapData().email }
+            .onSuccess { accountEmail = it }
+            .onFailure { accountLoadFailed = true }
     }
 
-    if (showDeleteVoice) AlertDialog(
-        onDismissRequest = { showDeleteVoice = false },
-        title = { Text("음성 데이터를 삭제할까요?") },
-        text = { Text("서버에 저장된 내 녹음과 분석 결과가 모두 지워져요. 되돌릴 수 없어요.") },
-        confirmButton = { TextButton({ showDeleteVoice = false; vm.deleteVoiceData() }) { Text("삭제") } },
-        dismissButton = { TextButton({ showDeleteVoice = false }) { Text("취소") } },
-    )
-    if (showWithdraw) AlertDialog(
-        onDismissRequest = { if (!withdrawing) showWithdraw = false },
-        title = { Text("회원 탈퇴") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("계정과 개인 데이터가 모두 삭제돼요. 확인을 위해 비밀번호를 입력해 주세요.", style = MaterialTheme.typography.bodyMedium)
-                MiconField(withdrawPassword, { withdrawPassword = it }, "현재 비밀번호", password = true)
-                withdrawError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium) }
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = !withdrawing && withdrawPassword.isNotBlank(), onClick = {
-                withdrawing = true; withdrawError = null
-                scope.launch {
-                    try {
-                        val response = backend.api.withdraw(WithdrawRequest(withdrawPassword))
-                        if (!response.isSuccessful) withdrawError = if (response.code() == 401) "비밀번호가 올바르지 않습니다." else "탈퇴를 처리하지 못했습니다."
-                        else { TokenManager.clear(); showWithdraw = false; Toast.makeText(context, "탈퇴와 개인 데이터 삭제가 완료되었습니다.", Toast.LENGTH_LONG).show(); onLogout() }
-                    } catch (_: Exception) { withdrawError = "연결을 확인한 뒤 다시 시도해주세요." }
-                    finally { withdrawing = false }
+    if (showWithdraw) {
+        AlertDialog(
+            onDismissRequest = { if (!withdrawing) showWithdraw = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("회원 탈퇴", color = Ink, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("탈퇴하면 기존 계정과 개인 기록에 접근할 수 없습니다. 현재 비밀번호를 입력해주세요.", color = Grey)
+                    Spacer(Modifier.height(16.dp))
+                    MiconTextField("현재 비밀번호", withdrawPassword, { withdrawPassword = it }, "비밀번호", isPassword = true)
+                    withdrawError?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
                 }
-            }) { Text(if (withdrawing) "처리 중…" else "탈퇴", color = Color(0xFFC92A5E)) }
-        },
-        dismissButton = { TextButton({ showWithdraw = false }, enabled = !withdrawing) { Text("취소") } },
-    )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !withdrawing && withdrawPassword.isNotBlank(),
+                    onClick = {
+                        withdrawing = true
+                        withdrawError = null
+                        scope.launch {
+                            try {
+                                val response = backend.api.withdraw(WithdrawRequest(withdrawPassword))
+                                if (!response.isSuccessful) {
+                                    withdrawError = if (response.code() == 401) "비밀번호가 올바르지 않습니다." else "탈퇴를 처리하지 못했습니다."
+                                } else {
+                                    TokenManager.clear()
+                                    showWithdraw = false
+                                    Toast.makeText(context, "탈퇴와 개인 데이터 삭제가 완료되었습니다.", Toast.LENGTH_LONG).show()
+                                    onLogout()
+                                }
+                            } catch (_: Exception) {
+                                withdrawError = "연결을 확인한 뒤 다시 시도해주세요."
+                            } finally {
+                                withdrawing = false
+                            }
+                        }
+                    },
+                ) { Text(if (withdrawing) "처리 중…" else "탈퇴하기", color = Pink) }
+            },
+            dismissButton = { TextButton(enabled = !withdrawing, onClick = { showWithdraw = false }) { Text("취소", color = Grey) } },
+        )
+    }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+        BackHeader("설정", { if (!loggingOut) onBack() })
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+            Spacer(Modifier.height(20.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp,
+            ) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(52.dp).background(Purple.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.AccountCircle, null, Modifier.size(30.dp), tint = Purple)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("현재 계정", fontSize = 12.sp, color = Grey)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            accountEmail ?: if (accountLoadFailed) "계정 정보를 불러오지 못했어요" else "불러오는 중…",
+                            fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (accountLoadFailed) Pink else Ink,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = Color.White, shadowElevation = 2.dp,
+            ) {
+                Column(Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
+                    SettingsMenuRow(Icons.Outlined.FavoriteBorder, "선호 장르/가수 수정", onClick = onEditPreferences)
+                    SettingsDivider()
+                    // 음 이름 표기(도레미/CDE) — 바꾸면 앱 전체 표기가 따라 바뀐다
+                    NotationSettingRow()
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.Outlined.Lock, "비밀번호 변경", onClick = onChangePassword)
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.AutoMirrored.Outlined.Logout, if (loggingOut) "로그아웃 중…" else "로그아웃") {
+                        if (!loggingOut) {
+                            loggingOut = true
+                            scope.launch(Dispatchers.Main.immediate) { auth.logout(); onLogout() }
+                        }
+                    }
+                    SettingsDivider()
+                    SettingsMenuRow(Icons.Filled.Cancel, "탈퇴", color = Pink) { if (!loggingOut) showWithdraw = true }
+                }
+            }
+            Spacer(Modifier.height(32.dp))
+        }
+    }
 }
 
 @Composable
-private fun SettingRow(label: String, value: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 48.dp).padding(horizontal = MiconSpace.md), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun SettingsMenuRow(icon: ImageVector, label: String, color: Color = Ink, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 17.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, Modifier.size(23.dp), tint = color)
+        Spacer(Modifier.width(16.dp))
+        Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = color, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(22.dp), tint = if (color == Pink) Pink else Grey)
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(color = GreyLight, modifier = Modifier.padding(start = 39.dp))
+}
+
+/** 로그인 화면과 같은 입력창·버튼 규격을 사용하는 회원 비밀번호 변경 화면. */
+@Composable
+fun ChangePasswordScreen(onBack: () -> Unit, onLogout: () -> Unit) {
+    val context = LocalContext.current
+    val backend = context.appContainer.backend
+    val scope = rememberCoroutineScope()
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var changing by remember { mutableStateOf(false) }
+    val newPasswordValid = isValidPassword(newPassword)
+    val confirmationMatches = confirmPassword.isNotEmpty() && confirmPassword == newPassword
+    val canSubmit = currentPassword.isNotBlank() && newPasswordValid && confirmationMatches
+
+    BackHandler(enabled = changing) { }
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+        BackHeader("비밀번호 변경", { if (!changing) onBack() })
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Spacer(Modifier.height(28.dp))
+            Text("비밀번호를 변경할게요", fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, color = Ink)
+            Spacer(Modifier.height(8.dp))
+            Text("현재 비밀번호를 확인한 뒤 새로운 비밀번호로 변경합니다.", fontSize = 13.5.sp, lineHeight = 22.sp, color = Grey)
+            Spacer(Modifier.height(24.dp))
+            AuthTextField(currentPassword, { currentPassword = it; error = null }, "현재 비밀번호", isPassword = true)
+            Spacer(Modifier.height(10.dp))
+            AuthTextField(
+                newPassword, { newPassword = it; error = null }, "새로운 비밀번호", isPassword = true,
+                helper = PASSWORD_GUIDE,
+                helperColor = if (newPasswordValid) GreenChipText else if (newPassword.isEmpty()) Grey else Pink,
+            )
+            Spacer(Modifier.height(10.dp))
+            AuthTextField(
+                confirmPassword, { confirmPassword = it; error = null }, "새로운 비밀번호 확인", isPassword = true,
+                helper = when {
+                    confirmPassword.isEmpty() -> null
+                    confirmationMatches -> "비밀번호가 일치합니다."
+                    else -> "비밀번호가 일치하지 않습니다."
+                },
+                helperColor = if (confirmationMatches) GreenChipText else Pink,
+            )
+            error?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
+            Spacer(Modifier.height(24.dp))
+            AuthPrimaryButton(
+                text = if (changing) "변경 중…" else "변경",
+                onClick = {
+                    changing = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val response = backend.api.changePassword(PasswordChangeRequest(currentPassword, newPassword))
+                            if (!response.isSuccessful) {
+                                val backendError = response.errorEnvelope()
+                                error = when (backendError?.code) {
+                                    "INVALID_CURRENT_PASSWORD" -> "현재 비밀번호가 올바르지 않습니다."
+                                    "PASSWORD_UNCHANGED" -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                                    "INVALID_REQUEST" -> backendError.message
+                                    else -> backendError?.message ?: "비밀번호를 변경하지 못했습니다."
+                                }
+                            } else {
+                                currentPassword = ""; newPassword = ""; confirmPassword = ""
+                                TokenManager.clear()
+                                Toast.makeText(context, "비밀번호가 변경되었습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                onLogout()
+                            }
+                        } catch (_: Exception) {
+                            error = "연결을 확인한 뒤 다시 시도해주세요."
+                        } finally {
+                            changing = false
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = canSubmit && !changing,
+            )
+            Spacer(Modifier.height(40.dp))
+        }
     }
 }

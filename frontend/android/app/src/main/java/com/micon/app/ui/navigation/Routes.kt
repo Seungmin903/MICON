@@ -16,6 +16,7 @@ object Routes {
     const val LOGIN = "login"
     const val SIGNUP = "signup"
     const val PASSWORD_RESET = "password-reset"
+    const val CHANGE_PASSWORD = "settings/password"
     const val SURVEY = "survey"
     const val EDIT_PREFERENCES = "settings/preferences"
 

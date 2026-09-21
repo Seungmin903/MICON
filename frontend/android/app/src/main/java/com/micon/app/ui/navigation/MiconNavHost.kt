@@ -66,6 +66,7 @@ import com.micon.app.ui.recommend.RecommendDeckScreen
 import com.micon.app.ui.recommend.SongCarousel
 import com.micon.app.ui.result.ResultScreen
 import com.micon.app.ui.settings.SettingsScreen
+import com.micon.app.ui.settings.ChangePasswordScreen
 import com.micon.app.ui.songdetail.SongDetailScreen
 import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
@@ -262,6 +263,10 @@ private fun MiconNavHost(
         composable(Routes.PASSWORD_RESET) {
             PasswordResetScreen(onBack = { nav.popBackStack() }, onDone = { nav.popBackStack(Routes.LOGIN, inclusive = false) })
         }
+        composable(Routes.CHANGE_PASSWORD) {
+            if (isGuest || !accessGranted) return@composable
+            ChangePasswordScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() })
+        }
         composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
         composable(Routes.SURVEY) {
             PreferenceSurveyScreen(onDone = { nav.completeInitialPreferenceSurvey(session) },
@@ -408,7 +413,8 @@ private fun MiconNavHost(
         composable(Routes.SETTINGS) {
             if (isGuest || !accessGranted) return@composable
             SettingsScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() },
-                onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) })
+                onEditPreferences = { nav.navigate(Routes.EDIT_PREFERENCES) },
+                onChangePassword = { nav.navigate(Routes.CHANGE_PASSWORD) })
         }
 
         // ---- 개발용: 디자인 카탈로그 (adb shell am start -d "micon://app/dev/catalog") ----
