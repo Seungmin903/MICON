@@ -1,5 +1,4 @@
-# MICON 추천 서버 의존성. recommend-algo 의 requirements.txt + requirements-recommender.txt 에서
-# 엔진 전용(melband-roformer, music21, whisper, transformers, pedalboard)을 뺀 것.
+# MICON 추천 서버 의존성. 사용자 녹음의 조건부 보컬 분리에 Mel-Band가 필요하다.
 # torch 3종은 함께 고정. GPU 머신은 setup.ps1 이 CUDA 빌드로 다시 설치한다.
 
 # 서버
@@ -26,6 +25,7 @@ hyperpyyaml>=1.2.2
 
 # 곡 적재(오프라인, GPU PC) — 보컬 분리
 demucs==4.0.1
+melband-roformer-infer==0.1.5
 
 # 테스트
 pytest>=8
