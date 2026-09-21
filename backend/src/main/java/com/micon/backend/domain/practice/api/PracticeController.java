@@ -21,6 +21,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -107,6 +108,16 @@ public class PracticeController {
 		@Valid @RequestBody PracticeRequest.Complete request
 	) {
 		return ApiResponse.success(service.complete(userId(principal), practiceId, request));
+	}
+
+	@Operation(summary = "연습 키 변경", description = "진행 중인 연습 세션의 현재 키와 실제 키 변경 횟수를 저장합니다.")
+	@PatchMapping("/{practiceId}/key")
+	public ApiResponse<PracticeResponse.Detail> updateKey(
+		Principal principal,
+		@PathVariable("practiceId") @Min(1) Long practiceId,
+		@Valid @RequestBody PracticeRequest.KeyUpdate request
+	) {
+		return ApiResponse.success(service.updateKey(userId(principal), practiceId, request));
 	}
 
 	@Operation(summary = "연습 취소", description = "진행 중인 본인의 연습 세션을 취소합니다.")

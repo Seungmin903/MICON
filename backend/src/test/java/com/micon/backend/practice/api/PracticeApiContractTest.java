@@ -3,6 +3,7 @@ package com.micon.backend.practice.api;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +67,14 @@ class PracticeApiContractTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{"durationMs": 120000}
+					"""))
+			.andExpect(status().isOk());
+
+		mockMvc.perform(patch("/practices/11/key")
+				.principal(() -> "7")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"selectedKey": -2}
 					"""))
 			.andExpect(status().isOk());
 

@@ -176,7 +176,13 @@ class PracticeViewModel(
     /** 열려 있는 백엔드 연습 세션. [practiceOpen] 이면 아직 complete/cancel 전. */
     private var practiceId: Long? = null
     private var practiceOpen = false
+    /** 실제 연습 시작 순간의 키. 시작 직후 세션 생성이 실패해 저장 시 재시도해도 최초 키를 보존한다. */
+    private var practiceStartKey: Int? = null
     private val practiceMutex = Mutex()
+    /** 키 변경 요청을 순서대로 보내 실제 변경 횟수와 최종 키가 뒤섞이지 않게 한다. */
+    private val keySyncMutex = Mutex()
+    private var lastSyncedPracticeKey: Int? = null
+    private var keySyncJob: Job? = null
     private var saveJob: Job? = null
     /** 화면이 사라진 뒤에도 미완료 세션을 취소하기 위한 스코프(onCleared 는 suspend 불가). */
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -273,19 +279,21 @@ class PracticeViewModel(
     }
 
     /**
-     * 반주 키 변경 (READY·PAUSED·FINISHED). 반주 파일을 새로 받지 않고 재생기가 음높이만 옮기므로
-     * 즉시 반영된다. 백엔드에는 늘 원키(`selectedKey = 0`)만 요청한다.
-     *
-     * 반주와 채점 기준을 **같이** 옮겨야 한다. 반주만 내리면 목표 음정은 원키로 남아 전부 틀린 것으로
-     * 판정된다. 재생 중에 바꾸지 않는 이유는 [InstrumentalPlayer.keyShift] 주석 참고.
+     * 반주·채점 기준과 서버 세션 키를 함께 바꾼다. 원키 반주 하나를 재생기에서 실시간 변환하므로
+     * 새 파일을 받지 않는다. 이미 열린 세션은 변경 순서대로 동기화해 실제 변경 횟수를 남긴다.
      */
     fun changeKey(next: Int) {
         val target = next.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         val s = _state.value
-        if (target == s.keyShift || s.isRunning) return
+        if (target == s.keyShift || (s.phase != Phase.READY && s.phase != Phase.RUNNING && s.phase != Phase.PAUSED)) return
         player.keyShift = target      // 반주
         scorer?.keyShift = target     // 채점 기준
         _state.update { it.copy(keyShift = target, error = null) }
+        if (practiceOpen) {
+            keySyncJob = viewModelScope.launch {
+                runCatching { syncPracticeKey(target) }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ 재생 제어
@@ -295,6 +303,7 @@ class PracticeViewModel(
         refreshHeadset()
         val s = _state.value
         if (s.phase != Phase.READY && s.phase != Phase.FINISHED) return
+        practiceStartKey = s.keyShift
         stopTake()
         notes.forEach { it.reset() }
         val newScorer = LiveScorer(notes).also { it.keyShift = s.keyShift; it.autoCalibrate = s.autoCalibrate }
@@ -310,7 +319,7 @@ class PracticeViewModel(
                 return
             }
         }
-        // 로그인 사용자: 백엔드 연습 세션(READY → IN_PROGRESS)을 미리 연다. 실패해도 연습은 진행하고 종료 때 다시 만든다.
+        // 로그인 사용자: 실제 시작 키로 백엔드 연습 세션을 연다. 실패해도 연습은 진행하고 종료 때 다시 만든다.
         if (isLoggedIn()) viewModelScope.launch { runCatching { openPractice() } }
         val startAt = pendingSeek ?: _state.value.loop?.let { maxOf(0.0, it.start - 1.0) }
             ?: if (_state.value.skipIntro) maxOf(0.0, notes.first().start - 4) else 0.0
@@ -581,19 +590,30 @@ class PracticeViewModel(
 
     // ------------------------------------------------------------------ 연습 기록 저장 (백엔드 /practices)
 
-    /**
-     * 백엔드 세션을 만든다(READY). 열린 세션이 있으면 그대로 쓴다(시작 시 미리 열어 두고 종료 때 재사용).
-     *
-     * 키는 늘 **원키(0)** 로 연다. 서버(`PracticeService.create`)는 `selectedKey` 반음의 반주 파일이 READY 인지 검사하는데,
-     * 우리는 원키 반주 하나만 두고 앱이 실시간으로 옮기므로 0 이외 키는 422 로 거절된다(`hasReadyInstrumental`).
-     * 실제로 부른 키는 완료 때 `finalSelectedKey` 로 보낸다([completePractice], BE V29 `initial_key`/`selected_key`).
-     */
-    private suspend fun openPractice(): Long = practiceMutex.withLock {
-        practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
-        val created = practices.create(songId, selectedKey = 0)
-        practiceId = created.id
-        practiceOpen = true
-        created.id
+    /** 백엔드 세션을 실제 연습 시작 키로 만든다. 열린 세션이 있으면 그대로 재사용한다. */
+    private suspend fun openPractice(): Long {
+        var newlyCreated = false
+        val id = practiceMutex.withLock {
+            practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
+            val selectedKey = practiceStartKey ?: _state.value.keyShift
+            val created = practices.create(songId, selectedKey = selectedKey)
+            practiceId = created.id
+            practiceOpen = true
+            lastSyncedPracticeKey = selectedKey
+            newlyCreated = true
+            created.id
+        }
+        // 세션 생성 대기 중 사용자가 바꾼 키도 실제 변경으로 남긴다.
+        if (newlyCreated) syncPracticeKey(_state.value.keyShift)
+        return id
+    }
+
+    /** 열린 세션에 키 변경을 순서대로 저장한다. 같은 키는 서버 요청을 만들지 않는다. */
+    private suspend fun syncPracticeKey(selectedKey: Int) = keySyncMutex.withLock {
+        val id = practiceMutex.withLock { practiceId?.takeIf { practiceOpen } } ?: return@withLock
+        if (lastSyncedPracticeKey == selectedKey) return@withLock
+        practices.updateKey(id, selectedKey)
+        lastSyncedPracticeKey = selectedKey
     }
 
     /** 열린 세션을 ABORTED 로 닫는다(처음부터·판정 0·화면 이탈). 실패해도 무시한다. */
@@ -601,6 +621,8 @@ class PracticeViewModel(
         val id = practiceId?.takeIf { practiceOpen } ?: return
         practiceOpen = false
         practiceId = null
+        practiceStartKey = null
+        lastSyncedPracticeKey = null
         cleanupScope.launch { runCatching { practices.cancel(id) } }
     }
 
@@ -620,10 +642,10 @@ class PracticeViewModel(
             try {
                 val id = openPractice()
                 val totals = scorer.totals()
-                var keyRecorded = true
                 if (practiceOpen) {
-                    keyRecorded = completePractice(id, judgedSpanMs())
+                    completePractice(id, judgedSpanMs())
                     practiceOpen = false
+                    practiceStartKey = null
                 }
                 val result = PracticeScoreMapper.result(
                     totals, notes, backendSections,
@@ -631,9 +653,7 @@ class PracticeViewModel(
                     frames = scorer.frames.toList(), dataVersion = assetsDataVersion,
                 )
                 practices.savePerformance(id, result)
-                val message = if (keyRecorded) "연습 기록을 저장했어요."
-                    else "연습 기록을 저장했어요. 키 ${signedKey(_state.value.keyShift)} 정보는 서버가 아직 받지 않아 원키로 남았어요."
-                _state.update { it.copy(save = Save(SavePhase.SAVED, message, practiceId = id)) }
+                _state.update { it.copy(save = Save(SavePhase.SAVED, "연습 기록을 저장했어요.", practiceId = id)) }
             } catch (e: AuthSessionExpiredException) {
                 _state.update { it.copy(save = Save(SavePhase.GUEST, e.message ?: "로그인이 만료됐어요.")) }
             } catch (e: BackendRequestException) {
@@ -644,26 +664,13 @@ class PracticeViewModel(
         }
     }
 
-    /**
-     * 연습 완료. 상태변경 API(PATCH status)가 BE 명세에서 제거되어 세션은 READY 그대로 complete 로 간다.
-     * BE 가 READY→COMPLETED 를 허용해야 하며(2026-09-16 요청), 아니면 409 INVALID_PRACTICE_STATE 가 그대로 올라온다.
-     */
-    private suspend fun completePractice(id: Long, durationMs: Int): Boolean {
-        val key = _state.value.keyShift
-        try {
-            // 세션은 원키(0)로 열었으므로 최종 키가 다르면 서버 규칙상 변경 횟수 ≥ 1 이어야 한다(시작 전 1회 고정 = 1).
-            practices.complete(id, durationMs, finalSelectedKey = key, keyChangeCount = if (key != 0) 1 else 0)
-            return true
-        } catch (e: BackendRequestException) {
-            // BE(fix/be/practiceSessionKey)는 최종 키에도 그 반음의 반주 파일이 READY 인지 검사한다. 원키 반주만 있는 곡은
-            // 0 이외 키가 422 UNSUPPORTED_PRACTICE_KEY → 키 정보 없이 완료해 기록 자체는 남긴다. 서버가 검사를 풀면 위 호출이 그대로 통과한다.
-            if (key == 0 || e.status != 422 || e.code != "UNSUPPORTED_PRACTICE_KEY") throw e
-            practices.complete(id, durationMs)
-            return false
-        }
+    /** 완료 직전에 마지막 화면 키를 동기화한 뒤 세션을 닫는다. */
+    private suspend fun completePractice(id: Long, durationMs: Int) {
+        keySyncJob?.join()
+        syncPracticeKey(_state.value.keyShift)
+        practices.complete(id, durationMs)
+        lastSyncedPracticeKey = null
     }
-
-    private fun signedKey(key: Int): String = if (key > 0) "+$key" else key.toString()
 
     /** 판정된 첫 음표부터 마지막 음표까지(곡 시각, ms) — "부른 길이" 로 저장한다. */
     private fun judgedSpanMs(): Int {
@@ -695,6 +702,7 @@ class PracticeViewModel(
         frameChannel.close()
         wavFile?.delete()
         saveJob?.cancel()
+        keySyncJob?.cancel()
         cancelOpenPractice()
     }
 

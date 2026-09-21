@@ -147,7 +147,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                         Text(state.artist, fontSize = 15.sp, color = Grey)
                         Spacer(Modifier.height(14.dp))
                         SeekBar(state.nowSec, state.durationSec, enabled = state.phase == Phase.READY || state.phase == Phase.PAUSED || state.phase == Phase.FINISHED, onSeek = vm::seekTo)
-                        KeyRow(state.keyShift, state.keyName, state.shiftedKeyName, enabled = !running, onChange = vm::changeKey)
+                        KeyRow(state.keyShift, state.keyName, state.shiftedKeyName, enabled = state.phase == Phase.READY || state.phase == Phase.RUNNING || state.phase == Phase.PAUSED, onChange = vm::changeKey)
                         SectionChips(vm.sections, state.sectionIndex, enabled = state.phase != Phase.COUNTDOWN, onSection = vm::jumpToSection, onHighlight = vm::jumpToHighlight)
                         }
                         if (state.phase == Phase.READY) {
@@ -235,7 +235,7 @@ private fun SeekBar(positionSec: Double, durationSec: Double, enabled: Boolean, 
     }
 }
 
-/** 반주 키 조절. 렌더 중이면 스피너, 바뀐 키 이름을 함께 보여 준다. */
+/** 반주 키 조절. 연습 중에도 반주·채점 기준·서버 기록을 함께 갱신한다. */
 @Composable
 private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, enabled: Boolean, onChange: (Int) -> Unit) {
     val canUse = enabled

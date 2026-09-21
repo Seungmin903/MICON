@@ -18,13 +18,13 @@ data class PracticeCreateRequest(
     val customEndMs: Int? = null,
 )
 
-/** `PATCH /practices/{id}/status` → PracticeRequest.StatusUpdate. status: RECORDING | IN_PROGRESS | PAUSED */
-data class PracticeStatusRequest(val status: String)
+/** `PATCH /practices/{id}/key` → PracticeRequest.KeyUpdate. 연습 중 현재 선택 키를 저장한다. */
+data class PracticeKeyUpdateRequest(val selectedKey: Int)
 
 /**
  * `POST /practices/{id}/complete` → PracticeRequest.Complete.
- * [finalSelectedKey]·[keyChangeCount] 는 BE `fix/be/practiceSessionKey`(V29) 에서 추가된 선택 항목 — 실제로 부른 키와 변경 횟수.
- * 서버는 최종 키가 최초 키(세션 생성 키)와 다르면 변경 횟수 ≥ 1 을 요구하고, 그 키의 반주가 READY 인지도 검사한다.
+ * [finalSelectedKey]·[keyChangeCount] 는 이전 앱과의 호환을 위한 선택 항목이다.
+ * 최신 앱은 연습 중 `PATCH /key`로 키 변경을 즉시 저장하므로 완료 요청에는 보내지 않는다.
  */
 data class PracticeCompleteRequest(
     val durationMs: Int,
@@ -78,9 +78,9 @@ data class PracticeDetailDto(
     val sectionId: Long? = null,
     val recordingId: Long? = null,
     val voiceAnalysisId: Long? = null,
-    /** 세션 생성 시 키(V29 `initial_key`). 앱은 늘 원키(0)로 열고 실제 키는 완료 때 보낸다. */
+    /** 세션 생성 시 키(V30 `initial_key`). */
     val initialKey: Int? = null,
-    /** 최종 키(완료 때 `finalSelectedKey` 로 갱신) */
+    /** 현재 키(완료 뒤에는 최종 키) */
     val selectedKey: Int = 0,
     val keyChangeCount: Int = 0,
     val keyChanged: Boolean? = null,

@@ -85,22 +85,6 @@ public class PracticeRepository {
 		return count != null && count > 0;
 	}
 
-	// 기능: hasReadyInstrumental 조건으로 데이터베이스를 조회한다.
-	public boolean hasReadyInstrumental(String songId, int selectedKey) {
-		String sql = """
-				SELECT COUNT(*)
-				FROM song_media
-				WHERE song_id = :songId
-				  AND semitones = :selectedKey
-				  AND generation_status = 'READY'
-				  AND ((:selectedKey = 0 AND kind IN ('INSTRUMENTAL', 'INSTRUMENTAL_KEY'))
-				       OR (:selectedKey <> 0 AND kind = 'INSTRUMENTAL_KEY'))
-				""";
-		Long count = jdbcTemplate.queryForObject(sql,
-			Map.of("songId", songId, "selectedKey", selectedKey), Long.class);
-		return count != null && count > 0;
-	}
-
 	// 기능: create 데이터를 데이터베이스에 저장한다.
 	public void create(
 		Long practiceId,
@@ -209,6 +193,25 @@ public class PracticeRepository {
 			.addValue("recordingId", recordingId)
 			.addValue("finalSelectedKey", finalSelectedKey)
 			.addValue("keyChangeCount", keyChangeCount));
+	}
+
+	// 기능: updateSelectedKey에 필요한 SQL 실행과 키 변경 횟수 누적을 수행한다.
+	public int updateSelectedKey(Long practiceId, Long userId, int selectedKey) {
+		String sql = """
+				UPDATE practice_session
+				SET selected_key = :selectedKey,
+				    key_change_count = CASE
+				        WHEN selected_key <> :selectedKey THEN key_change_count + 1
+				        ELSE key_change_count
+				    END
+				WHERE practice_id = :practiceId AND user_id = :userId
+				  AND status IN ('READY', 'RECORDING', 'IN_PROGRESS', 'PAUSED')
+				""";
+		return jdbcTemplate.update(sql, Map.of(
+			"practiceId", practiceId,
+			"userId", userId,
+			"selectedKey", selectedKey
+		));
 	}
 
 	// 기능: cancel에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.

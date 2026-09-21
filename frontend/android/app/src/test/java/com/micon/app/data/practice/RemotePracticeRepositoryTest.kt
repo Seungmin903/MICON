@@ -77,20 +77,20 @@ class RemotePracticeRepositoryTest {
         assertEquals("/api/v1/practices/31/cancel", server.takeRequest().path)
     }
 
-    @Test fun `complete sends the sung key and reads V29 key fields`() = runBlocking {
-        // BE fix/be/practiceSessionKey: 세션은 원키로 열고(initialKey 0) 완료 때 finalSelectedKey·keyChangeCount 로 실제 키를 남긴다
-        server.enqueue(ok(detail.replace("\"READY\"", "\"COMPLETED\"").replace("\"selectedKey\":-2", "\"initialKey\":0,\"selectedKey\":-2,\"keyChangeCount\":1,\"keyChanged\":true")))
-        val completed = repo.complete(31, 183_000, finalSelectedKey = -2, keyChangeCount = 1)
-        val body = server.takeRequest().body.readUtf8()
-        assertTrue(body, body.contains("\"finalSelectedKey\":-2") && body.contains("\"keyChangeCount\":1"))
-        assertEquals(0, completed.initialKey); assertEquals(-2, completed.selectedKey); assertTrue(completed.keyChanged)
+    @Test fun `key updates are sent separately and complete keeps existing key state`() = runBlocking {
+        server.enqueue(ok(detail.replace("\"selectedKey\":-2", "\"initialKey\":-2,\"selectedKey\":1,\"keyChangeCount\":2,\"keyChanged\":true")))
+        val updated = repo.updateKey(31, 1)
+        val keyRequest = server.takeRequest()
+        assertEquals("PATCH", keyRequest.method)
+        assertEquals("/api/v1/practices/31/key", keyRequest.path)
+        assertTrue(keyRequest.body.readUtf8().contains("\"selectedKey\":1"))
+        assertEquals(-2, updated.initialKey); assertEquals(1, updated.selectedKey); assertTrue(updated.keyChanged)
 
-        // 키 필드를 주지 않으면 본문에도 없다(서버는 없는 필드를 최초 키 유지로 본다)
-        server.enqueue(ok(detail))
-        val plain = repo.complete(31, 1000)
-        val plainBody = server.takeRequest().body.readUtf8()
-        assertFalse(plainBody, plainBody.contains("finalSelectedKey") || plainBody.contains("keyChangeCount"))
-        assertEquals(-2, plain.initialKey); assertFalse(plain.keyChanged)   // 응답에 없으면 최종 키 = 최초 키
+        server.enqueue(ok(detail.replace("\"READY\"", "\"COMPLETED\"")))
+        val completed = repo.complete(31, 183_000)
+        val body = server.takeRequest().body.readUtf8()
+        assertFalse(body, body.contains("finalSelectedKey") || body.contains("keyChangeCount"))
+        assertTrue(completed.isCompleted)
     }
 
     @Test fun `savePerformance rounds scores to two decimals and parses report`() = runBlocking {

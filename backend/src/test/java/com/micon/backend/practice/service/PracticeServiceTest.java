@@ -47,7 +47,6 @@ class PracticeServiceTest {
 		var detail = detail("IN_PROGRESS");
 		when(repository.findPracticeReadySong("10")).thenReturn(Optional.of(new SongRow("10", 180_000L, true)));
 		when(repository.isUploadedRecordingOwnedBy(20L, 7L)).thenReturn(true);
-		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
 		when(repository.sectionBelongsToSong(30L, "10")).thenReturn(true);
 		when(repository.findOwned(anyLong(), eq(7L))).thenReturn(Optional.of(detail));
 
@@ -86,7 +85,6 @@ class PracticeServiceTest {
 		var completed = detail("COMPLETED", 0, -2, 2);
 		when(repository.findOwned(50L, 7L))
 			.thenReturn(Optional.of(detail("IN_PROGRESS", 0, 0, 0)), Optional.of(completed));
-		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
 		when(repository.complete(50L, 7L, 12_000, null, null, -2, 2)).thenReturn(1);
 
 		assertThat(service.complete(
@@ -97,12 +95,21 @@ class PracticeServiceTest {
 	@Test
 	void rejectsZeroChangeCountWhenFinalKeyDiffers() {
 		when(repository.findOwned(50L, 7L)).thenReturn(Optional.of(detail("IN_PROGRESS", 0, 0, 0)));
-		when(repository.hasReadyInstrumental("10", -2)).thenReturn(true);
-
 		assertThatThrownBy(() -> service.complete(
 			7L, 50L, new PracticeRequest.Complete(12_000, null, null, -2, 0)
 		)).isInstanceOfSatisfying(BusinessException.class,
 			exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
+	}
+
+	@Test
+	void updatesCurrentKeyAndAccumulatesChangeCount() {
+		var updated = detail("IN_PROGRESS", -2, 1, 2);
+		when(repository.findOwned(50L, 7L))
+			.thenReturn(Optional.of(detail("IN_PROGRESS", -2, -2, 0)), Optional.of(updated));
+		when(repository.updateSelectedKey(50L, 7L, 1)).thenReturn(1);
+
+		assertThat(service.updateKey(7L, 50L, new PracticeRequest.KeyUpdate(1))).isSameAs(updated);
+		verify(repository).updateSelectedKey(50L, 7L, 1);
 	}
 
 	@Test

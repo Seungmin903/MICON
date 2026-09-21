@@ -21,7 +21,7 @@ public final class PracticeRequest {
 		@NotBlank @Size(max = 64) String songId,
 		@Min(1) Long recordingId,
 		Long sectionId,
-		@Min(-6) @Max(5) Integer selectedKey,
+		@Min(-3) @Max(3) Integer selectedKey,
 		@DecimalMin("0.50") @DecimalMax("2.00") BigDecimal playbackSpeed,
 		PracticeScope practiceScope,
 		@PositiveOrZero Integer customStartMs,
@@ -33,7 +33,7 @@ public final class PracticeRequest {
 		@NotNull @PositiveOrZero Integer durationMs,
 		@Min(1) Long voiceAnalysisId,
 		@Min(1) Long recordingId,
-		@Min(-6) @Max(5) Integer finalSelectedKey,
+		@Min(-3) @Max(3) Integer finalSelectedKey,
 		@PositiveOrZero Integer keyChangeCount
 	) {
 		public Complete(Integer durationMs, Long voiceAnalysisId, Long recordingId) {
@@ -42,6 +42,10 @@ public final class PracticeRequest {
 	}
 
 	public record StatusUpdate(@NotNull ActiveStatus status) {
+	}
+
+	/** 연습 중 현재 선택 키를 저장한다. 키 범위는 Android 실시간 피치 변환 범위와 맞춘다. */
+	public record KeyUpdate(@NotNull @Min(-3) @Max(3) Integer selectedKey) {
 	}
 
 	public enum ActiveStatus {

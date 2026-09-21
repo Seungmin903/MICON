@@ -30,6 +30,7 @@ import com.micon.app.data.backend.dto.SetlistSummaryDto
 import com.micon.app.data.backend.dto.PracticeCompleteRequest
 import com.micon.app.data.backend.dto.PracticeCreateRequest
 import com.micon.app.data.backend.dto.PracticeDetailDto
+import com.micon.app.data.backend.dto.PracticeKeyUpdateRequest
 import com.micon.app.data.backend.dto.PracticeReportDto
 import com.micon.app.data.backend.dto.PracticeResultSaveRequest
 import com.micon.app.data.backend.dto.PracticeSummaryDto
@@ -174,7 +175,7 @@ interface BackendApi {
     @GET("practices/report")
     suspend fun practices(@Query("page") page: Int, @Query("size") size: Int, @Query("date") date: String? = null): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
 
-    /** 세션 생성(READY). 곡·반주(선택 키)가 준비돼야 한다: 409 PRACTICE_ASSET_NOT_READY, 422 UNSUPPORTED_PRACTICE_KEY. */
+    /** 세션 생성(READY). 원키 연습 자산이 준비돼 있어야 하며 선택 키는 세션 메타데이터로 저장한다. */
     @POST("practices/session")
     suspend fun createPractice(@Body body: PracticeCreateRequest): Response<ApiResponse<PracticeDetailDto>>
 
@@ -182,6 +183,10 @@ interface BackendApi {
     /** 진행 상태(RECORDING·IN_PROGRESS·PAUSED)에서만 COMPLETED 로. */
     @POST("practices/{practiceId}/complete")
     suspend fun completePractice(@Path("practiceId") practiceId: Long, @Body body: PracticeCompleteRequest): Response<ApiResponse<PracticeDetailDto>>
+
+    /** 현재 키를 저장한다. 서버는 값이 실제로 달라질 때만 변경 횟수를 늘린다. */
+    @PATCH("practices/{practiceId}/key")
+    suspend fun updatePracticeKey(@Path("practiceId") practiceId: Long, @Body body: PracticeKeyUpdateRequest): Response<ApiResponse<PracticeDetailDto>>
 
     /** READY~PAUSED → ABORTED. */
     @POST("practices/{practiceId}/cancel")

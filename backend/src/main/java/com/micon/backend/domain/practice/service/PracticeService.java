@@ -39,11 +39,6 @@ public class PracticeService {
 		PracticeScope scope = request.practiceScope() == null ? PracticeScope.FULL_SONG : request.practiceScope();
 		validateRange(request, scope, song.durationMs());
 		int selectedKey = request.selectedKey() == null ? 0 : request.selectedKey();
-		if (!repository.hasReadyInstrumental(request.songId(), selectedKey)) {
-			throw new BusinessException(selectedKey == 0
-				? ErrorCode.PRACTICE_ASSET_NOT_READY
-				: ErrorCode.UNSUPPORTED_PRACTICE_KEY);
-		}
 		if (scope == PracticeScope.SECTION
 			&& !repository.sectionBelongsToSong(request.sectionId(), request.songId())) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "선택한 구간이 해당 곡에 속하지 않습니다.");
@@ -89,12 +84,6 @@ public class PracticeService {
 			&& !repository.isUploadedRecordingOwnedBy(request.recordingId(), userId)) {
 			throw new BusinessException(ErrorCode.RECORDING_NOT_READY);
 		}
-		if (request.finalSelectedKey() != null
-			&& !repository.hasReadyInstrumental(practice.songId(), request.finalSelectedKey())) {
-			throw new BusinessException(request.finalSelectedKey() == 0
-				? ErrorCode.PRACTICE_ASSET_NOT_READY
-				: ErrorCode.UNSUPPORTED_PRACTICE_KEY);
-		}
 		if (request.keyChangeCount() != null && request.keyChangeCount() == 0
 			&& request.finalSelectedKey() != null
 			&& request.finalSelectedKey() != practice.initialKey()) {
@@ -104,6 +93,20 @@ public class PracticeService {
 			practiceId, userId, request.durationMs(), request.voiceAnalysisId(), request.recordingId(),
 			request.finalSelectedKey(), request.keyChangeCount()
 		) == 0) {
+			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
+		}
+		return get(userId, practiceId);
+	}
+
+	@Transactional
+	// 기능: updateKey 업무 규칙을 검증하고 현재 선택 키와 변경 횟수를 저장한다.
+	public PracticeResponse.Detail updateKey(
+		Long userId,
+		Long practiceId,
+		PracticeRequest.KeyUpdate request
+	) {
+		requireOwned(userId, practiceId);
+		if (repository.updateSelectedKey(practiceId, userId, request.selectedKey()) == 0) {
 			throw new BusinessException(ErrorCode.INVALID_PRACTICE_STATE);
 		}
 		return get(userId, practiceId);

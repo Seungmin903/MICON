@@ -62,6 +62,27 @@ class PracticeRepositoryCompleteTest {
 		assertThat(statusOf(20L)).isEqualTo("ABORTED");
 	}
 
+	@Test
+	void updatesOnlyWhenPracticeIsActiveAndCountsRealKeyChanges() {
+		insertPractice(30L, "IN_PROGRESS");
+
+		assertThat(repository.updateSelectedKey(30L, 7L, -2)).isEqualTo(1);
+		assertThat(repository.updateSelectedKey(30L, 7L, -2)).isEqualTo(1);
+		assertThat(repository.updateSelectedKey(30L, 7L, 1)).isEqualTo(1);
+
+		assertThat(selectedKeyOf(30L)).isEqualTo(1);
+		assertThat(keyChangeCountOf(30L)).isEqualTo(2);
+	}
+
+	@Test
+	void doesNotUpdateKeyOfTerminalPractice() {
+		insertPractice(40L, "COMPLETED");
+
+		assertThat(repository.updateSelectedKey(40L, 7L, -2)).isZero();
+		assertThat(selectedKeyOf(40L)).isZero();
+		assertThat(keyChangeCountOf(40L)).isZero();
+	}
+
 	private void insertPractice(Long practiceId, String status) {
 		jdbcTemplate.update(
 			"INSERT INTO practice_session(practice_id, user_id, status) VALUES (?, ?, ?)",

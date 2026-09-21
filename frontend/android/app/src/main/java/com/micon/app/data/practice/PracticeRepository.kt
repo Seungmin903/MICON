@@ -6,6 +6,7 @@ import com.micon.app.data.backend.dto.PracticeCompleteRequest
 import com.micon.app.data.backend.dto.PracticeCreateRequest
 import com.micon.app.data.backend.dto.PitchCurveDto
 import com.micon.app.data.backend.dto.PracticeDetailDto
+import com.micon.app.data.backend.dto.PracticeKeyUpdateRequest
 import com.micon.app.data.backend.dto.PracticeNoteDto
 import com.micon.app.data.backend.dto.PracticeReportDto
 import com.micon.app.data.backend.dto.PracticeResultSaveRequest
@@ -24,7 +25,7 @@ data class PracticeRecord(
     val sectionId: Long?,
     val recordingId: Long?,
     val voiceAnalysisId: Long?,
-    /** 최종 키(실제로 부른 키). [initialKey] 는 세션을 연 키 — 앱은 늘 원키로 열므로 보통 0. */
+    /** 최종 키(실제로 부른 키). [initialKey] 는 세션을 연 키다. */
     val selectedKey: Int,
     val playbackSpeed: Double?,
     val practiceScope: String?,
@@ -132,12 +133,14 @@ data class PracticeReport(
  * 연습 기록. 백엔드 `PracticeController`(`/practices`)만 본다 — 로컬 엔진 job 은 더 쓰지 않는다.
  * `GET …/analysis`·`POST …/analysis/retry` 는 쓰지 않는다: 서버 analysis 는 앱이 저장한 결과 행의 상태를 돌려주고, retry 는 그 점수를 지운다.
  *
- * 세션 흐름(서버 규칙): [create](POST /practices/session) → READY → [complete]. 상태변경(PATCH status)·세션 상세(GET /practices/{practiceId})는
- * BE 2026-09-16 명세 정리로 제거됐다 — 세션 정보는 리포트 상세(GET /practices/report/{practiceId})에서 읽는다. [cancel] 은 READY~PAUSED → ABORTED.
+ * 세션 흐름(서버 규칙): [create](POST /practices/session) → READY → [updateKey](PATCH /practices/{practiceId}/key) → [complete].
+ * 세션 상세(GET /practices/{practiceId})는 제공하지 않으며, 세션 정보는 리포트 상세(GET /practices/report/{practiceId})에서 읽는다. [cancel] 은 READY~PAUSED → ABORTED.
  * [savePerformance] 는 COMPLETED 세션에만 된다. 모두 로그인 필요(비회원 401).
  */
 interface PracticeRepository {
     suspend fun create(songId: String, selectedKey: Int, practiceScope: String = "FULL_SONG"): PracticeRecord
+    /** 연습 중 현재 키를 저장한다. 값이 달라질 때만 서버가 변경 횟수를 누적한다. */
+    suspend fun updateKey(practiceId: Long, selectedKey: Int): PracticeRecord
     /**
      * 완료. [finalSelectedKey]·[keyChangeCount] 를 주면 실제로 부른 키를 기록한다(BE V29).
      * 서버가 그 키의 반주를 확인하지 못하면 422 `UNSUPPORTED_PRACTICE_KEY` — 호출자가 키 없이 다시 완료할 수 있다.
@@ -156,6 +159,9 @@ interface PracticeRepository {
 class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository {
     override suspend fun create(songId: String, selectedKey: Int, practiceScope: String): PracticeRecord =
         api.createPractice(PracticeCreateRequest(songId = songId, selectedKey = selectedKey, practiceScope = practiceScope)).unwrapData().toModel()
+
+    override suspend fun updateKey(practiceId: Long, selectedKey: Int): PracticeRecord =
+        api.updatePracticeKey(practiceId, PracticeKeyUpdateRequest(selectedKey)).unwrapData().toModel()
 
     override suspend fun complete(practiceId: Long, durationMs: Int, finalSelectedKey: Int?, keyChangeCount: Int?): PracticeRecord =
         api.completePractice(practiceId, PracticeCompleteRequest(durationMs.coerceAtLeast(0),

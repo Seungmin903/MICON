@@ -50,6 +50,7 @@ class PracticeHistoryRefreshTest {
         var fetch: suspend () -> PracticePage = { page(1) }
         override suspend fun history(page: Int, size: Int, date: String?) = fetch()
         override suspend fun create(songId: String, selectedKey: Int, practiceScope: String): PracticeRecord = error("unused")
+        override suspend fun updateKey(practiceId: Long, selectedKey: Int): PracticeRecord = error("unused")
         override suspend fun complete(
             practiceId: Long,
             durationMs: Int,
