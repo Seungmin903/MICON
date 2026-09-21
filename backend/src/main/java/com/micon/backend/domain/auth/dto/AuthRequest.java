@@ -53,6 +53,22 @@ public final class AuthRequest {
         }
     }
 
+    public record GoogleLogin(
+            @NotBlank(message = "구글 인증 정보가 필요합니다.")
+            @Size(max = 8192, message = "구글 인증 정보가 너무 깁니다.")
+            String idToken,
+
+            @Size(max = 100, message = "기기 식별자는 100자 이하여야 합니다.")
+            String deviceId,
+
+            @Size(max = 100, message = "기기 이름은 100자 이하여야 합니다.")
+            String deviceName
+    ) {
+        public GoogleLogin {
+            idToken = trim(idToken);
+        }
+    }
+
     private static String trim(String value) {
         return value == null ? null : value.trim();
     }

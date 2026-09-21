@@ -70,7 +70,8 @@ public class VoiceOnboardingResultService {
                 "READY_TO_SAVE".equals(session.getStatus()),
                 profiles.findByUserId(userId).isPresent(), session.getExpiresAt(),
                 range == null ? null : new VoiceSessionResponse.Range(range.getFullLowMidi(), range.getFullHighMidi(),
-                        range.getMeasurementStatus(), range.getQualityStatus(), range.getNoteResults()), componentResults, artistResults);
+                        range.getMeasurementStatus(), range.getQualityStatus(), range.getNoteResults(),
+                        range.getRuleVersion(), range.getStableLowMidi(), range.getStableHighMidi()), componentResults, artistResults);
     }
 
     @Transactional

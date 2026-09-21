@@ -138,12 +138,12 @@ internal object PracticeLabels {
  */
 @Composable
 fun ResultScreen(practiceId: Long, onBack: () -> Unit, onHome: (() -> Unit)? = null) {
-    Column(Modifier.fillMaxSize().background(Color.White)) {
-        BackHeader("연습 분석 상세", onBack)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
-            ResultDetailCards(practiceId, onOpenFull = null, showSong = true, onHome = onHome, onBack = onBack)
-            Spacer(Modifier.height(24.dp))
-        }
+    com.micon.app.ui.design.organisms.MiconScreen(
+        appBar = { com.micon.app.ui.design.organisms.MiconAppBar(title = "연습 분석 상세", onBack = onBack) },
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        ResultDetailCards(practiceId, onOpenFull = null, showSong = true, onHome = onHome, onBack = onBack)
+        Spacer(Modifier.height(8.dp))
     }
 }
 

@@ -496,6 +496,9 @@ class PracticeViewModel(
         }
     }
 
+    /** 전주를 건너뛰지 않고 반주의 0초부터 연습을 시작한다. */
+    fun jumpToBeginning() = seekTo(0.0)
+
     /**
      * 절(1절·2절)로 이동. 반주는 그 절이 시작하는 마디의 **한 마디 앞 첫 박**([Section.jumpStart])에서 출발하고,
      * 재생 중이었다면 [seekTo] 가 한 마디 카운트인까지 준 뒤 들어간다. 어느 단계에서든(카운트다운 제외) 가능.

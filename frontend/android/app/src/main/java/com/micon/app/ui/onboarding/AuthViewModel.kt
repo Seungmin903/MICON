@@ -45,6 +45,22 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
             }
         }
     }
+
+    fun submitGoogle(idToken: String) {
+        if (mutableState.value.submitting || mutableState.value.authenticated || mutableState.value.signupCompleted) return
+        mutableState.value = AuthFormState(submitting = true)
+        viewModelScope.launch {
+            try {
+                repository.loginWithGoogle(idToken)
+                mutableState.value = AuthFormState(authenticated = true)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                mutableState.value = AuthFormState(error = if (error is AuthRequestException) error.message
+                    else "구글 로그인에 실패했어요. 연결을 확인하고 다시 시도해주세요.")
+            }
+        }
+    }
 }
 
 enum class SessionDestination { LOGIN, SURVEY, MAIN }

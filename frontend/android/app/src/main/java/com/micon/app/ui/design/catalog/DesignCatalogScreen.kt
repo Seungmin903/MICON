@@ -171,7 +171,6 @@ fun DesignCatalogScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = n
                             onDiscClick = {},
                             onPrev = {},
                             onNext = {},
-                            discSize = 180.dp,
                         )
                     }
                 }

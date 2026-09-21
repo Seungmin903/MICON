@@ -188,8 +188,13 @@ public class VoiceAnalysisComponentCallbackService {
     private void completeRange(VoiceAnalysisComponentJob job, VoiceAnalysisComponentCallbackRequest request) {
         boolean available = "AVAILABLE".equals(request.measurementStatus());
         if (request.measurementId() == null || request.measurementId().isBlank()
-                || !"guided-range-v7".equals(request.protocolVersion())
+                || !java.util.Set.of("guided-range-v7", "guided-range-v8").contains(request.protocolVersion())
                 || (available && (request.lowMidi() == null || request.highMidi() == null))
+                || (available && "guided-range-v8".equals(request.protocolVersion())
+                    && (request.stableLowMidi() == null || request.stableHighMidi() == null
+                        || request.stableLowMidi().compareTo(request.lowMidi()) < 0
+                        || request.stableHighMidi().compareTo(request.highMidi()) > 0
+                        || request.stableLowMidi().compareTo(request.stableHighMidi()) > 0))
                 || request.lowMidi() != null && (request.lowMidi().compareTo(java.math.BigDecimal.ZERO) < 0
                 || request.lowMidi().compareTo(java.math.BigDecimal.valueOf(127)) > 0)
                 || request.highMidi() != null && (request.highMidi().compareTo(java.math.BigDecimal.ZERO) < 0
@@ -208,9 +213,10 @@ public class VoiceAnalysisComponentCallbackService {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK, "이미 저장된 음역 결과가 있습니다.");
         }
         ranges.save(new VoiceRangeMeasurement(job.getSession(), request.measurementId(), request.protocolVersion(),
-                "SERVER_AI", request.lowMidi(), request.highMidi(), write(request.noteResults()), request.measurementStatus(),
+                "SERVER_AI", request.lowMidi(), request.highMidi(), request.stableLowMidi(), request.stableHighMidi(),
+                write(request.noteResults()), request.measurementStatus(),
                 request.qualityStatus(), request.processedAt()));
-        job.complete("RANGE", value(request.modelVersion(), "guided-range-v7"), request.processedAt());
+        job.complete("RANGE", value(request.modelVersion(), request.protocolVersion()), request.processedAt());
         job.getSession().acceptRange(request.measurementStatus());
     }
 

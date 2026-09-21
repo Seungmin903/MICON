@@ -40,6 +40,7 @@ internal fun KaraokePanel(
     nowSec: Double,
     modifier: Modifier = Modifier,
     judgementColors: Boolean = true,
+    compactPracticeStyle: Boolean = false,
     emptyMessage: String = "이 곡은 가사 데이터가 없어요. 음표 레인을 보며 불러 보세요.",
 ) {
     val lines = sheet.lines
@@ -50,9 +51,18 @@ internal fun KaraokePanel(
         return
     }
     val currentIndex = sheet.currentIndex(nowSec)
+    val previous = currentIndex?.let { lines.getOrNull(it - 1) }
     val current = currentIndex?.let { lines.getOrNull(it) }
     val next = lines.getOrNull((currentIndex ?: -1) + 1)
-    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = if (compactPracticeStyle) 4.dp else 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        if (compactPracticeStyle && previous != null) {
+            Text(previous.text, fontSize = 16.sp, lineHeight = 22.sp, color = Grey, textAlign = TextAlign.Center, maxLines = 2)
+            Spacer(Modifier.height(7.dp))
+        }
         if (current != null) {
             Text(
                 buildAnnotatedString {
@@ -67,15 +77,26 @@ internal fun KaraokePanel(
                         withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
                     }
                 },
-                fontSize = 28.sp, lineHeight = 38.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 12.dp),
+                fontSize = if (compactPracticeStyle) 22.sp else 28.sp,
+                lineHeight = if (compactPracticeStyle) 30.sp else 38.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+                    .background(if (compactPracticeStyle) Purple.copy(alpha = 0.18f) else Lavender, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp, vertical = if (compactPracticeStyle) 9.dp else 12.dp),
             )
         } else {
             Text("♪", fontSize = 28.sp, color = Grey)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(if (compactPracticeStyle) 7.dp else 12.dp))
         if (next != null) {
-            Text(next.text, fontSize = 20.sp, lineHeight = 28.sp, color = Grey, textAlign = TextAlign.Center, maxLines = 2)
+            Text(
+                next.text,
+                fontSize = if (compactPracticeStyle) 17.sp else 20.sp,
+                lineHeight = if (compactPracticeStyle) 24.sp else 28.sp,
+                color = Grey,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+            )
         } else if (current != null) {
             Text("마지막 줄이에요", fontSize = 14.sp, color = Grey)
         }

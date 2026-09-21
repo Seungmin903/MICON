@@ -3,6 +3,10 @@ package com.micon.app.range
 /** Trim a crash checkpoint to durable PCM while retaining an earlier best window in a long visit. */
 fun RangeSubmission.recoverAudio(available: Double): RangeSubmission {
     require(available > 0 && available.isFinite())
+    if (protocolVersion == RangeProtocol.FREE_VERSION) {
+        require(stages.all { it.end <= available + .001 }) { "저장된 단계의 녹음이 손상됐어요." }
+        return copy(durationSeconds = available)
+    }
     if (RangeProtocol.buffered(protocolVersion) && attempts.any { it.runEndReason == "checkpoint" }) {
         val durable = attempts.map { a -> if (a.runEndReason == "checkpoint") a.copy(
             metrics = null, clientStatus = "insufficient_quality", evaluationStart = null, evaluationEnd = null,
