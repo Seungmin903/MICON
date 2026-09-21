@@ -127,6 +127,20 @@ class RemoteSongRepositoryTest {
         }
     }
 
+    @Test fun `instrumental uses lightweight mr endpoint and keeps expiration`() = runBlocking {
+        val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
+        server.enqueue(ok("""{"songId":"$id","selectedKey":-3,"instrumental":{
+            "mediaId":91,"filePath":"catalog/x/instrumental/$id/instrumental_key-3.opus","mimeType":"audio/ogg",
+            "fileBytes":4100000,"sha256":"abc","playbackUrl":"https://s3.example/key-3",
+            "playbackUrlExpiresAt":"2026-09-21T02:00:00Z"}}"""))
+
+        val media = repo.instrumental(id, -3)
+
+        assertEquals("/api/v1/songs/$id/mr?selectedKey=-3", server.takeRequest().path)
+        assertEquals("https://s3.example/key-3", media.playbackUrl)
+        assertEquals("2026-09-21T02:00:00Z", media.playbackUrlExpiresAt)
+    }
+
     /** karaokeNotes 의 기본 구현이 409 를 null 로 바꾸는지 (서버에 409 응답을 하나 더 준비해 확인) */
     private suspend fun RemoteSongRepository.karaokeNotesOrNull(server: MockWebServer): List<Any>? {
         server.enqueue(json(409, """{"code":"PRACTICE_ASSET_NOT_READY","message":"준비 중","data":null}"""))

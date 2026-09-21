@@ -6,6 +6,7 @@ import com.micon.app.data.backend.dto.CurrentUser
 import com.micon.app.data.backend.dto.EmailAuthRequest
 import com.micon.app.data.backend.dto.PageDto
 import com.micon.app.data.backend.dto.PracticeAssetsDto
+import com.micon.app.data.backend.dto.InstrumentalDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
 import com.micon.app.data.backend.dto.TokenPair
@@ -104,6 +105,10 @@ interface BackendApi {
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
+
+    /** 키별 반주와 만료 URL만 조회한다. */
+    @GET("songs/{songId}/mr")
+    suspend fun instrumental(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int): Response<ApiResponse<InstrumentalDto>>
 
     // ---- 추천·곡 적합도 (RecommendationController · RecommendationQueryController · SongFitController) ----
 
