@@ -23,6 +23,13 @@ interface SongRepository {
      */
     suspend fun practiceAssets(songId: String, selectedKey: Int = 0): PracticeAssets
 
+    /**
+     * 키 전환에 필요한 반주 한 건. 원격 구현은 가벼운 `/songs/{id}/mr` API를 사용한다.
+     * 테스트/로컬 구현은 별도 구현 없이 기존 연습 리소스 조회로 동작한다.
+     */
+    suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia =
+        practiceAssets(songId, selectedKey).instrumental
+
     /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
     suspend fun karaokeNotes(songId: String): List<KaraokeNote>? =
         try { practiceAssets(songId).targetNotes } catch (_: PracticeAssetsNotReadyException) { null }
@@ -115,6 +122,8 @@ data class InstrumentalMedia(
     val fileBytes: Long?,
     val sha256: String?,
     val playbackUrl: String?,
+    /** ISO-8601. 이 시각 60초 전부터 URL을 새로 발급한다. */
+    val playbackUrlExpiresAt: String? = null,
 )
 
 /** 곡 구간 (`song_section`). 시간은 ms. */
