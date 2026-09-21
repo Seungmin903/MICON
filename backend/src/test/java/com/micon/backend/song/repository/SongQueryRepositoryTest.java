@@ -98,6 +98,7 @@ class SongQueryRepositoryTest {
 		SongQueryRepository.SongDetailRow detail = repository.findDetail("tj-00281").orElseThrow();
 
 		assertThat(detail.originalKey()).isEqualTo("A♭ Major");
+		assertThat(detail.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
 		assertThat(detail.bpm()).isEqualByComparingTo("128.500");
 		assertThat(detail.practiceReady()).isTrue();
 		assertThat(repository.findArtists("tj-00281")).containsExactly("아이유");
