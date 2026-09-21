@@ -71,7 +71,6 @@ import com.micon.app.ui.songlist.SongListScreen
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.common.LocalOnboardingChrome
-import com.micon.app.ui.common.OnboardingSystemBars
 import com.micon.app.ui.common.OnboardingChromeState
 
 /** 앱 루트: 하단 탭 Scaffold + NavHost. Figma 에서 하단 바가 있는 화면(Routes.withBottomBar)에서만 보인다. */
@@ -88,9 +87,7 @@ fun MiconRoot() {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val onboardingChrome = remember { OnboardingChromeState() }
-    // 옛 온보딩(음역 측정 → 음색 측정)은 어두운 화면이라 시스템 바 아이콘을 밝게 뒤집는다.
-    val darkOnboarding = currentRoute == Routes.VOICE_ONBOARDING && onboardingChrome.dark
-    if (darkOnboarding) OnboardingSystemBars()
+    val darkOnboarding = false
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
     // 로그인 완료·앱 재실행 모두 여기서 세션이 확인된다. 저장된 목소리 프로필을 이때 채워 연습·추천 상세가 리포트와 같은 음역을 본다.
     val context = LocalContext.current
@@ -319,16 +316,9 @@ private fun MiconNavHost(
         composable(Routes.QUICK_ANALYSIS) {
             LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }
         }
-        // 음역 측정 → 음색 측정(노래 부르기) 두 단계 온보딩. 첫 화면(홀로)의 30초 분석과 달리
-        // 단계가 나뉘어 있고, 분석 탭의 "음역 다시 측정하기" 로 들어온다.
+        // 옛 온보딩 화면은 쓰지 않는다 — 두 단계 온보딩은 첫 화면(홀로)이 한다
         composable(Routes.VOICE_ONBOARDING) {
-            if (!accessGranted) return@composable
-            com.micon.app.ui.onboarding.VoiceOnboardingFlow(isGuest,
-                onExit = { if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT) },
-                onLogin = {
-                    if (!nav.popBackStack(Routes.REPORT, inclusive = false)) nav.replaceAll(Routes.REPORT)
-                    openLogin()
-                })
+            LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.VOICE_ONBOARDING) { inclusive = true } } }
         }
         // 불러서 분석하기 옛 경로는 첫 화면(홀로)으로 — 같은 일을 홀로가 한다
 
@@ -487,7 +477,7 @@ internal fun NavHostController.completeInitialPreferenceSurvey(session: Navigati
     session.clearDestination()
     session.guest = false
     session.verified = true
-    replaceAll(Routes.VOICE_ONBOARDING)
+    replaceAll(Routes.HOLO)
 }
 
 /** Discard all protected history, including saved tab stacks, on account/gate changes. */

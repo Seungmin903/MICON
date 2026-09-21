@@ -103,7 +103,6 @@ fun AnalysisScreen(
                 Text("30초만 부르면 편한 음역과 어울리는 곡을 찾아 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
-                MiconButton("음역부터 단계별로 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
             }
         } else {
             MyVoiceCard(view, onDetail)
