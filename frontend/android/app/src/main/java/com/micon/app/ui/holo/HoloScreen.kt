@@ -365,7 +365,8 @@ private fun IdleBottom(
                     Icon(Icons.Outlined.Search, null, tint = Color.White, modifier = Modifier.size(19.dp))
                     Spacer(Modifier.width(10.dp))
                     Box(Modifier.weight(1f)) {
-                        if (state.query.isEmpty()) Text("분석받고 싶은 노래를 검색해 보세요", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp, maxLines = 1)
+                        // 360dp 폭에서 잘리지 않는 길이로. 안내 문장은 검색창 위에 따로 있다.
+                        if (state.query.isEmpty()) Text("분석받고 싶은 노래 검색", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp, maxLines = 1)
                         BasicTextField(
                             value = state.query, onValueChange = onQuery, singleLine = true,
                             textStyle = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium),
