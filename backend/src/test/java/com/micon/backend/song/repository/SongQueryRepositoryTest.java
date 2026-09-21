@@ -36,13 +36,11 @@ class SongQueryRepositoryTest {
 		List<SongResponse.Summary> songs = repository.findPage("아이유", 20, 0);
 
 		assertThat(repository.count("아이유")).isEqualTo(1);
-		assertThat(repository.findTrackIds(List.of("tj-00281")))
-			.containsEntry("tj-00281", "spotify-track-good-day");
 		assertThat(songs).singleElement().satisfies(song -> {
 			assertThat(song.songId()).isEqualTo("tj-00281");
 			assertThat(song.title()).isEqualTo("좋은 날");
 			assertThat(song.artists()).containsExactly("아이유");
-			assertThat(song.imageUrl()).isNull();
+			assertThat(song.imageUrl()).isEqualTo("https://example.com/good-day.jpg");
 			assertThat(song.imageSourceUrl()).isNull();
 			assertThat(song.durationMs()).isEqualTo(233_000L);
 		});

@@ -63,7 +63,8 @@ public class SongQueryRepository {
 	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 반환한다. */
 	public List<SongResponse.Summary> findPage(String query, int size, long offset, Long userId, Long genreId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms
+				SELECT s.song_id, s.title, s.duration_ms,
+				       NULLIF(sm.display_image_url, '') AS image_url
 				FROM song s
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
 				""" + SEARCH_CONDITION + GENRE_CONDITION + """
@@ -90,36 +91,11 @@ public class SongQueryRepository {
 					song.songId(),
 					song.title(),
 					artists.getOrDefault(song.songId(), List.of()),
-					null,
+					song.imageUrl(),
 					null,
 					song.durationMs()
 				))
 				.toList();
-	}
-
-	/** 곡별 Spotify 트랙 ID를 조회한다. */
-	public Map<String, String> findTrackIds(List<String> songIds) {
-		if (songIds.isEmpty()) {
-			return Collections.emptyMap();
-		}
-		String sql = """
-				SELECT song_id, track_id
-				FROM song_metadata
-				WHERE song_id IN (:songIds)
-				  AND track_id IS NOT NULL
-				  AND track_id <> ''
-				""";
-		Map<String, String> trackIds = new LinkedHashMap<>();
-		List<Map.Entry<String, String>> rows = jdbcTemplate.query(
-			sql,
-			Map.of("songIds", songIds),
-			(resultSet, rowNumber) -> Map.entry(
-				resultSet.getString("song_id"),
-				resultSet.getString("track_id")
-			)
-		);
-		rows.forEach(row -> trackIds.put(row.getKey(), row.getValue()));
-		return trackIds;
 	}
 
 	// 기능: count 조건으로 데이터베이스를 조회한다.
@@ -145,7 +121,8 @@ public class SongQueryRepository {
 	// 기능: findDetail 조건으로 데이터베이스를 조회한다.
 	public Optional<SongDetailRow> findDetail(String songId) {
 		String sql = """
-				SELECT s.song_id, s.title, s.duration_ms, sm.track_id,
+				SELECT s.song_id, s.title, s.duration_ms,
+				       NULLIF(sm.display_image_url, '') AS image_url,
 				       CASE
 				           WHEN ready_analysis.analysis_id IS NOT NULL
 				            AND sm.lyrics_synced IS NOT NULL
@@ -265,6 +242,7 @@ public class SongQueryRepository {
 	private static final RowMapper<SongRow> SONG_ROW_MAPPER = (resultSet, rowNumber) -> new SongRow(
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
+		resultSet.getString("image_url"),
 		getNullableLong(resultSet, "duration_ms")
 	);
 
@@ -272,7 +250,7 @@ public class SongQueryRepository {
 		resultSet.getString("song_id"),
 		resultSet.getString("title"),
 		getNullableLong(resultSet, "duration_ms"),
-		resultSet.getString("track_id"),
+		resultSet.getString("image_url"),
 		getNullableBoolean(resultSet, "practice_ready"),
 		resultSet.getString("album_name"),
 		resultSet.getObject("release_date", LocalDate.class),
@@ -294,14 +272,14 @@ public class SongQueryRepository {
 		return resultSet.wasNull() ? null : value;
 	}
 
-	private record SongRow(String songId, String title, Long durationMs) {
+	private record SongRow(String songId, String title, String imageUrl, Long durationMs) {
 	}
 
 	public record SongDetailRow(
 		String songId,
 		String title,
 		Long durationMs,
-		String trackId,
+		String imageUrl,
 		Boolean practiceReady,
 		String albumName,
 		LocalDate releaseDate,
