@@ -56,6 +56,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.BuildConfig
 import com.micon.app.appContainer
 import com.micon.app.data.backend.NetworkAuthRepository
+import com.micon.app.data.backend.dto.PasswordChangeRequest
 import com.micon.app.data.backend.dto.WithdrawRequest
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.ui.common.BackHeader
@@ -65,6 +66,8 @@ import com.micon.app.ui.theme.GreyLight
 import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Pink
 import com.micon.app.ui.theme.Purple
+import com.micon.app.ui.onboarding.PASSWORD_GUIDE
+import com.micon.app.ui.onboarding.isValidPassword
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 
@@ -97,6 +100,12 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
     var withdrawing by remember { mutableStateOf(false) }
     var withdrawPassword by remember { mutableStateOf("") }
     var withdrawError by remember { mutableStateOf<String?>(null) }
+    var showPasswordChange by remember { mutableStateOf(false) }
+    var changingPassword by remember { mutableStateOf(false) }
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordChangeError by remember { mutableStateOf<String?>(null) }
     BackHandler(enabled = loggingOut) { }
 
     if (showDeleteVoice) {
@@ -151,6 +160,58 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
         )
     }
 
+    if (showPasswordChange) {
+        AlertDialog(
+            onDismissRequest = { if (!changingPassword) showPasswordChange = false },
+            title = { Text("비밀번호 변경") },
+            text = {
+                Column {
+                    Text("현재 비밀번호를 확인한 뒤 새 비밀번호를 설정합니다. 변경하면 모든 기기에서 다시 로그인해야 해요.")
+                    Spacer(Modifier.height(16.dp))
+                    MiconTextField("현재 비밀번호", currentPassword, { currentPassword = it }, "비밀번호", isPassword = true)
+                    Spacer(Modifier.height(10.dp))
+                    MiconTextField("새 비밀번호", newPassword, { newPassword = it }, PASSWORD_GUIDE, isPassword = true,
+                        helper = if (newPassword.isNotEmpty() && !isValidPassword(newPassword)) PASSWORD_GUIDE else null,
+                        helperColor = Pink)
+                    Spacer(Modifier.height(10.dp))
+                    MiconTextField("새 비밀번호 확인", confirmPassword, { confirmPassword = it }, "한 번 더 입력해주세요", isPassword = true,
+                        helper = if (confirmPassword.isNotEmpty() && confirmPassword != newPassword) "새 비밀번호가 일치하지 않습니다." else null,
+                        helperColor = Pink)
+                    passwordChangeError?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
+                }
+            },
+            confirmButton = {
+                val valid = currentPassword.isNotBlank() && isValidPassword(newPassword) && newPassword == confirmPassword
+                TextButton(enabled = !changingPassword && valid, onClick = {
+                    changingPassword = true
+                    passwordChangeError = null
+                    scope.launch {
+                        try {
+                            val response = backend.api.changePassword(PasswordChangeRequest(currentPassword, newPassword))
+                            if (!response.isSuccessful) {
+                                passwordChangeError = when (response.code()) {
+                                    401 -> "현재 비밀번호가 올바르지 않습니다."
+                                    400 -> "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                                    else -> "비밀번호를 변경하지 못했습니다."
+                                }
+                            } else {
+                                TokenManager.clear()
+                                showPasswordChange = false
+                                Toast.makeText(context, "비밀번호가 변경되었습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                onLogout()
+                            }
+                        } catch (_: Exception) {
+                            passwordChangeError = "연결을 확인한 뒤 다시 시도해주세요."
+                        } finally {
+                            changingPassword = false
+                        }
+                    }
+                }) { Text(if (changingPassword) "변경 중…" else "변경") }
+            },
+            dismissButton = { TextButton(enabled = !changingPassword, onClick = { showPasswordChange = false }) { Text("취소") } },
+        )
+    }
+
     Column(Modifier.fillMaxSize().background(Color.White)) {
         BackHeader("설정", { if (!loggingOut) onBack() })
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp)) {
@@ -180,6 +241,12 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit = {}, onEditPreferen
             Spacer(Modifier.height(20.dp))
             SectionTitle("개인정보 및 보안")
             SettingRow(Icons.Outlined.Shield, "개인정보 설정") { }
+            SettingRow(Icons.Outlined.Shield, "비밀번호 변경") {
+                if (!loggingOut) {
+                    currentPassword = ""; newPassword = ""; confirmPassword = ""; passwordChangeError = null
+                    showPasswordChange = true
+                }
+            }
             SettingRow(Icons.Outlined.Delete, if (settingsState.deleting) "음성데이터 삭제 중…" else "음성데이터 삭제") { if (!settingsState.deleting) showDeleteVoice = true }
             SettingRow(Icons.Outlined.PersonOff, if (loggingOut) "로그아웃 중…" else "로그아웃") {
                 if (!loggingOut) {
