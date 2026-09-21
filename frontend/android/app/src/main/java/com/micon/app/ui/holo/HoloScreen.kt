@@ -181,7 +181,8 @@ fun HoloScreen(
         // 우상단 pill: rec 이면 "결과 바로 보기", idle 이면 "나중에"(이전 결과가 있을 때)
         val topPill: Pair<String, () -> Unit>? = when {
             rec -> "결과 바로 보기 ›" to vm::finishEarly
-            onSkip != null && state.hasPrevious -> "나중에 ›" to onSkip
+            // 분석을 미루고 둘러볼 길은 항상 열어 둔다 — 마이크를 못 쓰는 상황에서 앱이 막히면 안 된다
+            onSkip != null -> "나중에 ›" to onSkip
             else -> null
         }
         if (topPill != null) {

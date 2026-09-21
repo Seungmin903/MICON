@@ -66,7 +66,10 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun AnalysisScreen(
+    /** 첫 화면(홀로) 30초 분석 — 한 번에 음역·음색을 본다 */
     onAnalyze: () -> Unit,
+    /** 음역 측정 → 음색 측정 두 단계 온보딩 */
+    onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
     onDetail: () -> Unit,
     onLogin: (() -> Unit)? = null,
@@ -95,6 +98,7 @@ fun AnalysisScreen(
                 Text("30초만 부르면 편한 음역과 어울리는 곡을 찾아 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
+                MiconButton("음역부터 단계별로 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
             }
         } else {
             MyVoiceCard(view, onDetail)
@@ -108,7 +112,7 @@ fun AnalysisScreen(
                     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
-            MiconButton("음역 다시 측정하기", onAnalyze, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
+            MiconButton("음역 다시 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }
 }
