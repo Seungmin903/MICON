@@ -441,9 +441,7 @@ private fun MiconNavHost(
 @Composable
 private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
     com.micon.app.ui.design.organisms.MiconScreen(
-        appBar = { com.micon.app.ui.design.organisms.MiconAppBar(title = title, actions = {
-            com.micon.app.ui.design.atoms.MiconButton("로그인", openLogin, kind = com.micon.app.ui.design.atoms.MiconButtonKind.Text)
-        }) },
+        appBar = { com.micon.app.ui.common.MiconHeader(onLogin = openLogin) },
     ) {
         com.micon.app.ui.design.atoms.MiconCard(kind = com.micon.app.ui.design.atoms.MiconCardKind.Elevated) {
             Text("로그인하면 $title 을 쓸 수 있어요", style = MaterialTheme.typography.titleMedium)

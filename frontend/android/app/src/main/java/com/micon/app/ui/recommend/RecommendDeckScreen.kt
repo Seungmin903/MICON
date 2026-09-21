@@ -92,7 +92,7 @@ import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.atoms.MiconFilterChip
-import com.micon.app.ui.design.atoms.MiconMark
+import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.design.organisms.CdPlayer
@@ -177,6 +177,7 @@ fun RecommendDeckScreen(
     MiconDesignTheme {
         val scheme = MaterialTheme.colorScheme
         Column(Modifier.fillMaxSize().background(scheme.background).statusBarsPadding()) {
+            MiconHeader(onSettings = onSettings, onLogin = onLogin)
             TopBar(
                 searchOpen = searchOpen,
                 query = state.query,
@@ -278,7 +279,7 @@ private const val KEY_COACH_SEEN = "recommend_coach_seen"
 // 상단 바
 // ---------------------------------------------------------------------------
 
-/** 마크 + `추천` · `?` · 검색. 검색을 열면 제목 자리가 입력창이 된다 */
+/** 공통 헤더 바로 아래의 도움말·검색 도구. 검색을 열면 입력창이 된다. */
 @Composable
 private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit, onToggleSearch: () -> Unit, onHelp: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -312,11 +313,7 @@ private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit
                 )
             }
         } else {
-            Row(Modifier.weight(1f).padding(start = MiconSpace.sm), verticalAlignment = Alignment.CenterVertically) {
-                MiconMark()
-                Spacer(Modifier.width(10.dp))
-                Text("추천", style = MaterialTheme.typography.titleMedium)
-            }
+            Spacer(Modifier.weight(1f))
             IconButton(onClick = onHelp, modifier = Modifier.size(MiconSpace.touchTarget)) {
                 Box(
                     Modifier.size(28.dp).clip(CircleShape).background(scheme.primaryContainer),
