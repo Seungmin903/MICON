@@ -34,12 +34,13 @@ public class SongController {
 	// 기능: searchSongs 요청을 검증하고 서비스 처리 결과를 HTTP 응답으로 반환한다.
 	public ApiResponse<PageResponse<SongResponse.Summary>> searchSongs(
 		@RequestParam(defaultValue = "") String query,
+		@RequestParam(required = false) @Min(1) Long genreId,
 		@RequestParam(defaultValue = "0") @Min(0) int page,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
 		Principal principal
 	) {
 		Long userId = principal == null ? null : Long.valueOf(principal.getName());
-		return ApiResponse.success(songService.search(query, page, size, userId));
+		return ApiResponse.success(songService.search(query, page, size, userId, genreId));
 	}
 
 	@GetMapping("/{songId}")
