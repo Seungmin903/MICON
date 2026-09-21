@@ -133,8 +133,8 @@ TIMBRE 녹음은 임베딩 전에 `mr_detection.detect_mr_suspected` 로 한 번
 - `SUSPECTED` → 44.1kHz PCM16 으로 변환 후 Mel-Band 로 분리하고 보컬만 임베딩한다. `preprocessingVersion=sep-melband-kim-v1`.
 - 그 외 → 원본을 그대로 임베딩한다. `preprocessingVersion=raw-clean-v1`.
 - 콜백 `modelVersion` 은 `<checkpoint_sha256>+<preprocessingVersion>` 이라 어느 입력으로 만든 임베딩인지 사후에 구분된다.
-- 사용자 녹음 분리에는 `allow_fallback=False` 를 쓴다. Mel-Band 가 실패하면 HTDemucs 로 조용히 내려가지 않고 job 을 실패시킨다.
-  실패 사유도 `mrDetection.separation` 에 남긴다. 임베딩 품질이 모델별로 달라진 채 섞이는 쪽이 더 나쁘다.
+- 사용자 녹음 분리에는 `allow_fallback=False` 를 쓴다. Mel-Band 가 실패하면 HTDemucs 로 조용히 내려가지 않고,
+  실패 사유를 `mrDetection.separation` 에 남긴 뒤 원본 녹음으로 임베딩을 계속한다.
 
 
 

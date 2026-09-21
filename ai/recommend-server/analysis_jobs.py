@@ -503,12 +503,13 @@ def _timbre_callbacks(job, audio, prefix, config):
             )
         except Exception as error:
             detection["separation"] = {"status": "FAILED", "failureReason": str(error)[:500]}
-            _update(job["jobId"], mrDetection=detection)
-            raise
-        detection["separation"] = {"status": "COMPLETED", **separation_info}
-        detection["embeddingInput"] = "separated-vocals"
-        embedding_audio = vocals
-        preprocessing_version = "sep-melband-kim-v1"
+            detection["embeddingInput"] = "raw-recording"
+            detection["preprocessingVersion"] = preprocessing_version
+        else:
+            detection["separation"] = {"status": "COMPLETED", **separation_info}
+            detection["embeddingInput"] = "separated-vocals"
+            embedding_audio = vocals
+            preprocessing_version = "sep-melband-kim-v1"
     else:
         detection["embeddingInput"] = "raw-recording"
     detection["preprocessingVersion"] = preprocessing_version

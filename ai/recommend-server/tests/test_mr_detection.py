@@ -84,6 +84,38 @@ class MrDetectionTest(unittest.TestCase):
                 separation.separate(Path("input.wav"), Path(self.tmp.name), "cpu", allow_fallback=False)
         fallback.assert_not_called()
 
+    def test_timbre_separation_failure_keeps_raw_embedding_path(self) -> None:
+        job = {"jobId": "job_" + "1" * 32}
+        audio = Path(self.tmp.name) / "recording.wav"
+        prefix = str(Path(self.tmp.name) / "embedding")
+        config = {
+            "ecapa_checkpoint": "ecapa.ckpt",
+            "singer_repo": "singer-repo",
+            "singer_checkpoint_root": "singer-root",
+            "device": "cpu",
+        }
+        detection = {"requiresSeparation": True, "status": "SUSPECTED"}
+        with (
+            mock.patch.object(analysis_jobs, "_limit_torch_threads"),
+            mock.patch.object(analysis_jobs, "detect_mr_suspected", return_value=detection),
+            mock.patch.object(analysis_jobs, "_prepare_separation_input"),
+            mock.patch.object(analysis_jobs, "separate", side_effect=RuntimeError("broken")) as separate_call,
+            mock.patch.object(analysis_jobs, "_update") as update_call,
+            mock.patch.object(analysis_jobs, "embed_vocal_audio", return_value={}) as embed_call,
+            mock.patch.object(analysis_jobs.np, "load", side_effect=[np.ones((1, 192)), np.ones((1, 1000))]),
+            mock.patch.object(analysis_jobs, "build_callbacks", return_value={"ok": True}),
+        ):
+            result = analysis_jobs._timbre_callbacks(job, audio, prefix, config)
+
+        self.assertEqual(result, {"ok": True})
+        separate_call.assert_called_once()
+        update_call.assert_called_once()
+        recorded = update_call.call_args.kwargs["mrDetection"]
+        self.assertEqual(recorded["separation"]["status"], "FAILED")
+        self.assertEqual(recorded["embeddingInput"], "raw-recording")
+        self.assertEqual(recorded["preprocessingVersion"], "raw-clean-v1")
+        self.assertIs(embed_call.call_args.args[0], audio)
+
 
 if __name__ == "__main__":
     unittest.main()
