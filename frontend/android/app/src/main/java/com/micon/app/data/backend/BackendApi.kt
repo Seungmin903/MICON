@@ -93,6 +93,9 @@ interface BackendApi {
     @HTTP(method = "DELETE", path = "users/me", hasBody = true)
     suspend fun withdraw(@Body body: WithdrawRequest): Response<ApiResponse<Any>>
 
+    @PATCH("users/me/password")
+    suspend fun changePassword(@Body body: PasswordChangeRequest): Response<ApiResponse<Any>>
+
     /** Refresh has no JSON body; its bearer credential is the refresh token. */
     @POST("auth/refresh")
     fun refreshTokenSync(@Header("Authorization") authorization: String): Call<ApiResponse<TokenPair>>
