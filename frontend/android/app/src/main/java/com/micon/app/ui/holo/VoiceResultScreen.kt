@@ -91,18 +91,17 @@ fun VoiceResultScreen(
                 Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge)
             }
         }
-        FadeIn(1) { HeroRange(result) }
-        FadeIn(2) { RangeMapCard(result) }
-        FadeIn(3) { StabilityCard(result) }
-        FadeIn(4) { MatchingMusicCard(result) }
-        if (result.artists.isNotEmpty()) FadeIn(5) { SimilarVoicesCard(result) }
-        else if (result.timbreSubmitted) FadeIn(5) {
+        FadeIn(1) { RangeMapCard(result) }
+        FadeIn(2) { StabilityCard(result) }
+        FadeIn(3) { MatchingMusicCard(result) }
+        if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
+        else if (result.timbreSubmitted) FadeIn(4) {
             MiconCard(kind = MiconCardKind.Outlined) {
                 Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        FadeIn(6) { SummaryTint(result) }
+        FadeIn(5) { SummaryTint(result) }
     }
 }
 
@@ -117,28 +116,26 @@ private fun FadeIn(order: Int, content: @Composable () -> Unit) {
 private fun Eyebrow(text: String) =
     Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
 
-@Composable
-private fun HeroRange(r: HoloResult) {
-    MiconCard(kind = MiconCardKind.Outlined, contentPadding = 18.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("나의 음역대", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(NoteNames.scientificRange(r.lowMidi, r.highMidi), fontFamily = MiconMonoFamily, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
-                val oct = r.octaves
-                val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
-                Text("${NoteNames.friendly(r.lowMidi)} ~ ${NoteNames.friendly(r.highMidi)} · $octText", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-/** 전체 / 편안한 / 추천곡 음역 막대 3줄, 같은 자(전체 음역 = 0~100%) 위에 */
+/**
+ * 음역대 지도. 카드 머리에 잰 음역을 크게 놓고, 그 아래 같은 자(전체 음역 = 0~100%) 위에
+ * 전체·편안한 음역 막대를 겹친다. 숫자와 그림이 떨어져 있으면 같은 것을 두 번 읽게 된다.
+ */
 @Composable
 private fun RangeMapCard(r: HoloResult) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("음역대 지도")
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            NoteNames.scientificRange(r.lowMidi, r.highMidi),
+            fontFamily = MiconMonoFamily, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp,
+        )
+        val oct = r.octaves
+        val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
+        Text(
+            "${NoteNames.friendly(r.lowMidi)} ~ ${NoteNames.friendly(r.highMidi)} · $octText",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(14.dp))
         val span = (r.highMidi - r.lowMidi).coerceAtLeast(1).toFloat()
         fun f(m: Int) = ((m - r.lowMidi) / span).coerceIn(0f, 1f)
         // 눈금: 양 끝 + 중간 3개 (막대와 같은 자)
