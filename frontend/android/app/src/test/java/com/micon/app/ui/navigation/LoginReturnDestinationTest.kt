@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LoginReturnDestinationTest {
+    @Test fun savedLoginSessionStartsAtVerificationThenDefaultsToRecommend() {
+        assertEquals(Routes.SPLASH, initialNavigationRoute(hasSavedSession = true))
+        assertEquals(Routes.LOGIN, initialNavigationRoute(hasSavedSession = false))
+    }
+
     @Test fun uuidSurvivesSongPracticeAndLoginReturnRoutes() {
         val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
         assertEquals("song/$id", Routes.song(id))
