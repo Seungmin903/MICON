@@ -95,14 +95,14 @@ import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.range.FreeRangeSession
 import com.micon.app.range.RangeRepository
 import com.micon.app.range.onboardingPreview
+import com.micon.app.ui.common.MiconLogo
 import com.micon.app.ui.common.rememberMicrophoneAccess
 import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.design.molecules.OctaveNoteText
 import com.micon.app.ui.report.FreeRangeViewModel
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import com.micon.app.ui.design.atoms.CompactDisc
-import com.micon.app.ui.design.atoms.MiconMark
-import com.micon.app.ui.design.tokens.MiconLogoFamily
 import com.micon.app.ui.design.tokens.MiconMonoFamily
 import kotlin.math.PI
 import kotlin.math.cos
@@ -178,15 +178,20 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?) {
                     )
                     view.extremeMidi?.let {
                         val label = if (view.phase == "down") "가장 낮은" else "가장 높은"
-                        Text("지금까지 " + label + " 음 " + NoteNames.display(it.roundToInt()),
-                            color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("지금까지 " + label + " 음 ", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            OctaveNoteText(it.roundToInt(), size = 20.sp, color = Color.White)
+                        }
                     }
                 }
                 val low = preview?.lowMidi
                 val high = preview?.highMidi
                 if (done && low != null && high != null) {
-                    Text(NoteNames.displayRange(low, high), color = Color.White, fontSize = 17.sp,
-                        fontFamily = MiconMonoFamily, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OctaveNoteText(low, size = 22.sp, color = Color.White)
+                        Text("  ~  ", color = Color.White.copy(alpha = 0.72f), fontSize = 17.sp, fontFamily = MiconMonoFamily)
+                        OctaveNoteText(high, size = 22.sp, color = Color.White)
+                    }
                 }
             }
         },
@@ -345,12 +350,8 @@ private fun HoloChrome(
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(bottom = 14.dp)) {
             Box(Modifier.fillMaxWidth().heightIn(min = 62.dp, max = 96.dp).weight(0.11f, fill = false), contentAlignment = Alignment.Center) {
                 androidx.compose.animation.AnimatedVisibility(visible = logoVisible, enter = fadeIn(tween(450)), exit = fadeOut(tween(450))) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        MiconMark(height = 26.dp, onDark = true)
-                        Spacer(Modifier.width(8.dp))
-                        Text("MICON", color = Color.White, fontFamily = MiconLogoFamily, fontWeight = FontWeight.Black,
-                            fontSize = 26.sp, letterSpacing = 1.5.sp)
-                    }
+                    // 탭 헤더·로그인 화면과 같은 로고 한 장을 쓴다(어두운 배경이라 흰색으로)
+                    MiconLogo(barHeight = 26.dp, onDark = true)
                 }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {

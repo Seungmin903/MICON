@@ -54,7 +54,7 @@ import com.micon.app.ui.common.LoadMoreFooter
 import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconSearchBar
-import com.micon.app.ui.common.SongRow
+import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.rememberAppContainer

@@ -110,6 +110,8 @@ data class PracticeSummaryDto(
     val sectionId: Long? = null,
     val status: String? = null,
     val startedAt: String? = null,
+    /** 세션이 만들어진 시각. startedAt 이 비어 있던 옛 기록의 날짜는 이걸로 읽는다 */
+    val createdAt: String? = null,
     val durationMs: Int? = null,
     /** 결과 행 상태(COMPLETED·INSUFFICIENT_DATA·FAILED), 결과가 없으면 null */
     val resultStatus: String? = null,

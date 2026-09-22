@@ -107,7 +107,10 @@ fun MiconRoot() {
         }
     }
     LaunchedEffect(currentRoute, accessGranted) {
-        val publicRoutes = setOf(Routes.HOLO, Routes.VOICE_RESULT, Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.PASSWORD_RESET, Routes.SURVEY)
+        val publicRoutes = setOf(
+            Routes.HOLO, Routes.VOICE_RESULT, Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP,
+            Routes.PASSWORD_RESET, Routes.SURVEY, Routes.DEV_RESULT_PREVIEW,
+        )
         if (currentRoute != null && currentRoute !in publicRoutes && !accessGranted) {
             // Also guards restored back stacks and incoming protected deep links.
             nav.replaceAll(Routes.REPORT)
@@ -158,6 +161,7 @@ private val migratedRoutes: Set<String?> = setOf(
     Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND,
     Routes.SONG, Routes.SONG_MATCH, Routes.EVALUATION, Routes.RESULT,
     Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY, Routes.EDIT_PREFERENCES, Routes.SETTINGS,
+    Routes.DEV_RESULT_PREVIEW,
 )
 
 /** Tabs always open their root; saved child screens must not override the tapped destination. */
@@ -424,6 +428,18 @@ private fun MiconNavHost(
         composable(Routes.DEV_CATALOG, deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_CATALOG}" })) {
             if (!BuildConfig.DEBUG) return@composable
             DesignCatalogScreen(onBack = { nav.popBackStack() })
+        }
+
+        // ---- 개발용: 서버 없이 연습 분석 상세의 최신 UI 확인 ----
+        composable(
+            Routes.DEV_RESULT_PREVIEW,
+            deepLinks = listOf(navDeepLink { uriPattern = "${Routes.DEEP_LINK}/${Routes.DEV_RESULT_PREVIEW}" }),
+        ) {
+            if (!BuildConfig.DEBUG) return@composable
+            ResultScreen(
+                practiceId = com.micon.app.ui.result.RESULT_PREVIEW_PRACTICE_ID,
+                onBack = { nav.popBackStack() },
+            )
         }
 
         // ---- 개발용: 음성 프로필 예시를 채우고 리포트 탭으로 (adb shell am start -d "micon://app/dev/seed-profile") ----
