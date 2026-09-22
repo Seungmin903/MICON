@@ -206,26 +206,43 @@ internal object PracticeLabels {
 
 /**
  * 전체 화면 버전(딥링크·연습 종료 후). 한줄 평가 → 곡 행 → 카드들 → "처음으로" 버튼.
- * [onHome] 은 연습 목록(곡 선택)으로 돌아간다.
+ * [onHistory] 는 기록 탭으로 돌아가고, [onPractice] 는 보고서의 곡으로 다시 연습을 시작한다.
  */
 @Composable
-fun ResultScreen(practiceId: Long, onBack: () -> Unit, onHome: (() -> Unit)? = null) {
+fun ResultScreen(
+    practiceId: Long,
+    onBack: () -> Unit,
+    onHistory: (() -> Unit)? = null,
+    onPractice: ((songId: String, selectedKey: Int) -> Unit)? = null,
+) {
     com.micon.app.ui.design.organisms.MiconScreen(
         appBar = { com.micon.app.ui.design.organisms.MiconAppBar(title = "연습 분석 상세", onBack = onBack) },
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        ResultDetailCards(practiceId, onOpenFull = null, showSong = true, onHome = onHome, onBack = onBack)
+        ResultDetailCards(
+            practiceId,
+            onOpenFull = null,
+            showSong = true,
+            onHistory = onHistory,
+            onPractice = onPractice,
+        )
         Spacer(Modifier.height(8.dp))
     }
 }
 
 /**
  * 연습 상세 리포트 본문(MR !207 리디자인): 총점 → 지난 연습 비교 → 곡 정보 → 상세 점수·판정 분포 →
- * 한 줄 평가 → 구간 평가 → (서버가 주면) 음절 판정·음정 곡선.
+ * (서버가 주면) 가사별 음정 판정·음정 곡선 → 한 줄 평가 → 구간 평가.
  * onOpenFull 이 있으면 마지막에 "전체 리포트 보기" 링크를 둔다.
  */
 @Composable
-fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boolean = false, onHome: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
+fun ResultDetailCards(
+    practiceId: Long,
+    onOpenFull: (() -> Unit)?,
+    showSong: Boolean = false,
+    onHistory: (() -> Unit)? = null,
+    onPractice: ((songId: String, selectedKey: Int) -> Unit)? = null,
+) {
     val container = rememberAppContainer()
     val vm: ResultViewModel = viewModel(key = "result-$practiceId", factory = viewModelFactory { initializer { ResultViewModel(container.practices, container.songs, practiceId) } })
     val state by vm.state.collectAsStateWithLifecycle()
@@ -289,7 +306,13 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
                     )
                 }
 
-                // 5. 한 줄 평가
+                // 5~6. 서버가 노트 판정·음정 곡선을 돌려줄 때만 상세 카드를 그린다.
+                if (detail != null) {
+                    SyllableJudgementCard(detail)
+                    PitchCurveCard(detail)
+                }
+
+                // 7. 한 줄 평가
                 Column(Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(16.dp)).padding(18.dp)) {
                     Text("한 줄 평가", fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
@@ -299,7 +322,7 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
                     )
                 }
 
-                // 6. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
+                // 8. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
                 //    점수가 매겨진 구간이 없으면(구간 자산이 없는 곡) 카드를 아예 그리지 않는다.
                 val measured = report.sections.filter { it.measured && it.score != null }
                 if (measured.isNotEmpty()) {
@@ -318,12 +341,6 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
                         }
                     }
                 }
-
-                // 절충안 확장: 서버가 노트 판정·음정 곡선을 돌려줄 때만(hasDetail) 두 카드를 그린다.
-                if (detail != null) {
-                    SyllableJudgementCard(detail)
-                    PitchCurveCard(detail)
-                }
             } else {
                 Column(Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(16.dp)).padding(18.dp)) {
                     Text(
@@ -339,12 +356,17 @@ fun ResultDetailCards(practiceId: Long, onOpenFull: (() -> Unit)?, showSong: Boo
                     modifier = Modifier.fillMaxWidth().clickable(onClick = it).padding(8.dp), textAlign = TextAlign.Center,
                 )
             }
-            if (onHome != null) {
+            if (onHistory != null) {
                 Spacer(Modifier.height(4.dp))
-                MiconButton("목록으로", onHome, Modifier.fillMaxWidth())
-                if (onBack != null) {
+                MiconButton("목록으로", onHistory, Modifier.fillMaxWidth())
+                if (onPractice != null) {
                     Spacer(Modifier.height(2.dp))
-                    MiconButton("이 곡 다시 연습", onBack, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
+                    MiconButton(
+                        "이 곡 다시 연습",
+                        { onPractice(practice.songId, practice.selectedKey) },
+                        Modifier.fillMaxWidth(),
+                        kind = MiconButtonKind.Outline,
+                    )
                 }
             }
             Spacer(Modifier.size(4.dp))
