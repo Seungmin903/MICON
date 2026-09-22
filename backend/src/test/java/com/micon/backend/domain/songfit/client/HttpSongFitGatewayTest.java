@@ -17,11 +17,13 @@ class HttpSongFitGatewayTest {
     void sendsCompleteJsonSongFitPayload() throws Exception {
         var contentType = new AtomicReference<String>();
         var accept = new AtomicReference<String>();
+        var protocol = new AtomicReference<String>();
         var payload = new AtomicReference<String>();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/song-fit", exchange -> {
             contentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
             accept.set(exchange.getRequestHeaders().getFirst("Accept"));
+            protocol.set(exchange.getProtocol());
             payload.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             byte[] reply = """
                     {"songId":"10","analysisId":20,"selectedKeyOffset":-2,"evaluationStatus":"AVAILABLE",
@@ -45,6 +47,7 @@ class HttpSongFitGatewayTest {
 
             assertThat(contentType.get()).startsWith("application/json");
             assertThat(accept.get()).contains("application/json");
+            assertThat(protocol.get()).isEqualTo("HTTP/1.1");
             assertThat(payload.get())
                     .contains("\"userStableLowMidi\":55")
                     .contains("\"userStableHighMidi\":75")
