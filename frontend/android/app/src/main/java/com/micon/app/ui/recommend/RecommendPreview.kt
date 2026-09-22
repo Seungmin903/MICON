@@ -24,7 +24,8 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 /**
- * 추천 탭 미리듣기. 데크 위 CD 가운데를 누르면 그 곡의 원곡 앞 60초를 튼다.
+ * 추천 탭 미리듣기. 데크에 CD 를 올리면 그 곡의 원곡 앞 60초를 한 번 튼다(반복하지 않는다).
+ * 가운데 탭은 재생/일시정지, 끝난 뒤 탭하면 처음부터 한 번 더.
  * 연습용 MR과 분리된 preview(...)의 짧은 만료 URL만 사용한다.
  *
  * 화면(컴포지션)에 묶여 있어 탭을 떠나면 멈추고 풀린다. 앱이 백그라운드로 가면 일시정지.
@@ -52,7 +53,8 @@ class RecommendPreview(
     private var tick: Job? = null
 
     init {
-        player.onEnded = { playing = false; progress = 0f; positionSec = 0.0; player.seekTo(0.0) }
+        // STATE_ENDED 여도 playWhenReady 는 true 로 남아, pause 없이 seekTo(0) 하면 처음부터 다시 돈다
+        player.onEnded = { player.pause(); tick?.cancel(); playing = false; progress = 0f; positionSec = 0.0; player.seekTo(0.0) }
         player.onError = { playing = false; loading = false; error = "미리듣기를 재생하지 못했어요" }
     }
 
@@ -63,6 +65,11 @@ class RecommendPreview(
             return
         }
         start(id)
+    }
+
+    /** 데크에 CD 를 올릴 때. 받아지는 대로 바로 튼다. 이미 올라 있는 곡이면 그대로 둔다 */
+    fun load(id: String) {
+        if (songId != id) start(id)
     }
 
     private fun start(id: String) {
