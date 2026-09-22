@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
@@ -513,38 +514,48 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         Spacer(Modifier.height(6.dp))
                     }
                     items(detail.songs, key = { it.songId }) { song ->
-                        SongRow(
-                            title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.songId) },
-                            modifier = Modifier.pointerInput(state.editing, state.busy, song.songId) {
-                                if (!state.editing || state.busy) return@pointerInput
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { draggedSongId = song.songId; dragOffset = 0f },
-                                    onDragCancel = { draggedSongId = null; dragOffset = 0f },
-                                    onDragEnd = {
-                                        draggedSongId = null
-                                        dragOffset = 0f
-                                        vm.saveSongOrder()
-                                    },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        dragOffset += amount.y
-                                        val dragged = draggedSongId ?: return@detectDragGesturesAfterLongPress
-                                        val info = listState.layoutInfo.visibleItemsInfo
-                                        val current = info.firstOrNull { it.key == dragged } ?: return@detectDragGesturesAfterLongPress
-                                        val center = current.offset + current.size / 2 + dragOffset
-                                        val target = info.firstOrNull { item -> center >= item.offset && center <= item.offset + item.size }
-                                        val targetId = target?.key as? String
-                                        if (targetId != null && targetId != dragged) {
-                                            vm.moveSong(dragged, targetId)
-                                            dragOffset = 0f
-                                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            if (state.editing) {
+                                Icon(
+                                    Icons.Filled.DragHandle,
+                                    contentDescription = "길게 눌러 곡 순서 변경",
+                                    tint = Grey,
+                                    modifier = Modifier.size(44.dp).pointerInput(state.busy, song.songId) {
+                                        if (state.busy) return@pointerInput
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = { draggedSongId = song.songId; dragOffset = 0f },
+                                            onDragCancel = { draggedSongId = null; dragOffset = 0f },
+                                            onDragEnd = {
+                                                draggedSongId = null
+                                                dragOffset = 0f
+                                                vm.saveSongOrder()
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragOffset += amount.y
+                                                val dragged = draggedSongId ?: return@detectDragGesturesAfterLongPress
+                                                val info = listState.layoutInfo.visibleItemsInfo
+                                                val current = info.firstOrNull { it.key == dragged } ?: return@detectDragGesturesAfterLongPress
+                                                val center = current.offset + current.size / 2 + dragOffset
+                                                val target = info.firstOrNull { item -> center >= item.offset && center <= item.offset + item.size }
+                                                val targetId = target?.key as? String
+                                                if (targetId != null && targetId != dragged) {
+                                                    vm.moveSong(dragged, targetId)
+                                                    dragOffset = 0f
+                                                }
+                                            },
+                                        )
                                     },
                                 )
-                            },
-                            trailing = if (state.editing) ({
-                                IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
-                            }) else null,
-                        )
+                            }
+                            SongRow(
+                                title = song.title, artist = song.artist, imageUrl = song.imageUrl,
+                                onClick = { onSongClick(song.songId) }, modifier = Modifier.weight(1f),
+                                trailing = if (state.editing) ({
+                                    IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
+                                }) else null,
+                            )
+                        }
                     }
                     if (detail.songs.isEmpty()) item {
                         Text("아직 곡이 없어요. 편집(연필)을 눌러 곡을 추가해 보세요.", Modifier.padding(24.dp), color = Grey)
