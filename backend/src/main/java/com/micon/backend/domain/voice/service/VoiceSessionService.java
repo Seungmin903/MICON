@@ -75,7 +75,7 @@ public class VoiceSessionService {
     @Transactional
     public VoiceSessionResponse.Session saveDeviceRange(Long userId, String guestToken, long sessionId,
             VoiceSessionRequest.DeviceRangeResult request) {
-        if (!java.util.Set.of("guided-range-v7", "guided-range-v8").contains(request.protocolVersion())) {
+        if (!java.util.Set.of("guided-range-v7", "guided-range-v8", "holo-v1").contains(request.protocolVersion())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 음역 측정 버전입니다.");
         }
         validateDeviceRange(request);
