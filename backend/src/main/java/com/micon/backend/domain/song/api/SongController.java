@@ -2,6 +2,8 @@ package com.micon.backend.domain.song.api;
 
 import com.micon.backend.domain.song.dto.PageResponse;
 import com.micon.backend.domain.song.dto.SongResponse;
+import com.micon.backend.domain.song.preview.SongPreviewResponse;
+import com.micon.backend.domain.song.preview.SongPreviewService;
 
 import com.micon.backend.common.api.ApiResponse;
 import com.micon.backend.domain.song.service.SongService;
@@ -24,10 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SongController {
 
 	private final SongService songService;
+	private final SongPreviewService songPreviewService;
 
 	// 기능: 필요한 의존성과 초기값을 받아 SongController 객체를 생성한다.
-	public SongController(SongService songService) {
+	public SongController(SongService songService, SongPreviewService songPreviewService) {
 		this.songService = songService;
+		this.songPreviewService = songPreviewService;
 	}
 
 	@GetMapping
@@ -51,5 +55,12 @@ public class SongController {
 	) {
 		Long userId = principal == null ? null : Long.valueOf(principal.getName());
 		return ApiResponse.success(songService.getDetail(songId, userId));
+	}
+
+	@GetMapping("/{songId}/preview")
+	public ApiResponse<SongPreviewResponse> getPreview(
+		@PathVariable @NotBlank @Size(max = 64) String songId
+	) {
+		return ApiResponse.success(songPreviewService.get(songId));
 	}
 }

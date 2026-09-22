@@ -37,6 +37,10 @@ interface SongRepository {
     suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia =
         practiceAssets(songId, selectedKey).instrumental
 
+    /** 원곡 60초 미리듣기. 연습용 반주와 별개로 서버가 발급한 만료 URL만 사용한다. */
+    suspend fun preview(songId: String): SongPreview =
+        throw UnsupportedOperationException("원곡 미리듣기를 지원하지 않는 저장소입니다.")
+
     /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
     suspend fun karaokeNotes(songId: String): List<KaraokeNote>? =
         try { practiceAssets(songId).targetNotes } catch (_: PracticeAssetsNotReadyException) { null }
@@ -131,6 +135,14 @@ data class InstrumentalMedia(
     val playbackUrl: String?,
     /** ISO-8601. 이 시각 60초 전부터 URL을 새로 발급한다. */
     val playbackUrlExpiresAt: String? = null,
+)
+
+/** 원곡 미리듣기 재생 정보 (GET /songs/{id}/preview). */
+data class SongPreview(
+    val songId: String,
+    val previewSeconds: Int,
+    val playbackUrl: String,
+    val playbackUrlExpiresAt: String,
 )
 
 /** 곡 구간 (`song_section`). 시간은 ms. */

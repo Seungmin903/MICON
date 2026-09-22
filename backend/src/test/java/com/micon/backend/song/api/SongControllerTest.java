@@ -9,6 +9,8 @@ import com.micon.backend.common.exception.GlobalExceptionHandler;
 import com.micon.backend.domain.song.dto.PageResponse;
 import com.micon.backend.domain.song.api.SongController;
 import com.micon.backend.domain.song.dto.SongResponse;
+import com.micon.backend.domain.song.preview.SongPreviewResponse;
+import com.micon.backend.domain.song.preview.SongPreviewService;
 import com.micon.backend.domain.song.service.SongNotFoundException;
 import com.micon.backend.domain.song.service.SongService;
 import java.util.List;
@@ -25,12 +27,14 @@ class SongControllerTest {
 
 	@Mock
 	private SongService songService;
+	@Mock
+	private SongPreviewService songPreviewService;
 
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
-		mockMvc = MockMvcBuilders.standaloneSetup(new SongController(songService))
+		mockMvc = MockMvcBuilders.standaloneSetup(new SongController(songService, songPreviewService))
 				.setControllerAdvice(new GlobalExceptionHandler())
 				.build();
 	}
@@ -98,5 +102,18 @@ class SongControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.songId").value("tj-00281"))
 				.andExpect(jsonPath("$.data.favorite").value(true));
+	}
+
+	@Test
+	void returnsSourceSongPreviewUrl() throws Exception {
+		when(songPreviewService.get("d221afea-6dc1-5223-a6bc-68fa055b4820"))
+			.thenReturn(new SongPreviewResponse(
+				"d221afea-6dc1-5223-a6bc-68fa055b4820", 60,
+				"https://signed.example/preview", java.time.Instant.parse("2026-09-22T01:10:00Z")));
+
+		mockMvc.perform(get("/songs/d221afea-6dc1-5223-a6bc-68fa055b4820/preview"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.previewSeconds").value(60))
+				.andExpect(jsonPath("$.data.playbackUrl").value("https://signed.example/preview"));
 	}
 }

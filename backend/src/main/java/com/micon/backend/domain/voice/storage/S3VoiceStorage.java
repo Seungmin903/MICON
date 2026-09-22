@@ -8,9 +8,11 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -47,6 +49,22 @@ public class S3VoiceStorage implements VoiceStorage {
                         .bucket(properties.bucket()).key(objectKey).build()),
                 result -> result.response().sdkHttpResponse().statusCode());
         return new StoredObject(object.asByteArray(), object.response().contentType());
+    }
+
+    @Override
+    public boolean exists(String objectKey) {
+        try {
+            S3AccessLog.call("head", properties.bucket(), objectKey,
+                    () -> s3.headObject(HeadObjectRequest.builder()
+                            .bucket(properties.bucket()).key(objectKey).build()),
+                    result -> result.sdkHttpResponse().statusCode());
+            return true;
+        } catch (S3Exception exception) {
+            if (exception.statusCode() == 404) {
+                return false;
+            }
+            throw exception;
+        }
     }
 
     @Override

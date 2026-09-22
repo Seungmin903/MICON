@@ -9,6 +9,7 @@ import com.micon.app.data.SongDetail
 import com.micon.app.data.SongPage
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
+import com.micon.app.data.SongPreview
 import com.micon.app.data.UnsupportedPracticeKeyException
 import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.PracticeAssetsDto
@@ -90,6 +91,17 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
         val body = response.unwrapData()
         check(body.songId == songId && body.selectedKey == selectedKey) { "요청한 곡과 반주 정보가 일치하지 않습니다." }
         return body.instrumental.toMedia()
+    }
+
+    override suspend fun preview(songId: String): SongPreview {
+        val body = api.preview(songId).unwrapData()
+        check(body.songId == songId) { "요청한 곡과 미리듣기 정보가 일치하지 않습니다." }
+        return SongPreview(
+            songId = body.songId,
+            previewSeconds = body.previewSeconds,
+            playbackUrl = body.playbackUrl,
+            playbackUrlExpiresAt = body.playbackUrlExpiresAt,
+        )
     }
 
     // ------------------------------------------------------------------ 매핑

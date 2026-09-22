@@ -9,6 +9,7 @@ import com.micon.app.data.backend.dto.PageDto
 import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.InstrumentalDto
 import com.micon.app.data.backend.dto.SongDetailDto
+import com.micon.app.data.backend.dto.SongPreviewDto
 import com.micon.app.data.backend.dto.SongSummaryDto
 import com.micon.app.data.backend.dto.TokenPair
 import com.micon.app.data.backend.dto.PasswordResetIssueRequest
@@ -113,6 +114,9 @@ interface BackendApi {
 
     @GET("songs/{songId}")
     suspend fun song(@Path("songId") songId: String): Response<ApiResponse<SongDetailDto>>
+
+    @GET("songs/{songId}/preview")
+    suspend fun preview(@Path("songId") songId: String): Response<ApiResponse<SongPreviewDto>>
 
     /** 반주·목표 음정·가사·구간. 준비 안 됨 409, 미지원 키 422. */
     @GET("songs/{songId}/practice-assets")
