@@ -80,7 +80,7 @@ class UserWithdrawalApiIntegrationTests {
                         .header("Authorization", "Bearer " + session.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"currentPassword\":\"WrongPassword!\"}"))
-                .andExpect(status().isUnauthorized())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_CURRENT_PASSWORD"));
 
         User active = userRepository.findById(user.getId()).orElseThrow();
