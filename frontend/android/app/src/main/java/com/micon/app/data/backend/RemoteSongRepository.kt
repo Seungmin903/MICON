@@ -15,6 +15,7 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
+import com.micon.app.core.auth.AuthTokenStore
 import com.micon.app.core.auth.TokenManager
 import retrofit2.Response
 import kotlin.math.roundToInt
@@ -24,7 +25,10 @@ import java.util.concurrent.ConcurrentHashMap
 class BackendRequestException(val status: Int, val code: String?, message: String) : Exception(message)
 
 /** 곡 카탈로그의 백엔드 구현. 경로는 `/api/v1/` 기준 상대 경로([BackendApi]). */
-class RemoteSongRepository(private val api: BackendApi) : SongRepository {
+class RemoteSongRepository(
+    private val api: BackendApi,
+    private val tokens: AuthTokenStore = TokenManager,
+) : SongRepository {
     private data class SearchKey(val userId: Long, val query: String, val genreId: Long?, val size: Int)
     private val firstPages = ConcurrentHashMap<SearchKey, SongPage>()
     @Volatile private var cachedUserId: Long? = null
@@ -36,7 +40,7 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
         val normalizedQuery = query.trim()
         val normalizedPage = page.coerceAtLeast(0)
         val normalizedSize = size.coerceIn(1, 100)
-        val userId = TokenManager.getUserId()
+        val userId = tokens.snapshot().userId
         if (cachedUserId != userId) {
             firstPages.clear()
             cachedUserId = userId
@@ -58,7 +62,7 @@ class RemoteSongRepository(private val api: BackendApi) : SongRepository {
     }
 
     override fun invalidateSearchCache(query: String, size: Int, genreId: Long?) {
-        firstPages.remove(SearchKey(TokenManager.getUserId(), query.trim().lowercase(), genreId, size.coerceIn(1, 100)))
+        firstPages.remove(SearchKey(tokens.snapshot().userId, query.trim().lowercase(), genreId, size.coerceIn(1, 100)))
     }
 
     override suspend fun detail(songId: String): SongDetail? {
