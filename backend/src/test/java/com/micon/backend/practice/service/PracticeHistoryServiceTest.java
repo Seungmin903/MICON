@@ -35,7 +35,7 @@ class PracticeHistoryServiceTest {
 		LocalDate date = LocalDate.of(2026, 9, 8);
 		var summary = new PracticeHistoryResponse.Summary(
 			50L, "10", "연습곡", "/images/10.jpg", 0, -2, 1, true, "FULL_SONG", null,
-			"COMPLETED", LocalDateTime.of(2026, 9, 8, 12, 0), 120_000,
+			"COMPLETED", LocalDateTime.of(2026, 9, 8, 12, 0), LocalDateTime.of(2026, 9, 8, 11, 59), 120_000,
 			"COMPLETED", new BigDecimal("78.50")
 		);
 		when(repository.count(7L, date)).thenReturn(21L);
