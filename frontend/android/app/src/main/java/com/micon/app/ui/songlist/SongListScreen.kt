@@ -64,6 +64,7 @@ import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.HeartButton
 import com.micon.app.ui.design.molecules.SongRow
+import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyLight
@@ -328,7 +329,7 @@ fun SongCatalogContent(
                 LazyColumn(
                     Modifier.fillMaxSize(),
                     state = listState,
-                    contentPadding = tabBarContentPadding(),
+                    contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
                 ) {
                     items(visibleSongs, key = { it.id }) { song ->
                         // 권장 키 배지는 붙이지 않는다 — 일반 목록은 곡별 /fit 호출을 하지 않는다(상세에서만 계산).
@@ -341,7 +342,7 @@ fun SongCatalogContent(
                             trailing = liked?.let { { HeartButton(it) { onLike(song.id) } } },
                         )
                     }
-                    if (visibleSongs.isEmpty() && !state.hasMore) item { Text("검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey) }
+                    if (visibleSongs.isEmpty() && !state.hasMore) item { Text("검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey) }
                     item { LoadMoreFooter(loading = state.loadingMore, error = state.moreError, onRetry = onLoadMore) }
                 }
             }
