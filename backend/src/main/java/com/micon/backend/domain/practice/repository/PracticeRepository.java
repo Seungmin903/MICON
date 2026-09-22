@@ -124,7 +124,7 @@ public class PracticeRepository {
 				    :practiceId, :userId, :songId, :sectionId, :recordingId,
 				    :selectedKey, :selectedKey, 0,
 				    :playbackSpeed, :customStartMs, :customEndMs,
-				    'READY', NULL, CURRENT_TIMESTAMP(6), :practiceScope
+				    'READY', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), :practiceScope
 				)
 				""";
 		jdbcTemplate.update(sql, new MapSqlParameterSource()
