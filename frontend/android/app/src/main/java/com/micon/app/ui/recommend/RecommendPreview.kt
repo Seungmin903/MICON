@@ -24,8 +24,8 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 /**
- * 추천 탭 미리듣기. 데크 위 CD 가운데를 누르면 그 곡의 반주를 튼다 — 곡 상세와 같은
- * `practiceAssets(...).instrumental.playbackUrl` 을 쓴다(반주만 있고 보컬은 없다).
+ * 추천 탭 미리듣기. 데크 위 CD 가운데를 누르면 그 곡의 원곡 앞 60초를 튼다.
+ * 연습용 MR과 분리된 preview(...)의 짧은 만료 URL만 사용한다.
  *
  * 화면(컴포지션)에 묶여 있어 탭을 떠나면 멈추고 풀린다. 앱이 백그라운드로 가면 일시정지.
  * 상태는 Compose state 라 [playing] · [progress] 를 그대로 데크에 넘긴다.
@@ -78,7 +78,7 @@ class RecommendPreview(
         loading = true
         loadJob = scope.launch {
             val url = try {
-                songs.practiceAssets(id).instrumental.playbackUrl?.takeIf { it.isNotBlank() }
+                songs.preview(id).playbackUrl.takeIf { it.isNotBlank() }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

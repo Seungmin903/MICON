@@ -66,6 +66,8 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | VOICE_STORAGE_DELETION_RETRY_INTERVAL | 30s | 삭제 큐에 남은 저장 녹음의 삭제 재시도 주기인 Spring Duration |
 | CATALOG_MEDIA_ALLOWED_PREFIX | catalog/정영주/section-384-v1/vocals/ | S15P21B110-228에서 승인한 보컬 stem 경로. DB object key와 정확히 일치해야 하며 다른 catalog 경로는 서명 거부 |
 | CATALOG_MEDIA_DOWNLOAD_URL_TTL | 10m | AI 전용 보컬 stem presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
+| SONG_PREVIEW_OBJECT_PREFIX | catalog/정다운/source-preview-pilot-20260922/ | 881곡 원곡 60초 미리듣기 MP3의 고정 catalog prefix. songId-preview-60s.mp3 외 객체는 앱에 노출하지 않음 |
+| SONG_PREVIEW_DOWNLOAD_URL_TTL | 10m | 원곡 미리듣기 presigned GET URL 만료 Duration. 1시간 초과 설정 거부 |
 | SPOTIFY_IMAGE_ENABLED | true | true/false. 곡 이미지 조회를 비활성화할 때 false. 자격 증명이 없으면 외부 호출을 수행하지 않음 |
 | SPOTIFY_ACCOUNTS_BASE_URL | https://accounts.spotify.com | Spotify Client Credentials 토큰 발급 API의 HTTPS 기준 주소 |
 | SPOTIFY_API_BASE_URL | https://api.spotify.com | Spotify Web API의 HTTPS 기준 주소 |
