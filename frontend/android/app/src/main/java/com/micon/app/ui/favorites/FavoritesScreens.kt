@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import com.micon.app.ui.design.organisms.tabBarContentPadding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -225,7 +226,10 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             state.error != null -> RetryBlock(state.error!!, vm::load)
-            tab == Tab.SETLIST -> LazyColumn(Modifier.fillMaxSize()) {
+            tab == Tab.SETLIST -> LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = tabBarContentPadding(),
+            ) {
                 item {
                     Row(
                         Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showCreate = true }.padding(horizontal = 32.dp, vertical = 18.dp),
@@ -249,7 +253,10 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
             else -> {
                 val songs = state.songs
                     .filter { query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) }
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = tabBarContentPadding(),
+                ) {
                     items(songs, key = { it.id }) { song ->
                         SongRow(
                             title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
@@ -464,7 +471,10 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         ),
                     ),
                 )
-                LazyColumn(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+                LazyColumn(
+                    Modifier.fillMaxSize().background(Color(0xFFF7F5FC)),
+                    contentPadding = tabBarContentPadding(),
+                ) {
                     if (state.editing) item {
                         Row(
                             Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showAdd = true }.padding(horizontal = 32.dp, vertical = 18.dp),

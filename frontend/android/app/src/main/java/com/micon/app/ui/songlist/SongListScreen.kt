@@ -42,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.ui.common.describeBackendError
+import com.micon.app.ui.design.organisms.tabBarContentPadding
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -324,7 +325,11 @@ fun SongCatalogContent(
                 // 끝에 가까워지면 다음 페이지. 불러오는 중·실패·더 없음이면 기다리지 않는다(실패는 꼬리의 "다시 시도").
                 LoadMoreOnScrollEnd(listState, enabled = state.hasMore && !state.loadingMore && state.moreError == null,
                     itemCount = visibleSongs.size, key = state.page, onLoadMore = onLoadMore)
-                LazyColumn(Modifier.fillMaxSize(), state = listState) {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    state = listState,
+                    contentPadding = tabBarContentPadding(),
+                ) {
                     items(visibleSongs, key = { it.id }) { song ->
                         // 권장 키 배지는 붙이지 않는다 — 일반 목록은 곡별 /fit 호출을 하지 않는다(상세에서만 계산).
                         val liked = likedIds?.let { song.id in it }
