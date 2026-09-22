@@ -121,7 +121,7 @@ fun SettingsScreen(
         )
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)).statusBarsPadding()) {
         BackHeader("설정", { if (!loggingOut) onBack() })
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(20.dp))
