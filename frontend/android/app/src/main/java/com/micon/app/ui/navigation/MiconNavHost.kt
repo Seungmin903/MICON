@@ -397,7 +397,10 @@ private fun MiconNavHost(
             ResultScreen(
                 practiceId = practiceId,
                 onBack = { nav.popBackStack() },
-                onHome = { nav.navigate(Routes.PRACTICE) { popUpTo(Routes.PRACTICE) { inclusive = false }; launchSingleTop = true } },
+                onHistory = { nav.openBottomTab(Routes.EVALUATION) },
+                onPractice = { songId, selectedKey ->
+                    nav.navigate(Routes.practice(songId, selectedKey))
+                },
             )
         }
 

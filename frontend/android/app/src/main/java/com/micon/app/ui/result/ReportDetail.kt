@@ -38,7 +38,6 @@ import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.MiconCard
-import com.micon.app.ui.theme.GreenBar
 import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.GreyBg
 import com.micon.app.ui.theme.GreyLight
@@ -97,28 +96,31 @@ object ReportDetailBuilder {
 /** 가사 음절별 판정 카드 — Figma "구간 평가"의 음이탈 음절 빨강 표시. */
 @Composable
 fun SyllableJudgementCard(detail: ReportDetail) {
+    val badLines = detail.lines.filter { line ->
+        line.chars.count { it.status == LiveStatus.WRONG } >= 2
+    }
     MiconCard {
-        CardTitle("가사별 음정 판정")
-        Text(
-            "부른 가사에서 음이 높거나 낮았던 글자를 색으로 표시했어요. 회색은 부르지 않은 글자예요.",
-            fontSize = 12.sp, color = Grey, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp),
-        )
+        CardTitle("집중 연습 구간")
         if (detail.versionMismatch) {
             Text("곡 데이터가 갱신되어 글자 위치가 조금 어긋날 수 있어요.", fontSize = 12.sp, color = Red, modifier = Modifier.padding(top = 4.dp))
         }
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Legend(Ink, "정확")
-            Legend(Red, "높게·낮게")
-            Legend(Purple, "다른 음")
-            Legend(Grey, "안 부름")
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Legend(judgementColor(LiveStatus.GOOD), "Perfect")
+            Legend(judgementColor(LiveStatus.SHARP), "Low")
+            Legend(judgementColor(LiveStatus.FLAT), "High")
+            Legend(judgementColor(LiveStatus.WRONG), "Bad")
+            Legend(judgementColor(LiveStatus.MISSED), "Miss")
         }
         Spacer(Modifier.height(10.dp))
-        if (detail.lines.isEmpty()) {
-            Text("판정된 가사 줄이 없어요.", fontSize = 14.sp, color = Grey)
+        if (badLines.isEmpty()) {
+            Text("Bad가 2개 이상인 소절이 없어요.", fontSize = 14.sp, color = Grey)
         } else {
             Column(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                detail.lines.forEach { line -> JudgedLineRow(line) }
+                badLines.forEach { line -> JudgedLineRow(line) }
             }
         }
     }
@@ -141,10 +143,11 @@ private fun JudgedLineRow(line: JudgedLine) {
             buildAnnotatedString {
                 line.chars.forEach { c ->
                     when (c.status) {
-                        LiveStatus.SHARP, LiveStatus.FLAT -> withStyle(SpanStyle(color = Red, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) { append(c.text) }
-                        LiveStatus.WRONG -> withStyle(SpanStyle(color = Purple, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) { append(c.text) }
-                        LiveStatus.MISSED -> withStyle(SpanStyle(color = Grey)) { append(c.text) }
-                        LiveStatus.GOOD -> withStyle(SpanStyle(color = Ink)) { append(c.text) }
+                        LiveStatus.SHARP -> withStyle(SpanStyle(color = judgementColor(c.status), fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) { append(c.text) }
+                        LiveStatus.FLAT -> withStyle(SpanStyle(color = judgementColor(c.status), fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) { append(c.text) }
+                        LiveStatus.WRONG -> withStyle(SpanStyle(color = judgementColor(c.status), fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)) { append(c.text) }
+                        LiveStatus.MISSED -> withStyle(SpanStyle(color = judgementColor(c.status))) { append(c.text) }
+                        LiveStatus.GOOD -> withStyle(SpanStyle(color = judgementColor(c.status))) { append(c.text) }
                         else -> withStyle(SpanStyle(color = Ink.copy(alpha = 0.7f))) { append(c.text) }
                     }
                 }
@@ -161,10 +164,16 @@ fun PitchCurveCard(detail: ReportDetail) {
     val targets = detail.targets
     MiconCard {
         CardTitle("음정 곡선")
-        Text(
-            "보라색 계단은 목표 음정" + (if (detail.keyShift != 0) "(키 ${if (detail.keyShift > 0) "+" else ""}${detail.keyShift} 적용)" else "") + ", 빨간 선은 내가 낸 음정이에요. 선이 계단 위로 가면 높게, 아래로 가면 낮게 부른 거예요.",
-            fontSize = 12.sp, color = Grey, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp),
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Legend(
+                Purple,
+                "목표 음정" + if (detail.keyShift != 0) " (키 ${if (detail.keyShift > 0) "+" else ""}${detail.keyShift})" else "",
+            )
+            Legend(Red, "내 음정")
+        }
         Spacer(Modifier.height(10.dp))
         if (curve == null || targets.isEmpty()) {
             Text("저장된 음정 곡선이 없어요.", fontSize = 14.sp, color = Grey)
@@ -210,12 +219,8 @@ fun PitchCurveCard(detail: ReportDetail) {
                 drawPath(path, Red, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
             }
         }
-        Spacer(Modifier.height(6.dp))
-        val good = detail.counts[LiveStatus.GOOD] ?: 0
-        val off = (detail.counts[LiveStatus.SHARP] ?: 0) + (detail.counts[LiveStatus.FLAT] ?: 0) + (detail.counts[LiveStatus.WRONG] ?: 0)
-        Text(
-            "정확 ${good}글자 · 어긋남 ${off}글자 · ${PracticeLabels.duration(((tMax - tMin) * 1000).roundToInt()) ?: "-"} 구간",
-            fontSize = 12.sp, color = if (off > good) Red else GreenBar,
-        )
     }
 }
+
+/** 연습 중 판정 글자와 동일한 공통 PitchStatus 팔레트. */
+private fun judgementColor(status: LiveStatus): Color = Color(status.toPitchStatus()!!.argb)

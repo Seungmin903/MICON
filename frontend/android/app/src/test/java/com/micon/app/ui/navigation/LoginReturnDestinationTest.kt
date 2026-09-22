@@ -24,7 +24,7 @@ class LoginReturnDestinationTest {
         assertEquals("practice/42", Routes.practice("42"))
         assertEquals("practice/42?selectedKey=-2", Routes.practice("42", -2))
         assertEquals("practice/42?selectedKey=3", Routes.practice("42", 3))
-        assertTrue(Routes.SONG_MATCH in Routes.withBottomBar)
+        assertFalse(Routes.SONG_MATCH in Routes.withBottomBar)
     }
     @Test fun restoresRequestedTabAndSong() {
         assertEquals(Routes.FAVORITES, loginReturnDestination(Routes.FAVORITES))

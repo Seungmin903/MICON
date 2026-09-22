@@ -151,10 +151,14 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
     fun confirmDelete() {
         val target = _state.value.confirmDelete ?: return
         val index = _state.value.items.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
+        // 삭제 전 목록을 가져오던 응답이 나중에 도착해 삭제한 행을 되살리지 못하게 한다.
+        loadJob?.cancel()
         _state.update { s -> s.copy(confirmDelete = null, items = s.items.filterNot { it.id == target.id }) }
         viewModelScope.launch {
             try {
                 practices.delete(target.id)
+                // 서버 상태를 기준으로 요약 점수와 필터 결과까지 다시 맞춘다.
+                load()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
