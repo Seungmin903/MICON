@@ -62,6 +62,10 @@ class HoloViewModel(
         /** 검색 전에도 고를 수 있게 미리 받아 두는 곡 목록 */
         val catalog: List<SongSummary> = emptyList(),
         val catalogLoading: Boolean = false,
+        val catalogLoadingMore: Boolean = false,
+        val catalogPage: Int = 0,
+        val catalogHasMore: Boolean = true,
+        val catalogMoreFailed: Boolean = false,
         val searching: Boolean = false,
         val picked: SongSummary? = null,
         /** 0..30 */
@@ -122,10 +126,46 @@ class HoloViewModel(
     /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
     fun loadCatalog() {
         if (_state.value.catalog.isNotEmpty() || _state.value.catalogLoading) return
-        _state.update { it.copy(catalogLoading = true) }
+        _state.update { it.copy(catalogLoading = true, catalogMoreFailed = false) }
         viewModelScope.launch {
-            val items = runCatching { songs.search("", 0, 40).items }.getOrDefault(emptyList())
-            _state.update { it.copy(catalog = items, catalogLoading = false) }
+            try {
+                val page = songs.search("", 0, CATALOG_PAGE_SIZE)
+                _state.update { it.copy(catalog = page.items, catalogLoading = false, catalogPage = page.page,
+                    catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size)) }
+            } catch (_: Exception) {
+                _state.update { it.copy(catalogLoading = false) }
+            }
+        }
+    }
+
+    /** 곡 선택 시트가 끝에 닿으면 다음 카탈로그 페이지를 이어 붙인다. */
+    fun loadMoreCatalog() {
+        val current = _state.value
+        if (current.query.isNotBlank() || current.catalogLoading || current.catalogLoadingMore ||
+            !current.catalogHasMore || current.catalogMoreFailed) return
+        viewModelScope.launch {
+            _state.update { it.copy(catalogLoadingMore = true) }
+            try {
+                val page = songs.search("", current.catalogPage + 1, CATALOG_PAGE_SIZE)
+                _state.update { state ->
+                    val known = state.catalog.mapTo(HashSet()) { it.id }
+                    state.copy(catalog = state.catalog + page.items.filter { it.id !in known },
+                        catalogLoadingMore = false, catalogPage = page.page,
+                        catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size))
+                }
+            } catch (_: Exception) {
+                _state.update { it.copy(catalogLoadingMore = false, catalogMoreFailed = true) }
+            }
+        }
+    }
+
+    /** 실패한 다음 페이지는 시트를 다시 열 때 한 번 더 시도할 수 있게 한다. */
+    fun retryCatalogMore() {
+        if (_state.value.catalogMoreFailed) {
+            _state.update { it.copy(catalogMoreFailed = false) }
+            loadMoreCatalog()
+        } else {
+            loadCatalog()
         }
     }
 
@@ -346,6 +386,10 @@ class HoloViewModel(
         /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
         const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
+        private const val CATALOG_PAGE_SIZE = 40
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }
 }
+
+internal fun hasNextCatalogPage(page: Int, totalPages: Int, itemCount: Int, pageSize: Int): Boolean =
+    if (totalPages > 0) page + 1 < totalPages else itemCount >= pageSize
