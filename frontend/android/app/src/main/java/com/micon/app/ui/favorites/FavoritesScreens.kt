@@ -403,7 +403,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     }
     if (showDelete && detail != null) {
         ConfirmDialog(
-            title = "세트리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요. 찜한 곡은 그대로 남아요.",
+            title = "세트리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요.",
             confirmLabel = "삭제", onDismiss = { showDelete = false }, onConfirm = { showDelete = false; vm.delete() },
         )
     }
