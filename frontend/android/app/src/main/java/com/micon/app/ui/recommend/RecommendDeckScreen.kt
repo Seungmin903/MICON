@@ -173,6 +173,8 @@ fun RecommendDeckScreen(
 
     val preview = rememberRecommendPreview(container.songs, container.mediaHttp)
     LaunchedEffect(loadedId) { if (loadedId != preview.songId) preview.stop() }
+    // 올리는 동작에서만 튼다 — loadedId 는 rememberSaveable 이라 효과로 틀면 상세에서 돌아올 때도 재생된다
+    fun putOnDeck(item: RecommendedSong) { loadedId = item.song.id; preview.load(item.song.id) }
 
     fun open(item: RecommendedSong) {
         vm.onTap(item)
@@ -253,8 +255,8 @@ fun RecommendDeckScreen(
                         playing = preview.playing && preview.songId == loadedId,
                         progress = if (preview.songId == loadedId) preview.progress else 0f,
                         onDiscClick = { loaded?.let { preview.toggle(it.song.id) } },
-                        onPrev = { items.getOrNull(loadedIndex - 1)?.let { loadedId = it.song.id } },
-                        onNext = { items.getOrNull(loadedIndex + 1)?.let { loadedId = it.song.id } },
+                        onPrev = { items.getOrNull(loadedIndex - 1)?.let(::putOnDeck) },
+                        onNext = { items.getOrNull(loadedIndex + 1)?.let(::putOnDeck) },
                         onDiscDragDown = { loadedId = null },
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
@@ -265,13 +267,13 @@ fun RecommendDeckScreen(
                         CardFan(
                             header = shelf?.let(::rackLabel).orEmpty(),
                             songs = items,
-                            onLoad = { loadedId = it.song.id },
+                            onLoad = ::putOnDeck,
                             onFloat = { floating = it },
                         )
                     } else {
                         DiscRow(
                             songs = items.filter { it.song.id != loadedId },
-                            onPick = { loadedId = it.song.id },
+                            onPick = ::putOnDeck,
                         )
                     }
 
