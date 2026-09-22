@@ -183,10 +183,12 @@ class BackendRecommendRepository(
         if (ids.any { it !in catalog }) {
             val loaded = HashMap(catalog)
             var page = 0
-            while (page < MAX_CATALOG_PAGES) {
+            var totalPages = 1
+            while (page < totalPages && page < MAX_CATALOG_PAGES && ids.any { it !in loaded }) {
                 val result = songs.search("", page = page, size = CATALOG_PAGE)
                 result.items.forEach { loaded[it.id] = it }
-                if (page + 1 >= result.totalPages || result.items.isEmpty()) break
+                totalPages = result.totalPages.coerceAtLeast(page + 1)
+                if (result.items.isEmpty()) break
                 page++
             }
             ids.filter { it !in loaded }.forEach { id -> runCatching { songs.detail(id) }.getOrNull()?.summary?.let { loaded[id] = it } }
@@ -248,7 +250,9 @@ class BackendRecommendRepository(
 
     companion object {
         private const val CATALOG_PAGE = 100
-        private const val MAX_CATALOG_PAGES = 5
+        // Corrupt pagination metadata must not create an unbounded loop. This is a safety ceiling,
+        // not a catalog slice: the current catalog can be read past its former five-page limit.
+        private const val MAX_CATALOG_PAGES = 100
         private const val PROFILE_CACHE_MS = 60_000L
         private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 다시 불러오면 바뀌어요."
         private const val NOTE_PREFERENCE_REFRESHING = "변경한 선호를 반영해 추천을 갱신하고 있어요."

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,8 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
@@ -134,9 +133,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
     LaunchedEffect(state.phase) { if (state.phase == Phase.READY && hasMic()) vm.startMicPreview() }
 
     val running = state.isRunning
-    var pauseOptionsExpanded by remember { mutableStateOf(false) }
     var finishedExpanded by remember { mutableStateOf(true) }
-    LaunchedEffect(state.phase) { if (state.phase != Phase.PAUSED) pauseOptionsExpanded = false }
     LaunchedEffect(state.phase) { if (state.phase == Phase.FINISHED) finishedExpanded = true }
 
     Box(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
@@ -159,45 +156,18 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                                 onChange = vm::changeKey,
                             )
                         } else if (state.phase == Phase.PAUSED) {
+                            // 멈췄을 때도 재생 중과 같은 구성으로 둔다 — 접이식 "키·시작 위치" 패널과
+                            // 구간 칩은 없앴다(시작 위치는 연습 시작 전 화면에서만 고른다).
+                            // 탐색 바는 멈췄을 때만 열어 위치를 옮길 수 있게 한다.
                             CompactSongTitle(state.title, state.artist)
-                            SeekBar(state.nowSec, state.durationSec, enabled = false, onSeek = vm::seekTo)
-                            Surface(
-                                onClick = { pauseOptionsExpanded = !pauseOptionsExpanded },
-                                shape = RoundedCornerShape(50),
-                                color = Lavender,
-                            ) {
-                                Row(
-                                    Modifier.padding(start = 14.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text("키·시작 위치", fontSize = 12.sp, color = Grey, fontWeight = FontWeight.SemiBold)
-                                    Spacer(Modifier.width(4.dp))
-                                    Icon(
-                                        if (pauseOptionsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                        if (pauseOptionsExpanded) "설정 접기" else "설정 펼치기",
-                                        Modifier.size(18.dp),
-                                        tint = Purple,
-                                    )
-                                }
-                            }
-                            if (pauseOptionsExpanded) {
-                                Spacer(Modifier.height(8.dp))
-                                KeyRow(
-                                    state.keyShift,
-                                    state.keyName,
-                                    state.shiftedKeyName,
-                                    enabled = !state.keySwitching,
-                                    onChange = vm::changeKey,
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                SectionChips(
-                                    vm.sections,
-                                    positionSec = state.nowSec,
-                                    enabled = true,
-                                    onBeginning = vm::jumpToBeginning,
-                                    onSection = vm::jumpToSection,
-                                )
-                            }
+                            SeekBar(state.nowSec, state.durationSec, enabled = true, onSeek = vm::seekTo)
+                            KeyRow(
+                                state.keyShift,
+                                state.keyName,
+                                state.shiftedKeyName,
+                                enabled = !state.keySwitching,
+                                onChange = vm::changeKey,
+                            )
                         } else {
                         Spacer(Modifier.height(14.dp))
                         Text(state.title, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Purple, textAlign = TextAlign.Center)
@@ -231,15 +201,21 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                         state.totals, state.lastJudged, state.lastJudgedAtMs, state.calibrationMs, state.autoCalibrate, state.showRunway, onToggleRunway = vm::toggleRunway,
                         interludeLeft = interludeLeft, onSkipInterlude = vm::skipInterlude,
                     )
-                    AnimatedVisibility(visible = state.showRunway) {
+                    // 레인(퍼펙트스코어식 음표 레인)은 고정 180dp 였다. 작은 기기(S10 360×760)에서는
+                    // 그 높이 때문에 아래 가사가 0에 가깝게 눌려 잘렸다. 이제 레인과 가사가 남는 높이를
+                    // 1 : 1.4 로 나눠 갖는다 — 화면이 좁을수록 레인이 먼저 양보한다.
+                    AnimatedVisibility(
+                        visible = state.showRunway,
+                        modifier = if (state.showRunway) Modifier.weight(1f) else Modifier,
+                    ) {
                         Runway(
                             vm.notes, vm.displayBars, vm.frames, vm.beatGrid, vm.meter, state.nowSec, state.keyShift,
-                            Modifier.fillMaxWidth().height(180.dp).padding(vertical = 10.dp),
+                            Modifier.fillMaxWidth().heightIn(max = 180.dp).padding(vertical = 8.dp),
                         )
                     }
                 }
                 if (running) {
-                    KaraokePanel(vm.sheet, state.nowSec, Modifier.weight(1f), compactPracticeStyle = true)
+                    KaraokePanel(vm.sheet, state.nowSec, Modifier.weight(1.4f), compactPracticeStyle = true)
                 } else {
                     LyricsList(
                         vm.sheet, state.nowSec, running,
@@ -250,7 +226,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
                     )
                 }
                 // 하단 시트(오버레이)에 가리지 않도록 비워 두는 높이
-                Spacer(Modifier.height(if (state.phase == Phase.FINISHED && finishedExpanded) 350.dp else if (running) 206.dp else 190.dp))
+                Spacer(Modifier.height(if (state.phase == Phase.FINISHED && finishedExpanded) 350.dp else if (running) 168.dp else 190.dp))
             }
         }
 
@@ -535,21 +511,13 @@ private fun LyricsList(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isHighlighted && compactPausedStyle || isCurrent) {
+                    // 글자 단위 채움은 걷어냈다 — 줄 전체를 한 덩이로 강조한다(KaraokePanel 과 같은 규칙)
                     Text(
-                        buildAnnotatedString {
-                            for (ch in line.chars) {
-                                val sung = nowSec >= ch.at
-                                val note = ch.note
-                                val color = when {
-                                    note != null && note.status.judged -> Color(note.status.toPitchStatus()!!.argb)
-                                    sung -> Purple
-                                    else -> Ink
-                                }
-                                withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
-                            }
-                        },
+                        line.text,
                         fontSize = if (compactPausedStyle) 22.sp else 28.sp,
                         lineHeight = if (compactPausedStyle) 30.sp else 38.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
                         textAlign = TextAlign.Center,
                     )
                 } else {
@@ -645,7 +613,8 @@ private fun BottomSheet(
                     Surface(
                         onClick = { when (state.phase) { Phase.PAUSED -> vm.resume(); Phase.RUNNING, Phase.COUNTDOWN -> vm.pause(); else -> onStart() } },
                         shape = CircleShape,
-                        color = when (state.phase) { Phase.RUNNING, Phase.COUNTDOWN -> LavenderDeep; else -> Purple },
+                        // 재생 중에도 같은 보라를 쓴다 — 예전엔 연한 LavenderDeep 위에 흰 아이콘이라 꺼진 것처럼 보였다
+                        color = Purple,
                         shadowElevation = 8.dp,
                         modifier = Modifier.size(if (state.phase == Phase.FINISHED) 60.dp else 72.dp),
                     ) {

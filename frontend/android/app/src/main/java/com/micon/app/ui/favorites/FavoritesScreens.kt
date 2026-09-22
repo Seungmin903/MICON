@@ -62,7 +62,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.micon.app.data.RecommendRepository
 import com.micon.app.data.SongSummary
 import com.micon.app.data.backend.BackendRequestException
 import com.micon.app.data.preferences.NetworkPreferenceRepository
@@ -72,12 +71,13 @@ import com.micon.app.data.favorites.Setlist
 import com.micon.app.data.favorites.SetlistDetail
 import com.micon.app.data.favorites.SetlistRepository
 import com.micon.app.ui.common.BackHeader
-import com.micon.app.ui.common.CdArt
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.RefreshOnResume
-import com.micon.app.ui.common.SongRow
+import com.micon.app.ui.common.HeartButton
+import com.micon.app.ui.design.atoms.CompactDisc
+import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.rememberAppContainer
@@ -104,14 +104,12 @@ import kotlinx.coroutines.ensureActive
 class FavoritesViewModel(
     private val favorites: FavoriteRepository,
     private val setlists: SetlistRepository,
-    private val recommend: RecommendRepository,
 ) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
         val songs: List<SongSummary> = emptyList(),
         val setlists: List<Setlist> = emptyList(),
-        val keys: Map<String, Int?> = emptyMap(),
         val busy: Boolean = false,
         val toast: String? = null,
     )
@@ -129,10 +127,8 @@ class FavoritesViewModel(
                 val songs = favorites.refresh()
                 val lists = setlists.list()
                 ensureActive()
+                // 곡마다 /fit 을 부르던 권장 키 배지는 없앴다 — 찜 목록에서 N+1 요청이 사라졌다.
                 _state.update { it.copy(loading = false, songs = songs, setlists = lists) }
-                val keys = songs.associate { s -> s.id to runCatching { recommend.fit(s.id)?.recommendedKey }.getOrNull() }
-                ensureActive()
-                _state.update { it.copy(keys = keys) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -180,7 +176,7 @@ private enum class Tab(val label: String) { FAVORITES("찜"), SETLIST("세트리
 fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
     val vm: FavoritesViewModel = viewModel(factory = viewModelFactory {
-        initializer { FavoritesViewModel(container.favorites, container.setlists, container.recommend) }
+        initializer { FavoritesViewModel(container.favorites, container.setlists) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     RefreshOnResume(vm::load)
@@ -257,7 +253,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                     items(songs, key = { it.id }) { song ->
                         SongRow(
                             title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
-                            keyBadge = state.keys[song.id], liked = true, onLike = { vm.toggleLike(song.id) },
+                            trailing = { HeartButton(liked = true) { vm.toggleLike(song.id) } },
                         )
                     }
                     if (songs.isEmpty()) item {
@@ -293,14 +289,12 @@ private fun FavoritesFilterChip(label: String, selected: Boolean, onClick: () ->
 /** 세트리스트 세부. 데이터: `GET /setlists/{id}`. 이름 변경·삭제, 전체 곡 검색·추가, 곡 제거를 지원한다. */
 class SetlistViewModel(
     private val setlists: SetlistRepository,
-    private val recommend: RecommendRepository,
     private val setlistId: Long,
 ) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
         val detail: SetlistDetail? = null,
-        val keys: Map<String, Int?> = emptyMap(),
         val editing: Boolean = false,
         val busy: Boolean = false,
         val deleted: Boolean = false,
@@ -318,8 +312,6 @@ class SetlistViewModel(
             try {
                 val detail = setlists.detail(setlistId)
                 _state.update { it.copy(loading = false, detail = detail) }
-                val keys = detail.songs.associate { s -> s.songId to runCatching { recommend.fit(s.songId)?.recommendedKey }.getOrNull() }
-                _state.update { it.copy(keys = keys) }
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = describeBackendError(e, "세트리스트를 불러오지 못했어요.")) }
             }
@@ -375,7 +367,7 @@ class SetlistViewModel(
 fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> Unit) {
     val container = rememberAppContainer()
     val vm: SetlistViewModel = viewModel(key = "setlist-$setlistId", factory = viewModelFactory {
-        initializer { SetlistViewModel(container.setlists, container.recommend, setlistId) }
+        initializer { SetlistViewModel(container.setlists, setlistId) }
     })
     // 연습 탭과 동일한 ViewModel을 화면 진입과 동시에 준비해 곡 추가 창의 첫 로딩을 줄인다.
     val pickerVm: SongListViewModel = viewModel(key = "setlist-picker-$setlistId", factory = viewModelFactory {
@@ -453,7 +445,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
             else -> {
                 Surface(color = Color.White) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CdArt(detail.songs.firstOrNull()?.imageUrl, 120.dp)
+                        CompactDisc(title = detail.name, imageUrl = detail.songs.firstOrNull()?.imageUrl, size = 120.dp)
                         Spacer(Modifier.width(20.dp))
                         Column(Modifier.weight(1f)) {
                             Text(detail.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -488,7 +480,6 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     items(detail.songs, key = { it.songId }) { song ->
                         SongRow(
                             title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.songId) },
-                            keyBadge = state.keys[song.songId],
                             trailing = if (state.editing) ({
                                 IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
                             }) else null,

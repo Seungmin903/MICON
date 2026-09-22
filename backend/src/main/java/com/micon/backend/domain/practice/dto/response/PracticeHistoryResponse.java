@@ -33,6 +33,7 @@ public final class PracticeHistoryResponse {
 		Long sectionId,
 		String status,
 		LocalDateTime startedAt,
+		LocalDateTime createdAt,
 		Integer durationMs,
 		String resultStatus,
 		BigDecimal overallScore

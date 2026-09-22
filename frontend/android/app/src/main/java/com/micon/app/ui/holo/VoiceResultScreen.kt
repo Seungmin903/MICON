@@ -92,8 +92,7 @@ fun VoiceResultScreen(
             }
         }
         FadeIn(1) { RangeMapCard(result) }
-        FadeIn(2) { StabilityCard(result) }
-        FadeIn(3) { MatchingMusicCard(result) }
+        FadeIn(2) { MatchingMusicCard(result) }
         if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
         else if (result.timbreSubmitted) FadeIn(4) {
             MiconCard(kind = MiconCardKind.Outlined) {
@@ -131,8 +130,10 @@ private fun RangeMapCard(r: HoloResult) {
         )
         val oct = r.octaves
         val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
+        // 온보딩 측정 화면과 같은 노래방 표기("0옥타브 도")로 맞춘다. 뒤의 폭은 "음역 폭" 이라고 못 박아
+        // 앞의 옥타브 숫자와 헷갈리지 않게 한다.
         Text(
-            "${NoteNames.friendly(r.lowMidi)} ~ ${NoteNames.friendly(r.highMidi)} · $octText",
+            "${NoteNames.karaoke(r.lowMidi)} ~ ${NoteNames.karaoke(r.highMidi)} · 음역 폭 $octText",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(14.dp))
@@ -179,96 +180,152 @@ private fun androidx.compose.foundation.layout.RowScope.GrowBar(color: Color, fr
     }
 }
 
-/** 음역별 안정성 꺾은선. 축: 안정 / 보통 / 부담 */
-@Composable
-private fun StabilityCard(r: HoloResult) {
-    MiconCard(kind = MiconCardKind.Outlined) {
-        Eyebrow("음역별 안정성")
-        Spacer(Modifier.height(8.dp))
-        val labels = r.stabilityMidis.map { NoteNames.scientific(it) }
-        val best = r.stability.indices.maxByOrNull { r.stability[it] } ?: 0
-        val muted = MaterialTheme.colorScheme.onSurfaceVariant
-        Row(Modifier.fillMaxWidth().height(130.dp)) {
-            Column(Modifier.height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                listOf("안정", "보통", "부담").forEach { Text(it, fontSize = 12.sp, color = muted) }
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Canvas(Modifier.fillMaxWidth().height(100.dp)) {
-                    val n = r.stability.size
-                    fun x(i: Int) = size.width * (i + 0.5f) / n
-                    fun y(v: Float) = size.height * (0.08f + (1f - v) * 0.84f)
-                    listOf(0f, 0.5f, 1f).forEach { v ->
-                        drawLine(Color(0xFFE9E5F6), Offset(0f, y(v)), Offset(size.width, y(v)), 1.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
-                    }
-                    val path = Path()
-                    r.stability.forEachIndexed { i, v ->
-                        if (i == 0) path.moveTo(x(0), y(v)) else {
-                            val px = x(i - 1); val py = y(r.stability[i - 1]); val cx = x(i); val cy = y(v)
-                            path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
-                        }
-                    }
-                    drawPath(path, Ser1, style = Stroke(2.dp.toPx()))
-                    r.stability.forEachIndexed { i, v ->
-                        drawCircle(Color.White, 5.dp.toPx(), Offset(x(i), y(v)))
-                        drawCircle(Ser1, 5.dp.toPx(), Offset(x(i), y(v)), style = Stroke(2.dp.toPx()))
-                    }
-                }
-                Row(Modifier.fillMaxWidth()) {
-                    labels.forEachIndexed { i, l ->
-                        Text(l, Modifier.weight(1f), fontSize = 12.sp, fontFamily = MiconMonoFamily, textAlign = TextAlign.Center,
-                            color = if (i == best) MaterialTheme.colorScheme.onPrimaryContainer else muted,
-                            fontWeight = if (i == best) FontWeight.Bold else FontWeight.Normal)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 편안한 음역 건반 · 적정 템포 게이지 · 프레이즈 길이 */
+/**
+ * 안정성 꺾은선 + 건반을 **한 가로축(MIDI)** 위에 위아래로 붙인 카드.
+ * 예전에는 꺾은선이 샘플 순서, 건반이 흰건반 15개라 같은 음이 서로 다른 x 에 있었다.
+ * 이제 [PitchAxis] 하나가 두 그림의 x 를 모두 정한다 — 점 바로 아래에 그 음의 건반이 온다.
+ */
 @Composable
 private fun MatchingMusicCard(r: HoloResult) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.onPrimaryContainer
+    val axis = remember(r.stabilityMidis, r.comfortLow, r.comfortHigh) { PitchAxis.of(r) }
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("내 목소리에 맞는 음악")
         Spacer(Modifier.height(10.dp))
-        KeyValue("음역", NoteNames.scientificRange(r.comfortLow, r.comfortHigh))
-        Spacer(Modifier.height(8.dp))
-        Piano(r)
-        Text("보라색 구간 안에서 멜로디가 도는 곡이 가장 편합니다.", fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 6.dp))
-        Divider()
-        KeyValue("적정 템포 · 가사 밀도", "")
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-            Gauge(((r.bpmLow + r.bpmHigh) / 2f - 60f) / 80f)
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("${r.bpmLow}–${r.bpmHigh}", fontFamily = MiconMonoFamily, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(4.dp))
-                    Text("BPM", fontSize = 12.sp, color = muted, modifier = Modifier.padding(bottom = 4.dp))
+        KeyValue("편한 음역", NoteNames.scientificRange(r.comfortLow, r.comfortHigh))
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth()) {
+            // 좌측 눈금 라벨. 폭을 고정해야 아래 건반과 가로가 어긋나지 않는다
+            Column(Modifier.width(34.dp).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                listOf("안정", "보통", "부담").forEach { Text(it, fontSize = 12.sp, color = muted) }
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                StabilityLine(r, axis)
+                Spacer(Modifier.height(6.dp))
+                Keyboard(r, axis)
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Text(NoteNames.scientific(axis.low), Modifier.weight(1f), fontSize = 12.sp, fontFamily = MiconMonoFamily, color = muted)
+                    Text(
+                        NoteNames.scientificRange(r.comfortLow, r.comfortHigh),
+                        Modifier.weight(2f), fontSize = 12.sp, fontFamily = MiconMonoFamily,
+                        color = accent, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        NoteNames.scientific(axis.high), Modifier.weight(1f), fontSize = 12.sp,
+                        fontFamily = MiconMonoFamily, color = muted, textAlign = TextAlign.End,
+                    )
                 }
-                Text(if (r.bpmHigh <= 100) "한 마디에 글자가 많지 않은 곡 · 중간 템포 발라드" else "가사가 촘촘해도 따라갈 수 있어요 · 미디엄 템포", fontSize = 12.sp, color = muted)
             }
         }
-        Divider()
-        val ph = r.phraseSec
-        KeyValue("프레이즈 길이", "${(ph * 0.7).roundToInt()} – ${(ph * 1.3).roundToInt()}초")
-        Spacer(Modifier.height(8.dp))
-        val pos = ((ph - 2.0) / 10.0).toFloat().coerceIn(0.05f, 0.95f)
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(Color(0xFFF0EDF9))) {
-            Box(Modifier.fillMaxWidth((pos + 0.15f).coerceAtMost(1f)).height(8.dp).padding(start = 0.dp)) {
-                Box(Modifier.fillMaxWidth().height(8.dp).background(Brush.horizontalGradient(0f to Color.Transparent, (pos - 0.15f).coerceAtLeast(0f) / (pos + 0.15f) to Ser1.copy(alpha = 0.35f), 1f to Ser1)))
+        Text(
+            "보라색 구간 안에서 멜로디가 도는 곡이 가장 편합니다. 위 곡선이 높을수록 그 음을 안정적으로 냈어요.",
+            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/**
+ * 두 그림이 공유하는 가로축. 흰건반 목록을 좌표로 삼는다 —
+ * 실제 피아노와 같은 간격이라 건반 위 어디에 음이 있는지 눈으로 읽힌다.
+ */
+private class PitchAxis(val low: Int, val high: Int, val whites: List<Int>) {
+    /** 0..1 위치. 검은건반은 양옆 흰건반 사이에 온다 */
+    fun fraction(midi: Int): Float {
+        if (whites.isEmpty()) return 0.5f
+        val m = midi.coerceIn(low, high)
+        val below = whites.indexOfLast { it <= m }
+        return when {
+            below < 0 -> 0.5f / whites.size
+            whites[below] == m -> (below + 0.5f) / whites.size
+            else -> (below + 1f) / whites.size // 반음 위 — 흰건반 사이
+        }
+    }
+
+    companion object {
+        private val BLACK = setOf(1, 3, 6, 8, 10)
+        private fun isWhite(midi: Int) = ((midi % 12) + 12) % 12 !in BLACK
+
+        fun of(r: HoloResult): PitchAxis {
+            val pool = r.stabilityMidis + listOf(r.comfortLow, r.comfortHigh)
+            val low = (pool.min() - 2).let { m -> generateSequence(m) { it - 1 }.first(::isWhite) }
+            val high = (pool.max() + 2).let { m -> generateSequence(m) { it + 1 }.first(::isWhite) }
+            return PitchAxis(low, high, (low..high).filter(::isWhite))
+        }
+    }
+}
+
+/** 안정성 꺾은선. x 는 [axis], y 는 안정(위)~부담(아래) */
+@Composable
+private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
+    val best = r.stability.indices.maxByOrNull { r.stability[it] } ?: -1
+    Canvas(Modifier.fillMaxWidth().height(100.dp)) {
+        fun x(midi: Int) = size.width * axis.fraction(midi)
+        fun y(v: Float) = size.height * (0.08f + (1f - v) * 0.84f)
+        listOf(0f, 0.5f, 1f).forEach { v ->
+            drawLine(
+                Color(0xFFE9E5F6), Offset(0f, y(v)), Offset(size.width, y(v)), 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
+            )
+        }
+        if (r.stability.isEmpty()) return@Canvas
+        val path = Path()
+        r.stability.forEachIndexed { i, v ->
+            val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
+            val cy = y(v)
+            if (i == 0) path.moveTo(cx, cy) else {
+                val px = x(r.stabilityMidis.getOrElse(i - 1) { axis.low })
+                val py = y(r.stability[i - 1])
+                path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text("짧게 끊김", Modifier.weight(1f), fontSize = 12.sp, color = muted)
-            Text("내 호흡 ${ph.roundToInt()}초", Modifier.weight(1f), fontSize = 12.sp, color = accent, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text("긴 호흡", Modifier.weight(1f), fontSize = 12.sp, color = muted, textAlign = TextAlign.End)
+        drawPath(path, Ser1, style = Stroke(2.dp.toPx()))
+        r.stability.forEachIndexed { i, v ->
+            val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
+            val radius = if (i == best) 6.dp.toPx() else 5.dp.toPx()
+            drawCircle(Color.White, radius, Offset(cx, y(v)))
+            drawCircle(Ser1, radius, Offset(cx, y(v)), style = Stroke(2.dp.toPx()))
         }
-        Text("한 호흡에 한 줄이 끝나는 곡을 고르면 후렴에서 안 밀려요.", fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** 꺾은선과 같은 [axis] 위의 건반. 편안한 구간은 보라로 칠한다 */
+@Composable
+private fun Keyboard(r: HoloResult, axis: PitchAxis) {
+    val accent = MaterialTheme.colorScheme.onPrimaryContainer
+    Canvas(Modifier.fillMaxWidth().height(74.dp)) {
+        val whites = axis.whites
+        if (whites.isEmpty()) return@Canvas
+        val ww = size.width / whites.size
+        val corner = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
+        drawRoundRect(Color(0xFFE7E3F4), Offset.Zero, size, androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
+        whites.forEachIndexed { i, m ->
+            val on = m in r.comfortLow..r.comfortHigh
+            drawRoundRect(
+                if (on) Color(0xFFEDE9FF) else Color.White,
+                Offset(i * ww + 1.dp.toPx(), 4.dp.toPx()),
+                Size(ww - 2.dp.toPx(), size.height - 8.dp.toPx()),
+                corner,
+            )
+        }
+        whites.forEachIndexed { i, m ->
+            val sharp = m + 1
+            if (((sharp % 12) + 12) % 12 in setOf(1, 3, 6, 8, 10) && i < whites.size - 1) {
+                val on = sharp in r.comfortLow..r.comfortHigh
+                drawRoundRect(
+                    if (on) accent else Color(0xFF3A3552),
+                    Offset((i + 1) * ww - 4.25.dp.toPx(), 4.dp.toPx()),
+                    Size(8.5.dp.toPx(), 44.dp.toPx()),
+                    corner,
+                )
+            }
+        }
+        // 편안한 구간 틴트
+        val li = whites.indexOfFirst { it >= r.comfortLow }.coerceAtLeast(0)
+        val hi = whites.indexOfLast { it <= r.comfortHigh }.coerceAtLeast(li)
+        drawRect(Ser1.copy(alpha = 0.13f), Offset(li * ww, 0f), Size((hi - li + 1) * ww, size.height))
     }
 }
 
@@ -318,19 +375,6 @@ private fun Piano(r: HoloResult) {
         Spacer(Modifier.weight((hi - li).coerceAtLeast(1).toFloat()))
         Text(NoteNames.scientific(r.comfortHigh), fontSize = 12.sp, fontFamily = MiconMonoFamily, color = accent)
         Spacer(Modifier.weight((14.5f - hi).coerceAtLeast(0.01f)))
-    }
-}
-
-/** 3/4 호 게이지, 0..1 */
-@Composable
-private fun Gauge(value: Float) {
-    val v = value.coerceIn(0f, 1f)
-    Canvas(Modifier.size(56.dp)) {
-        val stroke = Stroke(5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-        val rect = Size(size.width - 6.dp.toPx(), size.height - 6.dp.toPx())
-        val tl = Offset(3.dp.toPx(), 3.dp.toPx())
-        drawArc(Color(0xFFEAE6F7), 135f, 270f, false, tl, rect, style = stroke)
-        drawArc(Ser1, 135f, 270f * v, false, tl, rect, style = stroke)
     }
 }
 

@@ -30,7 +30,7 @@ public class PracticeHistoryRepository {
 				SELECT ps.practice_id, ps.song_id, s.title AS song_title, sm.display_image_url,
 				       ps.initial_key, ps.selected_key, ps.key_change_count,
 				       ps.practice_scope, ps.section_id, ps.status,
-				       ps.started_at, ps.duration_ms, pr.status AS result_status, pr.overall_score
+				       ps.started_at, ps.created_at, ps.duration_ms, pr.status AS result_status, pr.overall_score
 				FROM practice_session ps
 				JOIN song s ON s.song_id = ps.song_id
 				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
@@ -63,6 +63,7 @@ public class PracticeHistoryRepository {
 			resultSet.getObject("section_id", Long.class),
 			resultSet.getString("status"),
 			resultSet.getObject("started_at", LocalDateTime.class),
+			resultSet.getObject("created_at", LocalDateTime.class),
 			resultSet.getObject("duration_ms", Integer.class),
 			resultSet.getString("result_status"),
 			resultSet.getBigDecimal("overall_score")

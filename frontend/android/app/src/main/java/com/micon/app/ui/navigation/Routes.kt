@@ -40,6 +40,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val DEV_SEED_PROFILE = "dev/seed-profile"  // 개발용
     const val DEV_CATALOG = "dev/catalog"            // 개발용 — 디자인 카탈로그
+    const val DEV_RESULT_PREVIEW = "dev/result-preview" // 개발용 — 서버 없는 연습 분석 상세 미리보기
 
     /** 개발용 딥링크 접두 (AndroidManifest 의 micon://app) */
     const val DEEP_LINK = "micon://app"

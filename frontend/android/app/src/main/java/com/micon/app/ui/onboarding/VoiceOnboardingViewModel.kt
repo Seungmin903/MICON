@@ -87,6 +87,7 @@ class VoiceOnboardingViewModel(
     private var rangeJob: Job? = null
     private var rangeGeneration = 0
     private var autoAnalyzedRecordingId: String? = null
+    private var autoSaveAttemptedResult: Pair<String, Long>? = null
     private var recoveryGeneration = 0
     private var disposed = false
     private var serverSessionId = if (restoredPendingRange != null) null else state.value.range?.backendSessionId ?: restored.serverSessionId
@@ -229,6 +230,21 @@ class VoiceOnboardingViewModel(
         analyze()
     }
 
+    /**
+     * Save a completed analysis as soon as the result screen observes it. Saving publishes the
+     * existing backend profile event, so recommendation generation starts while this screen is
+     * still visible. A failed automatic attempt is not looped; the save button remains a manual
+     * retry path.
+     */
+    fun saveWhenReady() {
+        val current = state.value
+        val result = current.progress ?: return
+        val key = result.sessionId to result.version
+        if (!current.canSave || autoSaveAttemptedResult == key) return
+        autoSaveAttemptedResult = key
+        save()
+    }
+
     fun rangeReady(): Boolean {
         if (!isCurrentOwner() || checkExpired()) return false
         val report = persistence.range() ?: return false
@@ -246,6 +262,7 @@ class VoiceOnboardingViewModel(
         job?.cancel()
         if (state.value.recording?.id != recording.id) {
             autoAnalyzedRecordingId = null
+            autoSaveAttemptedResult = null
         }
         mutableState.update { it.copy(recording = recording, revision = it.revision + 1,
             progress = null, busy = false, saving = false, saved = false, savedReceipt = null, error = null) }
@@ -371,6 +388,7 @@ class VoiceOnboardingViewModel(
         stopRecovery()
         job?.cancel()
         autoAnalyzedRecordingId = null
+        autoSaveAttemptedResult = null
         persistence.deleteRecording(state.value.recording?.id)
         mutableState.update { it.copy(recording = null, progress = null, busy = false, saved = false, savedReceipt = null,
             revision = it.revision + 1, error = null) }
@@ -383,6 +401,7 @@ class VoiceOnboardingViewModel(
         job?.cancel()
         stopRangeAnalysis()
         autoAnalyzedRecordingId = null
+        autoSaveAttemptedResult = null
         val draft = persistence.startNewDraft()
         expiresAtMillis = null
         serverSessionId = null
@@ -396,6 +415,7 @@ class VoiceOnboardingViewModel(
         job?.cancel()
         stopRangeAnalysis()
         autoAnalyzedRecordingId = null
+        autoSaveAttemptedResult = null
         serverSessionId = null
         mutableState.update { it.copy(revision = it.revision + 1, busy = false, saving = false,
             range = null, rangePreview = null, rangeMeasurementId = null,

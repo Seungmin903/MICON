@@ -348,7 +348,6 @@ internal fun SingingBody(state: SingAnalysisViewModel.UiState, vm: SingAnalysisV
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 KaraokePanel(
                     vm.sheet, state.nowSec, Modifier.fillMaxSize(),
-                    judgementColors = false,
                     emptyMessage = "가사가 준비되지 않았어요. 다른 곡을 골라 주세요.",
                 )
                 if (paused) {

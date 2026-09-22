@@ -58,6 +58,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -93,15 +94,20 @@ import com.micon.app.ui.design.organisms.MiconAppBar
 // 로고 · 헤더
 // ---------------------------------------------------------------------------
 
-/** MICON 브랜드 로고 이미지. */
+/**
+ * MICON 브랜드 로고 이미지. 앱 전체(탭 헤더·로그인·온보딩)가 이 한 장을 쓴다 — 화면마다 다른 로고를 그리지 않는다.
+ *
+ * [onDark] 면 어두운 배경(홀로 온보딩) 위에 얹을 수 있도록 흰색으로 칠한다.
+ */
 @Composable
 @Suppress("UNUSED_PARAMETER")
-fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: TextUnit = 22.sp) {
+fun MiconLogo(modifier: Modifier = Modifier, barHeight: Dp = 24.dp, fontSize: TextUnit = 22.sp, onDark: Boolean = false) {
     Image(
         painter = painterResource(R.drawable.micon_logo),
         contentDescription = "MICON",
         modifier = modifier.height(barHeight * 1.15f).width(barHeight * 4.5f),
         contentScale = ContentScale.Fit,
+        colorFilter = if (onDark) ColorFilter.tint(Color.White) else null,
     )
 }
 

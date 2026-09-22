@@ -164,4 +164,19 @@ class VoiceOnboardingScreenTest {
             compose.runOnIdle { assertEquals(1, starts) }
         } finally { wav.delete() }
     }
+
+    @Test fun automaticProfileSaveStartsWhenAnalysisBecomesReady() {
+        val progress = VoiceAnalysisProgress("session", 1, ComponentStatus.COMPLETED,
+            ComponentStatus.COMPLETED, ComponentStatus.FAILED, saveAllowed = true,
+            rangeStatus = "AVAILABLE", sessionStatus = VoiceSessionStatus.READY_TO_SAVE)
+        var current by mutableStateOf(VoiceOnboardingState("draft", range = range(), recording = audio(),
+            serviceAvailable = true))
+        var saves = 0
+        compose.setContent { OnboardingAutomaticProfileSave(current) { saves++ } }
+        compose.runOnIdle { assertEquals(0, saves) }
+        compose.runOnIdle { current = current.copy(progress = progress) }
+        compose.runOnIdle { assertEquals(1, saves) }
+        compose.runOnIdle { current = current.copy(error = "unrelated UI update") }
+        compose.runOnIdle { assertEquals(1, saves) }
+    }
 }

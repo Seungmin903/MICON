@@ -444,6 +444,33 @@ class VoiceOnboardingViewModelTest {
         assertTrue(model.state.value.saved)
     }
 
+    @Test fun automaticSaveStartsOnceForAReadyResult() = runTest {
+        val gateway = Gateway().apply { saveWait = CompletableDeferred() }
+        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        model.analyze(); advanceUntilIdle()
+
+        model.saveWhenReady(); model.saveWhenReady(); runCurrent()
+        assertEquals(1, gateway.saves)
+        gateway.saveWait!!.complete(Unit); advanceUntilIdle()
+        assertTrue(model.state.value.saved)
+    }
+
+    @Test fun failedAutomaticSaveWaitsForManualRetry() = runTest {
+        val gateway = Gateway().apply { saveFailure = true }
+        val model = VoiceOnboardingViewModel(1, Store(), gateway)
+        model.analyze(); advanceUntilIdle()
+
+        model.saveWhenReady(); advanceUntilIdle()
+        model.saveWhenReady(); advanceUntilIdle()
+        assertEquals(1, gateway.saves)
+        assertFalse(model.state.value.saved)
+
+        gateway.saveFailure = false
+        model.save(); advanceUntilIdle()
+        assertEquals(2, gateway.saves)
+        assertTrue(model.state.value.saved)
+    }
+
     @Test fun successfulServerSaveIsNotReportedAsFailureWhenCacheWriteFails() = runTest {
         val gateway = Gateway()
         val model = VoiceOnboardingViewModel(1, Store().apply { failCache = true }, gateway)
