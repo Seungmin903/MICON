@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -516,11 +517,11 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     items(detail.songs, key = { it.songId }) { song ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             if (state.editing) {
-                                Icon(
-                                    Icons.Filled.DragHandle,
-                                    contentDescription = "길게 눌러 곡 순서 변경",
-                                    tint = Grey,
-                                    modifier = Modifier.size(44.dp).pointerInput(state.busy, song.songId) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.size(48.dp)
+                                        .background(if (draggedSongId == song.songId) Purple.copy(alpha = 0.14f) else Color.Transparent, CircleShape)
+                                        .pointerInput(state.busy, song.songId) {
                                         if (state.busy) return@pointerInput
                                         detectDragGesturesAfterLongPress(
                                             onDragStart = { draggedSongId = song.songId; dragOffset = 0f },
@@ -546,7 +547,16 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                             },
                                         )
                                     },
-                                )
+                                ) {
+                                    Icon(
+                                        Icons.Filled.DragHandle,
+                                        contentDescription = "길게 눌러 곡 순서 변경",
+                                        tint = if (draggedSongId == song.songId) Purple else Grey,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                                VerticalDivider(Modifier.height(32.dp), thickness = 1.dp, color = GreyLight)
+                                Spacer(Modifier.width(4.dp))
                             }
                             SongRow(
                                 title = song.title, artist = song.artist, imageUrl = song.imageUrl,
