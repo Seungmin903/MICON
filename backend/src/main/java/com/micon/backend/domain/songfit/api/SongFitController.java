@@ -31,7 +31,7 @@ public class SongFitController {
 	public ApiResponse<SongFitResponse> getSongFit(
 		@PathVariable @NotBlank @Size(max = 64) String songId,
 		@RequestParam @Min(1) Long analysisId,
-		@RequestParam(defaultValue = "0") @Min(-6) @Max(5) int keyOffset,
+		@RequestParam(defaultValue = "0") @Min(-3) @Max(3) int keyOffset,
 		Principal principal
 	) {
 		Long userId = Long.valueOf(principal.getName());

@@ -25,9 +25,28 @@ class SongDetailViewModelTest {
 
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { store.clear(); Dispatchers.resetMain() }
-    private fun model() = SongDetailViewModel(songs, recommend, "7", {
+    private fun model(recommend: RecommendRepository = this.recommend) = SongDetailViewModel(songs, recommend, "7", {
         FakePlayer().also { players += it }
     }, MutableStateFlow<UserStore.VoiceProfile?>(null)).also { store.put("detail", it) }
+
+    @Test fun `recommended key is applied once and never overwrites a manual choice`() = runTest {
+        var recommended = -2
+        val changingRecommend = object : RecommendRepository {
+            override suspend fun fit(songId: String) = fit(recommended)
+            override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(false, emptyList())
+        }
+        val vm = model(changingRecommend); vm.enterScreen(); runCurrent()
+        assertEquals(-2, vm.state.value.selectedKey)
+        assertEquals(-2, players.single().keyShift)
+
+        vm.selectKey(1)
+        recommended = -3
+        vm.refreshFit(); runCurrent()
+
+        assertEquals(1, vm.state.value.selectedKey)
+        assertEquals(1, players.single().keyShift)
+        vm.leaveScreen()
+    }
 
     @Test fun `pause on exit cancels buffering intent and releases once`() = runTest {
         val vm = model(); vm.enterScreen(); runCurrent()
@@ -168,5 +187,11 @@ class SongDetailViewModelTest {
             InstrumentalMedia(null, null, "audio/wav", null, null, "http://localhost/$key.wav"),
             null, null, listOf(KaraokeNote(sourceStart = 1.0, sourceEnd = 2.0, midi = 60)), "test", emptyList(),
             keyName = "C major", tempoBpm = 108, timeSignature = "4/4")
+        private fun fit(key: Int) = SongFit(
+            songId = "7", timbre = null,
+            rangeFit = RangeFit(0.9f, 0.9f, 0f, 0f, 0.9f, 60, 70),
+            recommendedKey = key, strainSections = null, overallFit = 0.9f,
+            reasons = listOf("테스트"), scoringVersion = "test", compositionVersion = null,
+        )
     }
 }

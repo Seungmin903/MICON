@@ -20,13 +20,13 @@ from pitch_profile import (
 
 
 RANGE_CATALOG_FILENAME = "range_profiles.json"
-RANGE_SCORING_VERSION = "vocal-range-keyshift-continuous-v2"
+RANGE_SCORING_VERSION = "vocal-range-keyshift-first-98-v3"
 MODE_WEIGHTS = {
     "timbre": {"timbre": 0.75, "range": 0.25},
     "range": {"timbre": 0.30, "range": 0.70},
 }
-KEY_SHIFT_MIN = -6
-KEY_SHIFT_MAX = 5
+KEY_SHIFT_MIN = -3
+KEY_SHIFT_MAX = 3
 KEY_SHIFT_BOUNDS = (KEY_SHIFT_MIN, KEY_SHIFT_MAX)
 KEY_SHIFTS = tuple(range(KEY_SHIFT_MIN, KEY_SHIFT_MAX + 1))
 COMFORT_PADDING_SEMITONES = 2
@@ -40,11 +40,11 @@ CENTER_SCORE_WEIGHT = 0.20
 # 시간 가중 음정 질량이 이 비율을 넘으면 '부를 수 있는 곡'으로 내지 않는다.
 MAX_OUTSIDE_RANGE_RATIO = 0.05
 # 앱 음역 측정(guided-range)으로 만든 프로파일. median 이 (하한+상한)//2 라 "주로 부르는 높이"가 아니다.
-# 이 종류에는 중심음 맞추기(center_score)를 쓰지 않고, 점수가 비슷한 키 중 가장 적게 옮기는 키를 고른다.
+# 이 종류에는 중심음 맞추기(center_score)를 쓰지 않고, 98% 커버리지를 처음 만족하는 키를 고른다.
 GUIDED_RANGE_PROFILE_KIND = "guided_range_measurement"
-GUIDED_KEY_SHIFT_SCORE_TOLERANCE = 0.005
+GUIDED_TARGET_COVERAGE = 0.98
 KEY_SHIFT_POLICY_CENTER = "center-match-v2"
-KEY_SHIFT_POLICY_GUIDED = "guided-min-shift-v1"
+KEY_SHIFT_POLICY_GUIDED = "guided-first-98-v2"
 
 
 def _is_guided_range(profile: Mapping[str, Any]) -> bool:
@@ -206,16 +206,32 @@ def _score_at_shift(
 def score_range_fit(
     query_profile: Mapping[str, Any], candidate_profile: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """Choose the best integer song transposition from -6 through +5 semitones."""
+    """Choose the best playable integer song transposition from -3 through +3 semitones."""
 
     query = _validated_profile(query_profile, label="query")
     candidate = _validated_profile(candidate_profile, label="candidate")
     options = [_score_at_shift(query, candidate, shift) for shift in KEY_SHIFTS]
     guided = _is_guided_range(query)
     if guided:
-        top = max(item["score"] for item in options)
-        near = [item for item in options if item["score"] >= top - GUIDED_KEY_SHIFT_SCORE_TOLERANCE]
-        best = sorted(near, key=lambda item: (abs(item["keyShift"]), -item["score"], item["keyShift"]))[0]
+        # 원키에서 가장 적게 움직여 98%를 처음 만족하는 키를 권한다. ±3 안에서
+        # 불가능하면 core 경계 초과가 가장 작은 끝 키까지 이동하도록 한다.
+        covered = [item for item in options if item["coverage"] >= GUIDED_TARGET_COVERAGE]
+        if covered:
+            best = sorted(
+                covered,
+                key=lambda item: (abs(item["keyShift"]), -item["coverage"], -item["score"], item["keyShift"]),
+            )[0]
+        else:
+            best = sorted(
+                options,
+                key=lambda item: (
+                    item["totalCoreExcessSemitones"],
+                    -item["coverage"],
+                    -item["score"],
+                    abs(item["keyShift"]),
+                    item["keyShift"],
+                ),
+            )[0]
     else:
         best = sorted(
             options,

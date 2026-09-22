@@ -60,7 +60,7 @@ class SongFitServiceTest {
 		SongFitResponse response = service.getSongFit(7L, "10", 20L, 5);
 
 		assertThat(response.evaluationStatus()).isEqualTo("AVAILABLE");
-		assertThat(response.originalKeyFit().score()).isEqualByComparingTo("75.00");
+		assertThat(response.originalKeyFit().score()).isEqualByComparingTo("85.00");
 		assertThat(response.selectedKeyFit().score()).isEqualByComparingTo("100.00");
 		assertThat(response.recommendedKeyOffset()).isEqualTo(-2);
 		assertThat(response.recommendationScores().overall()).isEqualByComparingTo("0.88");
@@ -141,7 +141,7 @@ class SongFitServiceTest {
 	}
 
 	@Test
-	void stillReturnsRangeComparisonWhenRecommendationHasNotBeenGenerated() {
+	void calculatesPlayableRecommendedKeyWhenRecommendationHasNotBeenGenerated() {
 		when(repository.songExists("10")).thenReturn(true);
 		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
 			new UserRangeRow("SAVED", "AVAILABLE", decimal("55"), decimal("75"))
@@ -156,8 +156,42 @@ class SongFitServiceTest {
 
 		assertThat(response.evaluationStatus()).isEqualTo("AVAILABLE");
 		assertThat(response.originalKeyFit()).isNotNull();
-		assertThat(response.recommendedKeyOffset()).isNull();
+		assertThat(response.recommendedKeyOffset()).isEqualTo(3);
+		assertThat(response.reason()).contains("세 키 올리기");
 		assertThat(response.recommendationScores()).isNull();
+	}
+
+	@Test
+	void recommendsTheFirstKeyThatReachesNinetyEightPercentCoverage() {
+		when(repository.songExists("10")).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("60"), decimal("64"))
+		));
+		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("56"), decimal("64"))
+		));
+		when(repository.findRecommendation(7L, 20L, "10")).thenReturn(Optional.empty());
+		when(repository.findBurdenSections("10", 30L)).thenReturn(List.of());
+
+		SongFitResponse response = service.getSongFit(7L, "10", 20L, 0);
+
+		assertThat(response.recommendedKeyOffset()).isEqualTo(2);
+		assertThat(response.reason()).contains("두 키 올리기");
+	}
+
+	@Test
+	void capsARecommendationThatNeedsFourOrMoreKeysAtThree() {
+		when(repository.songExists("10")).thenReturn(true);
+		when(repository.findUserRange(7L, 20L)).thenReturn(Optional.of(
+			new UserRangeRow("SAVED", "AVAILABLE", decimal("66"), decimal("67"))
+		));
+		when(repository.findLatestSongRange("10")).thenReturn(Optional.of(
+			new SongRangeRow(30L, decimal("60"), decimal("61"))
+		));
+		when(repository.findRecommendation(7L, 20L, "10")).thenReturn(Optional.empty());
+		when(repository.findBurdenSections("10", 30L)).thenReturn(List.of());
+
+		assertThat(service.getSongFit(7L, "10", 20L, 0).recommendedKeyOffset()).isEqualTo(3);
 	}
 
 	@Test
@@ -185,7 +219,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		stubAvailableSongFitInputs();
 		SongFitResponse aiResponse = new SongFitResponse(
-			"10", 20L, 0, "AVAILABLE", null, null, 5, null, "AI 계산", List.of(), null
+			"10", 20L, 0, "AVAILABLE", null, null, 3, null, "AI 계산", List.of(), null
 		);
 		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenReturn(aiResponse);
 
@@ -197,7 +231,7 @@ class SongFitServiceTest {
 		service = new SongFitService(repository, gateway, true);
 		stubAvailableSongFitInputs();
 		SongFitResponse aiResponse = new SongFitResponse(
-			"10", 20L, 0, "AVAILABLE", null, null, 6, null, "AI 계산", List.of(), null
+			"10", 20L, 0, "AVAILABLE", null, null, 4, null, "AI 계산", List.of(), null
 		);
 		when(gateway.evaluate(org.mockito.ArgumentMatchers.any())).thenReturn(aiResponse);
 

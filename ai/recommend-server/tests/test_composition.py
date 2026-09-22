@@ -31,7 +31,7 @@ def _item(track_id: str, ecapa: float, byol: float, *, artist: str | None = None
         "timbre_score": (ecapa + byol) / 2,
         "final_score": (ecapa + byol) / 2,
         "range_fit": None if range_score is None else {
-            "scoringVersion": "vocal-range-keyshift-continuous-v2", "score": range_score, "coverage": 0.97, "outsideRangeRatio": 0.03, "centerScore": 0.9,
+            "scoringVersion": "vocal-range-keyshift-first-98-v3", "score": range_score, "coverage": 0.97, "outsideRangeRatio": 0.03, "centerScore": 0.9,
             "spanFit": 1.0, "softFit": 0.8, "keyShift": -2, "songCoreLowMidi": 55, "songCoreHighMidi": 67, "catalogProfileReliable": True,
         },
     }

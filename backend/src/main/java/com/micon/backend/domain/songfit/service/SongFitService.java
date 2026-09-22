@@ -19,8 +19,10 @@ import org.springframework.beans.factory.annotation.Value;
 public class SongFitService {
 
 	private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
-	private static final int MIN_RECOMMENDED_KEY_OFFSET = -6;
-	private static final int MAX_RECOMMENDED_KEY_OFFSET = 5;
+	private static final BigDecimal COMFORT_PADDING = BigDecimal.valueOf(2);
+	private static final BigDecimal TARGET_COVERAGE_PERCENT = new BigDecimal("98.00");
+	private static final int MIN_RECOMMENDED_KEY_OFFSET = -3;
+	private static final int MAX_RECOMMENDED_KEY_OFFSET = 3;
 
 	private final SongFitQueryRepository songFitQueryRepository;
 	private final SongFitGateway songFitGateway;
@@ -66,6 +68,7 @@ public class SongFitService {
 			recommendation.timbreAxis(),
 			recommendation.timbreLabel()
 		);
+		Integer storedRecommendedKey = supportedKey(recommendation == null ? null : recommendation.recommendedKey());
 
 		List<BurdenSection> burdenSections = songFitQueryRepository.findBurdenSections(songId, songRange.analysisId());
 		if (aiEnabled) {
@@ -74,7 +77,7 @@ public class SongFitService {
 					userId, songId, analysisId, songRange.analysisId(), keyOffset,
 					userRange.stableLowMidi(), userRange.stableHighMidi(),
 					songRange.lowestMidi(), songRange.highestMidi(),
-					recommendation == null ? null : recommendation.recommendedKey(),
+					storedRecommendedKey,
 					scores, recommendation == null ? null : recommendation.reasonText(), burdenSections
 				));
 				if (response == null || !songId.equals(response.songId()) || !analysisId.equals(response.analysisId())
@@ -95,6 +98,12 @@ public class SongFitService {
 			}
 		}
 
+		Integer recommendedKey = storedRecommendedKey == null
+			? recommendKey(userRange, songRange)
+			: storedRecommendedKey;
+		String reason = recommendation != null && storedRecommendedKey != null
+			? recommendation.reasonText()
+			: keyRecommendationReason(recommendedKey);
 		return new SongFitResponse(
 			songId,
 			analysisId,
@@ -102,9 +111,9 @@ public class SongFitService {
 			"AVAILABLE",
 			calculateRangeFit(userRange, songRange, 0),
 			calculateRangeFit(userRange, songRange, keyOffset),
-			recommendation == null ? null : recommendation.recommendedKey(),
+			recommendedKey,
 			scores,
-			recommendation == null ? null : recommendation.reasonText(),
+			reason,
 			burdenSections,
 			null
 		);
@@ -115,14 +124,16 @@ public class SongFitService {
 		BigDecimal shiftedLow = songRange.lowestMidi().add(offset);
 		BigDecimal shiftedHigh = songRange.highestMidi().add(offset);
 		BigDecimal songWidth = shiftedHigh.subtract(shiftedLow);
-		BigDecimal overlapLow = shiftedLow.max(userRange.stableLowMidi());
-		BigDecimal overlapHigh = shiftedHigh.min(userRange.stableHighMidi());
+		BigDecimal observedLow = userRange.stableLowMidi().subtract(COMFORT_PADDING);
+		BigDecimal observedHigh = userRange.stableHighMidi().add(COMFORT_PADDING);
+		BigDecimal overlapLow = shiftedLow.max(observedLow);
+		BigDecimal overlapHigh = shiftedHigh.min(observedHigh);
 		BigDecimal overlap = overlapHigh.subtract(overlapLow).max(BigDecimal.ZERO);
 
 		BigDecimal score;
 		if (songWidth.signum() == 0) {
-			score = shiftedLow.compareTo(userRange.stableLowMidi()) >= 0
-				&& shiftedLow.compareTo(userRange.stableHighMidi()) <= 0
+			score = shiftedLow.compareTo(observedLow) >= 0
+				&& shiftedLow.compareTo(observedHigh) <= 0
 				? ONE_HUNDRED : BigDecimal.ZERO;
 		} else {
 			score = overlap.multiply(ONE_HUNDRED)
@@ -137,6 +148,72 @@ public class SongFitService {
 			shiftedHigh,
 			score.setScale(2, RoundingMode.HALF_UP)
 		);
+	}
+
+	private Integer recommendKey(SongFitQueryRepository.UserRangeRow userRange,
+		SongFitQueryRepository.SongRangeRow songRange) {
+		BigDecimal[] scores = new BigDecimal[MAX_RECOMMENDED_KEY_OFFSET - MIN_RECOMMENDED_KEY_OFFSET + 1];
+		for (int key = MIN_RECOMMENDED_KEY_OFFSET; key <= MAX_RECOMMENDED_KEY_OFFSET; key++) {
+			BigDecimal score = calculateRangeFit(userRange, songRange, key).score();
+			scores[key - MIN_RECOMMENDED_KEY_OFFSET] = score;
+		}
+
+		Integer bestKey = null;
+		BigDecimal bestScore = BigDecimal.valueOf(-1);
+		for (int key = MIN_RECOMMENDED_KEY_OFFSET; key <= MAX_RECOMMENDED_KEY_OFFSET; key++) {
+			BigDecimal score = scores[key - MIN_RECOMMENDED_KEY_OFFSET];
+			if (score.compareTo(TARGET_COVERAGE_PERCENT) < 0) continue;
+			if (bestKey == null || Math.abs(key) < Math.abs(bestKey)
+				|| (Math.abs(key) == Math.abs(bestKey) && score.compareTo(bestScore) > 0)
+				|| (Math.abs(key) == Math.abs(bestKey) && score.compareTo(bestScore) == 0 && key < bestKey)) {
+				bestKey = key;
+				bestScore = score;
+			}
+		}
+		if (bestKey != null) return bestKey;
+
+		BigDecimal bestExcess = null;
+		bestScore = BigDecimal.valueOf(-1);
+		for (int key = MIN_RECOMMENDED_KEY_OFFSET; key <= MAX_RECOMMENDED_KEY_OFFSET; key++) {
+			BigDecimal score = scores[key - MIN_RECOMMENDED_KEY_OFFSET];
+			BigDecimal excess = coreExcess(userRange, songRange, key);
+			if (bestKey == null || excess.compareTo(bestExcess) < 0
+				|| (excess.compareTo(bestExcess) == 0 && score.compareTo(bestScore) > 0)
+				|| (excess.compareTo(bestExcess) == 0 && score.compareTo(bestScore) == 0
+					&& Math.abs(key) < Math.abs(bestKey))
+				|| (excess.compareTo(bestExcess) == 0 && score.compareTo(bestScore) == 0
+					&& Math.abs(key) == Math.abs(bestKey) && key < bestKey)) {
+				bestKey = key;
+				bestScore = score;
+				bestExcess = excess;
+			}
+		}
+		return bestKey == null ? 0 : bestKey;
+	}
+
+	private BigDecimal coreExcess(SongFitQueryRepository.UserRangeRow userRange,
+		SongFitQueryRepository.SongRangeRow songRange, int key) {
+		BigDecimal shiftedLow = songRange.lowestMidi().add(BigDecimal.valueOf(key));
+		BigDecimal shiftedHigh = songRange.highestMidi().add(BigDecimal.valueOf(key));
+		BigDecimal observedLow = userRange.stableLowMidi().subtract(COMFORT_PADDING);
+		BigDecimal observedHigh = userRange.stableHighMidi().add(COMFORT_PADDING);
+		return observedLow.subtract(shiftedLow).max(BigDecimal.ZERO)
+			.add(shiftedHigh.subtract(observedHigh).max(BigDecimal.ZERO));
+	}
+
+	private Integer supportedKey(Integer key) {
+		return key != null && key >= MIN_RECOMMENDED_KEY_OFFSET && key <= MAX_RECOMMENDED_KEY_OFFSET ? key : null;
+	}
+
+	private String keyRecommendationReason(int key) {
+		if (key == 0) return "안정 음역과 비교했을 때 원키가 가장 잘 맞습니다.";
+		String count = switch (Math.abs(key)) {
+			case 1 -> "한";
+			case 2 -> "두";
+			case 3 -> "세";
+			default -> Integer.toString(Math.abs(key));
+		};
+		return count + " 키 " + (key < 0 ? "내리기" : "올리기") + "를 추천합니다.";
 	}
 
 	private boolean isValidRange(BigDecimal low, BigDecimal high) {

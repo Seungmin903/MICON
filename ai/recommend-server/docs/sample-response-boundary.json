@@ -104,7 +104,7 @@
             "confidence": null,
             "timbre_score": 0.382264,
             "range_fit": {
-              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "scoringVersion": "vocal-range-keyshift-first-98-v3",
               "score": 0.990989,
               "coverage": 0.993633,
               "centerScore": 1.0,
@@ -192,7 +192,7 @@
             "confidence": null,
             "timbre_score": 0.306693,
             "range_fit": {
-              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "scoringVersion": "vocal-range-keyshift-first-98-v3",
               "score": 0.990631,
               "coverage": 0.99301,
               "centerScore": 1.0,
@@ -260,7 +260,7 @@
             "confidence": null,
             "timbre_score": 0.333386,
             "range_fit": {
-              "scoringVersion": "vocal-range-keyshift-continuous-v2",
+              "scoringVersion": "vocal-range-keyshift-first-98-v3",
               "score": 0.994604,
               "coverage": 1.0,
               "centerScore": 1.0,
@@ -325,7 +325,7 @@
         "confidence": null,
         "timbre_score": 0.382264,
         "range_fit": {
-          "scoringVersion": "vocal-range-keyshift-continuous-v2",
+          "scoringVersion": "vocal-range-keyshift-first-98-v3",
           "score": 0.990989,
           "coverage": 0.993633,
           "centerScore": 1.0,

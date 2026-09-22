@@ -27,8 +27,8 @@ import java.util.Set;
 @Service
 public class RecommendationResultStore {
     private static final int MAX_ITEMS_PER_SHELF = 50;
-    private static final short MIN_RECOMMENDED_KEY = -6;
-    private static final short MAX_RECOMMENDED_KEY = 5;
+    private static final short MIN_RECOMMENDED_KEY = -3;
+    private static final short MAX_RECOMMENDED_KEY = 3;
 
     private final RecommendationRepository recommendations;
     private final RecommendationShelfRepository shelves;
@@ -205,7 +205,7 @@ public class RecommendationResultStore {
         }
         if (!hasRangeFit) return;
         if (item.recommendedKey() < MIN_RECOMMENDED_KEY || item.recommendedKey() > MAX_RECOMMENDED_KEY) {
-            throw invalid("recommendedKey must be between -6 and 5 for songId: " + item.songId());
+            throw invalid("recommendedKey must be between -3 and 3 for songId: " + item.songId());
         }
         JsonNode keyShift = item.rangeFit().get("keyShift");
         if (keyShift == null || !keyShift.isIntegralNumber()
