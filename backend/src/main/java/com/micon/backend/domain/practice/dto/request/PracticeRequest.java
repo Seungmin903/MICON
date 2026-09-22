@@ -21,7 +21,7 @@ public final class PracticeRequest {
 		@NotBlank @Size(max = 64) String songId,
 		@Min(1) Long recordingId,
 		Long sectionId,
-		@Min(-6) @Max(5) Integer selectedKey,
+		@Min(-3) @Max(3) Integer selectedKey,
 		@DecimalMin("0.50") @DecimalMax("2.00") BigDecimal playbackSpeed,
 		PracticeScope practiceScope,
 		@PositiveOrZero Integer customStartMs,
@@ -33,7 +33,7 @@ public final class PracticeRequest {
 		@NotNull @PositiveOrZero Integer durationMs,
 		@Min(1) Long voiceAnalysisId,
 		@Min(1) Long recordingId,
-		@Min(-6) @Max(5) Integer finalSelectedKey,
+		@Min(-3) @Max(3) Integer finalSelectedKey,
 		@PositiveOrZero Integer keyChangeCount
 	) {
 		public Complete(Integer durationMs, Long voiceAnalysisId, Long recordingId) {

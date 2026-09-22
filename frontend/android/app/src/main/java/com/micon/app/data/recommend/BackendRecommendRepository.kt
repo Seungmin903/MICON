@@ -21,6 +21,7 @@ import com.micon.app.data.backend.dto.RecommendationSongDto
 import com.micon.app.data.backend.dto.SongFitDto
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.data.local.UserStore
+import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
@@ -206,7 +207,7 @@ class BackendRecommendRepository(
             timbre = if (axis != null && label != null) TimbreMatch(axis, label, null) else null,
             timbreFit = unit(timbreScore),
             rangeFit = null,
-            recommendedKey = recommendedKey,
+            recommendedKey = recommendedKey?.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX),
             strainSections = null,
             overallFit = unit(finalScore) ?: 0f,
             reasons = reasons,
@@ -287,7 +288,9 @@ class BackendRecommendRepository(
                     score = score, coverage = score, centerScore = 0f, spanFit = 0f, softFit = 0f,
                     songCoreLowMidi = range.songLowMidi?.roundToInt(), songCoreHighMidi = range.songHighMidi?.roundToInt(),
                 ),
-                recommendedKey = recommendedKeyOffset,   // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다
+                recommendedKey = recommendedKeyOffset?.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX),
+                // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다.
+                // 구버전 서버에 남은 ±4 이상 값은 현재 재생 가능한 ±3으로 방어적으로 제한한다.
                 strainSections = StrainSections(original = burden, atKey = burden),
                 overallFit = unit(scores?.overall) ?: score,
                 reasons = listOfNotNull(reason?.takeIf { it.isNotBlank() }).ifEmpty { listOf("곡 음역의 ${(score * 100).roundToInt()}%가 내 안정 음역과 겹쳐요") },

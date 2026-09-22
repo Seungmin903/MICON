@@ -1639,7 +1639,7 @@ paths:
     get:
       tags: ["곡 적합도"]
       summary: "원키·선택 키 적합도 및 추천 키 조회 API"
-      description: "analysisId(저장된 음성 프로필 ID)·keyOffset(-6..5) 기준 적합도·추천 키·곡 주의 구간을 반환한다. recommendationScores는 기존 점수에 선택 필드 timbreAxis·timbreLabel을 포함할 수 있다. 현재 저장 프로필 이후 생성된 추천만 사용하며, 데이터 부족 시 평가 불가를 반환한다. 통합 상세 계약은 docs/song-detail-integration.md 참고."
+      description: "analysisId(저장된 음성 프로필 ID)·keyOffset(-3..3) 기준 적합도·추천 키·곡 주의 구간을 반환한다. 추천 키는 원키에서 가장 적게 움직여 음정 질량의 98%가 안정 음역(여유 ±2반음)에 처음 들어오는 키이며, 범위를 넘으면 ±3으로 제한한다. recommendationScores는 기존 점수에 선택 필드 timbreAxis·timbreLabel을 포함할 수 있다. 현재 저장 프로필 이후 생성된 추천만 사용하며, 데이터 부족 시 평가 불가를 반환한다. 통합 상세 계약은 docs/song-detail-integration.md 참고."
       operationId: "micon054"
       servers:
         - url: "{backendUrl}"
@@ -1663,7 +1663,7 @@ paths:
     get:
       tags: ["연습 준비"]
       summary: "반주·목표 음정·가사·구간 데이터 조회 API"
-      description: "selectedKey(-6..5)의 반주 접근 정보·targetNotes·lyrics·sections·데이터 버전을 반환한다. targetNotes는 항상 원키 기준이며 표시·채점 시 selectedKey를 한 번만 적용한다. 데이터 미준비는 409, 지원하지 않는 키 반주는 422이며 원키로 묵시적 대체하지 않는다."
+      description: "selectedKey(-3..3)의 반주 접근 정보·targetNotes·lyrics·sections·데이터 버전을 반환한다. targetNotes는 항상 원키 기준이며 표시·채점 시 selectedKey를 한 번만 적용한다. 데이터 미준비는 409, 지원하지 않는 키 반주는 422이며 원키로 묵시적 대체하지 않는다."
       operationId: "micon055"
       servers:
         - url: "{backendUrl}"

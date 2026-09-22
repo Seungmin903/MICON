@@ -85,7 +85,7 @@ AI와 BE 호출 인증은 같은 서비스 토큰의 `Authorization: Bearer <tok
 1. `GET /health` 200으로 프로세스 생존을 확인한다. 모델 준비 완료 판정은 아니다.
 2. 서비스 토큰을 Bearer 헤더에 넣은 `GET /recommendations/status`로 모델·인덱스 누락과 카탈로그 연결 상태를 확인한다.
 3. BE의 Tailscale Serve 주소에서 `GET /internal/embedding-catalog/active`의 `catalog_track_id ↔ song_id` 짝표를 받는다. `/recommendations/status`의 최종 게이트는 `ready`만 보지 말고 `catalogLink.mappedTracks > 0`과 `catalogLink.error` 없음까지 확인한다. 짝표가 없으면 운영 JSON 추천은 503으로 거절한다. 조회 실패 뒤에는 추천 접수 또는 상태 확인 시 최대 30초에 한 번 재조회한다.
-4. 추천의 파일 인덱스에는 음색 임베딩뿐 아니라 RangeCatalog가 읽는 곡 음역 프로파일도 있어야 한다. `range_profiles.json`의 `keyShiftRange`는 실제 반주 범위인 `[-6, 5]`여야 하며, 예전 `[-6, 6]` 메타데이터는 서버가 거부한다. 외부 카탈로그를 쓰는 노트북은 재시작 전에 이 메타데이터와 프로필·인덱스 곡 집합을 함께 확인한다. embedding_catalog 어댑터만 실행하면 곡 음역 프로파일이 새로 생성되는 것은 아니다.
+4. 추천의 파일 인덱스에는 음색 임베딩뿐 아니라 RangeCatalog가 읽는 곡 음역 프로파일도 있어야 한다. `range_profiles.json`의 `keyShiftRange`는 실제 연습 범위인 `[-3, 3]`이어야 하며, 다른 범위의 메타데이터는 서버가 거부한다. 외부 카탈로그를 쓰는 노트북은 재시작 전에 이 메타데이터와 프로필·인덱스 곡 집합을 함께 확인한다. embedding_catalog 어댑터만 실행하면 곡 음역 프로파일이 새로 생성되는 것은 아니다.
 5. BE → 노트북 접수와 노트북 → BE 콜백을 모두 실제 주소에서 확인한다.
 
 서버 배포용 recommend-server 이미지는 RANGE sibling worker도 포함한다. 노트북 경로는 GPU 또는 현장 마이크 검증이 필요한 경우에 사용하고, 서버 상시 운영 절차는 [추천 AI 컨테이너 실행](RECOMMENDATION_CONTAINER_RUNTIME.md)을 따른다.

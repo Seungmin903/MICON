@@ -52,6 +52,7 @@ internal class SongDetailViewModel(
     private var keyJob: Job? = null
     private var fitJob: Job? = null
     private var progressJob: Job? = null
+    private var keyManuallySelected = false
 
     init {
         load()
@@ -91,6 +92,9 @@ internal class SongDetailViewModel(
                 ensureActive()
                 check(fit == null || fit.songId == songId)
                 _state.update { it.copy(fit = fit, fitLoading = false) }
+                if (!keyManuallySelected) {
+                    fit?.recommendedKey?.let(::applyKey)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(fitLoading = false, fitError = "맞춤 분석을 불러오지 못했어요.") } }
         }
@@ -102,6 +106,11 @@ internal class SongDetailViewModel(
      * 서버에 키별 반주가 있는지도 묻지 않는다. 범위는 연습과 같은 ±3 ([ScoringConstants.KEY_SHIFT_MIN]‥[ScoringConstants.KEY_SHIFT_MAX]).
      */
     fun selectKey(key: Int) {
+        keyManuallySelected = true
+        applyKey(key)
+    }
+
+    private fun applyKey(key: Int) {
         val target = key.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         if (target == _state.value.selectedKey) return
         player?.let { it.pause(); it.keyShift = target }

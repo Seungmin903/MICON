@@ -9,13 +9,13 @@ import song_fit_api
 
 class SongFitApiTestCase(unittest.TestCase):
     def test_selected_key_must_be_within_playable_range(self) -> None:
-        for selected_key in (-7, 6):
+        for selected_key in (-4, 4):
             with self.subTest(selected_key=selected_key):
                 with self.assertRaises(song_fit_api.HTTPException) as raised:
                     song_fit_api.song_fit({"selectedKeyOffset": selected_key})
                 self.assertEqual(raised.exception.status_code, 422)
 
-    def test_ideal_positive_six_shift_is_limited_to_available_positive_five(self) -> None:
+    def test_ideal_positive_six_shift_is_limited_to_available_positive_three(self) -> None:
         payload = {
             "songId": 1,
             "analysisId": 2,
@@ -34,7 +34,7 @@ class SongFitApiTestCase(unittest.TestCase):
             result = song_fit_api.song_fit(payload)
 
         self.assertEqual(result["evaluationStatus"], "AVAILABLE")
-        self.assertEqual(result["recommendedKeyOffset"], 5)
+        self.assertEqual(result["recommendedKeyOffset"], 3)
 
     def test_optional_timbre_metadata_survives_available_and_unavailable_results(self) -> None:
         for available in (True, False):

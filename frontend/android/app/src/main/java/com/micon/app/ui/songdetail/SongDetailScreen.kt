@@ -111,7 +111,12 @@ fun SongDetailContent(
         verticalArrangement = Arrangement.spacedBy(MiconSpace.md),
         bottom = {
             MiconButton(
-                text = when { state.assetsLoading || state.keyLoading -> "반주 준비 중…"; !state.practiceEnabled -> "연습 데이터 준비 중"; else -> "이 노래 연습하기" },
+                text = when {
+                    state.assetsLoading || state.keyLoading -> "반주 준비 중…"
+                    !state.practiceEnabled -> "연습 데이터 준비 중"
+                    key == 0 -> "원키로 연습하기"
+                    else -> "${NoteNames.keyShiftText(key).removeSuffix("기")}고 연습하기"
+                },
                 onClick = onPractice, modifier = Modifier.fillMaxWidth().testTag("song-practice"), enabled = state.practiceEnabled,
             )
         },
@@ -130,7 +135,7 @@ fun SongDetailContent(
         val song = songRange(detail, fit)
         val mine = profile?.let { it.comfortLow to it.comfortHigh }
         val matchPct = rangeMatchPercent(mine, song, key)
-        val verdict = rangeVerdict(mine, song, key)
+        val verdict = rangeVerdict(mine, song, key, fit?.recommendedKey)
 
         Header(detail, verdict)
         MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
@@ -148,21 +153,34 @@ private fun songRange(detail: SongDetail, fit: SongFit?): IntRange? {
 }
 
 /** 추천 종합 점수와 분리해, 선택 키가 반영된 곡 음역과 내 편한 음역만으로 판정한다. */
-internal fun rangeVerdict(mine: Pair<Int, Int>?, song: IntRange?, key: Int): Verdict {
+internal fun rangeVerdict(
+    mine: Pair<Int, Int>?, song: IntRange?, key: Int, recommendedKey: Int? = null,
+): Verdict {
     if (mine == null) return Verdict("평가 불가", MiconChipTone.Neutral, "목소리를 분석하면 이 곡이 내 음역에 맞는지 알려 드려요.")
     if (song == null) return Verdict("평가 불가", MiconChipTone.Neutral, "이 곡의 음역 정보가 아직 없어요.")
 
+    val observedLow = mine.first - com.micon.app.scoring.RangeFitCalculator.COMFORT_PADDING_SEMITONES
+    val observedHigh = mine.second + com.micon.app.scoring.RangeFitCalculator.COMFORT_PADDING_SEMITONES
     val shifted = (song.first + key)..(song.last + key)
-    val overTop = (shifted.last - mine.second).coerceAtLeast(0)
-    val underLow = (mine.first - shifted.first).coerceAtLeast(0)
+    val overTop = (shifted.last - observedHigh).coerceAtLeast(0)
+    val underLow = (observedLow - shifted.first).coerceAtLeast(0)
     val excess = maxOf(overTop, underLow)
     val tone = when {
         excess == 0 -> MiconChipTone.Success
         excess <= 2 -> MiconChipTone.Warning
         else -> MiconChipTone.Challenge
     }
-    val label = when (tone) { MiconChipTone.Success -> "잘 맞아요"; MiconChipTone.Warning -> "한 키 조절"; else -> "도전곡" }
+    val supportedRecommendation = recommendedKey?.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
+    val label = when {
+        supportedRecommendation != null -> NoteNames.keyShiftText(supportedRecommendation)
+        tone == MiconChipTone.Success -> "잘 맞아요"
+        overTop > 0 -> NoteNames.keyShiftText((-overTop).coerceAtLeast(ScoringConstants.KEY_SHIFT_MIN))
+        underLow > 0 -> NoteNames.keyShiftText(underLow.coerceAtMost(ScoringConstants.KEY_SHIFT_MAX))
+        else -> "도전곡"
+    }
     val message = when {
+        supportedRecommendation != null && key == supportedRecommendation && key != 0 && overTop <= 0 && underLow <= 0 ->
+            "추천 키를 적용했어요. 곡이 내 음역 안에 들어옵니다."
         key == 0 && overTop <= 0 && underLow <= 0 -> "곡이 내 음역 안에 들어와요. 원래 키로 불러도 편합니다."
         key == 0 && overTop > 0 -> "후렴 고음이 내 음역보다 ${NoteNames.distanceText(0, overTop).removeSuffix("요")}. 키를 내려 보세요."
         key == 0 && underLow > 0 -> "곡의 낮은 음이 내 음역보다 ${underLow}음 낮아요. 키를 올려 보세요."
@@ -177,11 +195,13 @@ internal fun rangeVerdict(mine: Pair<Int, Int>?, song: IntRange?, key: Int): Ver
 /** 화면의 '음역 매치' 수치도 overallFit 대신 현재 선택 키의 실제 음역 겹침으로 계산한다. */
 internal fun rangeMatchPercent(mine: Pair<Int, Int>?, song: IntRange?, key: Int): Int? {
     if (mine == null || song == null) return null
+    val observedLow = mine.first - com.micon.app.scoring.RangeFitCalculator.COMFORT_PADDING_SEMITONES
+    val observedHigh = mine.second + com.micon.app.scoring.RangeFitCalculator.COMFORT_PADDING_SEMITONES
     val shiftedLow = song.first + key
     val shiftedHigh = song.last + key
     val width = shiftedHigh - shiftedLow
-    if (width == 0) return if (shiftedLow in mine.first..mine.second) 100 else 0
-    val overlap = (minOf(shiftedHigh, mine.second) - maxOf(shiftedLow, mine.first)).coerceAtLeast(0)
+    if (width == 0) return if (shiftedLow in observedLow..observedHigh) 100 else 0
+    val overlap = (minOf(shiftedHigh, observedHigh) - maxOf(shiftedLow, observedLow)).coerceAtLeast(0)
     return ((overlap.toDouble() / width) * 100).roundToInt().coerceIn(0, 100)
 }
 
@@ -237,7 +257,7 @@ private fun KeyCard(key: Int, onKey: (Int) -> Unit) {
             KeyStep("−", enabled = key > ScoringConstants.KEY_SHIFT_MIN) { onKey(key - 1) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(if (key > 0) "+$key" else "$key", fontFamily = MiconMonoFamily, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
-                Text(when { key == 0 -> "원래 키"; key > 0 -> "+${key}키"; else -> "${key}키" }, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(NoteNames.keyShiftText(key), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             KeyStep("+", enabled = key < ScoringConstants.KEY_SHIFT_MAX) { onKey(key + 1) }
         }

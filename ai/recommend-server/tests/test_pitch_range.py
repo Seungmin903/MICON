@@ -24,6 +24,7 @@ from timbre_recommender.pitch_range import (
     RANGE_CATALOG_FILENAME,
     RANGE_SCORING_VERSION,
     RangeCatalog,
+    _score_at_shift,
     canonical_json_sha256,
     score_range_fit,
 )
@@ -73,12 +74,12 @@ def _manual_profile(
 
 class PitchProfileTestCase(unittest.TestCase):
     def test_key_shift_contract_matches_playable_accompaniment_range(self) -> None:
-        self.assertEqual(KEY_SHIFT_MIN, -6)
-        self.assertEqual(KEY_SHIFT_MAX, 5)
-        self.assertEqual(KEY_SHIFT_BOUNDS, (-6, 5))
-        self.assertEqual(KEY_SHIFTS, tuple(range(-6, 6)))
-        self.assertEqual(len(KEY_SHIFTS), 12)
-        self.assertNotIn(6, KEY_SHIFTS)
+        self.assertEqual(KEY_SHIFT_MIN, -3)
+        self.assertEqual(KEY_SHIFT_MAX, 3)
+        self.assertEqual(KEY_SHIFT_BOUNDS, (-3, 3))
+        self.assertEqual(KEY_SHIFTS, tuple(range(-3, 4)))
+        self.assertEqual(len(KEY_SHIFTS), 7)
+        self.assertNotIn(4, KEY_SHIFTS)
 
     def test_summary_uses_duration_weighted_core_range_and_normalized_histogram(self) -> None:
         notes = [
@@ -97,36 +98,47 @@ class PitchProfileTestCase(unittest.TestCase):
         query = _profile([60, 61, 62, 63, 64])
         candidate = _profile([65, 66, 67, 68, 69])
         match = score_range_fit(query, candidate)
-        self.assertEqual(match["keyShift"], -5)
+        self.assertEqual(match["keyShift"], -3)
         self.assertGreater(match["coverage"], 0.99)
         self.assertGreater(match["softFit"], 0.98)
 
-    def test_ideal_positive_six_shift_is_limited_to_positive_five(self) -> None:
+    def test_ideal_positive_six_shift_is_limited_to_positive_three(self) -> None:
         query = _manual_profile({66: 1.0}, core_low=66, median=66, core_high=66)
         candidate = _manual_profile({60: 1.0}, core_low=60, median=60, core_high=60)
 
         match = score_range_fit(query, candidate)
 
-        self.assertEqual(match["keyShift"], 5)
-        self.assertNotEqual(match["keyShift"], 6)
+        self.assertEqual(match["keyShift"], 3)
+        self.assertNotEqual(match["keyShift"], 4)
 
-    def test_guided_range_profile_ignores_center_and_prefers_smallest_shift(self) -> None:
+    def test_guided_range_profile_ignores_center_and_prefers_first_covered_shift(self) -> None:
         # 앱 음역 측정 프로파일의 median 은 (하한+상한)//2 라 "주로 부르는 높이"가 아니다.
-        # 곡 core 58–74(median 68), 사용자 창 54–71(중점 62): 중심음 맞추기는 -6 을 고르지만
-        # -1 부터 -6 까지 전부 창 안에 들어가므로(초과 0) 가장 적게 옮기는 -1 이 맞다.
+        # 곡 core 58–74(median 68), 사용자 창 54–71(중점 62): 중심음 맞추기는 범위 끝 -3을 고르지만
+        # -1부터 이미 전부 창 안에 들어가므로 98%를 처음 만족하는 -1이 맞다.
         candidate = _manual_profile({m: 1.0 for m in range(58, 75)}, core_low=58, median=68, core_high=74)
         guided = _manual_profile({m: 1.0 for m in range(54, 72)}, core_low=54, median=62, core_high=71)
         guided["profileKind"] = "guided_range_measurement"
         observed = dict(guided, profileKind="observed_user_sample")
 
-        self.assertEqual(score_range_fit(observed, candidate)["keyShift"], -6)   # 노래에서 뽑은 프로파일: 기존 동작 유지
+        self.assertEqual(score_range_fit(observed, candidate)["keyShift"], -3)   # 노래에서 뽑은 프로파일: 범위 안 중심 맞춤
         self.assertEqual(score_range_fit(observed, candidate)["keyShiftPolicy"], "center-match-v2")
 
         match = score_range_fit(guided, candidate)
         self.assertEqual(match["keyShift"], -1)
         self.assertEqual(match["totalCoreExcessSemitones"], 0)
         self.assertGreater(match["coverage"], 0.99)
-        self.assertEqual(match["keyShiftPolicy"], "guided-min-shift-v1")
+        self.assertEqual(match["keyShiftPolicy"], "guided-first-98-v2")
+
+    def test_guided_range_chooses_first_shift_reaching_ninety_eight_percent(self) -> None:
+        guided = _manual_profile({m: 1.0 for m in range(60, 65)}, core_low=60, median=62, core_high=64)
+        guided["profileKind"] = "guided_range_measurement"
+        candidate = _manual_profile({m: 1.0 for m in range(56, 65)}, core_low=56, median=60, core_high=64)
+
+        match = score_range_fit(guided, candidate)
+
+        self.assertEqual(match["keyShift"], 2)
+        self.assertGreaterEqual(match["coverage"], 0.98)
+        self.assertLess(_score_at_shift(guided, candidate, 1)["coverage"], 0.98)
 
     def test_low_cross_model_agreement_marks_profile_unreliable(self) -> None:
         profile = summarize_pitch_profile(
