@@ -2,6 +2,7 @@ import json
 import sys
 import tempfile
 import time
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
@@ -54,6 +55,31 @@ class OwnershipTest(unittest.TestCase):
         self.assertNotIn("private", json.dumps(result))
         resolver.enrich([self.row()])
         self.assertEqual(lookup.call_count, 3)
+
+    def test_background_owner_lookup_never_blocks_request_list(self):
+        started, release = threading.Event(), threading.Event()
+
+        def delayed_lookup(rows):
+            started.set()
+            release.wait(1)
+            return [self.owner()]
+
+        resolver = OwnerResolver(delayed_lookup, background=True)
+        began = time.monotonic()
+        first = resolver.enrich([self.row()])[0]
+        self.assertLess(time.monotonic() - began, .2)
+        self.assertTrue(started.wait(.2))
+        self.assertEqual(first["ownerStatus"], "loading")
+        self.assertIsNone(first["loginId"])
+
+        release.set()
+        deadline = time.monotonic() + 1
+        result = resolver.enrich([self.row()])[0]
+        while result["ownerStatus"] == "loading" and time.monotonic() < deadline:
+            time.sleep(.01)
+            result = resolver.enrich([self.row()])[0]
+        self.assertEqual(result["ownerStatus"], "verified")
+        self.assertEqual(result["loginId"], "singer-test@example.test")
 
     def test_conflicting_owner_session_and_profile_hidden(self):
         for owners in [

@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = {requests: [], map: [], shown: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false, pendingAutoRun: false, autoTimer: null, genres: new Set(), catalogGenres: [], defaults: null, composition: {}};
+const state = {requests: [], map: [], shown: new Set(), pointLoading: new Set(), selected: '', inspected: '', artist: null, result: null, tab: 'baseline', epoch: 0, jobEpoch: 0, busy: false, pendingAutoRun: false, autoTimer: null, genres: new Set(), catalogGenres: [], defaults: null, composition: {}};
 const models = ['ecapa', 'singer_byol'];
 const settingIds = ['ecapaWeight','centroidWeight','timbreWeight','maxKeyShift','maxOutsideRangeRatio','maxCoreExcess','minRangeScore','minProfileConfidence','topK','genrePushdown'];
 function el(tag, text, cls) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if(cls) n.className = cls; return n; }
@@ -32,9 +32,16 @@ function refreshRequestList() {
   for(const r of filtered) {
     const card = el('div', undefined, 'request-card' + (state.selected===r.id?' selected':''));
     card.tabIndex=0; card.setAttribute('role','button'); card.dataset.userId=r.userId || ''; card.dataset.ownerStatus=r.ownerStatus || '';
-    const head = el('div',undefined,'request-head'); const check = el('input'); check.type='checkbox'; check.checked=state.shown.has(r.id); check.disabled=!r.points; check.setAttribute('aria-label',`${r.id} 지도에 표시`);
-    check.title = r.replayReason || '지도에 표시';
-    check.onclick = e=>e.stopPropagation(); check.onchange=()=>{check.checked?state.shown.add(r.id):state.shown.delete(r.id); drawMaps();};
+    const head = el('div',undefined,'request-head'); const check = el('input'); check.type='checkbox'; check.checked=state.shown.has(r.id); check.disabled=!r.replayAvailable||state.pointLoading.has(r.id); check.setAttribute('aria-label',`${r.id} 지도에 표시`);
+    check.title = r.replayReason || (r.points?'지도에서 숨기기':'지도 좌표 불러오기');
+    check.onclick = e=>e.stopPropagation(); check.onchange=async()=>{
+      if(!check.checked){state.shown.delete(r.id);drawMaps();return;}
+      if(r.points){state.shown.add(r.id);drawMaps();return;}
+      state.pointLoading.add(r.id);refreshRequestList();
+      try{const body=await api('api/requests/'+encodeURIComponent(r.id)+'/points');const current=state.requests.find(item=>item.id===r.id);if(current)current.points=body.points;state.shown.add(r.id);}
+      catch(e){state.shown.delete(r.id);error('지도 표시: '+e.message);}
+      finally{state.pointLoading.delete(r.id);refreshRequestList();drawMaps();}
+    };
     head.append(check, el('strong',r.title || `${r.analysisType || '추천'} · ${r.sessionId ? 'S'+r.sessionId : r.profileId ? 'P'+r.profileId : r.kind}`));
     const owner=el('div',ownerText(r),r.loginId?'request-owner':'muted'); owner.title=r.ownerReason || '';
     card.append(head,owner,el('div',r.id,'request-id'),badge(r.status));
@@ -52,7 +59,8 @@ async function refreshRequests() {
   if(polling)return; polling=true;
   try {
     const body=await api('api/requests');
-    state.requests=body.requests;
+    const savedPoints=new Map(state.requests.filter(r=>r.points).map(r=>[r.id,r.points]));
+    state.requests=body.requests.map(r=>savedPoints.has(r.id)?{...r,points:savedPoints.get(r.id)}:r);
     const current=state.requests.find(r=>r.id===state.inspected);
     // Artist callbacks/DB results can change while this AI job stays COMPLETED.
     if(current&&current.kind!=='case')inspectJob(state.inspected,true);

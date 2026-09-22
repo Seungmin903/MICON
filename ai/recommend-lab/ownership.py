@@ -105,10 +105,11 @@ class SnapshotLookup:
 
 
 class OwnerResolver:
-    def __init__(self, lookup=None, ttl=30, clock=time.monotonic):
-        self.lookup, self.ttl, self.clock = lookup, ttl, clock
+    def __init__(self, lookup=None, ttl=30, clock=time.monotonic, background=False):
+        self.lookup, self.ttl, self.clock, self.background = lookup, ttl, clock, background
         self.cache = {}
         self.lock = threading.Lock()
+        self.inflight = set()
 
     @classmethod
     def from_config(cls, cfg):
@@ -116,30 +117,51 @@ class OwnerResolver:
         if target or key:
             if not (target and key):
                 raise ValueError("LAB_OWNER_SSH_TARGET과 LAB_OWNER_SSH_KEY가 모두 필요합니다.")
-            return cls(SshMysqlLookup(target, key, cfg.get("LAB_OWNER_SSH_BIN")))
+            # 회원 ID 표시는 부가 정보다. SSH가 끊겨도 요청 목록 자체는 즉시 보여야 한다.
+            return cls(SshMysqlLookup(target, key, cfg.get("LAB_OWNER_SSH_BIN")), background=True)
         return cls(SnapshotLookup(cfg["LAB_OWNER_MAP"]) if cfg.get("LAB_OWNER_MAP") else None)
+
+    def _lookup(self, pending):
+        try:
+            found = self.lookup(list(pending.values()))
+            if not isinstance(found, list):
+                raise ValueError("회원 연결 조회 형식 오류")
+            grouped = {key: [] for key in pending}
+            for owner in found:
+                if isinstance(owner, dict) and job_key(owner) in grouped and owner.get("source") in SOURCES and numeric_id(owner.get("userId")):
+                    grouped[job_key(owner)].append(owner)
+            return {key: (self.clock(), "verified" if owners else "not-found", owners) for key, owners in grouped.items()}
+        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError):
+            return {key: (self.clock(), "unavailable", []) for key in pending}
+
+    def _finish_lookup(self, pending):
+        result = self._lookup(pending)
+        with self.lock:
+            self.cache.update(result)
+            self.inflight.difference_update(pending)
 
     def enrich(self, rows):
         with self.lock:
             now = self.clock()
             pending = {job_key(r): r for r in rows if job_key(r) and (job_key(r) not in self.cache or now - self.cache[job_key(r)][0] >= self.ttl)}
-            if pending and self.lookup:
-                try:
-                    found = self.lookup(list(pending.values()))
-                    if not isinstance(found, list):
-                        raise ValueError("회원 연결 조회 형식 오류")
-                    grouped = {key: [] for key in pending}
-                    for owner in found:
-                        if isinstance(owner, dict) and job_key(owner) in grouped and owner.get("source") in SOURCES and numeric_id(owner.get("userId")):
-                            grouped[job_key(owner)].append(owner)
-                    self.cache.update({key: (self.clock(), "verified" if owners else "not-found", owners) for key, owners in grouped.items()})
-                except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError):
-                    self.cache.update({key: (self.clock(), "unavailable", []) for key in pending})
+            to_start = {key: row for key, row in pending.items() if key not in self.inflight}
+            if self.background and to_start and self.lookup:
+                self.inflight.update(to_start)
+        if pending and self.lookup:
+            if self.background:
+                if to_start:
+                    threading.Thread(target=self._finish_lookup, args=(to_start,), daemon=True).start()
+            else:
+                self._finish_lookup(pending)
+        with self.lock:
+            now = self.clock()
             if len(self.cache) > 2000:
                 self.cache = dict(sorted(self.cache.items(), key=lambda kv: kv[1][0], reverse=True)[:1000])
             for row in rows:
                 key = job_key(row)
-                _, status, owners = self.cache.get(key, (now, "not-configured" if key else "not-applicable", []))
+                cached = self.cache.get(key)
+                refreshing = key in self.inflight and (cached is None or now - cached[0] >= self.ttl)
+                _, status, owners = (now, "loading", []) if refreshing else (cached or (now, "not-configured" if key else "not-applicable", []))
                 users = {numeric_id(o["userId"]) for o in owners}
                 logins = {login_identifier(o.get("loginId")) for o in owners} - {None}
                 sessions = {numeric_id(o.get("sessionId")) for o in owners} - {None}
@@ -158,6 +180,7 @@ class OwnerResolver:
                     "verified": "백엔드 job-id 연결 확인",
                     "not-found": "백엔드에 이 job-id의 회원 연결이 없습니다. 삭제되거나 보존되지 않은 기록일 수 있습니다.",
                     "unavailable": "회원 연결을 조회하지 못했습니다. DB 연결 또는 snapshot 유효 기간을 확인해 주세요.",
+                    "loading": "회원 연결을 조회 중입니다. 목록은 계속 볼 수 있습니다.",
                     "not-configured": "회원 연결 데이터 소스가 설정되지 않았습니다.",
                     "not-applicable": "저장 테스트 case입니다. 실제 회원 접수 job이 아닙니다.",
                     "conflict": "job-id의 회원 또는 session/profile 연결이 충돌하여 표시하지 않습니다.",

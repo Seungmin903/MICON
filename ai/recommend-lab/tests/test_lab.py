@@ -36,7 +36,7 @@ class LabTest(unittest.TestCase):
         cls.temp.cleanup()
 
     def test_auth_required_for_page_assets_and_data(self):
-        for path in ["/", "/static/app.js", "/api/status", "/api/map", "/api/requests", "/api/jobs/job_demo_failed"]:
+        for path in ["/", "/static/app.js", "/api/status", "/api/map", "/api/requests", "/api/requests/case_demo/points", "/api/jobs/job_demo_failed"]:
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 401)
                 self.assertEqual(self.client.get(path, auth=self.auth).status_code, 200)
@@ -109,6 +109,26 @@ class LabTest(unittest.TestCase):
         self.assertEqual(j["reasonSource"], "recorded")
         self.assertEqual(len(j["metadataChecks"]), 1)
         self.assertFalse(j["replayAvailable"])
+
+    def test_request_list_defers_projection_until_map_selection(self):
+        original = self.engine.project
+        calls = []
+
+        def project(query):
+            calls.append(query)
+            return original(query)
+
+        self.engine.project = project
+        try:
+            listed = self.client.get("/api/requests", auth=self.auth)
+            self.assertEqual(listed.status_code, 200)
+            self.assertEqual(calls, [])
+            projected = self.client.get("/api/requests/case_demo/points", auth=self.auth)
+            self.assertEqual(projected.status_code, 200)
+            self.assertEqual(len(calls), 1)
+            self.assertIn("ecapa", projected.json()["points"])
+        finally:
+            self.engine.project = original
 
     def test_expired_reason_not_fabricated(self):
         path = self.root / "analysis/job_demo_failed/callback.RANGE.json"

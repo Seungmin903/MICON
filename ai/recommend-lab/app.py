@@ -138,18 +138,22 @@ def create_app(config=None, engine=None, repository=None):
 
     @app.get("/api/requests", dependencies=[Depends(auth)])
     def requests():
-        rows = repo.list()
-        for row in rows:
-            if row.get("replayAvailable") and engine:
-                try:
-                    case = repo.case(row["id"])
-                    if case.get("catalogFingerprint") and case["catalogFingerprint"] != engine.fingerprint:
-                        raise ValueError("카탈로그 fingerprint 불일치")
-                    row["points"] = engine.project(case["query"])
-                except (ValueError, OSError, KeyError, TypeError):
-                    row["replayAvailable"] = False
-                    row["replayReason"] = "입력이 만료됐거나 분석 벡터 검증에 실패했습니다. 저장 case가 필요합니다."
-        return {"requests": rows, "pollSeconds": 10, "scope": "설정된 읽기 전용 데이터 소스"}
+        # 목록 polling마다 모든 과거 입력을 PCA 투영하면 응답이 수십 초 걸릴 수 있다.
+        # 지도에 체크한 단일 요청만 아래 points endpoint에서 지연 계산한다.
+        return {"requests": repo.list(), "pollSeconds": 10, "scope": "설정된 읽기 전용 데이터 소스"}
+
+    @app.get("/api/requests/{request_id}/points", dependencies=[Depends(auth)])
+    def request_points(request_id: str):
+        try:
+            case = repo.case(request_id)
+            eng = ready()
+            if case.get("catalogFingerprint") and case["catalogFingerprint"] != eng.fingerprint:
+                raise ValueError("카탈로그 fingerprint 불일치")
+            return {"requestId": request_id, "points": eng.project(case["query"])}
+        except KeyError:
+            raise HTTPException(404, "설정된 데이터 소스에서 찾을 수 없습니다. job-id 또는 데이터 소스를 확인해 주세요.")
+        except (ValueError, OSError, TypeError):
+            raise HTTPException(422, "입력이 만료됐거나 분석 벡터 검증에 실패했습니다. 저장 case가 필요합니다.")
 
     @app.get("/api/jobs/{job_id}", dependencies=[Depends(auth)])
     def job(job_id: str):
