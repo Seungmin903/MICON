@@ -65,10 +65,10 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void filtersSongsByGenre() {
-		List<SongResponse.Summary> songs = repository.findPage("", 20, 0, null, 22L);
+		List<SongResponse.Summary> songs = repository.findGenrePage(22L, 20, 0, null);
 
 		assertThat(songs).extracting(SongResponse.Summary::title).containsExactly("밤편지");
-		assertThat(repository.count("", 22L)).isEqualTo(1);
+		assertThat(repository.countGenre(22L)).isEqualTo(1);
 	}
 
 	@Test
@@ -81,8 +81,14 @@ class SongQueryRepositoryTest {
 
 	@Test
 	void returnsNoSongsForAnUnknownGenre() {
-		assertThat(repository.findPage("", 20, 0, null, 999L)).isEmpty();
-		assertThat(repository.count("", 999L)).isZero();
+		assertThat(repository.findGenrePage(999L, 20, 0, null)).isEmpty();
+		assertThat(repository.countGenre(999L)).isZero();
+	}
+
+	@Test
+	void preservesPreferredGenreOrderingForGenreFilter() {
+		assertThat(repository.findGenrePage(21L, 20, 0, 30L)).extracting(SongResponse.Summary::title)
+			.containsExactly("좋은 날");
 	}
 
 	@Test

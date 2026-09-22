@@ -15,29 +15,50 @@ import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.PracticeAssetsDto
 import com.micon.app.data.backend.dto.SongDetailDto
 import com.micon.app.data.backend.dto.SongSummaryDto
+import com.micon.app.core.auth.TokenManager
 import retrofit2.Response
 import kotlin.math.roundToInt
+import java.util.concurrent.ConcurrentHashMap
 
 /** 백엔드가 4xx/5xx 로 거절한 요청. [code] 는 `ApiResponse.code`(예 SONG_NOT_FOUND), 본문이 없으면 null. */
 class BackendRequestException(val status: Int, val code: String?, message: String) : Exception(message)
 
 /** 곡 카탈로그의 백엔드 구현. 경로는 `/api/v1/` 기준 상대 경로([BackendApi]). */
 class RemoteSongRepository(private val api: BackendApi) : SongRepository {
+    private data class SearchKey(val userId: Long, val query: String, val genreId: Long?, val size: Int)
+    private val firstPages = ConcurrentHashMap<SearchKey, SongPage>()
+    @Volatile private var cachedUserId: Long? = null
 
     override suspend fun search(query: String, page: Int, size: Int): SongPage =
         search(query, page, size, null)
 
     override suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage {
+        val normalizedQuery = query.trim()
+        val normalizedPage = page.coerceAtLeast(0)
+        val normalizedSize = size.coerceIn(1, 100)
+        val userId = TokenManager.getUserId()
+        if (cachedUserId != userId) {
+            firstPages.clear()
+            cachedUserId = userId
+        }
+        val key = SearchKey(userId, normalizedQuery.lowercase(), genreId, normalizedSize)
+        if (normalizedPage == 0) firstPages[key]?.let { return it }
         val body = api.songs(
-            query = query.trim(),
+            query = normalizedQuery,
             genreId = genreId,
-            page = page.coerceAtLeast(0),
-            size = size.coerceIn(1, 100),
+            page = normalizedPage,
+            size = normalizedSize,
         ).unwrapData()
-        return SongPage(
+        val result = SongPage(
             items = body.content.map { it.toSummary() },
             page = body.page, size = body.size, totalElements = body.totalElements, totalPages = body.totalPages,
         )
+        if (normalizedPage == 0) firstPages[key] = result
+        return result
+    }
+
+    override fun invalidateSearchCache(query: String, size: Int, genreId: Long?) {
+        firstPages.remove(SearchKey(TokenManager.getUserId(), query.trim().lowercase(), genreId, size.coerceIn(1, 100)))
     }
 
     override suspend fun detail(songId: String): SongDetail? {

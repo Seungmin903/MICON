@@ -18,6 +18,9 @@ interface SongRepository {
     suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage =
         search(query, page, size)
 
+    /** 앱 수명 캐시를 가진 구현체가 수동 새로고침 때 해당 첫 페이지를 비운다. */
+    fun invalidateSearchCache(query: String, size: Int, genreId: Long?) = Unit
+
     /** 곡 상세. 없는 곡(404)은 null. */
     suspend fun detail(songId: String): SongDetail?
 
