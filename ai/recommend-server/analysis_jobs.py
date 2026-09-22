@@ -31,10 +31,16 @@ import soundfile as sf
 from mr_detection import detect_mr_suspected
 from recommendation_api import _configuration_status, _replace_with_retry
 from separation import separate
-from timbre_recommender.embedding import embed_vocal_audio
+from runtime_info import build_sha
+from timbre_recommender.embedding import (
+    ANALYSIS_SAMPLE_RATE,
+    WINDOW_SAMPLES,
+    VocalEmbeddingRuntime,
+    embed_vocal_audio,
+)
 
 
-log = logging.getLogger("analysis_jobs")
+log = logging.getLogger("uvicorn.error").getChild("analysis_jobs")
 ROOT = Path(__file__).resolve().parent
 ANALYSIS_DIR = ROOT / "workspace" / "analysis"
 MAX_BYTES = 64 * 1024 * 1024
@@ -49,6 +55,10 @@ DELIVERY_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}          # jobId → job
 REQUESTS: dict[str, str] = {}                 # requestId → jobId
 _slots: threading.BoundedSemaphore | None = None
+_runtime_lock = threading.Lock()
+_timbre_runtime: VocalEmbeddingRuntime | None = None
+_timbre_runtime_key: tuple[str, str, str, str, int, bool] | None = None
+_timbre_runtime_warmed = False
 router = APIRouter(tags=["voice-analysis-jobs"])
 
 
@@ -57,6 +67,13 @@ def _env_int(name: str, default: int) -> int:
         return max(1, int(os.environ.get(name, "") or default))
     except ValueError:
         return default
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _now() -> datetime:
@@ -80,6 +97,68 @@ def _slot() -> threading.BoundedSemaphore:
         if _slots is None:
             _slots = threading.BoundedSemaphore(_env_int("RECOMMEND_CONCURRENCY", 1))
     return _slots
+
+
+def _runtime_key(config: dict[str, Any]) -> tuple[str, str, str, str, int, bool]:
+    return (
+        str(Path(config["ecapa_checkpoint"]).resolve()),
+        str(Path(config["singer_repo"]).resolve()),
+        str(Path(config["singer_checkpoint_root"]).resolve()),
+        str(config.get("device", "auto")),
+        8,
+        _env_bool("RECOMMEND_EMBEDDING_OFFLOAD", False),
+    )
+
+
+def get_timbre_runtime(config: dict[str, Any]) -> VocalEmbeddingRuntime:
+    """Return the process-wide model runtime instead of loading both models per request."""
+    global _timbre_runtime, _timbre_runtime_key
+    key = _runtime_key(config)
+    with _runtime_lock:
+        if _timbre_runtime is None or _timbre_runtime_key != key:
+            started = time.perf_counter()
+            _timbre_runtime = VocalEmbeddingRuntime(
+                ecapa_checkpoint=key[0], singer_repo=key[1], singer_checkpoint_root=key[2],
+                device=key[3], batch_size=key[4], offload_after_embed=key[5],
+            )
+            _timbre_runtime_key = key
+            log.info(
+                "event=timbre_runtime_loaded build_sha=%s device=%s offload=%s duration_ms=%d",
+                build_sha(), _timbre_runtime.device, key[5],
+                round((time.perf_counter() - started) * 1000),
+            )
+        return _timbre_runtime
+
+
+def preload_timbre_runtime() -> dict[str, Any]:
+    """Load and warm models before the first request when the model config is available."""
+    global _timbre_runtime_warmed
+    config, missing = _configuration_status()
+    model_missing = [name for name in missing if "카탈로그" not in name]
+    if model_missing:
+        log.warning("timbre runtime preload skipped: %s", ", ".join(model_missing))
+        return {"loaded": False, "warmed": False, "missing": model_missing}
+    runtime = get_timbre_runtime(config)
+    if not _timbre_runtime_warmed:
+        started = time.perf_counter()
+        seconds = np.arange(WINDOW_SAMPLES, dtype=np.float32) / ANALYSIS_SAMPLE_RATE
+        warmup = (0.05 * np.sin(2 * np.pi * 220 * seconds)).reshape(1, -1)
+        runtime.embed_windows(warmup)
+        _timbre_runtime_warmed = True
+        log.info(
+            "event=timbre_runtime_warmed build_sha=%s device=%s duration_ms=%d",
+            build_sha(), runtime.device, round((time.perf_counter() - started) * 1000),
+        )
+    return {"loaded": True, "warmed": _timbre_runtime_warmed, "device": runtime.device}
+
+
+def timbre_runtime_status() -> dict[str, Any]:
+    runtime = _timbre_runtime
+    return {
+        "loaded": runtime is not None,
+        "warmed": _timbre_runtime_warmed,
+        "device": runtime.device if runtime is not None else None,
+    }
 
 
 def _save(job: dict[str, Any]) -> None:
@@ -204,6 +283,7 @@ def _ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, An
     job = {
         "jobId": job_id, "requestId": request_id, "analysisId": meta.get("analysisId"), "meta": meta,
         "files": stored, "audioSha256": audio_sha, "status": "QUEUED",
+        "serverBuildSha": build_sha(),
         "components": {c: {"status": "PENDING", "accepted": False} for c in components},
         "createdAt": _iso(created), "updatedAt": _iso(created),
         "audioExpiresAt": _iso(hard), "hardExpiresAt": _iso(hard), "softExpiresAt": None, "audioDeleted": False,
@@ -257,6 +337,12 @@ async def create_job(request: Request, background_tasks: BackgroundTasks) -> dic
     if not os.environ.get("MICON_BE_CALLBACK_URL", "").strip():
         raise HTTPException(503, "BE callback URL이 설정되지 않았습니다.")
     response, should_run = ingest(files, meta)
+    log.info(
+        "event=voice_analysis_ai_accepted build_sha=%s request_id=%s session_id=%s analysis_id=%s "
+        "ai_job_id=%s duplicate=%s",
+        build_sha(), meta.get("requestId"), meta.get("sessionId"), meta.get("analysisId"),
+        response["jobId"], not should_run,
+    )
     if should_run:
         background_tasks.add_task(process, response["jobId"])
     elif JOBS[response["jobId"]]["status"] == "CALLBACK_PENDING":
@@ -336,7 +422,7 @@ def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, me
     for component in job["components"]:
         key, dimension = COMPONENT_MODELS[component]
         rows = matrices[key].astype(np.float64)
-        if rows.ndim != 2 or rows.shape != (len(segments), dimension) or not 1 <= len(rows) <= 12:
+        if rows.ndim != 2 or rows.shape != (len(segments), dimension) or not 5 <= len(rows) <= 12:
             raise ValueError("Invalid embedding dimensions or segment count")
         if not np.isfinite(rows).all() or np.any(np.linalg.norm(rows, axis=1) < 1e-12):
             raise ValueError("Embeddings must be finite and nonzero")
@@ -354,6 +440,7 @@ def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, me
             "segmentInfo": {
                 "segmentDurationSeconds": metadata["window_seconds"],
                 "segmentCount": len(segments),
+                "validChunkCount": len(segments),
                 "startTimes": [round(s["start_seconds"], 3) for s in segments],
                 "embeddings": [[round(float(v), 7) for v in row] for row in rows],
             },
@@ -369,10 +456,23 @@ def _failure_callback(job: dict[str, Any], component: str, status: str, code: st
             "failureCode": code, "failureReason": reason[:1000], "processedAt": _iso(_now())}
 
 
+def _log_callback_failure(payload: dict[str, Any], result: dict[str, Any], *, retrying: bool) -> None:
+    """Persisted callback state is overwritten by later rounds, so log every failed delivery."""
+    log.warning(
+        "event=voice_callback_delivery_%s build_sha=%s ai_job_id=%s component=%s attempt=%s "
+        "http=%s error=%s",
+        "retrying" if retrying else "failed", build_sha(), payload.get("jobId"),
+        payload.get("component"), result["attempts"], result["http"],
+        json.dumps((result.get("error") or "")[:500], ensure_ascii=False),
+    )
+
+
 def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
     """콜백 1건. 5xx·연결 오류·타임아웃은 3회 재시도, 4xx 는 즉시 중단. 결과 {http, attempts, accepted}."""
     url = os.environ.get("MICON_BE_CALLBACK_URL", "").strip()
     if not url:
+        log.warning("callback skipped job=%s component=%s: MICON_BE_CALLBACK_URL 미설정",
+                    payload.get("jobId"), payload.get("component"))
         return {"http": None, "attempts": 0, "accepted": False, "skipped": "MICON_BE_CALLBACK_URL 미설정"}
     headers = {"Content-Type": "application/json"}
     token = os.environ.get("AI_SERVICE_TOKEN", "").strip()
@@ -388,13 +488,32 @@ def post_callback(payload: dict[str, Any]) -> dict[str, Any]:
                 return last
         except urllib.error.HTTPError as error:
             last["http"] = error.code
+            last["error"] = error.read(500).decode("utf-8", "replace")
             if error.code < 500:
-                last["error"] = error.read(500).decode("utf-8", "replace")
+                _log_callback_failure(payload, last, retrying=False)
                 return last
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             last["error"] = str(error)[:200]
-        time.sleep(2 ** (attempt - 1))
+        _log_callback_failure(payload, last, retrying=attempt < 3)
+        if attempt < 3:
+            time.sleep(2 ** (attempt - 1))
     return last
+
+
+def _upgrade_callback_payload(payload: dict[str, Any]) -> bool:
+    """Upgrade persisted pre-contract TIMBRE callbacks without recomputing embeddings."""
+    if payload.get("status") != "COMPLETED" or payload.get("component") not in COMPONENT_MODELS:
+        return False
+    segment_info = payload.get("segmentInfo")
+    if not isinstance(segment_info, dict) or "validChunkCount" in segment_info:
+        return False
+    embeddings = segment_info.get("embeddings")
+    segment_count = segment_info.get("segmentCount")
+    if (not isinstance(embeddings, list) or not isinstance(segment_count, int)
+            or segment_count != len(embeddings) or not 5 <= segment_count <= 12):
+        return False
+    segment_info["validChunkCount"] = segment_count
+    return True
 
 
 def _timbre_part(job: dict[str, Any]) -> str:
@@ -429,8 +548,21 @@ def process(job_id: str) -> None:
     prefix = job_dir / "query"
     pending = [c for c, state in job["components"].items() if not state["accepted"]]
     callbacks: dict[str, dict[str, Any]] = {}
+    slot_started = time.perf_counter()
+    slot_wait_ms = 0.0
+    inference_started: float | None = None
     try:
         with _slot():
+            slot_wait_ms = round((time.perf_counter() - slot_started) * 1000, 1)
+            inference_started = time.perf_counter()
+            log.info(
+                "event=voice_analysis_ai_started build_sha=%s request_id=%s session_id=%s "
+                "analysis_id=%s ai_job_id=%s queue_wait_ms=%d slot_wait_ms=%.1f",
+                build_sha(), job["requestId"], job["meta"].get("sessionId"), job.get("analysisId"),
+                job_id,
+                max(0, round((datetime.now() - datetime.fromisoformat(job["createdAt"])).total_seconds() * 1000)),
+                slot_wait_ms,
+            )
             if JOBS[job_id]["status"] == "CANCELED":
                 _delete_audio(job_id)
                 return
@@ -459,7 +591,19 @@ def process(job_id: str) -> None:
         _replace_with_retry(temporary, payload_file)
         components[component] = {"status": payload["status"], "accepted": False,
                                  "failureCode": payload["failureCode"], "processedAt": payload["processedAt"]}
+    performance = dict(JOBS[job_id].get("performance") or {})
+    performance.update(
+        slotWaitMs=slot_wait_ms,
+        inferenceMs=round((time.perf_counter() - (inference_started or slot_started)) * 1000, 1),
+    )
+    _update(job_id, performance=performance)
     _finish(job_id, components)
+    log.info(
+        "event=voice_analysis_ai_computed build_sha=%s request_id=%s session_id=%s analysis_id=%s "
+        "ai_job_id=%s slot_wait_ms=%.1f inference_ms=%.1f component_status=%s",
+        build_sha(), job["requestId"], job["meta"].get("sessionId"), job.get("analysisId"), job_id,
+        slot_wait_ms, performance["inferenceMs"], JOBS[job_id].get("componentStatus"),
+    )
     deliver_callbacks(job_id)
 
 
@@ -488,13 +632,19 @@ def _finish(job_id: str, components: dict[str, Any]) -> None:
 
 
 def _timbre_callbacks(job, audio, prefix, config):
+    started = time.perf_counter()
+    timings: dict[str, Any] = {}
     _limit_torch_threads()
+    stage = time.perf_counter()
     detection = detect_mr_suspected(audio)
+    timings["mrDetectionMs"] = round((time.perf_counter() - stage) * 1000, 1)
     embedding_audio = audio
     preprocessing_version = "raw-clean-v1"
+    timings["separationMs"] = 0.0
     if detection["requiresSeparation"]:
         root = ANALYSIS_DIR / job["jobId"]
         separation_input = root / "separation-input.wav"
+        stage = time.perf_counter()
         try:
             _prepare_separation_input(audio, separation_input)
             vocals, _, separation_info = separate(
@@ -510,18 +660,36 @@ def _timbre_callbacks(job, audio, prefix, config):
             detection["embeddingInput"] = "separated-vocals"
             embedding_audio = vocals
             preprocessing_version = "sep-melband-kim-v1"
+        timings["separationMs"] = round((time.perf_counter() - stage) * 1000, 1)
     else:
         detection["embeddingInput"] = "raw-recording"
     detection["preprocessingVersion"] = preprocessing_version
     _update(job["jobId"], mrDetection=detection)
+    stage = time.perf_counter()
+    runtime = get_timbre_runtime(config)
+    timings["runtimeAcquireMs"] = round((time.perf_counter() - stage) * 1000, 1)
     metadata = embed_vocal_audio(
         embedding_audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
         singer_checkpoint_root=config["singer_checkpoint_root"], device=config.get("device", "auto"),
-        batch_size=8, max_segments=12, min_segments=5, force=True,
+        batch_size=8, max_segments=12, min_segments=5, force=True, runtime=runtime, timings=timings,
     )
-    return build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
-                           np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata,
-                           preprocessing_version)
+    callbacks = build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
+                                np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata,
+                                preprocessing_version)
+    timings["totalMs"] = round((time.perf_counter() - started) * 1000, 1)
+    timings["device"] = runtime.device
+    timings["usedSeparation"] = detection["requiresSeparation"]
+    _update(job["jobId"], performance=timings)
+    log.info(
+        "event=voice_analysis_ai_profile build_sha=%s ai_job_id=%s device=%s segments=%s "
+        "mr_detection_ms=%s separation_ms=%s runtime_acquire_ms=%s segmentation_ms=%s "
+        "ecapa_ms=%s singer_byol_ms=%s artifact_write_ms=%s total_ms=%s",
+        build_sha(), job["jobId"], runtime.device, timings.get("segmentCount"),
+        timings.get("mrDetectionMs"), timings.get("separationMs"), timings.get("runtimeAcquireMs"),
+        timings.get("segmentationMs"), timings.get("ecapaMs"), timings.get("singerByolMs"),
+        timings.get("artifactWriteMs"), timings.get("totalMs"),
+    )
+    return callbacks
 
 
 def _range_callback(job, audio):
@@ -568,8 +736,36 @@ def deliver_callbacks(job_id: str) -> None:
             payload = ANALYSIS_DIR / job_id / f"callback.{component}.json"
             if state["accepted"] or not payload.is_file():
                 continue
-            result = post_callback(json.loads(payload.read_text(encoding="utf-8")))
+            body = json.loads(payload.read_text(encoding="utf-8"))
+            if _upgrade_callback_payload(body):
+                temporary = payload.with_suffix(".tmp")
+                temporary.write_text(json.dumps(body, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+                _replace_with_retry(temporary, payload)
+                log.info("event=voice_callback_payload_upgraded build_sha=%s ai_job_id=%s component=%s",
+                         build_sha(), job_id, component)
+            delivery_started = time.perf_counter()
+            result = post_callback(body)
+            duration_ms = round((time.perf_counter() - delivery_started) * 1000)
             state.update(accepted=result["accepted"], callback=result)
+            if not result["accepted"]:
+                state.update(
+                    callbackFailures=int(state.get("callbackFailures") or 0) + 1,
+                    lastCallbackFailure={
+                        "at": _iso(_now()), "http": result.get("http"), "attempts": result.get("attempts"),
+                        "error": result.get("error") or result.get("skipped"),
+                    },
+                )
+            elif state.get("callbackFailures"):
+                log.warning(
+                    "callback accepted after %s failed deliveries job=%s component=%s http=%s",
+                    state["callbackFailures"], job_id, component, result.get("http"),
+                )
+            log.info(
+                "event=voice_callback_delivery_finished build_sha=%s request_id=%s session_id=%s "
+                "analysis_id=%s ai_job_id=%s component=%s accepted=%s http=%s attempts=%s duration_ms=%s",
+                build_sha(), job["requestId"], job["meta"].get("sessionId"), job.get("analysisId"),
+                job_id, component, result["accepted"], result.get("http"), result.get("attempts"), duration_ms,
+            )
             _update(job_id, components=job["components"])
         _finish(job_id, job["components"])
         if job["status"] == "CALLBACK_PENDING" and not job.get("audioDeleted"):

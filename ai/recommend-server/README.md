@@ -26,6 +26,7 @@ powershell -ExecutionPolicy Bypass -File start.ps1   # 0.0.0.0:8788
 ```bash
 COMMIT_SHA="$(git rev-parse --short=12 HEAD)"
 export MICON_RECOMMENDATION_IMAGE="micon-recommendation:${COMMIT_SHA}"
+export MICON_BUILD_SHA="${COMMIT_SHA}"
 docker compose -f infra/compose/recommendation.compose.yml build micon-recommendation
 docker compose -f infra/compose/recommendation.compose.yml up -d --no-build micon-recommendation
 curl http://127.0.0.1:8788/health
@@ -44,7 +45,7 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 | 메서드·경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /health` | — | `{ok, service, version}` |
+| `GET /health` | — | `{ok, service, version, buildSha, timbreRuntime}`. 배포 커밋과 모델 preload 상태 확인 |
 | `GET /recommendations/status` | — | 카탈로그 곡 수·모델·누락 설정 |
 | `POST /recommendations` (202) | multipart `audio`(≤2분 보컬), `topK`(섹션당, ≤50), `mode=timbre\|range`, `sourceTrackId`, `genres`(반복, 온보딩 선호 장르), `preferredArtists`(반복, 온보딩 선호 가수) | job `{id, status, progress, message, genres, preferred_artists}` |
 | `GET /recommendations/{jobId}` | — | job. `status=complete` 면 `result.recommendations[]` |
@@ -54,12 +55,13 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 
 **BE 음성 분석 작업** (`analysis_jobs.py`): `TIMBRE`는 `ECAPA` + `SINGER_BYOL`, `RANGE`는 이미지에 포함된 `ai/vocal-scope/model-server/be_range_worker.py`를 별도 프로세스로 실행한다.
 접수 후 백그라운드에서 임베딩을 만들고 컴포넌트마다 `MICON_BE_CALLBACK_URL` 로 콜백 1건을 보낸다.
+ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로세스 수명 동안 재사용한다. `/health.timbreRuntime`과 작업의 `performance`에서 준비 상태와 단계별 시간을 확인한다.
 
 ```json
 { "requestId": "…", "jobId": "…", "component": "ECAPA", "attemptNo": 1,
   "status": "COMPLETED", "modelKey": "ECAPA", "modelVersion": "…", "dimension": 192,
   "embedding": [0.012],
-  "segmentInfo": { "segmentDurationSeconds": 4.0, "segmentCount": 12, "startTimes": [0.0], "embeddings": [[0.011]] },
+  "segmentInfo": { "segmentDurationSeconds": 4.0, "segmentCount": 12, "validChunkCount": 12, "startTimes": [0.0], "embeddings": [[0.011]] },
   "qualityMetrics": { "voicedDurationSeconds": 18.4, "clippingRatio": 0.001 },
   "failureCode": null, "failureReason": null, "processedAt": "2026-09-15T10:31:00" }
 ```
@@ -69,7 +71,9 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
 
 환경변수: `AI_SERVICE_TOKEN`(컨테이너에서는 secret 파일에서 필수 로드; 로컬에서 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_BASE_URL`(카탈로그 조회) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
-`RECOMMEND_CONCURRENCY=1` · `MICON_RANGE_MODEL_PYTHON`(선택) · `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
+`RECOMMEND_CONCURRENCY=1` · `RECOMMEND_EMBEDDING_OFFLOAD=false`(GPU가 작아 상주 모델을 매 작업 뒤 CPU로 내릴 때만 `true`) ·
+`MICON_BUILD_SHA`(배포 커밋; 로컬 시작 스크립트는 자동 설정) · `MICON_RANGE_MODEL_PYTHON`(선택) ·
+`RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
