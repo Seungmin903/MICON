@@ -53,14 +53,12 @@ import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
 import com.micon.app.ui.design.atoms.MiconChipTone
-import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
  * 곡 상세 — 프로토타입 `songDetail`. "이 곡을 내가 부를 수 있나"에 한 화면으로 답한다.
@@ -128,23 +126,18 @@ fun SongDetailContent(
         }
         val fit = state.fit
         val song = songRange(detail, fit)
-        // 서버 적합도와 화면 판정이 같은 안정 음역을 사용해야 한다. 서버 값이 없는 로컬 계산만 UserStore 로 보완한다.
+        // 서버가 사용한 안정 음역을 우선 표시하고, 서버 값이 없는 로컬 계산만 UserStore 로 보완한다.
         val mine = fit?.rangeFit?.let { range ->
             val low = range.userStableLowMidi
             val high = range.userStableHighMidi
             if (low != null && high != null && high >= low) low to high else null
         } ?: profile?.let { it.comfortLow to it.comfortHigh }
-        val matchPct = rangeMatchPercent(mine, song, key)
-        val verdict = rangeVerdict(mine, song, key)
-
-        Header(detail, verdict)
-        MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
+        Header(detail)
+        RangeCard(mine, song, key, state.fitLoading, profile == null)
         KeyCard(key, onKey)
         DifficultCard(state, fit)
     }
 }
-
-internal data class Verdict(val label: String, val tone: MiconChipTone, val message: String)
 
 private fun songRange(detail: SongDetail, fit: SongFit?): IntRange? {
     val low = fit?.rangeFit?.songCoreLowMidi ?: detail.analysis?.coreLowMidi ?: detail.analysis?.lowestMidi
@@ -152,46 +145,8 @@ private fun songRange(detail: SongDetail, fit: SongFit?): IntRange? {
     return if (low != null && high != null && high >= low) low..high else null
 }
 
-/** 추천 종합 점수와 분리해, 선택 키가 반영된 곡 음역과 내 편한 음역만으로 판정한다. */
-internal fun rangeVerdict(mine: Pair<Int, Int>?, song: IntRange?, key: Int): Verdict {
-    if (mine == null) return Verdict("평가 불가", MiconChipTone.Neutral, "목소리를 분석하면 이 곡이 내 음역에 맞는지 알려 드려요.")
-    if (song == null) return Verdict("평가 불가", MiconChipTone.Neutral, "이 곡의 음역 정보가 아직 없어요.")
-
-    val shifted = (song.first + key)..(song.last + key)
-    val overTop = (shifted.last - mine.second).coerceAtLeast(0)
-    val underLow = (mine.first - shifted.first).coerceAtLeast(0)
-    val excess = maxOf(overTop, underLow)
-    val tone = when {
-        excess == 0 -> MiconChipTone.Success
-        excess <= 2 -> MiconChipTone.Warning
-        else -> MiconChipTone.Challenge
-    }
-    val label = when (tone) { MiconChipTone.Success -> "잘 맞아요"; MiconChipTone.Warning -> "한 키 조절"; else -> "도전곡" }
-    val message = when {
-        key == 0 && overTop <= 0 && underLow <= 0 -> "곡이 내 음역 안에 들어와요. 원래 키로 불러도 편합니다."
-        key == 0 && overTop > 0 -> "후렴 고음이 내 음역보다 ${NoteNames.distanceText(0, overTop).removeSuffix("요")}. 키를 내려 보세요."
-        key == 0 && underLow > 0 -> "곡의 낮은 음이 내 음역보다 ${underLow}음 낮아요. 키를 올려 보세요."
-        key < 0 && overTop <= 0 -> "${-key}키 내림 · 후렴 고음이 한결 편해집니다."
-        key < 0 -> "${-key}키 내림 · 아직 고음이 ${overTop}음 남았어요."
-        overTop > 0 -> "${key}키 올림 · 후렴에서 음이 내 음역을 벗어나요."
-        else -> "${key}키 올림 · 아직 내 음역 안이에요."
-    }
-    return Verdict(label, tone, message)
-}
-
-/** 화면의 '음역 매치' 수치도 overallFit 대신 현재 선택 키의 실제 음역 겹침으로 계산한다. */
-internal fun rangeMatchPercent(mine: Pair<Int, Int>?, song: IntRange?, key: Int): Int? {
-    if (mine == null || song == null) return null
-    val shiftedLow = song.first + key
-    val shiftedHigh = song.last + key
-    val width = shiftedHigh - shiftedLow
-    if (width == 0) return if (shiftedLow in mine.first..mine.second) 100 else 0
-    val overlap = (minOf(shiftedHigh, mine.second) - maxOf(shiftedLow, mine.first)).coerceAtLeast(0)
-    return ((overlap.toDouble() / width) * 100).roundToInt().coerceIn(0, 100)
-}
-
 @Composable
-private fun Header(detail: SongDetail, verdict: Verdict) {
+private fun Header(detail: SongDetail) {
     val s = detail.summary
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         CompactDisc(title = s.title, artist = s.artist, imageUrl = s.imageUrl, size = 88.dp)
@@ -199,21 +154,17 @@ private fun Header(detail: SongDetail, verdict: Verdict) {
             Text(s.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val meta = listOfNotNull(s.artist, s.releaseDate?.take(4), detail.genres.firstOrNull() ?: s.genre).joinToString(" · ")
             Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            MiconBadge(verdict.label, tone = verdict.tone)
         }
     }
 }
 
 @Composable
-private fun MatchCard(match: Int?, mine: Pair<Int, Int>?, song: IntRange?, key: Int, verdict: Verdict, loading: Boolean, noProfile: Boolean) {
+private fun RangeCard(mine: Pair<Int, Int>?, song: IntRange?, key: Int, loading: Boolean, noProfile: Boolean) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     MiconCard(kind = MiconCardKind.Elevated) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text("음역 매치", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp, modifier = Modifier.weight(1f).padding(bottom = 6.dp))
-            if (match != null) {
-                Text("$match", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = (-1).sp, lineHeight = 36.sp)
-                Text("%", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
-            } else if (loading && !noProfile) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("내 음역과 곡 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+            if (loading && !noProfile) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
         }
         Spacer(Modifier.height(8.dp))
         val shifted = song?.let { (it.first + key)..(it.last + key) }
@@ -229,8 +180,10 @@ private fun MatchCard(match: Int?, mine: Pair<Int, Int>?, song: IntRange?, key: 
                 Spacer(Modifier.width(6.dp)); Text("곡 음역", fontSize = 12.sp, color = muted)
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Text(verdict.message, style = MaterialTheme.typography.bodyMedium, color = muted)
+        when {
+            noProfile -> Text("목소리를 분석하면 내 음역을 함께 볼 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = muted)
+            song == null -> Text("곡 음역 정보가 아직 없어요.", style = MaterialTheme.typography.bodyMedium, color = muted)
+        }
     }
 }
 
