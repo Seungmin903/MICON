@@ -1,5 +1,6 @@
 package com.micon.backend.user.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.common.exception.BusinessException;
+import com.micon.backend.common.exception.ErrorCode;
 import com.micon.backend.domain.auth.repository.RefreshTokenRepository;
 import com.micon.backend.domain.user.entity.User;
 import com.micon.backend.domain.user.repository.UserRepository;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,7 +60,10 @@ class UserPasswordServiceTest {
         when(passwordEncoder.matches("wrong-password", "old-hash")).thenReturn(false);
 
         assertThatThrownBy(() -> service.change(1L, "wrong-password", "new-password!1"))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOfSatisfying(BusinessException.class, error -> {
+                    assertThat(error.getErrorCode()).isEqualTo(ErrorCode.INVALID_CURRENT_PASSWORD);
+                    assertThat(error.getErrorCode().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
 
         verify(passwordEncoder, never()).encode(any());
         verify(refreshTokenRepository, never()).revokeAllByUserId(any(), any());
