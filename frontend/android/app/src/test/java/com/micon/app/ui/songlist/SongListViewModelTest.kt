@@ -133,4 +133,16 @@ class SongListViewModelTest {
         assertEquals(0, vm.state.value.page)
         assertEquals(21L, songs.genreRequests.last())
     }
+
+    @Test fun `rapid genre changes request only the final genre after debounce`() = runTest {
+        val songs = FakeSongs(120)
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
+        vm.setGenre(20)
+        vm.setGenre(21)
+        vm.setGenre(null)
+        advanceUntilIdle()
+
+        assertEquals(listOf<Long?>(null, null), songs.genreRequests)
+        assertEquals(null, vm.state.value.selectedGenreId)
+    }
 }
