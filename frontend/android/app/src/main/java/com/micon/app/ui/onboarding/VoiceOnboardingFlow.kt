@@ -138,6 +138,7 @@ fun VoiceOnboardingFlow(isGuest: Boolean, onExit: () -> Unit, onLogin: () -> Uni
                 BackHandler(enabled = !state.saving) { leave() }
                 BackHandler(enabled = state.saving) { }
                 OnboardingAutomaticAnalysis(state, vm::analyzeWhenReady)
+                OnboardingAutomaticProfileSave(state, vm::saveWhenReady)
                 VoiceOnboardingResultScreen(state, isGuest,
                     onExit = ::leave,
                     onLogin = { vm.discard(); onLogin() },
@@ -211,10 +212,11 @@ fun VoiceOnboardingResultScreen(
                 PrimaryButton("로그인하고 내 프로필 만들기", onLogin,
                     Modifier.fillMaxWidth().testTag("onboarding_login"))
             } else {
-                PrimaryButton(if (state.saved) "프로필 저장됨" else if (state.saving) "저장 중…"
+                PrimaryButton(if (state.saved) "프로필 저장됨" else if (state.saving) "프로필·추천 준비 중…"
                     else if (!state.serviceAvailable) "프로필 저장 준비 중" else "내 프로필로 저장",
                     onSave, Modifier.fillMaxWidth().testTag("onboarding_save"), enabled = state.canSave)
-                if (!state.saved && state.serviceAvailable) Text("음역과 음색 분석이 끝나면 저장할 수 있어요. 저장 전까지 기존 프로필이 유지돼요.", color = Grey)
+                if (!state.saved && state.serviceAvailable) Text(
+                    "음역과 음색 분석이 끝나면 프로필을 자동 저장하고 추천을 미리 준비해요.", color = Grey)
             }
             if (!state.saved) OutlinePurpleButton("노래 다시 부르기", onRecordAgain, Modifier.fillMaxWidth(),
                 enabled = !state.saving && !state.expired)
@@ -228,6 +230,14 @@ internal fun OnboardingAutomaticAnalysis(state: VoiceOnboardingState, onReady: (
     val currentCallback by rememberUpdatedState(onReady)
     LaunchedEffect(state.draftId, state.recording?.id, state.canAnalyze, state.needsInitialTimbreAnalysis) {
         if (state.canAnalyze && state.needsInitialTimbreAnalysis) currentCallback()
+    }
+}
+
+@Composable
+internal fun OnboardingAutomaticProfileSave(state: VoiceOnboardingState, onReady: () -> Unit) {
+    val currentCallback by rememberUpdatedState(onReady)
+    LaunchedEffect(state.draftId, state.progress?.sessionId, state.progress?.version, state.canSave) {
+        if (state.canSave) currentCallback()
     }
 }
 

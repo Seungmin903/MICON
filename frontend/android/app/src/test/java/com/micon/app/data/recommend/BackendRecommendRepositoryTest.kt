@@ -43,6 +43,22 @@ class BackendRecommendRepositoryTest {
         override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
     }
 
+    private class PagedSongs(val items: List<SongSummary>) : SongRepository {
+        val requestedPages = mutableListOf<Int>()
+        var detailCalls = 0
+        override suspend fun search(query: String, page: Int, size: Int): SongPage {
+            requestedPages += page
+            val pageItems = items.drop(page * size).take(size)
+            val totalPages = (items.size + size - 1) / size
+            return SongPage(pageItems, page, size, items.size.toLong(), totalPages)
+        }
+        override suspend fun detail(songId: String): SongDetail? {
+            detailCalls++
+            return null
+        }
+        override suspend fun practiceAssets(songId: String, selectedKey: Int): PracticeAssets = throw UnsupportedOperationException()
+    }
+
     private class FakeVoice(var latestAnalysis: VoiceAnalysis?) : VoiceAnalysisRepository {
         override suspend fun upload(file: File, mimeType: String, attemptNo: Int, onProgress: (Float) -> Unit): Long = throw UnsupportedOperationException()
         override suspend fun create(recordingId: Long, songId: String?, method: String): VoiceAnalysis = throw UnsupportedOperationException()
@@ -100,6 +116,26 @@ class BackendRecommendRepositoryTest {
         assertEquals("목소리 물성이 가까운 가수", first.reasons.first())
         assertEquals("two-axis-v1", first.fit!!.scoringVersion)
         assertEquals(listOf("중심음이 가까워요"), voiceShelf.items[1].reasons)
+    }
+
+    @Test fun `catalog reads past five pages instead of requesting each recommendation detail`() = runBlocking {
+        val pagedSongs = PagedSongs((1..650).map { id ->
+            SongSummary(id.toString(), "Song $id", "Artist", null, 180_000)
+        })
+        val pagedRepo = BackendRecommendRepository(
+            BackendClient(server.url("/api/v1/").toString(), false,
+                MemoryTokenStore().apply { saveSession(1, "access", "refresh") }) {}.api,
+            pagedSongs, FakeLocal, isLoggedIn = { true },
+        )
+        currentProfile()
+        server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"COMPLETED","shelves":[
+            {"key":"voice","title":"내 음색에 딱인 곡","order":0,"items":[{"songId":601,"overallRank":1,"position":0}]}]}"""))
+
+        val result = pagedRepo.shelves()
+
+        assertEquals("601", result.shelves.single().items.single().song.id)
+        assertEquals((0..6).toList(), pagedSongs.requestedPages)
+        assertEquals(0, pagedSongs.detailCalls)
     }
 
     @Test fun `no recommendation yet requests one and falls back to local with a note`() = runBlocking {
