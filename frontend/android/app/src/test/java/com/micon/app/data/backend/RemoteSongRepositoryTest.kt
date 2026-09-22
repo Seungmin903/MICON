@@ -28,7 +28,7 @@ class RemoteSongRepositoryTest {
     @Before fun setUp() {
         server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(1, "access", "refresh") }
-        repo = RemoteSongRepository(BackendClient(server.url("/api/v1/").toString(), false, tokens) {}.api)
+        repo = RemoteSongRepository(BackendClient(server.url("/api/v1/").toString(), false, tokens) {}.api, tokens)
     }
 
     @After fun tearDown() = server.shutdown()

@@ -18,6 +18,9 @@ interface SongRepository {
     suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage =
         search(query, page, size)
 
+    /** 앱 수명 캐시를 가진 구현체가 수동 새로고침 때 해당 첫 페이지를 비운다. */
+    fun invalidateSearchCache(query: String, size: Int, genreId: Long?) = Unit
+
     /** 곡 상세. 없는 곡(404)은 null. */
     suspend fun detail(songId: String): SongDetail?
 
@@ -33,6 +36,10 @@ interface SongRepository {
      */
     suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia =
         practiceAssets(songId, selectedKey).instrumental
+
+    /** 원곡 60초 미리듣기. 연습용 반주와 별개로 서버가 발급한 만료 URL만 사용한다. */
+    suspend fun preview(songId: String): SongPreview =
+        throw UnsupportedOperationException("원곡 미리듣기를 지원하지 않는 저장소입니다.")
 
     /** [practiceAssets] 의 목표 음정만. 준비되지 않은 곡은 null. */
     suspend fun karaokeNotes(songId: String): List<KaraokeNote>? =
@@ -128,6 +135,14 @@ data class InstrumentalMedia(
     val playbackUrl: String?,
     /** ISO-8601. 이 시각 60초 전부터 URL을 새로 발급한다. */
     val playbackUrlExpiresAt: String? = null,
+)
+
+/** 원곡 미리듣기 재생 정보 (GET /songs/{id}/preview). */
+data class SongPreview(
+    val songId: String,
+    val previewSeconds: Int,
+    val playbackUrl: String,
+    val playbackUrlExpiresAt: String,
 )
 
 /** 곡 구간 (`song_section`). 시간은 ms. */

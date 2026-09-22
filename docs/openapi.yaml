@@ -1607,6 +1607,34 @@ paths:
       responses:
         default:
           description: "응답 상태 코드와 스키마는 구현 시 확정"
+  "/songs/{songId}/preview":
+    get:
+      tags: ["곡"]
+      summary: "원곡 60초 미리듣기 URL 조회 API"
+      description: "연습용 MR과 별개로, 등록된 원곡 미리듣기 MP3의 짧은 만료 재생 URL만 반환한다. S3 object key는 앱에 노출하지 않으며 미리듣기가 없으면 409를 반환한다."
+      operationId: "micon053a"
+      servers:
+        - url: "{backendUrl}"
+          description: "백엔드 서버"
+          variables:
+            backendUrl:
+              default: "http://localhost:8080"
+      security:
+        []
+      x-direction: "프 → 백"
+      x-api-type: "API"
+      x-work-status: "구현"
+      x-backend-status: "구현"
+      x-frontend-status: "구현"
+      x-permission: "전체"
+      x-auth-token: "불필요"
+      responses:
+        "200":
+          description: "songId·60초 길이·만료 재생 URL"
+        "404":
+          description: "존재하지 않는 곡"
+        "409":
+          description: "원곡 미리듣기 객체가 준비되지 않음"
   "/songs/{songId}/fit":
     get:
       tags: ["곡 적합도"]

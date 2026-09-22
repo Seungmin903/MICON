@@ -1,15 +1,14 @@
 # MICON Android (Kotlin · Jetpack Compose)
 
-노래 연습 앱 MICON 의 Android 스켈레톤. 팀원이 같은 버전으로 개발을 시작할 수 있도록
-빌드 환경·라이브러리 버전을 고정하고, Figma 화면 구조에 맞춰 패키지와 네비게이션을 잡아 두었다.
-프로토타입(2026-09-03)에서 검증된 채점·오디오·엔진 통신 코드는 그대로 포함되어 있다.
+음역·음색 분석, 곡 추천, 키별 반주와 실시간 음정 피드백을 제공하는 MICON Android 앱이다.
+팀원이 같은 환경에서 개발할 수 있도록 빌드·라이브러리 버전과 검증 명령을 이 문서에서 관리한다.
 
 - 버전: `gradle/libs.versions.toml` 한 곳에서만 관리한다.
 - Figma: https://www.figma.com/design/gD9LvKcDIDlSXf5Kds76LJ (참고용 와이어프레임, 확정 디자인 아님)
 - 위치: 팀 저장소 `S15P21B110/frontend/android/` (모노레포. 루트 `README.md` 에 전체 구조)
-- 앱 문서: `docs/` (`ANDROID_START_GUIDE.md` 가 진입점, 화면 스크린샷은 `docs/screenshots/`)
+- 앱 문서: [docs/README.md](docs/README.md). `docs/screenshots/`는 현재 UI 여부를 확인 중인 과거 스켈레톤 참고 자료다.
 - 엔진·데이터 계약 문서: develop의 [VocalScope](../../vocal-scope/README.md), [배치·DB 인수](../../vocal-scope/docs/BATCH_HANDOFF.md)
-- 운영 저장 구조: [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md). AWS 키는 BuildConfig/APK에 넣지 않는다. 녹음은 BE API와 발급된 만료 URL을 사용하며, 카탈로그 파일 제공·DB 적재는 별도 통합 검증이 필요하다.
+- 운영 저장 구조: [SSAFY BE·MySQL + 개인 S3](../../docs/operations/S3_VOICE_STORAGE.md). AWS 키는 BuildConfig/APK에 넣지 않는다. 곡·키별 반주·녹음은 BE API와 발급된 만료 URL을 사용한다.
 
 ## 고정 버전
 

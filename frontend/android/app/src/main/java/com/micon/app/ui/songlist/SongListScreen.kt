@@ -86,7 +86,6 @@ class SongListViewModel(
         val genres: List<PreferenceGenre> = emptyList(),
         val selectedGenreId: Long? = null,
         val songs: List<SongSummary> = emptyList(),
-        val keys: Map<String, Int?> = emptyMap(),   // songId → 추천 키 배지 (RecommendRepository.fit, 없으면 배지 없음)
         val loading: Boolean = true,              // 첫 페이지(또는 검색어 변경) 로딩
         val totalElements: Long = 0,              // 서버 전체 곡 수 (검색어·장르 기준)
         val error: String? = null,
@@ -101,34 +100,49 @@ class SongListViewModel(
     private var searchJob: Job? = null
     /** 첫 페이지·다음 페이지 요청 하나만 살아 있다. 검색어가 바뀌면 진행 중인 요청은 버린다. */
     private var pageJob: Job? = null
+    private var requestGeneration = 0L
 
     init {
-        refresh()
+        loadFirstPage(forceNetwork = false)
         loadGenres()
     }
 
     fun setQuery(query: String) {
         _state.update { it.copy(query = query) }
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch { delay(250); refresh() }
+        scheduleFirstPage()
     }
 
     /** 장르가 바뀌면 첫 페이지부터 다시 요청한다. null은 전체 장르다. */
     fun setGenre(genreId: Long?) {
         if (_state.value.selectedGenreId == genreId) return
         _state.update { it.copy(selectedGenreId = genreId) }
-        refresh()
+        scheduleFirstPage()
     }
 
     /**
      * 백엔드 `GET /songs` 는 제목·가수 검색과 선택 장르·페이지만 지원한다(페이지 크기 최대 100).
      * 첫 페이지를 받고, 나머지는 스크롤이 끝에 닿을 때 [loadMore] 로 이어 받는다(무한 스크롤).
      */
-    fun refresh() {
+    fun refresh(forceNetwork: Boolean = true) {
+        searchJob?.cancel()
         pageJob?.cancel()
+        loadFirstPage(forceNetwork = forceNetwork)
+    }
+
+    private fun scheduleFirstPage() {
+        searchJob?.cancel()
+        pageJob?.cancel()
+        requestGeneration++
+        searchJob = viewModelScope.launch { delay(300); loadFirstPage(forceNetwork = false) }
+    }
+
+    private fun loadFirstPage(forceNetwork: Boolean) {
+        pageJob?.cancel()
+        val generation = ++requestGeneration
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, moreError = null, loadingMore = false) }
             val request = _state.value
+            if (forceNetwork) repo.invalidateSearchCache(request.query, PAGE_SIZE, request.selectedGenreId)
             try {
                 val page = repo.search(
                     query = request.query,
@@ -136,11 +150,10 @@ class SongListViewModel(
                     size = PAGE_SIZE,
                     genreId = request.selectedGenreId,
                 )
-                _state.update { it.copy(songs = page.items, totalElements = page.totalElements, loading = false,
+                if (generation == requestGeneration) _state.update { it.copy(songs = page.items, totalElements = page.totalElements, loading = false,
                     page = page.page, hasMore = hasNext(page)) }
-                loadKeys(page.items)
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { _state.update { it.copy(loading = false, error = e.message ?: e.toString()) } }
+            catch (e: Exception) { if (generation == requestGeneration) _state.update { it.copy(loading = false, error = e.message ?: e.toString()) } }
         }
     }
 
@@ -149,6 +162,7 @@ class SongListViewModel(
         val s = _state.value
         if (s.loading || s.loadingMore || !s.hasMore) return
         pageJob?.cancel()
+        val generation = requestGeneration
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loadingMore = true, moreError = null) }
             try {
@@ -158,28 +172,19 @@ class SongListViewModel(
                     size = PAGE_SIZE,
                     genreId = s.selectedGenreId,
                 )
-                _state.update { cur ->
+                if (generation == requestGeneration) _state.update { cur ->
                     val known = cur.songs.mapTo(HashSet()) { it.id }
                     cur.copy(songs = cur.songs + page.items.filter { it.id !in known }, totalElements = page.totalElements,
                         page = page.page, hasMore = hasNext(page), loadingMore = false)
                 }
-                loadKeys(page.items)
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { _state.update { it.copy(loadingMore = false, moreError = e.message ?: "다음 곡을 불러오지 못했어요.") } }
+            catch (e: Exception) { if (generation == requestGeneration) _state.update { it.copy(loadingMore = false, moreError = e.message ?: "다음 곡을 불러오지 못했어요.") } }
         }
     }
 
     /** 서버 페이지 정보로 다음 페이지 유무 판단. totalPages 를 안 주면 받은 개수가 페이지 크기와 같을 때 더 있다고 본다. */
     private fun hasNext(page: SongPage): Boolean =
         if (page.totalPages > 0) page.page + 1 < page.totalPages else page.items.size >= PAGE_SIZE
-
-    /** 추천 키 배지. 곡마다 fit 을 한 번씩 부르므로 페이지 단위로만 채우고, 이미 아는 곡은 건너뛴다. */
-    private suspend fun loadKeys(songs: List<SongSummary>) {
-        val missing = songs.filter { it.id !in _state.value.keys }
-        if (missing.isEmpty()) return
-        val keys = missing.associate { song -> song.id to runCatching { recommend.fit(song.id)?.recommendedKey }.getOrNull() }
-        _state.update { it.copy(keys = it.keys + keys) }
-    }
 
     private fun loadGenres() {
         viewModelScope.launch {
@@ -217,7 +222,7 @@ fun SongListScreen(
         }
     })
     val state by vm.state.collectAsStateWithLifecycle()
-    RefreshOnResume { if (!vm.state.value.loading) vm.refresh() }
+    RefreshOnResume { if (!vm.state.value.loading) vm.refresh(forceNetwork = false) }
     val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
     val loggedIn = TokenManager.isLoggedIn()
     val scope = rememberCoroutineScope()
@@ -325,7 +330,8 @@ fun SongCatalogContent(
                             artist = song.artist,
                             imageUrl = song.imageUrl,
                             onClick = { onSongClick(song.id) },
-                            keyBadge = state.keys[song.id],
+                            // 일반 목록은 곡별 /fit 호출을 하지 않는다. 권장 키는 상세에서만 계산한다.
+                            keyBadge = null,
                             liked = likedIds?.let { song.id in it },
                             onLike = { onLike(song.id) },
                             compactCd = true,

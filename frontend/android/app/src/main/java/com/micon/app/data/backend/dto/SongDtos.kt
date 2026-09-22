@@ -75,6 +75,13 @@ data class InstrumentalDto(
     val instrumental: MediaDto? = null,
 )
 
+data class SongPreviewDto(
+    val songId: String,
+    val previewSeconds: Int = 60,
+    val playbackUrl: String,
+    val playbackUrlExpiresAt: String,
+)
+
 data class SectionDto(
     val sectionId: Long,
     val sectionType: String = "CUSTOM",

@@ -1,10 +1,13 @@
 # docs — Android 앱 문서
 
-- `ANDROID_START_GUIDE.md` — 앱 작업을 시작할 때 무엇을 참고하는지 정리한 가이드(진입점, 2026-09-03 작성. 경로는 당시 로컬 폴더 기준).
 - `FIGMA_PRACTICE_SCREENS.md` — 노래 연습·연습 분석·곡 적합도 화면 요소 설명 + 요소별 데이터 대응(✅/🟡/❌).
 - `PRACTICE_LYRICS_SECTIONS.md` — 연습 화면 가사 시트(LRC 원본·글자 채움), 절/간주/하이라이트 계산, 점프·간주 건너뛰기 설계 노트.
+- `PIANO_SAMPLES.md` — 피아노 샘플 자산과 재생 규칙.
+- `VOICE_ONBOARDING.md` — 음성 온보딩 화면과 상태 흐름.
 - `용어집.md` — 음역·안정도·키 등 프로젝트 용어.
-- `screenshots/` — 스켈레톤 화면 캡처(에뮬레이터).
+- `screenshots/` — 과거 스켈레톤 화면 캡처. 현재 UI 기준 여부를 확인하기 전까지 참고 자료로만 사용한다.
+
+앱 실행·빌드 방법은 상위 [Android README](../README.md), 팀 공통 로컬 환경은 [LOCAL_DEVELOPMENT](../../../docs/operations/LOCAL_DEVELOPMENT.md)를 따른다. 곡·반주·연습 기록은 BE API가 기준이며 `micon_catalog.sqlite`를 앱 자산으로 사용하지 않는다.
 
 ## 엔진·데이터 계약 문서 (AI 파트 소유)
 
@@ -27,5 +30,4 @@
 | `model-server/compare_engine.py` 상단 상수 | 채점 상수 대조. 채점 계산 자체는 엔진이 한다 |
 | `model-server/app.py` 라우트 | `data/engine/EngineApi.kt` |
 
-테스트 픽스처는 `app/src/test/resources/fixtures/` (엔진 `workspace/<job>/job.json` 원문).
-개발용 샘플 DB는 `app/src/main/assets/micon_catalog.sqlite` (Git LFS). 앱 백엔드 API 가 생기면 삭제하고 `SqliteSongRepository` 를 Retrofit 구현으로 교체한다.
+테스트 픽스처는 `app/src/test/resources/fixtures/`에 둔다. 운영 데이터와 URL은 저장소에 복사하지 않고 BE API 계약으로 검증한다.

@@ -114,15 +114,26 @@ class BackendRecommendRepository(
         }
         val sameProfile = latest != null && latest.profileId == profile.profileId &&
             latest.sourceSessionId == profile.sessionId && latest.profileVersion == profile.profileVersion
-        val fresh = sameProfile && latest?.preferenceVersion != null &&
-            latest.preferenceVersion == latest.currentPreferenceVersion
+        // Results created before preference-versioning do not carry either field. They are
+        // still valid when the voice-profile identity matches; only a version mismatch (or
+        // a partially populated version pair) requires regeneration.
+        val preferenceFresh = latest != null && when {
+            latest.preferenceVersion == null && latest.currentPreferenceVersion == null -> true
+            latest.preferenceVersion != null && latest.preferenceVersion == latest.currentPreferenceVersion -> true
+            else -> false
+        }
+        val fresh = sameProfile && preferenceFresh
         if (fresh) {
             return ServerState(latest, null)
         }
         return try {
             api.createRecommendation().unwrapData()
             // A preference-only change can still show the same voice-profile result while it refreshes.
-            ServerState(if (sameProfile) latest else null, NOTE_PREFERENCE_REFRESHING, generating = true)
+            ServerState(
+                if (sameProfile) latest else null,
+                if (sameProfile) NOTE_PREFERENCE_REFRESHING else NOTE_GENERATING,
+                generating = true,
+            )
         } catch (e: BackendRequestException) {
             ServerState(
                 if (sameProfile) latest else null,
