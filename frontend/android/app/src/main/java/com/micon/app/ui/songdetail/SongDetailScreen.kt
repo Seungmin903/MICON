@@ -86,7 +86,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Un
         if (!loggedIn) { onLogin?.invoke() ?: Toast.makeText(context, "로그인하면 찜할 수 있어요.", Toast.LENGTH_SHORT).show(); return }
         scope.launch { runCatching { container.favorites.toggle(songId) }.onFailure { Toast.makeText(context, describeBackendError(it), Toast.LENGTH_SHORT).show() } }
     }
-    SongDetailContent(state, profile, liked = songId in liked, onLike = ::toggleLike,
+    SongDetailContent(state, profile, liked = songId in liked, showFavorite = loggedIn, onLike = ::toggleLike,
         onKey = vm::selectKey, onPractice = { vm.leaveScreen(); onPractice(state.selectedKey) },
         onBack = { vm.leaveScreen(); onBack() }, onRetryDetail = vm::load)
 }
@@ -94,7 +94,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Un
 /** 순수 콘텐츠 — 프리뷰·UI 테스트용 */
 @Composable
 fun SongDetailContent(
-    state: SongDetailState, profile: UserStore.VoiceProfile?, liked: Boolean = false, onLike: () -> Unit = {},
+    state: SongDetailState, profile: UserStore.VoiceProfile?, liked: Boolean = false, showFavorite: Boolean = true, onLike: () -> Unit = {},
     onKey: (Int) -> Unit = {}, onPractice: () -> Unit = {}, onBack: () -> Unit = {}, onRetryDetail: () -> Unit = {},
 ) {
     val detail = state.detail
@@ -102,9 +102,11 @@ fun SongDetailContent(
     MiconScreen(
         appBar = {
             MiconAppBar(onBack = onBack, actions = {
-                IconButton(onLike, Modifier.size(MiconSpace.touchTarget)) {
-                    Icon(if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (liked) "찜 해제" else "찜",
-                        tint = if (liked) Color(0xFFC92A5E) else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(23.dp))
+                if (showFavorite) {
+                    IconButton(onLike, Modifier.size(MiconSpace.touchTarget)) {
+                        Icon(if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (liked) "찜 해제" else "찜",
+                            tint = if (liked) Color(0xFFC92A5E) else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(23.dp))
+                    }
                 }
             })
         },

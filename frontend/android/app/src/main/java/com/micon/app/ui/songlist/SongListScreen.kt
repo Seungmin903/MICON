@@ -261,7 +261,7 @@ fun SongListScreen(
             onRefresh = vm::refresh,
             onLoadMore = vm::loadMore,
             onSongClick = onSongClick,
-            likedIds = liked,
+            likedIds = liked.takeIf { loggedIn },
             onLike = ::like,
             modifier = Modifier.weight(1f),
         )
