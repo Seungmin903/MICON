@@ -20,8 +20,6 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class PracticeResultService {
 
-	private static final int SUMMARY_COLUMN_LIMIT = 1000;
-
 	private final PracticeRepository practiceRepository;
 	private final PracticeResultRepository resultRepository;
 	private final ObjectMapper objectMapper;
@@ -55,7 +53,9 @@ public class PracticeResultService {
 			}
 		}
 		validateCompletedScores(request);
-		String summaryJson = writeSummary(new SummaryPayload(request.summaryText(), sections));
+		String summaryJson = writeSummary(new SummaryPayload(
+			request.summaryText(), sections, request.dataVersion(), normalizeNotes(request.notes()), request.curve()
+		));
 		resultRepository.save(
 			nextIdentifier(), practiceId, request.status().name(), request.overallScore(), request.pitchScore(),
 			request.sustainScore(), request.rhythmScore(), summaryJson
@@ -82,7 +82,8 @@ public class PracticeResultService {
 			practice.selectedKey(), practice.keyChangeCount(), practice.keyChanged(),
 			practice.practiceScope(), practice.sectionId(), practice.durationMs(), result.status(),
 			result.overallScore(), result.pitchScore(), result.sustainScore(), result.rhythmScore(),
-			payload.summaryText(), payload.sections(), weakSection, result.analyzedAt()
+			payload.summaryText(), payload.sections(), weakSection, result.analyzedAt(),
+			payload.dataVersion(), payload.notes(), payload.curve()
 		);
 	}
 
@@ -131,9 +132,6 @@ public class PracticeResultService {
 	private String writeSummary(SummaryPayload payload) {
 		try {
 			String json = objectMapper.writeValueAsString(payload);
-			if (json.length() > SUMMARY_COLUMN_LIMIT) {
-				throw new BusinessException(ErrorCode.INVALID_REQUEST, "연습 결과 요약이 저장 가능 길이를 초과했습니다.");
-			}
 			return json;
 		} catch (BusinessException exception) {
 			throw exception;
@@ -145,16 +143,19 @@ public class PracticeResultService {
 	// 기능: readSummary 비즈니스 로직을 수행한다.
 	private SummaryPayload readSummary(String summaryJson) {
 		if (summaryJson == null || summaryJson.isBlank()) {
-			return new SummaryPayload(null, List.of());
+			return new SummaryPayload(null, List.of(), null, List.of(), null);
 		}
 		try {
 			SummaryPayload payload = objectMapper.readValue(summaryJson, SummaryPayload.class);
-			return new SummaryPayload(
-				payload.summaryText(), payload.sections() == null ? List.of() : payload.sections()
-			);
+			return new SummaryPayload(payload.summaryText(), payload.sections() == null ? List.of() : payload.sections(),
+				payload.dataVersion(), payload.notes() == null ? List.of() : payload.notes(), payload.curve());
 		} catch (Exception exception) {
-			return new SummaryPayload(summaryJson, List.of());
+			return new SummaryPayload(summaryJson, List.of(), null, List.of(), null);
 		}
+	}
+
+	private List<PracticeResultRequest.NoteEvaluation> normalizeNotes(List<PracticeResultRequest.NoteEvaluation> notes) {
+		return notes == null ? List.of() : List.copyOf(notes);
 	}
 
 	// 기능: nextIdentifier 저장에 사용할 새 식별자를 생성한다.
@@ -166,6 +167,15 @@ public class PracticeResultService {
 		return identifier;
 	}
 
-	public record SummaryPayload(String summaryText, List<SectionEvaluation> sections) {
+	public record SummaryPayload(
+		String summaryText,
+		List<SectionEvaluation> sections,
+		String dataVersion,
+		List<PracticeResultRequest.NoteEvaluation> notes,
+		PracticeResultRequest.PitchCurve curve
+	) {
+		public SummaryPayload(String summaryText, List<SectionEvaluation> sections) {
+			this(summaryText, sections, null, List.of(), null);
+		}
 	}
 }
