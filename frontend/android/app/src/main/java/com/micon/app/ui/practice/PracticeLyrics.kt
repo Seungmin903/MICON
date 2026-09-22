@@ -1,8 +1,11 @@
 package com.micon.app.ui.practice
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,14 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.scoring.LyricSheet
@@ -28,18 +30,36 @@ import com.micon.app.ui.theme.Ink
 import com.micon.app.ui.theme.Lavender
 import com.micon.app.ui.theme.Purple
 
+/** 가사 영역 높이에 맞춘 글자 크기. 좁은 기기(S10 360×760)에서도 두 줄이 잘리지 않게 한다 */
+private data class LyricType(
+    val current: TextUnit,
+    val currentLine: TextUnit,
+    val next: TextUnit,
+    val nextLine: TextUnit,
+)
+
+private fun lyricTypeFor(heightDp: Float, compact: Boolean): LyricType = when {
+    !compact -> LyricType(28.sp, 38.sp, 20.sp, 28.sp)
+    heightDp < 150f -> LyricType(18.sp, 24.sp, 14.sp, 19.sp)
+    heightDp < 210f -> LyricType(21.sp, 28.sp, 16.sp, 22.sp)
+    else -> LyricType(24.sp, 32.sp, 18.sp, 25.sp)
+}
+
 /**
- * 재생 중 가사: 현재 줄(크게, 글자 채움) + 다음 줄(작게). 지난 줄은 보이지 않는다.
+ * 재생 중 가사: **현재 줄 + 다음 줄, 딱 두 줄만**. 지난 줄은 보여 주지 않는다 —
+ * 세 줄을 넣으면 큰 화면이 아닌 기기에서 어김없이 잘렸다.
  * 연습(노래 연습중)과 불러서 분석하기가 함께 쓴다.
  *
- * @param judgementColors true 면 판정된 음절을 판정색(정확·높게·낮게…)으로, false 면 부른 글자를 보라로만 칠한다(채점 없는 화면).
+ * **줄 단위로만 맞춘다.** 글자별 채움 시각(`LyricChar.at`)은 음표에 매칭된 음절만
+ * 실측이고 나머지는 선형 보간이라(`LyricLines.fillChars`) 글자 단위로 칠하면 싱크가 눈에 띄게 어긋났다.
+ * 줄 안에서의 시간 경과는 글자 색 대신 줄 아래 진행 바로 보여 준다 — 오차가 없고 읽기도 편하다.
+ * 음절 판정 색은 점수판의 판정 라벨과 음표 레인(Runway)이 담당한다.
  */
 @Composable
 internal fun KaraokePanel(
     sheet: LyricSheet,
     nowSec: Double,
     modifier: Modifier = Modifier,
-    judgementColors: Boolean = true,
     compactPracticeStyle: Boolean = false,
     emptyMessage: String = "이 곡은 가사 데이터가 없어요. 음표 레인을 보며 불러 보세요.",
 ) {
@@ -51,58 +71,60 @@ internal fun KaraokePanel(
         return
     }
     val currentIndex = sheet.currentIndex(nowSec)
-    val previous = currentIndex?.let { lines.getOrNull(it - 1) }
     val current = currentIndex?.let { lines.getOrNull(it) }
     val next = lines.getOrNull((currentIndex ?: -1) + 1)
-    Column(
-        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = if (compactPracticeStyle) 4.dp else 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        if (compactPracticeStyle && previous != null) {
-            Text(previous.text, fontSize = 16.sp, lineHeight = 22.sp, color = Grey, textAlign = TextAlign.Center, maxLines = 2)
-            Spacer(Modifier.height(7.dp))
-        }
-        if (current != null) {
-            Text(
-                buildAnnotatedString {
-                    for (ch in current.chars) {
-                        val sung = nowSec >= ch.at
-                        val note = ch.note
-                        val color = when {
-                            judgementColors && note != null && note.status.judged -> Color(note.status.toPitchStatus()!!.argb)
-                            sung -> Purple
-                            else -> Ink
-                        }
-                        withStyle(SpanStyle(color = color, fontWeight = if (sung) FontWeight.Bold else FontWeight.Medium)) { append(ch.text) }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val type = lyricTypeFor(maxHeight.value, compactPracticeStyle)
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = if (compactPracticeStyle) 4.dp else 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (current != null) {
+                // 줄 진행도는 글자 수가 아니라 시각 기준 — 글자별 추정 시각의 오차를 타지 않는다
+                val target = ((nowSec - current.start) / (current.until - current.start).coerceAtLeast(0.001)).toFloat().coerceIn(0f, 1f)
+                val progress by animateFloatAsState(targetValue = target, animationSpec = tween(120), label = "lyricLineProgress")
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(if (compactPracticeStyle) Purple.copy(alpha = 0.18f) else Lavender, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 12.dp, vertical = if (compactPracticeStyle) 9.dp else 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        current.text,
+                        fontSize = type.current,
+                        lineHeight = type.currentLine,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(if (compactPracticeStyle) 7.dp else 9.dp))
+                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.55f), RoundedCornerShape(50))) {
+                        Box(Modifier.fillMaxWidth(progress).height(3.dp).background(Purple, RoundedCornerShape(50)))
                     }
-                },
-                fontSize = if (compactPracticeStyle) 22.sp else 28.sp,
-                lineHeight = if (compactPracticeStyle) 30.sp else 38.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-                    .background(if (compactPracticeStyle) Purple.copy(alpha = 0.18f) else Lavender, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 12.dp, vertical = if (compactPracticeStyle) 9.dp else 12.dp),
-            )
-        } else {
-            Text("♪", fontSize = 28.sp, color = Grey)
-        }
-        Spacer(Modifier.height(if (compactPracticeStyle) 7.dp else 12.dp))
-        if (next != null) {
-            Text(
-                next.text,
-                fontSize = if (compactPracticeStyle) 17.sp else 20.sp,
-                lineHeight = if (compactPracticeStyle) 24.sp else 28.sp,
-                color = Grey,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
-        } else if (current != null) {
-            Text("마지막 줄이에요", fontSize = 14.sp, color = Grey)
-        }
-        if (sheet.timing == LyricTiming.APPROX) {
-            Spacer(Modifier.height(8.dp))
-            Text("가사 위치는 원곡 음표로 추정한 값이에요", fontSize = 11.sp, color = Grey)
+                }
+            } else {
+                Text("♪", fontSize = type.current, color = Grey)
+            }
+            Spacer(Modifier.height(if (compactPracticeStyle) 7.dp else 12.dp))
+            if (next != null) {
+                Text(
+                    next.text,
+                    fontSize = type.next,
+                    lineHeight = type.nextLine,
+                    color = Grey,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            } else if (current != null) {
+                Text("마지막 줄이에요", fontSize = 14.sp, color = Grey)
+            }
+            if (sheet.timing == LyricTiming.APPROX) {
+                Spacer(Modifier.height(8.dp))
+                Text("가사 위치는 원곡 음표로 추정한 값이에요", fontSize = 11.sp, color = Grey)
+            }
         }
     }
 }

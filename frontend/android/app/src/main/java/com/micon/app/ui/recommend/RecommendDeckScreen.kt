@@ -55,6 +55,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +73,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -88,11 +91,18 @@ import com.micon.app.data.RecommendedSong
 import com.micon.app.data.ShelfKeys
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.res.painterResource
+import com.micon.app.R
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.atoms.MiconFilterChip
-import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.design.organisms.CdPlayer
@@ -104,6 +114,7 @@ import com.micon.app.ui.design.tokens.miconShadow
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * 추천 탭 — 포터블 CD 플레이어. 프로토타입 `#recommend` 화면.
@@ -174,16 +185,23 @@ fun RecommendDeckScreen(
         onSongClick(item.song.id)
     }
 
+    // 끌어올리는 카드는 화면 맨 위 레이어에 따로 그린다 — LazyRow 안에 두면 행 밖으로 나가는 순간 잘려
+    // 플레이어에 가린 것처럼 보였다.
+    var floating by remember { mutableStateOf<FloatingCard?>(null) }
+
     MiconDesignTheme {
         val scheme = MaterialTheme.colorScheme
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(scheme.background).statusBarsPadding()) {
-            MiconHeader(onSettings = onSettings, onLogin = onLogin)
+            // 로고·설정 행과 ?·검색 행을 한 줄로 합쳤다 — 검색이 화면 맨 위에 온다
             TopBar(
                 searchOpen = searchOpen,
                 query = state.query,
                 onQuery = vm::setQuery,
                 onToggleSearch = { if (searchOpen) vm.setQuery(""); searchOpen = !searchOpen },
                 onHelp = { coachOpen = true },
+                onSettings = onSettings,
+                onLogin = onLogin,
             )
 
             when {
@@ -248,6 +266,7 @@ fun RecommendDeckScreen(
                             header = shelf?.let(::rackLabel).orEmpty(),
                             songs = items,
                             onLoad = { loadedId = it.song.id },
+                            onFloat = { floating = it },
                         )
                     } else {
                         DiscRow(
@@ -268,8 +287,38 @@ fun RecommendDeckScreen(
             }
         }
 
+        floating?.let { FloatingDeckCard(it) }
+        }
+
         if (coachOpen) CoachOverlay(onDismiss = ::closeCoach)
     }
+}
+
+/** 끌리는 중인 카드의 위치(루트 좌표)·들어올린 높이·기울기 */
+private data class FloatingCard(
+    val item: RecommendedSong,
+    val origin: Offset,
+    val liftPx: Float,
+    val tilt: Float,
+    val thresholdPx: Float,
+)
+
+/** 화면 최상위 레이어의 카드. [DragCard] 와 같은 변형 규칙을 쓴다 */
+@Composable
+private fun FloatingDeckCard(f: FloatingCard) {
+    val p = (-f.liftPx / f.thresholdPx).coerceIn(0f, 1f)
+    Box(
+        Modifier
+            .offset { IntOffset(f.origin.x.roundToInt(), (f.origin.y + f.liftPx).roundToInt()) }
+            .width(96.dp)
+            .graphicsLayer {
+                transformOrigin = TransformOrigin(0.5f, 1f)
+                rotationZ = 14f * f.tilt * (1f - p)
+                translationY = abs(f.tilt) * 14.dp.toPx() * (1f - p)
+                scaleX = 1f - 0.14f * p; scaleY = scaleX
+                alpha = 1f - 0.25f * p
+            },
+    ) { DeckCardFace(f.item) }
 }
 
 private const val PREFS = "micon_ui"
@@ -281,12 +330,30 @@ private const val KEY_COACH_SEEN = "recommend_coach_seen"
 
 /** 공통 헤더 바로 아래의 도움말·검색 도구. 검색을 열면 입력창이 된다. */
 @Composable
-private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit, onToggleSearch: () -> Unit, onHelp: () -> Unit) {
+private fun TopBar(
+    searchOpen: Boolean,
+    query: String,
+    onQuery: (String) -> Unit,
+    onToggleSearch: () -> Unit,
+    onHelp: () -> Unit,
+    onSettings: () -> Unit,
+    onLogin: (() -> Unit)?,
+) {
     val scheme = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().heightIn(min = MiconSpace.topBarMinHeight).padding(horizontal = MiconSpace.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (!searchOpen) {
+            // 다른 탭 헤더와 같은 로고 한 장
+            Spacer(Modifier.width(MiconSpace.sm))
+            Image(
+                painter = painterResource(R.drawable.micon_logo),
+                contentDescription = "MICON",
+                modifier = Modifier.height(22.dp).width(88.dp),
+                contentScale = ContentScale.Fit,
+            )
+        }
         if (searchOpen) {
             Row(
                 Modifier
@@ -330,6 +397,15 @@ private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit
                 tint = scheme.onSurface,
             )
         }
+        if (!searchOpen) {
+            if (onLogin != null) {
+                MiconButton("로그인", onLogin, kind = MiconButtonKind.Text)
+            } else {
+                IconButton(onClick = onSettings, modifier = Modifier.size(MiconSpace.touchTarget)) {
+                    Icon(Icons.Outlined.Settings, "설정", Modifier.size(24.dp), tint = scheme.onSurface)
+                }
+            }
+        }
     }
 }
 
@@ -337,38 +413,25 @@ private fun TopBar(searchOpen: Boolean, query: String, onQuery: (String) -> Unit
 // 데크 아래 정보
 // ---------------------------------------------------------------------------
 
-/** 제목 · 가수 · 키/음역 배지 · 길이. 비어 있어도 자리를 지켜 데크가 튀지 않는다 */
+/**
+ * 제목 · 가수 · 음역 배지. 비어 있어도 자리를 지켜 데크가 튀지 않는다.
+ * 권장 키 배지와 곡 길이는 뺐다 — 그만큼 최소 높이도 같이 낮춰야 아래 데크가 위로 붙는다.
+ */
 @Composable
 private fun NowInfo(item: RecommendedSong?, preview: RecommendPreview? = null) {
     val scheme = MaterialTheme.colorScheme
     Column(
-        Modifier.fillMaxWidth().heightIn(min = 74.dp).padding(horizontal = MiconSpace.screenHorizontal),
+        Modifier.fillMaxWidth().heightIn(min = 58.dp).padding(horizontal = MiconSpace.screenHorizontal),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (item == null) return
         Text(item.song.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         Text(item.song.artist, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            item.fit?.recommendedKey?.let { key ->
-                MiconBadge(
-                    text = if (key == 0) "원래 키로 편안" else NoteNames.keyShiftText(key) + " 권장",
-                    tone = if (key == 0) MiconChipTone.Success else MiconChipTone.Warning,
-                )
-            }
-            val lo = item.fit?.rangeFit?.songCoreLowMidi
-            val hi = item.fit?.rangeFit?.songCoreHighMidi
-            if (lo != null && hi != null) MiconBadge(text = NoteNames.rangeText(lo, hi))
-        }
-        val total = preview?.durationSec?.toLong() ?: item.song.durationMs?.let { it / 1000 }
-        if (total != null) {
-            val pos = preview?.positionSec?.toLong() ?: 0L
-            Text(
-                if (preview != null && preview.songId != null) "%d:%02d / %d:%02d".format(pos / 60, pos % 60, total / 60, total % 60)
-                else "%d:%02d".format(total / 60, total % 60),
-                style = MaterialTheme.typography.labelMedium.copy(fontFamily = MiconMonoFamily),
-                color = scheme.onSurfaceVariant,
-            )
+        val lo = item.fit?.rangeFit?.songCoreLowMidi
+        val hi = item.fit?.rangeFit?.songCoreHighMidi
+        if (lo != null && hi != null) {
+            Row(Modifier.padding(top = 2.dp)) { MiconBadge(text = NoteNames.rangeText(lo, hi)) }
         }
         val status = when {
             preview?.error != null -> preview.error
@@ -397,7 +460,7 @@ private fun PickHead(title: String, hint: String) {
 
 /** 프로토타입 `.fan` + `.hintDrag`. 카드를 위로 끌어 올리면 데크에 올라간다 */
 @Composable
-private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (RecommendedSong) -> Unit) {
+private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (RecommendedSong) -> Unit, onFloat: (FloatingCard?) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PickHead(header, "위로 끌어 올려 담기")
@@ -409,7 +472,7 @@ private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (Recom
         ) {
             items(songs.size, key = { songs[it].song.id }) { i ->
                 val tilt by remember(listState, i) { derivedStateOf { fanTilt(listState, i) } }
-                DragCard(songs[i], tilt = tilt, onLoad = { onLoad(songs[i]) })
+                DragCard(songs[i], tilt = tilt, onLoad = { onLoad(songs[i]) }, onFloat = onFloat)
             }
         }
         Text(
@@ -434,33 +497,60 @@ private fun fanTilt(state: LazyListState, index: Int): Float {
 }
 
 @Composable
-private fun DragCard(item: RecommendedSong, tilt: Float, onLoad: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
+private fun DragCard(item: RecommendedSong, tilt: Float, onLoad: () -> Unit, onFloat: (FloatingCard?) -> Unit) {
     val threshold = with(LocalDensity.current) { 80.dp.toPx() }
     val lift = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    Column(
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    var dragging by remember { mutableStateOf(false) }
+    val float by rememberUpdatedState(onFloat)
+
+    // 끌리는 동안 본체는 투명하게 두고 자리만 지킨다 — 실제로 보이는 건 화면 최상위의 FloatingDeckCard 다.
+    // lift 는 **컴포지션에서** 읽어야 값이 바뀔 때 재구성이 걸리고 떠 있는 카드가 손가락을 따라온다.
+    val liftValue = lift.value
+    if (dragging) {
+        SideEffect { float(FloatingCard(item, origin, liftValue, tilt, threshold)) }
+    }
+
+    Box(
         Modifier
             .width(96.dp)
+            .onGloballyPositioned { origin = it.localToRoot(Offset.Zero) }
             .graphicsLayer {
-                val p = (-lift.value / threshold).coerceIn(0f, 1f)
-                // 부채꼴: 가운데에서 멀수록 바깥으로 기울고 살짝 내려앉는다. 끌어올리는 동안은 펴진다
                 transformOrigin = TransformOrigin(0.5f, 1f)
-                rotationZ = 14f * tilt * (1f - p)
-                translationY = lift.value + abs(tilt) * 14.dp.toPx() * (1f - p)
-                scaleX = 1f - 0.14f * p; scaleY = scaleX
-                alpha = 1f - 0.25f * p
+                rotationZ = 14f * tilt
+                translationY = abs(tilt) * 14.dp.toPx()
+                alpha = if (dragging) 0f else 1f
             }
             .pointerInput(item.song.id) {
                 detectVerticalDragGestures(
+                    onDragStart = { dragging = true },
                     onVerticalDrag = { _, dy -> scope.launch { lift.snapTo((lift.value + dy).coerceAtMost(0f)) } },
                     onDragEnd = {
-                        if (lift.value < -threshold) { onLoad(); scope.launch { lift.snapTo(0f) } }
-                        else scope.launch { lift.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
+                        if (lift.value < -threshold) {
+                            onLoad()
+                            scope.launch { lift.snapTo(0f); dragging = false; float(null) }
+                        } else {
+                            scope.launch {
+                                lift.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                dragging = false
+                                float(null)
+                            }
+                        }
                     },
-                    onDragCancel = { scope.launch { lift.animateTo(0f) } },
+                    onDragCancel = { scope.launch { lift.animateTo(0f); dragging = false; float(null) } },
                 )
-            }
+            },
+    ) { DeckCardFace(item) }
+}
+
+/** 카드 앞면. 목록 안의 카드와 떠 있는 카드가 같은 그림을 쓰도록 따로 뺐다 */
+@Composable
+private fun DeckCardFace(item: RecommendedSong) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier
+            .width(96.dp)
             .miconShadow(elevation = 8.dp, shape = MiconShape.field, alpha = 0.14f)
             .clip(MiconShape.field)
             .background(scheme.surface)

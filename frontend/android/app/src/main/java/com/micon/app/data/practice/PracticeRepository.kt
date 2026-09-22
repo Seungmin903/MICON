@@ -50,12 +50,17 @@ data class PracticeSummary(
     val sectionId: Long?,
     val status: String,
     val startedAt: String?,
+    /** 세션 생성 시각. [startedAt] 이 비어 있는 옛 기록의 날짜로 쓴다 */
+    val createdAt: String? = null,
     val durationMs: Int?,
     val resultStatus: String?,
     val overallScore: Double?,
     val initialKey: Int = selectedKey,
     val keyChanged: Boolean = initialKey != selectedKey,
-)
+) {
+    /** 화면에 보여 줄 날짜 — 시작 시각이 없으면 생성 시각 */
+    val occurredAt: String? get() = startedAt ?: createdAt
+}
 
 data class PracticePage(val items: List<PracticeSummary>, val page: Int, val size: Int, val totalElements: Long, val totalPages: Int)
 
@@ -225,7 +230,7 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
         private fun PracticeSummaryDto.toModel(): PracticeSummary {
             val firstKey = initialKey ?: selectedKey
             return PracticeSummary(
-                practiceId, songId, songTitle, imageUrl, selectedKey, practiceScope, sectionId, status ?: "UNKNOWN", startedAt, durationMs, resultStatus, overallScore,
+                practiceId, songId, songTitle, imageUrl, selectedKey, practiceScope, sectionId, status ?: "UNKNOWN", startedAt, createdAt, durationMs, resultStatus, overallScore,
                 initialKey = firstKey, keyChanged = keyChanged ?: (firstKey != selectedKey),
             )
         }

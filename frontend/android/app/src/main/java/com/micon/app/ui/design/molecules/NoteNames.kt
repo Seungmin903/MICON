@@ -96,7 +96,8 @@ object NoteNames {
     }
 
     /**
-     * 노래방 표기(2옥타브 솔 …). 기본은 숨기고 설정에서 켠 사람에게만 괄호로 병기한다.
+     * 노래방 표기(2옥타브 솔 …). 기준은 [com.micon.app.scoring.KaraokeNames] 하나로 모은다 —
+     * 예전에는 여기서 한 옥타브 어긋나게 세고 있었다(C4 를 "3옥타브 도" 로).
      */
-    fun karaoke(midi: Int): String = "${octaveOf(midi) - 1}옥타브 ${syllableOf(midi)}"
+    fun karaoke(midi: Int): String = com.micon.app.scoring.KaraokeNames.korean(midi)
 }

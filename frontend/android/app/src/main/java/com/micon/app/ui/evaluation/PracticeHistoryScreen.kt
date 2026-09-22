@@ -1,8 +1,6 @@
 package com.micon.app.ui.evaluation
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,23 +8,31 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,13 +59,13 @@ import com.micon.app.ui.design.atoms.MiconCardKind
 import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.atoms.MiconFilterChip
 import com.micon.app.ui.design.molecules.SongRow
-import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,11 +86,14 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         val items: List<PracticeSummary> = emptyList(),
         val filter: HistoryFilter = HistoryFilter.ALL,
         val confirmDelete: PracticeSummary? = null,
+        /** 삭제 실패 전용 알림. 성공은 목록에서 바로 사라지는 것으로 충분하다 */
         val notice: String? = null,
     ) {
         private val scored get() = items.filter { it.overallScore != null }
-        val weekItems get() = scored.filter { it.startedAt?.let(::isThisWeek) == true }
-        val lastWeekItems get() = scored.filter { it.startedAt?.let(::isLastWeek) == true }
+        /** 서버가 날짜를 하나도 주지 않으면 주간 요약·"이번 주" 탭은 감춘다 — 빈 탭을 고장으로 오해하지 않게 */
+        val hasDates get() = items.any { it.occurredAt != null }
+        val weekItems get() = scored.filter { it.occurredAt?.let(::isThisWeek) == true }
+        val lastWeekItems get() = scored.filter { it.occurredAt?.let(::isLastWeek) == true }
         val weekAverage: Int? get() = weekItems.map { it.overallScore!! }.average().takeIf { weekItems.isNotEmpty() }?.roundToInt()
         val weekDelta: Int? get() {
             val now = weekAverage ?: return null
@@ -95,7 +104,8 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         val spark get() = scored.take(7).reversed().map { it.overallScore!!.roundToInt() }
         val visible get() = when (filter) {
             HistoryFilter.ALL -> items
-            HistoryFilter.WEEK -> items.filter { it.startedAt?.let(::isThisWeek) == true }
+            // 날짜가 없으면 "이번 주" 칩 자체를 감추므로, 고른 채로 남아 있어도 전체를 보여 준다
+            HistoryFilter.WEEK -> if (!hasDates) items else items.filter { it.occurredAt?.let(::isThisWeek) == true }
             HistoryFilter.TOP -> items.sortedByDescending { it.overallScore ?: -1.0 }
         }
     }
@@ -122,12 +132,26 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
     fun askDelete(item: PracticeSummary) = _state.update { it.copy(confirmDelete = item) }
     fun dismissDelete() = _state.update { it.copy(confirmDelete = null) }
     fun dismissNotice() = _state.update { it.copy(notice = null) }
+
+    /**
+     * 확인을 누르면 목록에서 **바로** 지운다. 서버 호출은 뒤에서 돌고, 실패했을 때만 원래 자리에 되돌리고 알린다.
+     * (예전에는 응답을 기다렸다 지워서 삭제가 느리게 느껴졌다.)
+     */
     fun confirmDelete() {
         val target = _state.value.confirmDelete ?: return
-        _state.update { it.copy(confirmDelete = null) }
+        val index = _state.value.items.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
+        _state.update { s -> s.copy(confirmDelete = null, items = s.items.filterNot { it.id == target.id }) }
         viewModelScope.launch {
-            try { practices.delete(target.id); _state.update { s -> s.copy(items = s.items.filter { it.id != target.id }, notice = "연습 기록을 삭제했어요.") } }
-            catch (e: Exception) { _state.update { it.copy(notice = describeBackendError(e, "기록을 삭제하지 못했어요.")) } }
+            try {
+                practices.delete(target.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { s ->
+                    val restored = s.items.toMutableList().apply { add(index.coerceIn(0, size), target) }
+                    s.copy(items = restored, notice = describeBackendError(e, "기록을 삭제하지 못했어요."))
+                }
+            }
         }
     }
 }
@@ -139,10 +163,10 @@ private fun isLastWeek(iso: String): Boolean { val d = parse(iso) ?: return fals
 
 /** "오늘 · 원래 키" / "어제 · 한 키 ↓" / "9월 17일 · 두 키 ↓" */
 internal fun historyMeta(item: PracticeSummary): String {
-    val d = item.startedAt?.let(::parse)
+    val d = item.occurredAt?.let(::parse)
     val today = LocalDate.now()
     val day = when {
-        d == null -> "날짜 없음"
+        d == null -> "날짜 기록 없음"
         d == today -> "오늘"
         d == today.minusDays(1) -> "어제"
         else -> d.format(DateTimeFormatter.ofPattern("M월 d일"))
@@ -152,7 +176,6 @@ internal fun historyMeta(item: PracticeSummary): String {
     return "$day · $key"
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
@@ -162,56 +185,71 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.onPrimaryContainer
 
-    MiconScreen(
-        appBar = { MiconHeader(onSettings = onSettings) },
-        verticalArrangement = Arrangement.spacedBy(MiconSpace.sm),
-    ) {
-        val avg = state.weekAverage
-        if (avg != null) MiconCard(kind = MiconCardKind.Elevated) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("이번 주 평균", style = MaterialTheme.typography.labelMedium, color = accent, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
-                state.weekDelta?.let { d -> MiconBadge(if (d >= 0) "지난주 +${d}점" else "지난주 ${d}점", tone = if (d >= 0) MiconChipTone.Success else MiconChipTone.Challenge) }
+    Box(Modifier.fillMaxSize()) {
+        MiconScreen(
+            appBar = { MiconHeader(onSettings = onSettings) },
+            verticalArrangement = Arrangement.spacedBy(MiconSpace.sm),
+        ) {
+            val avg = state.weekAverage
+            if (avg != null) MiconCard(kind = MiconCardKind.Elevated) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("이번 주 평균", style = MaterialTheme.typography.labelMedium, color = accent, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+                    state.weekDelta?.let { d -> MiconBadge(if (d >= 0) "지난주 +${d}점" else "지난주 ${d}점", tone = if (d >= 0) MiconChipTone.Success else MiconChipTone.Challenge) }
+                }
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("$avg", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, lineHeight = 38.sp)
+                    Text(" 점 · ${state.weekItems.size}회 연습", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 6.dp))
+                }
+                Spacer(Modifier.height(8.dp))
+                val spark = state.spark
+                Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
+                    val max = spark.maxOrNull() ?: 0
+                    spark.forEach { v ->
+                        Box(Modifier.weight(1f).fillMaxHeight((v / 100f).coerceIn(0.04f, 1f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                            .background(if (v == max) MaterialTheme.colorScheme.primary else Color(0xFFDCD6FF)))
+                    }
+                }
             }
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("$avg", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, lineHeight = 38.sp)
-                Text(" 점 · ${state.weekItems.size}회 연습", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 6.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(MiconSpace.xs)) {
+                val filters = if (state.hasDates) HistoryFilter.entries else HistoryFilter.entries.filter { it != HistoryFilter.WEEK }
+                filters.forEach { f -> MiconFilterChip(f.label, selected = state.filter == f, onClick = { vm.setFilter(f) }, emphasis = true) }
             }
-            Spacer(Modifier.height(8.dp))
-            val spark = state.spark
-            Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
-                val max = spark.maxOrNull() ?: 0
-                spark.forEach { v ->
-                    Box(Modifier.weight(1f).fillMaxHeight((v / 100f).coerceIn(0.04f, 1f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                        .background(if (v == max) MaterialTheme.colorScheme.primary else Color(0xFFDCD6FF)))
+            when {
+                state.error != null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(state.error!!, style = MaterialTheme.typography.bodyMedium, color = muted)
+                    MiconButton("다시 불러오기", vm::load, kind = MiconButtonKind.Text)
+                }
+                state.loading && state.items.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                state.visible.isEmpty() -> Text(if (state.items.isEmpty()) "아직 연습 기록이 없어요. 연습 탭에서 한 곡 불러 보세요." else "이번 주 기록이 없어요.",
+                    style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(top = 24.dp))
+                else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    state.visible.forEach { item ->
+                        val score = item.overallScore?.roundToInt()
+                        key(item.id) {
+                            SwipeToDeleteRow(onDelete = { vm.askDelete(item) }) {
+                                SongRow(
+                                    title = item.songTitle ?: "곡 ${item.songId}", artist = historyMeta(item), imageUrl = item.imageUrl,
+                                    onClick = { onOpenResult(item.id) },
+                                    trailing = {
+                                        if (score != null) Text("$score", fontFamily = MiconMonoFamily, fontSize = 18.sp, fontWeight = FontWeight.Black,
+                                            color = if (score >= 80) accent else muted)
+                                        else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium, color = muted)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Text("왼쪽으로 밀면 기록을 지울 수 있어요", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(MiconSpace.xs)) {
-            HistoryFilter.entries.forEach { f -> MiconFilterChip(f.label, selected = state.filter == f, onClick = { vm.setFilter(f) }, emphasis = true) }
-        }
-        when {
-            state.error != null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(state.error!!, style = MaterialTheme.typography.bodyMedium, color = muted)
-                MiconButton("다시 불러오기", vm::load, kind = MiconButtonKind.Text)
-            }
-            state.loading && state.items.isEmpty() -> Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            state.visible.isEmpty() -> Text(if (state.items.isEmpty()) "아직 연습 기록이 없어요. 연습 탭에서 한 곡 불러 보세요." else "이번 주 기록이 없어요.",
-                style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(top = 24.dp))
-            else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                state.visible.forEach { item ->
-                    val score = item.overallScore?.roundToInt()
-                    SongRow(
-                        title = item.songTitle ?: "곡 ${item.songId}", artist = historyMeta(item), imageUrl = item.imageUrl,
-                        modifier = Modifier.combinedClickable(onClick = { onOpenResult(item.id) }, onLongClick = { vm.askDelete(item) }),
-                        trailing = {
-                            if (score != null) Text("$score", fontFamily = MiconMonoFamily, fontSize = 18.sp, fontWeight = FontWeight.Black,
-                                color = if (score >= 80) accent else muted)
-                            else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium, color = muted)
-                        },
-                    )
-                }
-                Text("길게 누르면 기록을 지울 수 있어요", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(top = 8.dp))
-            }
+
+        state.notice?.let { message ->
+            LaunchedEffect(message) { delay(3500); vm.dismissNotice() }
+            Snackbar(
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(MiconSpace.sm),
+                action = { TextButton(onClick = vm::dismissNotice) { Text("확인") } },
+            ) { Text(message) }
         }
     }
 
@@ -224,5 +262,40 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
             dismissButton = { TextButton(vm::dismissDelete) { Text("취소") } },
         )
     }
-    state.notice?.let { AlertDialog(onDismissRequest = vm::dismissNotice, confirmButton = { TextButton(vm::dismissNotice) { Text("확인") } }, text = { Text(it) }) }
+}
+
+/**
+ * 왼쪽으로 밀면 빨간 삭제 영역이 드러난다. 실제 삭제는 확인 다이얼로그를 거치므로
+ * [SwipeToDismissBox] 에는 값 변경을 허락하지 않고(행은 제자리로 돌아온다) 콜백만 쏜다.
+ */
+@Composable
+private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val delete by rememberUpdatedState(onDelete)
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) delete()
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Row(
+                Modifier.fillMaxSize()
+                    .clip(RoundedCornerShape(MiconSpace.sm))
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = MiconSpace.md),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.size(MiconSpace.xxs))
+                Text("삭제", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+        },
+    ) {
+        // 뒤의 빨간 영역이 비치지 않도록 행은 불투명하게 깐다
+        Box(Modifier.background(MaterialTheme.colorScheme.background)) { content() }
+    }
 }
