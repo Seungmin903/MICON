@@ -72,8 +72,14 @@ android {
     namespace = "com.micon.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
+    // AGP 9 built-in Kotlin compiles additional test directories only when
+    // they are registered on AndroidSourceSet.kotlin.
+    sourceSets.named("test") {
+        kotlin.directories += "src/test/java"
+    }
+
     // Android and the PC model evaluate the same checked-in pitch fixtures.
-    sourceSets.getByName("test").resources.srcDir(rootProject.file("../../tests/fixtures"))
+    sourceSets.getByName("test").resources.directories += rootProject.file("../../tests/fixtures").absolutePath
 
     defaultConfig {
         applicationId = "com.micon.app"
