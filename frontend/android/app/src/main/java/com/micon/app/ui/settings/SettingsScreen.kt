@@ -80,7 +80,13 @@ fun SettingsScreen(
                 Column {
                     Text("탈퇴하면 기존 계정과 개인 기록에 접근할 수 없습니다. 현재 비밀번호를 입력해주세요.", color = Grey)
                     Spacer(Modifier.height(16.dp))
-                    MiconTextField("현재 비밀번호", withdrawPassword, { withdrawPassword = it }, "비밀번호", isPassword = true)
+                    MiconTextField(
+                        "현재 비밀번호",
+                        withdrawPassword,
+                        { withdrawPassword = it; withdrawError = null },
+                        "비밀번호",
+                        isPassword = true,
+                    )
                     withdrawError?.let { Text(it, color = Pink, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)) }
                 }
             },
@@ -94,7 +100,8 @@ fun SettingsScreen(
                             try {
                                 val response = backend.api.withdraw(WithdrawRequest(withdrawPassword))
                                 if (!response.isSuccessful) {
-                                    withdrawError = if (response.code() == 401) "비밀번호가 올바르지 않습니다." else "탈퇴를 처리하지 못했습니다."
+                                    val backendError = response.errorEnvelope()
+                                    withdrawError = withdrawalErrorMessage(backendError?.code, backendError?.message)
                                 } else {
                                     TokenManager.clear()
                                     showWithdraw = false
@@ -164,6 +171,13 @@ fun SettingsScreen(
             Spacer(Modifier.height(32.dp))
         }
     }
+}
+
+internal fun withdrawalErrorMessage(code: String?, message: String?): String = when (code) {
+    "INVALID_CURRENT_PASSWORD" -> "비밀번호가 올바르지 않습니다."
+    "INVALID_REQUEST" -> message ?: "입력한 내용을 확인해주세요."
+    "ACCOUNT_NOT_ACTIVE" -> "이미 탈퇴했거나 이용할 수 없는 계정입니다."
+    else -> message ?: "탈퇴를 처리하지 못했습니다."
 }
 
 @Composable
