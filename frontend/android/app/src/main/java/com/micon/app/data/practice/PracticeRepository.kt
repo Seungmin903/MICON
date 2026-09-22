@@ -13,6 +13,7 @@ import com.micon.app.data.backend.dto.PracticeSummaryDto
 import com.micon.app.data.backend.dto.RetrySectionDto
 import com.micon.app.data.backend.dto.SectionEvaluationDto
 import com.micon.app.data.backend.unwrapData
+import com.micon.app.data.backend.unwrapNullable
 
 /** 백엔드 `PracticeRequest.ActiveStatus` — `PATCH /practices/{id}/status` 로 바꿀 수 있는 진행 상태. */
 
@@ -199,7 +200,8 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
     }
 
     override suspend fun delete(practiceId: Long) {
-        api.deletePractice(practiceId).unwrapData()
+        // DELETE 성공 응답은 ApiResponse<Void>라 data가 null이다.
+        api.deletePractice(practiceId).unwrapNullable()
     }
 
     companion object {
