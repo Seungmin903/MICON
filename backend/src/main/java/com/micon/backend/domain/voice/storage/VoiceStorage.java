@@ -7,6 +7,7 @@ import java.time.Duration;
 public interface VoiceStorage {
     void upload(String objectKey, InputStream content, long contentLength, String contentType);
     StoredObject download(String objectKey);
+    boolean exists(String objectKey);
     URI createDownloadUrl(String objectKey, Duration validity);
     void delete(String objectKey);
 

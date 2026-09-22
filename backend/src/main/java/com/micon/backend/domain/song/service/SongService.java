@@ -34,10 +34,13 @@ public class SongService {
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId) {
 		long offset = (long) page * size;
 		boolean catalog = (query == null || query.trim().isEmpty()) && genreId == null;
-		List<SongResponse.Summary> songs = catalog
-				? songQueryRepository.findCatalogPage(size, offset, userId)
+		boolean genreCatalog = (query == null || query.trim().isEmpty()) && genreId != null;
+		List<SongResponse.Summary> songs = catalog ? songQueryRepository.findCatalogPage(size, offset, userId)
+				: genreCatalog ? songQueryRepository.findGenrePage(genreId, size, offset, userId)
 				: songQueryRepository.findPage(query, size, offset, userId, genreId);
-		long totalElements = catalog ? songQueryRepository.countCatalog() : songQueryRepository.count(query, genreId);
+		long totalElements = catalog ? songQueryRepository.countCatalog()
+				: genreCatalog ? songQueryRepository.countGenre(genreId)
+				: songQueryRepository.count(query, genreId);
 		return PageResponse.of(songs, page, size, totalElements);
 	}
 
