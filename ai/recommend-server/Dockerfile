@@ -4,11 +4,13 @@
 # 들어가지 않는 것: 원본 mp3·분리 보컬·사용자 녹음(요청 body 로만 들어와 jobs/ 에 잠시 머문다).
 FROM python:3.11-slim
 
+ARG MICON_BUILD_SHA=unknown
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HUB_DISABLE_TELEMETRY=1 \
-    NUMBA_CACHE_DIR=/tmp/numba-cache
+    NUMBA_CACHE_DIR=/tmp/numba-cache \
+    MICON_BUILD_SHA=${MICON_BUILD_SHA}
 WORKDIR /app
 
 # 1) torch 3종을 CPU 빌드로 먼저 깐다(버전은 requirements.txt 와 같아야 한다 — 그래야 2)에서 다시 안 받는다).
@@ -36,7 +38,7 @@ RUN groupadd --gid 10001 micon \
 VOLUME ["/app/workspace/analysis", "/app/workspace/recommender/jobs"]
 
 EXPOSE 8788
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/health', timeout=4)" || exit 1
 USER 10001:10001
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

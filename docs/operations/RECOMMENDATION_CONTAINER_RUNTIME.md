@@ -43,6 +43,7 @@ Git LFS 카탈로그 파일을 받은 정확한 커밋 checkout에서 실행한�
 git lfs pull --include="ai/recommend-server/recommender-assets/catalog-index/*"
 COMMIT_SHA="$(git rev-parse --short=12 HEAD)"
 export MICON_RECOMMENDATION_IMAGE="micon-recommendation:${COMMIT_SHA}"
+export MICON_BUILD_SHA="${COMMIT_SHA}"
 export MICON_RECOMMENDATION_BIND_PORT=8788
 export MICON_RECOMMENDATION_ENV_FILE=/etc/micon/runtime/recommendation.env
 

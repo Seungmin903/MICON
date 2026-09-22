@@ -57,6 +57,11 @@ class VoiceContractTest(unittest.TestCase):
         jobs.JOBS.clear()
         jobs.REQUESTS.clear()
 
+    def tearDown(self):
+        jobs._timbre_runtime = None
+        jobs._timbre_runtime_key = None
+        jobs._timbre_runtime_warmed = False
+
     def test_same_id_is_atomic_under_concurrent_acceptance(self):
         metadata, audio = meta(), wav()
         with ThreadPoolExecutor(max_workers=4) as pool:
@@ -101,12 +106,15 @@ class VoiceContractTest(unittest.TestCase):
         payloads = {c: jobs._failure_callback(jobs.JOBS[identifier], c, "FAILED", "TEST", "test")
                     for c in ("ECAPA", "SINGER_BYOL")}
         with (mock.patch.object(jobs, "_timbre_callbacks", return_value=payloads),
-              mock.patch.object(jobs, "post_callback", return_value={"accepted": False, "http": 503})):
+              mock.patch.object(jobs, "post_callback", return_value={
+                  "accepted": False, "http": 503, "attempts": 3, "error": "backend unavailable"})):
             jobs.process(identifier)
         self.assertEqual(jobs.JOBS[identifier]["status"], "CALLBACK_PENDING")
         self.assertEqual(jobs.JOBS[identifier]["componentStatus"], "FAILED")
         self.assertIsNone(jobs.JOBS[identifier]["softExpiresAt"])
         self.assertTrue((Path(self.tmp.name) / identifier / "callback.ECAPA.json").is_file())
+        self.assertEqual(jobs.JOBS[identifier]["components"]["ECAPA"]["callbackFailures"], 1)
+        self.assertEqual(jobs.JOBS[identifier]["components"]["ECAPA"]["lastCallbackFailure"]["http"], 503)
         jobs.JOBS.clear()
         jobs.REQUESTS.clear()
         jobs.restore_jobs()
@@ -123,6 +131,62 @@ class VoiceContractTest(unittest.TestCase):
             save.assert_not_called()
         jobs.sweep(datetime.now() + timedelta(days=2))
         self.assertFalse((Path(self.tmp.name) / identifier / "file.wav").exists())
+
+    def test_persisted_pre_contract_callback_is_upgraded_before_delivery(self):
+        reply, _ = jobs.ingest({"file": wav()}, meta())
+        identifier = reply["jobId"]
+        job = jobs.JOBS[identifier]
+        job_dir = Path(self.tmp.name) / identifier
+        payload = {
+            "requestId": job["requestId"], "jobId": identifier, "component": "ECAPA",
+            "status": "COMPLETED",
+            "segmentInfo": {"segmentCount": 5, "embeddings": [[1.0] * 192 for _ in range(5)]},
+        }
+        (job_dir / "callback.ECAPA.json").write_text(json.dumps(payload), encoding="utf-8")
+        components = dict(job["components"])
+        components["ECAPA"] = {"status": "COMPLETED", "accepted": False}
+        components["SINGER_BYOL"] = {"status": "COMPLETED", "accepted": True}
+        jobs._update(identifier, status="CALLBACK_PENDING", componentStatus="COMPLETED",
+                     components=components)
+
+        with mock.patch.object(jobs, "post_callback", return_value={
+                "accepted": True, "http": 200, "attempts": 1}) as send:
+            jobs.deliver_callbacks(identifier)
+
+        sent = send.call_args.args[0]
+        self.assertEqual(sent["segmentInfo"]["validChunkCount"], 5)
+        persisted = json.loads((job_dir / "callback.ECAPA.json").read_text(encoding="utf-8"))
+        self.assertEqual(persisted["segmentInfo"]["validChunkCount"], 5)
+
+    def test_timbre_runtime_is_loaded_once_for_matching_configuration(self):
+        config = {
+            "ecapa_checkpoint": "ecapa.ckpt",
+            "singer_repo": "singer-repo",
+            "singer_checkpoint_root": "singer-root",
+            "device": "cpu",
+        }
+        runtime = mock.Mock(device="cpu")
+        with mock.patch.object(jobs, "VocalEmbeddingRuntime", return_value=runtime) as constructor:
+            first = jobs.get_timbre_runtime(config)
+            second = jobs.get_timbre_runtime(config)
+        self.assertIs(first, second)
+        constructor.assert_called_once()
+
+    def test_timbre_runtime_is_preloaded_and_warmed_once(self):
+        config = {
+            "ecapa_checkpoint": "ecapa.ckpt",
+            "singer_repo": "singer-repo",
+            "singer_checkpoint_root": "singer-root",
+            "device": "cpu",
+        }
+        runtime = mock.Mock(device="cpu")
+        with (mock.patch.object(jobs, "_configuration_status", return_value=(config, [])),
+              mock.patch.object(jobs, "VocalEmbeddingRuntime", return_value=runtime)):
+            first = jobs.preload_timbre_runtime()
+            second = jobs.preload_timbre_runtime()
+        self.assertTrue(first["loaded"] and first["warmed"])
+        self.assertEqual(second, first)
+        runtime.embed_windows.assert_called_once()
 
     def test_duplicate_pending_request_delivers_only_unaccepted_callback_without_inference(self):
         metadata, audio = meta(), wav()

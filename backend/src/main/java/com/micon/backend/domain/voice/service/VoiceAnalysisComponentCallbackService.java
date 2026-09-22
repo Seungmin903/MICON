@@ -167,10 +167,13 @@ public class VoiceAnalysisComponentCallbackService {
                 || request.dimension() == null || request.dimension() != expectedDimension
                 || embedding == null || embedding.size() != expectedDimension
                 || embedding.stream().anyMatch(item -> item == null || !Double.isFinite(item))
-                || !validEnergy(embedding)
-                || !validSegments(request.segmentInfo())) {
+                || !validEnergy(embedding)) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
-                    "모델 키·버전·임베딩 차원·구간 정보가 완료 계약과 일치하지 않습니다.");
+                    "모델 키·버전·임베딩 차원이 완료 계약과 일치하지 않습니다.");
+        }
+        if (!validSegments(request.segmentInfo())) {
+            throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
+                    "segmentInfo.validChunkCount는 5 이상인 정수여야 합니다.");
         }
         String vectorJson = write(embedding);
         VoiceModelResult previous = results.findBySessionIdAndModelKey(job.getSession().getId(), request.modelKey()).orElse(null);

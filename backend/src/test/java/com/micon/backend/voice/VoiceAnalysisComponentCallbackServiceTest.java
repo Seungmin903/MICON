@@ -137,6 +137,31 @@ class VoiceAnalysisComponentCallbackServiceTest {
     }
 
     @Test
+    void acceptsARepeatedTerminalTimbreCallbackAsDuplicate() {
+        when(job.isTerminal()).thenReturn(true);
+
+        var response = service.accept(completed(null, 1000));
+
+        assertThat(response.analysisId()).isEqualTo(31L);
+        assertThat(response.duplicate()).isTrue();
+        verify(results, never()).save(any());
+    }
+
+    @Test
+    void reportsTheMissingValidChunkCountContract() {
+        var mapper = new ObjectMapper();
+        var request = new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1", "SINGER_BYOL",
+                VoiceAnalysisComponentCallbackRequest.Status.COMPLETED, "SINGER_BYOL", "v2",
+                1000, Collections.nCopies(1000, 0.125), mapper.createObjectNode(),
+                mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now(),
+                1, null, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.accept(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("validChunkCount");
+    }
+
+    @Test
     void keepsParentRunningUntilBothModelComponentsFinish() {
         VoiceAnalysisComponentJob ecapa = mock(VoiceAnalysisComponentJob.class);
         when(ecapa.getComponentType()).thenReturn("ECAPA");
