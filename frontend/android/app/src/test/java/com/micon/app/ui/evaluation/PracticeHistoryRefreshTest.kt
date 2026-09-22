@@ -17,7 +17,7 @@ class PracticeHistoryRefreshTest {
     @After fun tearDown() { models.forEach { it.viewModelScope.cancel() }; Dispatchers.resetMain() }
 
     private fun summary(id: Long) = PracticeSummary(id, "song-$id", "Song $id", null, 0,
-        "FULL_SONG", null, "COMPLETED", "2026-09-18T10:00:00", 1000, "COMPLETED", 90.0)
+        "FULL_SONG", null, "COMPLETED", "2026-09-18T10:00:00", null, 1000, "COMPLETED", 90.0)
     private fun page(id: Long) = PracticePage(listOf(summary(id)), 0, 50, 1, 1)
     private fun model(repo: FakePractices) = PracticeHistoryViewModel(repo).also(models::add)
 
