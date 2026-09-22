@@ -286,6 +286,8 @@ class BackendRecommendRepository(
                 rangeFit = RangeFit(
                     score = score, coverage = score, centerScore = 0f, spanFit = 0f, softFit = 0f,
                     songCoreLowMidi = range.songLowMidi?.roundToInt(), songCoreHighMidi = range.songHighMidi?.roundToInt(),
+                    userStableLowMidi = range.userStableLowMidi?.roundToInt(),
+                    userStableHighMidi = range.userStableHighMidi?.roundToInt(),
                 ),
                 recommendedKey = recommendedKeyOffset,   // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다
                 strainSections = StrainSections(original = burden, atKey = burden),

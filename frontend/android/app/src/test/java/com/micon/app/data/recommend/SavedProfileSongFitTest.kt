@@ -17,6 +17,8 @@ class SavedProfileSongFitTest {
             server.enqueue(response(9, "AVAILABLE"))
             val result = SavedProfileSongFit(api, "9").fit("17")
             assertEquals(.85f, checkNotNull(result).overallFit, .001f)
+            assertEquals(55, result.rangeFit?.userStableLowMidi)
+            assertEquals(67, result.rangeFit?.userStableHighMidi)
             val request = server.takeRequest()
             assertEquals("/api/v1/songs/17/fit?analysisId=9&keyOffset=0", request.path)
             assertEquals(1, server.requestCount)
@@ -39,5 +41,5 @@ class SavedProfileSongFitTest {
 
     private fun response(profileId: Long, status: String) = MockResponse()
         .setHeader("Content-Type", "application/json")
-        .setBody("""{"code":"SUCCESS","data":{"songId":17,"analysisId":$profileId,"evaluationStatus":"$status","originalKeyFit":{"score":85}}}""")
+        .setBody("""{"code":"SUCCESS","data":{"songId":17,"analysisId":$profileId,"evaluationStatus":"$status","originalKeyFit":{"userStableLowMidi":55,"userStableHighMidi":67,"score":85}}}""")
 }

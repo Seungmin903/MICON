@@ -128,7 +128,12 @@ fun SongDetailContent(
         }
         val fit = state.fit
         val song = songRange(detail, fit)
-        val mine = profile?.let { it.comfortLow to it.comfortHigh }
+        // 서버 적합도와 화면 판정이 같은 안정 음역을 사용해야 한다. 서버 값이 없는 로컬 계산만 UserStore 로 보완한다.
+        val mine = fit?.rangeFit?.let { range ->
+            val low = range.userStableLowMidi
+            val high = range.userStableHighMidi
+            if (low != null && high != null && high >= low) low to high else null
+        } ?: profile?.let { it.comfortLow to it.comfortHigh }
         val matchPct = rangeMatchPercent(mine, song, key)
         val verdict = rangeVerdict(mine, song, key)
 

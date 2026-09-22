@@ -64,6 +64,9 @@ data class RangeFit(
     /** 곡 주요 음역(5~95 %). 로컬 카탈로그에 분석이 없는 곡(서버 추천)도 상세에서 음역 막대를 그릴 수 있게 */
     val songCoreLowMidi: Int? = null,
     val songCoreHighMidi: Int? = null,
+    /** 서버가 이 적합도 계산에 실제 사용한 사용자 안정 음역. 로컬 계산에서는 null. */
+    val userStableLowMidi: Int? = null,
+    val userStableHighMidi: Int? = null,
 )
 
 data class StrainSections(
