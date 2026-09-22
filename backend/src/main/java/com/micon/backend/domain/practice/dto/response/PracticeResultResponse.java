@@ -32,7 +32,10 @@ public final class PracticeResultResponse {
 		String summaryText,
 		List<PracticeResultRequest.SectionEvaluation> sections,
 		RetrySection weakSection,
-		LocalDateTime analyzedAt
+		LocalDateTime analyzedAt,
+		String dataVersion,
+		List<PracticeResultRequest.NoteEvaluation> notes,
+		PracticeResultRequest.PitchCurve curve
 	) {
 	}
 

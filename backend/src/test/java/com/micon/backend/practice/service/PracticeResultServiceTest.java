@@ -3,6 +3,7 @@ package com.micon.backend.practice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.common.exception.ErrorCode;
@@ -22,6 +23,7 @@ import com.micon.backend.domain.practice.service.PracticeResultService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
@@ -82,6 +84,52 @@ class PracticeResultServiceTest {
 		);
 
 		assertThat(service.save(7L, 50L, request).sustainScore()).isNull();
+	}
+
+	@Test
+	void storesDetailedDeviceJudgementsAndPitchCurve() throws Exception {
+		when(practiceRepository.findOwned(50L, 7L)).thenReturn(Optional.of(practice("COMPLETED")));
+		when(resultRepository.findLatest(50L)).thenReturn(Optional.of(
+			new ResultRow(60L, 50L, "COMPLETED", decimal("70"), decimal("65"), decimal("75"), decimal("72"),
+				"{\"summaryText\":null,\"sections\":[]}", LocalDateTime.now(), LocalDateTime.now())
+		));
+		var notes = List.of(new PracticeResultRequest.NoteEvaluation(3, "GOOD", 12, 0.08));
+		var curve = new PracticeResultRequest.PitchCurve(100, 0, java.util.Arrays.asList(60.25, null, 61.0));
+		var request = new PracticeResultRequest.Save(
+			ResultStatus.COMPLETED, decimal("70"), decimal("65"), decimal("75"), decimal("72"),
+			"좋은 연습", List.of(), "karaoke-v3", notes, curve
+		);
+
+		service.save(7L, 50L, request);
+
+		var stored = ArgumentCaptor.forClass(String.class);
+		verify(resultRepository).save(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(50L),
+			org.mockito.ArgumentMatchers.eq("COMPLETED"), org.mockito.ArgumentMatchers.any(),
+			org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), stored.capture());
+		var payload = new ObjectMapper().readValue(stored.getValue(), PracticeResultService.SummaryPayload.class);
+		assertThat(payload.dataVersion()).isEqualTo("karaoke-v3");
+		assertThat(payload.notes()).containsExactlyElementsOf(notes);
+		assertThat(payload.curve()).isEqualTo(curve);
+	}
+
+	@Test
+	void returnsStoredDetailedDeviceJudgementsAndPitchCurve() throws Exception {
+		var notes = List.of(new PracticeResultRequest.NoteEvaluation(3, "GOOD", 12, 0.08));
+		var curve = new PracticeResultRequest.PitchCurve(100, 0, java.util.Arrays.asList(60.25, null, 61.0));
+		String stored = new ObjectMapper().writeValueAsString(
+			new PracticeResultService.SummaryPayload("좋은 연습", List.of(), "karaoke-v3", notes, curve)
+		);
+		when(practiceRepository.findOwned(50L, 7L)).thenReturn(Optional.of(practice("COMPLETED")));
+		when(resultRepository.findLatest(50L)).thenReturn(Optional.of(
+			new ResultRow(60L, 50L, "COMPLETED", decimal("70"), decimal("65"), decimal("75"), decimal("72"),
+				stored, LocalDateTime.now(), LocalDateTime.now())
+		));
+
+		var report = service.report(7L, 50L);
+
+		assertThat(report.dataVersion()).isEqualTo("karaoke-v3");
+		assertThat(report.notes()).containsExactlyElementsOf(notes);
+		assertThat(report.curve()).isEqualTo(curve);
 	}
 
 	@Test
