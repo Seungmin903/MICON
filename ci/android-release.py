@@ -118,8 +118,10 @@ def main():
     env["GIT_TERMINAL_PROMPT"] = "0"
     gradle = [str(android / "gradlew.bat")] if os.name == "nt" else ["sh", str(android / "gradlew")]
     print("release stage=build_and_test")
+    # AGP 9 creates the debug unit-test variant for this project; Release is
+    # assembled separately with the configured production signing key.
     run(gradle + ["--no-daemon", "--no-configuration-cache", "--no-build-cache", "clean",
-                  ":app:testReleaseUnitTest", ":app:assembleRelease"], android, env, "build_and_test")
+                  ":app:testDebugUnitTest", ":app:assembleRelease"], android, env, "build_and_test")
     # Verification tools need no signing credentials.
     for key in ("RELEASE_STORE_FILE", "RELEASE_STORE_PASSWORD", "RELEASE_KEY_PASSWORD", "RELEASE_KEY_ALIAS"):
         env.pop(key, None)

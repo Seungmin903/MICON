@@ -22,8 +22,22 @@ public final class PracticeResultRequest {
 		@DecimalMin("0.00") @DecimalMax("100.00") BigDecimal sustainScore,
 		@DecimalMin("0.00") @DecimalMax("100.00") BigDecimal rhythmScore,
 		@Size(max = 500) String summaryText,
-		@Size(max = 20) List<@Valid SectionEvaluation> sections
+		@Size(max = 20) List<@Valid SectionEvaluation> sections,
+		@Size(max = 128) String dataVersion,
+		@Size(max = 600) List<@Valid NoteEvaluation> notes,
+		@Valid PitchCurve curve
 	) {
+		public Save(
+			ResultStatus status,
+			BigDecimal overallScore,
+			BigDecimal pitchScore,
+			BigDecimal sustainScore,
+			BigDecimal rhythmScore,
+			String summaryText,
+			List<SectionEvaluation> sections
+		) {
+			this(status, overallScore, pitchScore, sustainScore, rhythmScore, summaryText, sections, null, null, null);
+		}
 	}
 
 	public record SectionEvaluation(
@@ -31,6 +45,23 @@ public final class PracticeResultRequest {
 		@DecimalMin("0.00") @DecimalMax("100.00") BigDecimal score,
 		@NotNull Boolean measured,
 		@Size(max = 120) String summary
+	) {
+	}
+
+	/** 기기 라이브 채점의 음표별 판정. i 는 해당 dataVersion의 목표 음표 인덱스다. */
+	public record NoteEvaluation(
+		@NotNull Integer i,
+		@NotNull String s,
+		Integer c,
+		Double d
+	) {
+	}
+
+	/** 기기 라이브 채점에서 얻은 사용자 음정 곡선. null 원소는 무성 구간을 의미한다. */
+	public record PitchCurve(
+		@NotNull Integer hopMs,
+		@NotNull Integer startMs,
+		@NotNull @Size(max = 4000) List<Double> user
 	) {
 	}
 

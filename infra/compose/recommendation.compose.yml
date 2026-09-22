@@ -6,6 +6,8 @@ services:
     build:
       context: ../../ai
       dockerfile: recommend-server/Dockerfile
+      args:
+        MICON_BUILD_SHA: ${MICON_BUILD_SHA:-unknown}
     container_name: micon-recommendation
     restart: unless-stopped
     env_file:

@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
+import time
 from typing import Any
 
 import librosa
@@ -170,6 +172,14 @@ def _resolve_device(requested: str) -> str:
     if requested == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but torch.cuda.is_available() is false")
     return requested
+
+
+def _synchronize(device: str) -> None:
+    """Make CUDA timings include queued kernels instead of only dispatch time."""
+    if device == "cuda":
+        import torch
+
+        torch.cuda.synchronize()
 
 
 def _ensure_speechbrain_torchaudio_compat() -> None:
@@ -353,6 +363,9 @@ class VocalEmbeddingRuntime:
         self.batch_size = batch_size
         self.offload_after_embed = offload_after_embed
         self.checked_out_singer_revision = _git_revision(self.singer_repo)
+        self.ecapa_checkpoint_sha256 = ECAPA_CHECKPOINT_SHA256
+        self.singer_checkpoint_sha256 = SINGER_BYOL_CHECKPOINT_SHA256
+        self._inference_lock = threading.Lock()
         load_device = "cpu" if offload_after_embed else self.device
         self._ecapa_components = _load_ecapa(self.ecapa_checkpoint, load_device)
         self._singer_model = _load_singer_byol(
@@ -394,22 +407,42 @@ class VocalEmbeddingRuntime:
         if batch_size != self.batch_size:
             raise ValueError("embedding runtime batch size does not match this request")
 
-    def embed_windows(self, windows_44k: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        self._move_models(self.device)
-        try:
-            ecapa = _embed_ecapa_with_components(
-                windows_44k,
-                self._ecapa_components,
-                self.device,
-                self.batch_size,
-            )
-            singer_byol = _embed_singer_byol_with_model(
-                windows_44k, self._singer_model, self.device
-            )
-            return ecapa, singer_byol
-        finally:
-            if self.offload_after_embed and self.device == "cuda":
-                self._move_models("cpu")
+    def embed_windows(
+        self, windows_44k: np.ndarray, *, timings: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
+        # The API can admit more than one job when RECOMMEND_CONCURRENCY is raised.
+        # Upstream Singer-BYOL and device moves are not safe to mutate concurrently.
+        with self._inference_lock:
+            move_started = time.perf_counter()
+            self._move_models(self.device)
+            _synchronize(self.device)
+            if timings is not None:
+                timings["modelDeviceTransferMs"] = round(
+                    (time.perf_counter() - move_started) * 1000, 1
+                )
+            try:
+                started = time.perf_counter()
+                ecapa = _embed_ecapa_with_components(
+                    windows_44k,
+                    self._ecapa_components,
+                    self.device,
+                    self.batch_size,
+                )
+                _synchronize(self.device)
+                if timings is not None:
+                    timings["ecapaMs"] = round((time.perf_counter() - started) * 1000, 1)
+
+                started = time.perf_counter()
+                singer_byol = _embed_singer_byol_with_model(
+                    windows_44k, self._singer_model, self.device
+                )
+                _synchronize(self.device)
+                if timings is not None:
+                    timings["singerByolMs"] = round((time.perf_counter() - started) * 1000, 1)
+                return ecapa, singer_byol
+            finally:
+                if self.offload_after_embed and self.device == "cuda":
+                    self._move_models("cpu")
 
 
 def embed_vocal_audio(
@@ -425,6 +458,7 @@ def embed_vocal_audio(
     min_segments: int = 5,
     force: bool = False,
     runtime: VocalEmbeddingRuntime | None = None,
+    timings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Extract both model matrices and a provenance sidecar from vocal audio."""
 
@@ -443,13 +477,18 @@ def embed_vocal_audio(
             f"embedding output already exists ({existing[0]}); pass force=True to replace it"
         )
     prefix.parent.mkdir(parents=True, exist_ok=True)
+    started = time.perf_counter()
     windows, segments = load_vocal_windows(
         source, max_segments=max_segments, min_segments=min_segments
     )
+    if timings is not None:
+        timings["segmentationMs"] = round((time.perf_counter() - started) * 1000, 1)
+        timings["segmentCount"] = len(segments)
     ecapa_path = Path(ecapa_checkpoint).resolve()
     singer_repo_path = Path(singer_repo).resolve()
     singer_root = Path(singer_checkpoint_root).resolve()
     if runtime is None:
+        started = time.perf_counter()
         runtime = VocalEmbeddingRuntime(
             ecapa_checkpoint=ecapa_path,
             singer_repo=singer_repo_path,
@@ -457,6 +496,8 @@ def embed_vocal_audio(
             device=device,
             batch_size=batch_size,
         )
+        if timings is not None:
+            timings["runtimeLoadMs"] = round((time.perf_counter() - started) * 1000, 1)
     else:
         runtime.require_compatible(
             ecapa_checkpoint=ecapa_path,
@@ -465,8 +506,9 @@ def embed_vocal_audio(
             requested_device=device,
             batch_size=batch_size,
         )
-    ecapa, byol = runtime.embed_windows(windows)
+    ecapa, byol = runtime.embed_windows(windows, timings=timings)
 
+    write_started = time.perf_counter()
     _atomic_save_npy(destinations["ecapa"], ecapa)
     _atomic_save_npy(destinations["singer_byol"], byol)
     metadata = {
@@ -482,12 +524,12 @@ def embed_vocal_audio(
         "models": {
             "ecapa": {
                 "dimension": ecapa.shape[1],
-                "checkpoint_sha256": _sha256(ecapa_path),
+                "checkpoint_sha256": runtime.ecapa_checkpoint_sha256,
                 "preprocessing": MODEL_CONTRACTS["ecapa"].preprocessing,
             },
             "singer_byol": {
                 "dimension": byol.shape[1],
-                "checkpoint_sha256": _sha256(singer_root / "byol" / "model.pt"),
+                "checkpoint_sha256": runtime.singer_checkpoint_sha256,
                 "official_repository": OFFICIAL_SINGER_BYOL_REPOSITORY,
                 "expected_code_revision": OFFICIAL_SINGER_BYOL_REVISION,
                 "checked_out_code_revision": runtime.checked_out_singer_revision,
@@ -504,4 +546,6 @@ def embed_vocal_audio(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     os.replace(temporary, destinations["metadata"])
+    if timings is not None:
+        timings["artifactWriteMs"] = round((time.perf_counter() - write_started) * 1000, 1)
     return metadata

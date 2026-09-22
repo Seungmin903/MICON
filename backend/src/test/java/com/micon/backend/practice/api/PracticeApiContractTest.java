@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.micon.backend.domain.practice.api.PracticeController;
+import com.micon.backend.domain.practice.dto.request.PracticeResultRequest;
 import com.micon.backend.domain.practice.service.PracticeHistoryService;
 import com.micon.backend.domain.practice.service.PracticeResultService;
 import com.micon.backend.domain.practice.service.PracticeService;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -85,5 +87,24 @@ class PracticeApiContractTest {
 
 		mockMvc.perform(get("/practices/report/11").principal(() -> "7"))
 			.andExpect(status().isOk());
+	}
+
+	@Test
+	void acceptsDetailedPracticeReportPayload() throws Exception {
+		mockMvc.perform(put("/practices/report/11")
+				.principal(() -> "7")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"status":"COMPLETED","overallScore":80,"pitchScore":81,"rhythmScore":79,
+					 "dataVersion":"karaoke-v3","notes":[{"i":3,"s":"GOOD","c":12,"d":0.08}],
+					 "curve":{"hopMs":100,"startMs":0,"user":[60.25,null,61.0]}}
+					"""))
+			.andExpect(status().isOk());
+
+		var request = ArgumentCaptor.forClass(PracticeResultRequest.Save.class);
+		verify(resultService).save(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(11L), request.capture());
+		org.assertj.core.api.Assertions.assertThat(request.getValue().dataVersion()).isEqualTo("karaoke-v3");
+		org.assertj.core.api.Assertions.assertThat(request.getValue().notes()).hasSize(1);
+		org.assertj.core.api.Assertions.assertThat(request.getValue().curve().user()).containsExactly(60.25, null, 61.0);
 	}
 }

@@ -14,6 +14,7 @@ from fastapi import Depends, FastAPI
 import analysis_jobs
 import catalog_link
 from recommendation_api import router as recommendation_router
+from runtime_info import build_sha
 from service_auth import require_service_token
 from song_fit_api import router as song_fit_router, restore_artist_jobs
 
@@ -22,8 +23,9 @@ from song_fit_api import router as song_fit_router, restore_artist_jobs
 async def lifespan(_: FastAPI):
     analysis_jobs.restore_jobs()
     restore_artist_jobs()
-    stop = analysis_jobs.start_sweeper()
     catalog_link.refresh()          # 앱 song_id 짝표. 실패해도 기동은 계속된다(상태는 /recommendations/status)
+    analysis_jobs.preload_timbre_runtime()
+    stop = analysis_jobs.start_sweeper()
     try:
         yield
     finally:
@@ -38,4 +40,10 @@ app.include_router(song_fit_router, dependencies=[Depends(require_service_token)
 
 @app.get("/health")
 def health() -> dict[str, object]:
-    return {"ok": True, "service": "micon-recommend-server", "version": app.version}
+    return {
+        "ok": True,
+        "service": "micon-recommend-server",
+        "version": app.version,
+        "buildSha": build_sha(),
+        "timbreRuntime": analysis_jobs.timbre_runtime_status(),
+    }
