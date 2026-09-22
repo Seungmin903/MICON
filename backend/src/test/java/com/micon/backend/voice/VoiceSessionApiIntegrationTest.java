@@ -106,6 +106,27 @@ class VoiceSessionApiIntegrationTest {
     }
 
     @Test
+    void memberStoresHoloDeviceRange() throws Exception {
+        User user = users.saveAndFlush(new User("holo-range@micon.test", passwords.encode("Password123!")));
+        var member = jwt().jwt(token -> token.subject(user.getId().toString()));
+        String created = mvc.perform(post("/voice-analysis-sessions").with(member))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long sessionId = json.readTree(created).get("data").get("sessionId").asLong();
+        String range = """
+                {"measurementId":"holo-measurement","measuredAt":"2026-09-22T03:14:31",
+                 "protocolVersion":"holo-v1","lowMidi":48,"highMidi":72,
+                 "noteResults":[{"midi":48,"status":"passed","stability":0.9,"holdMs":300}],
+                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID"}
+                """;
+
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(member)
+                        .contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"));
+    }
+
+    @Test
     void memberStreamsRangeWavToAiAndPersistsAnalyzingState() throws Exception {
         when(gateway.submitRange(any())).thenReturn(new VoiceAnalysisJobGateway.Result("range-job-member", "QUEUED"));
         User user = users.saveAndFlush(new User("voice-range-member@micon.test", passwords.encode("Password123!")));
