@@ -96,8 +96,11 @@ object ReportDetailBuilder {
 /** 가사 음절별 판정 카드 — Figma "구간 평가"의 음이탈 음절 빨강 표시. */
 @Composable
 fun SyllableJudgementCard(detail: ReportDetail) {
+    val badLines = detail.lines.filter { line ->
+        line.chars.count { it.status == LiveStatus.WRONG } >= 2
+    }
     MiconCard {
-        CardTitle("가사별 음정 판정")
+        CardTitle("집중 연습 구간")
         if (detail.versionMismatch) {
             Text("곡 데이터가 갱신되어 글자 위치가 조금 어긋날 수 있어요.", fontSize = 12.sp, color = Red, modifier = Modifier.padding(top = 4.dp))
         }
@@ -113,11 +116,11 @@ fun SyllableJudgementCard(detail: ReportDetail) {
             Legend(judgementColor(LiveStatus.MISSED), "Miss")
         }
         Spacer(Modifier.height(10.dp))
-        if (detail.lines.isEmpty()) {
-            Text("판정된 가사 줄이 없어요.", fontSize = 14.sp, color = Grey)
+        if (badLines.isEmpty()) {
+            Text("Bad가 2개 이상인 소절이 없어요.", fontSize = 14.sp, color = Grey)
         } else {
             Column(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                detail.lines.forEach { line -> JudgedLineRow(line) }
+                badLines.forEach { line -> JudgedLineRow(line) }
             }
         }
     }

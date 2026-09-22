@@ -306,13 +306,13 @@ fun ResultDetailCards(
                     )
                 }
 
-                // 5~6. 서버가 노트 판정·음정 곡선을 돌려줄 때만 상세 카드를 그린다.
+                // 서버가 노트 판정을 돌려줄 때만 가사별 판정 카드를 그린다.
+                // 음정 곡선 데이터와 컴포넌트는 유지하되 현재 프론트에서는 노출하지 않는다.
                 if (detail != null) {
                     SyllableJudgementCard(detail)
-                    PitchCurveCard(detail)
                 }
 
-                // 7. 한 줄 평가
+                // 6. 한 줄 평가
                 Column(Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(16.dp)).padding(18.dp)) {
                     Text("한 줄 평가", fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
@@ -322,7 +322,7 @@ fun ResultDetailCards(
                     )
                 }
 
-                // 8. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
+                // 7. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
                 //    점수가 매겨진 구간이 없으면(구간 자산이 없는 곡) 카드를 아예 그리지 않는다.
                 val measured = report.sections.filter { it.measured && it.score != null }
                 if (measured.isNotEmpty()) {
