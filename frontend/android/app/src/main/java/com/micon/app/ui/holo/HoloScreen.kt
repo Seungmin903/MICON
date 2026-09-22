@@ -86,6 +86,7 @@ import com.micon.app.appContainer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -96,6 +97,7 @@ import com.micon.app.range.FreeRangeSession
 import com.micon.app.range.RangeRepository
 import com.micon.app.range.onboardingPreview
 import com.micon.app.ui.common.MiconLogo
+import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.rememberMicrophoneAccess
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.OctaveNoteText
@@ -277,7 +279,10 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
                     textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) { pickerOpen = true }
+                HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) {
+                    vm.retryCatalogMore()
+                    pickerOpen = true
+                }
                 if (picked != null) HoloButton("이 곡으로 시작하기", onClick = requestMic)
             }
         },
@@ -285,6 +290,8 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
     )
     if (pickerOpen) SongPickerSheet(
         query = state.query, results = state.suggestions, catalog = state.catalog, loading = state.catalogLoading,
+        loadingMore = state.catalogLoadingMore, hasMore = state.catalogHasMore && !state.catalogMoreFailed,
+        onLoadMore = vm::loadMoreCatalog,
         onQuery = vm::onQuery, onPick = { vm.pick(it); pickerOpen = false }, onClose = { pickerOpen = false },
     )
 }
@@ -300,11 +307,17 @@ private fun SongPickerSheet(
     results: List<SongSummary>,
     catalog: List<SongSummary>,
     loading: Boolean,
+    loadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
     onQuery: (String) -> Unit,
     onPick: (SongSummary) -> Unit,
     onClose: () -> Unit,
 ) {
     val shown = if (query.isBlank()) catalog else results
+    val listState = rememberLazyListState()
+    LoadMoreOnScrollEnd(listState, enabled = query.isBlank() && hasMore && !loadingMore,
+        itemCount = shown.size, key = catalog.size, onLoadMore = onLoadMore)
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
             Text("부를 노래 고르기", style = MaterialTheme.typography.titleMedium)
@@ -317,7 +330,7 @@ private fun SongPickerSheet(
                 loading && shown.isEmpty() -> Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 shown.isEmpty() -> Text("찾는 곡이 없어요", color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp))
-                else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), state = listState) {
                     items(shown, key = { it.id }) { song ->
                         SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
                     }
