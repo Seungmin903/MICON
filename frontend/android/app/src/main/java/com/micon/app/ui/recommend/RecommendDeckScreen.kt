@@ -272,6 +272,7 @@ fun RecommendDeckScreen(
                         )
                     } else {
                         DiscRow(
+                            title = shelf?.let(::rackLabel).orEmpty(),
                             songs = items.filter { it.song.id != loadedId },
                             onPick = ::putOnDeck,
                         )
@@ -582,10 +583,10 @@ private fun DeckCardFace(item: RecommendedSong) {
 
 /** 프로토타입 `.discrow` — 올린 뒤. 누르면 바로 교체 */
 @Composable
-private fun DiscRow(songs: List<RecommendedSong>, onPick: (RecommendedSong) -> Unit) {
+private fun DiscRow(title: String, songs: List<RecommendedSong>, onPick: (RecommendedSong) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        PickHead("이 곡과 비슷한 곡", "누르면 바로 교체")
+        PickHead(title, "누르면 바로 교체")
         LazyRow(
             contentPadding = PaddingValues(horizontal = MiconSpace.screenHorizontal),
             horizontalArrangement = Arrangement.spacedBy(MiconSpace.sm),
