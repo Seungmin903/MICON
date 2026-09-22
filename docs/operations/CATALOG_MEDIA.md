@@ -22,7 +22,7 @@ Jira: S15P21B110-228. 대상 배치: `section-384-v1`. 이 문서는 보컬만 �
 - `catalog_media_importer@172.18.0.1`에는 `song_metadata` SELECT와 `song_media` SELECT·INSERT만 부여했다. 비밀번호 파일은 `/etc/micon/secrets/catalog_media_importer_password`의 `root:root 0600`이다.
 - 고정 SHA-256 매핑 384줄을 적재했다. 첫 실행은 `inserted=384`, 두 번째 실행은 `inserted=0`, 두 실행 모두 `s3_heads_verified=384`였다.
 - 최종 DB는 `VOCAL_STEM/READY` 384건, 서로 다른 곡 384건, 총 16,013,862,076바이트다. 잘못된 prefix·고아 행·기본 stem 중복은 모두 0건이다.
-- BE IAM `MiconCatalogMediaReadOnly`를 적용했다. 승인 보컬 객체 HEAD는 성공하고 배치의 매핑·체크섬 및 ListBucket은 403으로 거부됐다.
+- BE IAM `MiconCatalogMediaReadOnly`에는 승인 보컬 stem과 원곡 60초 미리듣기 배치만 `GetObject`로 허용한다. 두 경로 외 객체와 ListBucket은 계속 403으로 거부돼야 한다.
 - BE 애플리케이션 배포와 내부 API가 발급한 URL의 실제 GET smoke는 아직 남아 있다.
 
 ## 저장 계약
@@ -60,7 +60,7 @@ python -m ai.catalog_media register \
 
 `GET /internal/catalog-media/vocal-stems/{songId}`에 `Authorization: Bearer <AI_SERVICE_TOKEN>`을 사용한다. 일반 회원 JWT로는 접근할 수 없다. 응답은 `Cache-Control: no-store`이며 DB 메타데이터와 최대 10분의 presigned GET URL을 반환한다.
 
-BE IAM에는 기존 `voice-recordings/*` 읽기·쓰기·삭제와 분리된 인라인 정책 `MiconCatalogMediaReadOnly`를 적용한다. [정책 템플릿](../../infra/iam/backend-catalog-media-reader-policy.json)의 버킷만 실제 값으로 치환한다. 허용 범위는 이 배치의 `vocals/*` GetObject뿐이며 ListBucket, PutObject, DeleteObject와 다른 팀원·배치 경로는 허용하지 않는다.
+BE IAM에는 기존 `voice-recordings/*` 읽기·쓰기·삭제와 분리된 인라인 정책 `MiconCatalogMediaReadOnly`를 적용한다. [정책 템플릿](../../infra/iam/backend-catalog-media-reader-policy.json)의 버킷만 실제 값으로 치환한다. 허용 범위는 승인 보컬 stem과 `catalog/정다운/source-preview-pilot-20260922/*` 원곡 60초 미리듣기의 `GetObject`뿐이며 ListBucket, PutObject, DeleteObject와 다른 팀원·배치 경로는 허용하지 않는다.
 
 IAM `PolicyDocument`는 printable ASCII만 허용하므로 템플릿은 `정영주`를 JSON 유니코드 이스케이프(`\uC815\uC601\uC8FC`)로 기록한다. 퍼센트 인코딩 ARN은 정책 생성은 되지만 실제 한글 object key와 매칭되지 않으므로 사용하지 않는다.
 

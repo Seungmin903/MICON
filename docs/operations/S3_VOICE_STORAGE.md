@@ -11,7 +11,7 @@
 | 개인 AWS 계정 | `559896294099` / 인프라 담당자 소유·비용 부담 |
 | 버킷 보안 | Block Public Access 네 항목 ON, Bucket owner enforced(ACL 비활성), SSE-S3 `AES256`, 버전 관리 OFF |
 | IAM 사용자 / 정책 | `micon-backend-prod` / 인라인 `MiconVoiceStorageOnly`, `MiconCatalogMediaReadOnly`. 콘솔 로그인 없음, 액세스 키 1개 |
-| 허용 범위 | 버킷의 `GetBucketLocation`, `voice-recordings/*`의 읽기·쓰기·삭제, 승인된 `catalog/정영주/section-384-v1/vocals/*`의 `GetObject`만 허용 |
+| 허용 범위 | 버킷의 `GetBucketLocation`, `voice-recordings/*`의 읽기·쓰기·삭제, 승인된 보컬 stem과 `catalog/정다운/source-preview-pilot-20260922/*`의 `GetObject`만 허용 |
 | 서버 비밀 파일 | `/etc/micon/secrets/aws_credentials`, 프로필 `micon-backend`, `root:root 0600`; 상위 secrets 디렉터리 `0700` |
 | 호스트 기본 인증 | SSAFY `AmazonLightsailInstanceRole` 유지. 개인 프로필은 해당 검증 명령에만 명시 |
 | BE 후보 런타임 | UID/GID `10001:10001`, 전용 staged secret `0400`, loopback 18081, 개인 프로필로 카탈로그 WAV 실제 GET·SHA-256 일치 확인 |
@@ -118,7 +118,7 @@ SSAFY 서버와 S3의 소유 계정이 달라도 접속할 수 있다. 이번 �
 }
 ```
 
-현재 `S3VoiceStorage`의 녹음 업로드·재생/AI 분석용 URL·삭제에 대응한다. S15P21B110-228에서는 이 정책을 넓히지 않고 별도 `MiconCatalogMediaReadOnly` 인라인 정책으로 승인된 `catalog/정영주/section-384-v1/vocals/*` GetObject만 추가했다. 승인 객체 HEAD 성공, 같은 배치의 매핑·체크섬과 ListBucket 403을 서버 자격 증명으로 확인했다. BE에 전체 버킷 열람, 버킷 생성·삭제, catalog 쓰기·삭제 권한은 주지 않는다. 자세한 등록·API 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
+현재 `S3VoiceStorage`의 녹음 업로드·재생/AI 분석용 URL·삭제에 대응한다. 별도 `MiconCatalogMediaReadOnly` 인라인 정책으로 승인된 `catalog/정영주/section-384-v1/vocals/*`와 원곡 미리듣기 `catalog/정다운/source-preview-pilot-20260922/*`의 `GetObject`만 추가했다. 두 승인 경로의 객체 HEAD는 성공해야 하며, 매핑·체크섬·다른 경로와 ListBucket은 계속 403으로 거부돼야 한다. BE에 전체 버킷 열람, 버킷 생성·삭제, catalog 쓰기·삭제 권한은 주지 않는다. 자세한 등록·API 계약은 [카탈로그 미디어 문서](CATALOG_MEDIA.md)를 따른다. Presigned URL 생성은 서명 작업이므로 URL 발급 성공만으로 객체 접근 권한이 검증되지는 않는다.
 
 ### 카탈로그 업로더 정책 (BE와 분리)
 
