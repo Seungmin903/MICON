@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,10 +46,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -70,6 +74,7 @@ import com.micon.app.data.favorites.FavoriteRepository
 import com.micon.app.data.favorites.Setlist
 import com.micon.app.data.favorites.SetlistDetail
 import com.micon.app.data.favorites.SetlistRepository
+import com.micon.app.data.favorites.SetlistSong
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
@@ -339,6 +344,26 @@ class SetlistViewModel(
         _state.update { it.copy(detail = detail) }
     }
 
+    fun moveSong(songId: String, targetSongId: String) {
+        if (_state.value.busy) return
+        _state.update { state ->
+            val detail = state.detail ?: return@update state
+            state.copy(detail = detail.copy(songs = moveSetlistSong(detail.songs, songId, targetSongId)))
+        }
+    }
+
+    fun saveSongOrder() = run("곡 순서를 바꾸지 못했어요.") {
+        val detail = _state.value.detail ?: return@run
+        try {
+            _state.update { it.copy(detail = setlists.reorderSongs(setlistId, detail.songs.map(SetlistSong::songId), detail.updatedAt)) }
+        } catch (e: Exception) {
+            runCatching { setlists.detail(setlistId) }.getOrNull()?.let { latest ->
+                _state.update { it.copy(detail = latest) }
+            }
+            throw e
+        }
+    }
+
     fun consumeToast() = _state.update { it.copy(toast = null) }
 
     private fun run(failure: String, block: suspend () -> Unit) {
@@ -360,6 +385,13 @@ class SetlistViewModel(
         }
     }
 
+}
+
+internal fun moveSetlistSong(songs: List<SetlistSong>, songId: String, targetSongId: String): List<SetlistSong> {
+    val from = songs.indexOfFirst { it.songId == songId }
+    val to = songs.indexOfFirst { it.songId == targetSongId }
+    if (from < 0 || to < 0 || from == to) return songs
+    return songs.toMutableList().apply { add(to, removeAt(from)) }.mapIndexed { index, song -> song.copy(position = index) }
 }
 
 /** Figma "노래 찜 목록 - 세트리스트 세부" */
@@ -386,6 +418,9 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
+    var draggedSongId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
@@ -464,7 +499,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         ),
                     ),
                 )
-                LazyColumn(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+                LazyColumn(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)), state = listState) {
                     if (state.editing) item {
                         Row(
                             Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showAdd = true }.padding(horizontal = 32.dp, vertical = 18.dp),
@@ -480,6 +515,32 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     items(detail.songs, key = { it.songId }) { song ->
                         SongRow(
                             title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.songId) },
+                            modifier = Modifier.pointerInput(state.editing, state.busy, song.songId) {
+                                if (!state.editing || state.busy) return@pointerInput
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { draggedSongId = song.songId; dragOffset = 0f },
+                                    onDragCancel = { draggedSongId = null; dragOffset = 0f },
+                                    onDragEnd = {
+                                        draggedSongId = null
+                                        dragOffset = 0f
+                                        vm.saveSongOrder()
+                                    },
+                                    onDrag = { change, amount ->
+                                        change.consume()
+                                        dragOffset += amount.y
+                                        val dragged = draggedSongId ?: return@detectDragGesturesAfterLongPress
+                                        val info = listState.layoutInfo.visibleItemsInfo
+                                        val current = info.firstOrNull { it.key == dragged } ?: return@detectDragGesturesAfterLongPress
+                                        val center = current.offset + current.size / 2 + dragOffset
+                                        val target = info.firstOrNull { item -> center >= item.offset && center <= item.offset + item.size }
+                                        val targetId = target?.key as? String
+                                        if (targetId != null && targetId != dragged) {
+                                            vm.moveSong(dragged, targetId)
+                                            dragOffset = 0f
+                                        }
+                                    },
+                                )
+                            },
                             trailing = if (state.editing) ({
                                 IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
                             }) else null,

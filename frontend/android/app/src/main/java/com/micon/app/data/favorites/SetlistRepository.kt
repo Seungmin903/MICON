@@ -3,6 +3,7 @@ package com.micon.app.data.favorites
 import com.micon.app.data.backend.BackendApi
 import com.micon.app.data.backend.dto.SetlistDetailDto
 import com.micon.app.data.backend.dto.SetlistNameRequest
+import com.micon.app.data.backend.dto.SetlistOrderRequest
 import com.micon.app.data.backend.dto.SetlistSongItemDto
 import com.micon.app.data.backend.dto.SetlistSummaryDto
 import com.micon.app.data.backend.unwrapData
@@ -20,7 +21,7 @@ data class SetlistDetail(val id: Long, val name: String, val songs: List<Setlist
  * 세트리스트. 백엔드 `SetlistController`(`/setlists`)만 본다.
  *
  * 서버 규칙: 이름 1~100자(공백 제거), 곡 추가는 전체 곡 카탈로그에서 가능하며 남의 리스트는 404 SETLIST_NOT_FOUND.
- * 순서 변경(`PUT /setlists/{id}/song-order`)은 서버가 지원하지만 앱 화면에 아직 드래그 정렬이 없어 쓰지 않는다.
+ * 순서 변경은 정렬된 전체 곡 ID와 상세의 updatedAt 을 함께 보내 동시 수정 충돌을 검증한다.
  */
 interface SetlistRepository {
     suspend fun list(): List<Setlist>
@@ -30,6 +31,7 @@ interface SetlistRepository {
     suspend fun delete(setlistId: Long)
     suspend fun addSong(setlistId: Long, songId: String): SetlistDetail
     suspend fun removeSong(setlistId: Long, songId: String): SetlistDetail
+    suspend fun reorderSongs(setlistId: Long, songIds: List<String>, updatedAt: String?): SetlistDetail
 
     companion object { const val NAME_MAX = 100 }
 }
@@ -50,6 +52,9 @@ class RemoteSetlistRepository(private val api: BackendApi) : SetlistRepository {
     override suspend fun addSong(setlistId: Long, songId: String): SetlistDetail = api.addSetlistSong(setlistId, songId).unwrapData().toModel()
 
     override suspend fun removeSong(setlistId: Long, songId: String): SetlistDetail = api.removeSetlistSong(setlistId, songId).unwrapData().toModel()
+
+    override suspend fun reorderSongs(setlistId: Long, songIds: List<String>, updatedAt: String?): SetlistDetail =
+        api.reorderSetlistSongs(setlistId, SetlistOrderRequest(songIds, updatedAt)).unwrapData().toModel()
 
     private companion object {
         fun SetlistSummaryDto.toModel() = Setlist(setlistId, name, songCount, createdAt, updatedAt)

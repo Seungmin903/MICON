@@ -83,4 +83,17 @@ class RemoteSetlistRepositoryTest {
         assertEquals("/api/v1/setlist/5/9", request.path)
         assertEquals(5, result.id)
     }
+
+    @Test fun `reorder sends every song id with the current version`() = runBlocking {
+        server.enqueue(ok(detail))
+        val result = repo.reorderSongs(5, listOf("7", "1"), "2026-09-13T21:30:00")
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("/api/v1/setlist/5/song-order", request.path)
+        assertEquals(
+            """{"songIds":["7","1"],"updatedAt":"2026-09-13T21:30:00"}""",
+            request.body.readUtf8(),
+        )
+        assertEquals(listOf("1", "7"), result.songs.map { it.songId })
+    }
 }

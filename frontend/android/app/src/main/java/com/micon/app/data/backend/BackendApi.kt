@@ -29,6 +29,7 @@ import com.micon.app.data.backend.dto.VoiceDataDeletionResultDto
 import com.micon.app.data.backend.dto.FavoriteResponseDto
 import com.micon.app.data.backend.dto.SetlistDetailDto
 import com.micon.app.data.backend.dto.SetlistNameRequest
+import com.micon.app.data.backend.dto.SetlistOrderRequest
 import com.micon.app.data.backend.dto.SetlistSummaryDto
 import com.micon.app.data.backend.dto.PracticeCompleteRequest
 import com.micon.app.data.backend.dto.PracticeCreateRequest
@@ -187,6 +188,9 @@ interface BackendApi {
 
     @DELETE("setlist/{setlistId}/{songId}")
     suspend fun removeSetlistSong(@Path("setlistId") setlistId: Long, @Path("songId") songId: String): Response<ApiResponse<SetlistDetailDto>>
+
+    @PUT("setlist/{setlistId}/song-order")
+    suspend fun reorderSetlistSongs(@Path("setlistId") setlistId: Long, @Body body: SetlistOrderRequest): Response<ApiResponse<SetlistDetailDto>>
 
     // ---- 연습 기록 (PracticeController) ----
 
