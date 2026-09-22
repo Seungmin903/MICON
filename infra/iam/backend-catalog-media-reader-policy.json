@@ -6,6 +6,12 @@
       "Effect": "Allow",
       "Action": "s3:GetObject",
       "Resource": "arn:aws:s3:::<BUCKET_NAME>/catalog/\uC815\uC601\uC8FC/section-384-v1/vocals/*"
+    },
+    {
+      "Sid": "ReadApprovedSourcePreviewBatchOnly",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<BUCKET_NAME>/catalog/\uC815\uB2E4\uC6B4/source-preview-pilot-20260922/*"
     }
   ]
 }
