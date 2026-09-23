@@ -54,6 +54,7 @@ import com.micon.app.ui.evaluation.PracticeHistoryScreen
 import com.micon.app.ui.holo.HoloScreen
 import com.micon.app.ui.analysis.AnalysisScreen
 import com.micon.app.ui.holo.VoiceResultScreen
+import com.micon.app.ui.holo.HoloViewModel
 import com.micon.app.ui.holo.holoViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micon.app.ui.favorites.FavoritesScreen
@@ -85,6 +86,7 @@ fun MiconRoot() {
     }
     val nav = rememberNavController()
     val session: NavigationSessionViewModel = viewModel()
+    val holo = holoViewModel()
     val sessionVerified = session.verified && TokenManager.isLoggedIn()
     val accessGranted = sessionVerified || session.guest
     val backStack by nav.currentBackStackEntryAsState()
@@ -103,6 +105,7 @@ fun MiconRoot() {
             // Ignore an already-handled expiration if a new login has since succeeded.
             if (!TokenManager.isLoggedIn() && !session.guest) {
                 session.rememberDestination(nav)
+                holo.resetForIdentityChange()
                 session.verified = false
                 nav.replaceAll(Routes.LOGIN)
             }
@@ -142,6 +145,7 @@ fun MiconRoot() {
                 accessGranted = accessGranted,
                 isGuest = session.guest,
                 session = session,
+                holo = holo,
                 onVerified = {
                     session.verified = it
                     if (it) session.guest = false
@@ -202,6 +206,7 @@ private fun MiconNavHost(
     accessGranted: Boolean,
     isGuest: Boolean,
     session: NavigationSessionViewModel,
+    holo: HoloViewModel,
     onVerified: (Boolean) -> Unit,
     onGuest: (Boolean) -> Unit,
 ) {
@@ -214,6 +219,7 @@ private fun MiconNavHost(
         // A failed parallel request and SessionEvents may report the same expiration.
         if (nav.currentDestination?.route == Routes.LOGIN) return
         TokenManager.clear()
+        holo.resetForIdentityChange()
         onGuest(false)
         onVerified(false)
         nav.replaceAll(Routes.LOGIN)
@@ -221,13 +227,16 @@ private fun MiconNavHost(
     fun goGuest() {
         session.clearDestination()
         TokenManager.clear()
+        holo.resetForIdentityChange()
         onVerified(false)
         onGuest(true)
         nav.replaceAll(Routes.REPORT)
     }
-    fun checkSession() { onGuest(false); onVerified(false); nav.replaceAll(Routes.SPLASH) }
-
-    val holo = holoViewModel()
+    fun checkSession() {
+        onGuest(false)
+        onVerified(false)
+        nav.replaceAll(Routes.SPLASH)
+    }
     /** 홀로에서 탭으로 나갈 때: 로그인돼 있으면 세션 확인 뒤 메인, 아니면 게스트로 */
     fun leaveHolo(destination: String) {
         if (TokenManager.isLoggedIn()) { session.rememberDestinationRoute(destination); checkSession() }
@@ -243,7 +252,7 @@ private fun MiconNavHost(
         }
         composable(Routes.VOICE_RESULT) {
             val holoState by holo.state.collectAsStateWithLifecycle()
-            val result = holoState.result ?: holo.previousResult()
+            val result = holo.currentResult() ?: holo.previousResult()
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
                 saved = holoState.saved || result.profileSaved, saveReady = holoState.saveAllowed,
@@ -267,7 +276,7 @@ private fun MiconNavHost(
         }
         composable(Routes.LOGIN) {
             LoginScreen(
-                onLoggedIn = { checkSession() },
+                onLoggedIn = { holo.resetForIdentityChange(); checkSession() },
                 onSignup = { nav.navigate(Routes.SIGNUP) },
                 onFindPassword = { nav.navigate(Routes.PASSWORD_RESET) },
                 onGuest = { goGuest() },
@@ -280,7 +289,9 @@ private fun MiconNavHost(
             if (isGuest || !accessGranted) return@composable
             ChangePasswordScreen(onBack = { nav.popBackStack() }, onLogout = { goLogin() })
         }
-        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = { checkSession() }) }
+        composable(Routes.SIGNUP) { SignupScreen(onBack = { nav.popBackStack() }, onDone = {
+            holo.resetForIdentityChange(); checkSession()
+        }) }
         composable(Routes.SURVEY) {
             PreferenceSurveyScreen(onDone = { nav.completeInitialPreferenceSurvey(session) },
                 onSessionExpired = { goLogin() }, onBack = { goLogin() })
@@ -318,7 +329,7 @@ private fun MiconNavHost(
             val holoState by holo.state.collectAsStateWithLifecycle()
             val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
             // 예전 상세 화면과 같은 우선순위로 결과를 골라 닮은 가수 등 최신 분석값을 보존한다.
-            val analysisResult = holoState.result ?: holo.previousResult()
+            val analysisResult = holo.currentResult() ?: holo.previousResult()
                 ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             AnalysisScreen(
                 result = analysisResult,
@@ -331,7 +342,7 @@ private fun MiconNavHost(
         composable(Routes.VOICE_RESULT_VIEW) {
             val holoState by holo.state.collectAsStateWithLifecycle()
             val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
-            val result = holoState.result ?: holo.previousResult() ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
+            val result = holo.currentResult() ?: holo.previousResult() ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
         }
