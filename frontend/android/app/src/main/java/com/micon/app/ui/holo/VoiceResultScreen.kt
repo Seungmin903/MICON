@@ -66,6 +66,9 @@ fun VoiceResultScreen(
     onSave: () -> Unit,
     onRetry: () -> Unit,
     saveError: String? = null,
+    saved: Boolean = false,
+    saveReady: Boolean = true,
+    requiresLogin: Boolean = false,
     /** 분석 탭에서 다시 볼 때는 뒤로가기만 */
     onBack: (() -> Unit)? = null,
 ) {
@@ -79,7 +82,13 @@ fun VoiceResultScreen(
                 Text(it, style = MaterialTheme.typography.labelMedium, color = if (saveError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             }
-            if (song) MiconButton(if (saving) "음색 분석을 기다리는 중…" else "저장하고 추천받기", onSave, Modifier.fillMaxWidth(), enabled = !saving)
+            if (song) MiconButton(when {
+                requiresLogin -> "로그인하고 추천받기"
+                saved -> "추천곡 보기"
+                saving -> "추천 준비 중…"
+                saveError != null -> "프로필 저장 다시 시도"
+                else -> "분석 결과를 준비하고 있어요…"
+            }, onSave, Modifier.fillMaxWidth(), enabled = !saving && (requiresLogin || saved || saveReady))
             else MiconButton("노래로 분석하고 추천받기", onRetry, Modifier.fillMaxWidth())
             MiconButton("다시 측정하기", onRetry, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline, enabled = !saving)
         }) else null,
