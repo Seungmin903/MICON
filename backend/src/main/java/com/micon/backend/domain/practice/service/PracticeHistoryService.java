@@ -1,6 +1,7 @@
 package com.micon.backend.domain.practice.service;
 
 import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeScoreTrendResponse;
 import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
 
 import java.time.LocalDate;
@@ -28,5 +29,29 @@ public class PracticeHistoryService {
 			: repository.findPage(userId, date, size, (long) page * size);
 		int totalPages = totalElements == 0 ? 0 : (int) ((totalElements + size - 1) / size);
 		return new PracticeHistoryResponse.Page(content, page, size, totalElements, totalPages);
+	}
+
+	@Transactional(readOnly = true)
+	public PracticeScoreTrendResponse getScoreTrend(Long userId, String songId, int limit) {
+		List<PracticeScoreTrendResponse.Point> points = repository.findScoreTrend(userId, songId, limit);
+		if (points.isEmpty()) {
+			return new PracticeScoreTrendResponse(songId, 0, null, null, null, null, points);
+		}
+
+		var firstScore = points.get(0).overallScore();
+		var latestScore = points.get(points.size() - 1).overallScore();
+		var bestScore = points.stream()
+			.map(PracticeScoreTrendResponse.Point::overallScore)
+			.max(java.math.BigDecimal::compareTo)
+			.orElseThrow();
+		return new PracticeScoreTrendResponse(
+			songId,
+			points.size(),
+			firstScore,
+			latestScore,
+			bestScore,
+			latestScore.subtract(firstScore),
+			points
+		);
 	}
 }
