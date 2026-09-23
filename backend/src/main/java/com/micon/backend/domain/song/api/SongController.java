@@ -39,13 +39,12 @@ public class SongController {
 	public ApiResponse<PageResponse<SongResponse.Summary>> searchSongs(
 		@RequestParam(defaultValue = "") String query,
 		@RequestParam(required = false) @Min(1) Long genreId,
-		@RequestParam(required = false) @Min(1) Long artistId,
 		@RequestParam(defaultValue = "0") @Min(0) int page,
 		@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
 		Principal principal
 	) {
 		Long userId = principal == null ? null : Long.valueOf(principal.getName());
-		return ApiResponse.success(songService.search(query, page, size, userId, genreId, artistId));
+		return ApiResponse.success(songService.search(query, page, size, userId, genreId));
 	}
 
 	@GetMapping("/{songId}")

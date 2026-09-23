@@ -109,7 +109,6 @@ interface BackendApi {
     suspend fun songs(
         @Query("query") query: String,
         @Query("genreId") genreId: Long? = null,
-        @Query("artistId") artistId: Long? = null,
         @Query("page") page: Int,
         @Query("size") size: Int,
     ): Response<ApiResponse<PageDto<SongSummaryDto>>>

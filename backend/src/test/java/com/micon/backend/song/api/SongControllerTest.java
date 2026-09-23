@@ -48,7 +48,7 @@ class SongControllerTest {
 			"https://example.com/good-day.jpg",
 			233_000L
 		);
-		when(songService.search("좋은", 0, 20, null, null, null)).thenReturn(PageResponse.of(List.of(song), 0, 20, 1));
+		when(songService.search("좋은", 0, 20, null, null)).thenReturn(PageResponse.of(List.of(song), 0, 20, 1));
 
 		mockMvc.perform(get("/songs").param("query", "좋은"))
 				.andExpect(status().isOk())
@@ -60,33 +60,24 @@ class SongControllerTest {
 
 	@Test
 	void usesJwtSubjectForPreferredGenreOrdering() throws Exception {
-		when(songService.search("", 0, 20, 7L, null, null))
+		when(songService.search("", 0, 20, 7L, null))
 			.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
 
 		mockMvc.perform(get("/songs").principal(() -> "7"))
 			.andExpect(status().isOk());
 
-		org.mockito.Mockito.verify(songService).search("", 0, 20, 7L, null, null);
+		org.mockito.Mockito.verify(songService).search("", 0, 20, 7L, null);
 	}
 
 	@Test
 	void passesGenreIdToSongSearch() throws Exception {
-		when(songService.search("", 0, 20, null, 21L, null))
+		when(songService.search("", 0, 20, null, 21L))
 			.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
 
 		mockMvc.perform(get("/songs").param("genreId", "21"))
 			.andExpect(status().isOk());
 
-		org.mockito.Mockito.verify(songService).search("", 0, 20, null, 21L, null);
-	}
-
-	@Test
-	void passesArtistIdToSongSearch() throws Exception {
-		when(songService.search("", 0, 20, null, null, 10L))
-			.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
-		mockMvc.perform(get("/songs").param("artistId", "10"))
-			.andExpect(status().isOk());
-		org.mockito.Mockito.verify(songService).search("", 0, 20, null, null, 10L);
+		org.mockito.Mockito.verify(songService).search("", 0, 20, null, 21L);
 	}
 
 	@Test

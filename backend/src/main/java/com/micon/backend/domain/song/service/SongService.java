@@ -32,19 +32,15 @@ public class SongService {
 
 	/** 장르 필터가 있으면 해당 장르에 연결된 곡만 조회한다. */
 	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId) {
-		return search(query, page, size, userId, genreId, null);
-	}
-
-	public PageResponse<SongResponse.Summary> search(String query, int page, int size, Long userId, Long genreId, Long artistId) {
 		long offset = (long) page * size;
-		boolean catalog = (query == null || query.trim().isEmpty()) && genreId == null && artistId == null;
-		boolean genreCatalog = (query == null || query.trim().isEmpty()) && genreId != null && artistId == null;
+		boolean catalog = (query == null || query.trim().isEmpty()) && genreId == null;
+		boolean genreCatalog = (query == null || query.trim().isEmpty()) && genreId != null;
 		List<SongResponse.Summary> songs = catalog ? songQueryRepository.findCatalogPage(size, offset, userId)
 				: genreCatalog ? songQueryRepository.findGenrePage(genreId, size, offset, userId)
-				: songQueryRepository.findPage(query, size, offset, userId, genreId, artistId);
+				: songQueryRepository.findPage(query, size, offset, userId, genreId);
 		long totalElements = catalog ? songQueryRepository.countCatalog()
 				: genreCatalog ? songQueryRepository.countGenre(genreId)
-				: songQueryRepository.count(query, genreId, artistId);
+				: songQueryRepository.count(query, genreId);
 		return PageResponse.of(songs, page, size, totalElements);
 	}
 

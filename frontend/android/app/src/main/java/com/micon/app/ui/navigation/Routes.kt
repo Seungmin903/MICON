@@ -12,7 +12,6 @@ object Routes {
     const val HOLO = "holo"                  // 첫 화면 · 목소리 분석 (프로토타입 holo)
     const val VOICE_RESULT = "holo/result"   // 분석 결과
     const val VOICE_RESULT_VIEW = "analysis/result" // 분석 탭에서 저장된 결과 다시 보기
-    const val ARTIST_SONGS = "analysis/artist/{artistId}"
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
@@ -47,7 +46,6 @@ object Routes {
     const val DEEP_LINK = "micon://app"
 
     fun songMatch(songId: String) = "match/${requireSongId(songId)}"
-    fun artistSongs(artistId: Long) = "analysis/artist/$artistId"
     fun song(songId: String, source: String = PRACTICE) = "song/${requireSongId(songId)}" + if (source == FAVORITES) "?source=$FAVORITES" else ""
     fun practice(songId: String, selectedKey: Int = 0) = "practice/${requireSongId(songId)}" + if (selectedKey != 0) "?selectedKey=$selectedKey" else ""
     fun singAnalysis(songId: String) = "report/sing/${requireSongId(songId)}"

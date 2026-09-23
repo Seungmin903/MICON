@@ -18,10 +18,6 @@ interface SongRepository {
     suspend fun search(query: String, page: Int, size: Int, genreId: Long?): SongPage =
         search(query, page, size)
 
-    /** 가수 ID로 정확히 한 가수의 곡을 검색한다. */
-    suspend fun searchByArtist(artistId: Long, query: String = "", page: Int = 0, size: Int = 50, genreId: Long? = null): SongPage =
-        throw UnsupportedOperationException("가수별 곡 검색을 지원하지 않습니다.")
-
     /** 앱 수명 캐시를 가진 구현체가 수동 새로고침 때 해당 첫 페이지를 비운다. */
     fun invalidateSearchCache(query: String, size: Int, genreId: Long?) = Unit
 
