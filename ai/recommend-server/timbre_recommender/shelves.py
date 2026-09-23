@@ -29,7 +29,7 @@ from .contracts import MODEL_KEYS, SCORING_VERSION
 from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
 from .scoring import RankerConfig, _absolute_similarity, _model_track_score
 
-SHELVES_VERSION = "shelves-v3-final-score-time-ratio-gate"
+SHELVES_VERSION = "shelves-v4-genre-preference-gate"
 
 # 사용자 평가 후 조정할 값
 MIN_PROFILE_CONFIDENCE = 0.55          # 곡 음표 신뢰도 하한 (곡예사2 0.47 제외, 정국 0.63 유지)
@@ -78,10 +78,10 @@ def selected_tags(genres: Iterable[str]) -> set[str]:
 
 
 def _genre_tier(row: Mapping[str, Any], selected: set[str], *, enabled: bool) -> int:
-    """Preferred styles first; unknown metadata is neutral; other known styles are demoted.
+    """Preferred styles first; unknown metadata is neutral; other known styles are gated.
 
     A strong timbre match plus excellent range fit is allowed to compete with preferred
-    styles. This is a ranking rule, not a hard genre filter.
+    styles. Tier 2 is excluded from recommendation shelves when the preference is active.
     """
     if not enabled or not selected:
         return 0
@@ -198,6 +198,11 @@ def build_shelves(
     preferred_tags = selected_tags(genres)
     def genre_tier(row: Mapping[str, Any]) -> int:
         return _genre_tier(row, preferred_tags, enabled=genre_preferences_enabled)
+    if genre_preferences_enabled and preferred_tags:
+        # Do not fill the visible list with weak matches from a known, unselected style.
+        # Missing/unknown genre metadata remains eligible, and very strong voice+range
+        # matches are handled as tier 0 by _genre_tier.
+        rows = [row for row in rows if genre_tier(row) < 2]
     artists = {a.strip() for a in preferred_artists if a and a.strip()}
     used: set[str] = set()
     shelves: list[dict[str, Any]] = []

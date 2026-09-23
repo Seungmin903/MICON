@@ -116,7 +116,7 @@ ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로
 | `scoring_version`, `composition_version` | 이벤트 로그에 함께 기록 |
 
 `result.algorithm` 에 `composition`(quota·pattern), `language_gate`(명시한 언어 선호와 제외 수), `range_filter`(음역 하한, 제외 수), `catalog_filter` 가 실린다.
-언어 게이트는 `영어곡`·`일본곡`을 명시한 경우에만 적용한다. 댄스·R&B·발라드·팝 등 음악 장르는 언어로 해석하지 않는다. 백엔드 JSON 추천은 선택 장르를 순위에 반영하고, 다른 알려진 장르는 강한 음색·음역 적합도가 확인될 때 예외적으로 추천할 수 있다. 카탈로그 언어는 ISO 639-2(kor/eng/jpn), mul·zxx 는 항상 통과. 값은 `timbre_recommender/composition.py` 상단 상수.
+언어 게이트는 `영어곡`·`일본곡`을 명시한 경우에만 적용한다. 댄스·R&B·발라드·팝 등 음악 장르는 언어로 해석하지 않는다. 백엔드 JSON 추천은 선택 장르를 우선하며, 알려진 비선호 장르는 음색 점수 0.70 이상과 음역 적합도 0.90 이상을 모두 충족한 경우에만 예외로 허용한다. 장르 미상은 그대로 후보에 둔다. 카탈로그 언어는 ISO 639-2(kor/eng/jpn), mul·zxx 는 항상 통과. 값은 `timbre_recommender/composition.py` 상단 상수.
 
 ## 테스트
 

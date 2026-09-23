@@ -84,7 +84,8 @@ class BuildShelvesTest(unittest.TestCase):
         shelves = build_shelves(rows, top_k=2, genres=["댄스", "R&B/소울"], range_enabled=True,
                                 genre_preferences_enabled=True, seed=1)
         voice = next(s for s in shelves if s["key"] == "voice")["items"]
-        self.assertEqual([item["track_id"] for item in voice], ["20", "21"])
+        self.assertEqual([item["track_id"] for item in voice], ["20"])
+        self.assertNotIn("21", {item["track_id"] for shelf in shelves for item in shelf["items"]})
 
     def test_very_strong_timbre_and_range_match_can_override_style_demotion(self) -> None:
         rows = [
