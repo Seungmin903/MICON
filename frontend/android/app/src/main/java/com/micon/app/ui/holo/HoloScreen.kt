@@ -8,6 +8,8 @@ import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -107,6 +109,7 @@ import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.OctaveNoteText
 import com.micon.app.ui.design.molecules.OctaveRangeText
 import com.micon.app.ui.report.FreeRangeViewModel
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import com.micon.app.ui.design.atoms.CompactDisc
@@ -197,6 +200,20 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
     val done = view.phase == "done"
     val running = rs.recording
     val progress = ((view.completed + stageProgressOf(view)) / 3.0).toFloat().coerceIn(0f, 1f)
+    val introActive = !running && !rs.busy && rs.error == null && view.phase == "noise"
+    var showStartPrompt by remember { mutableStateOf(false) }
+    LaunchedEffect(introActive) {
+        showStartPrompt = false
+        if (introActive) {
+            delay(1500)
+            showStartPrompt = true
+        }
+    }
+    val message = when {
+        done -> "음역을 다 쟀어요"
+        introActive && showStartPrompt -> "조용해졌다면, 아래 '음역 측정 시작' 버튼을 눌러주세요"
+        else -> view.message
+    }
 
     HoloChrome(
         logoVisible = !running,
@@ -206,10 +223,10 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
         error = rs.error,
         middle = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    if (done) "음역을 다 쟀어요" else view.message,
-                    color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                )
+                Crossfade(targetState = message, animationSpec = tween(300), label = "range-message") { current ->
+                    Text(current, color = Color.White, fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                }
                 if (running && (view.phase == "down" || view.phase == "up")) {
                     Text(
                         if (view.remainingSeconds > 0) "남은 시간 " + ceil(view.remainingSeconds).toInt() + "초" else "조금만 더 불러 주세요",
@@ -251,7 +268,10 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
                     running -> Text("듣고 있어요", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     rs.error != null || view.phase == "failed" -> HoloButton("이 단계 다시 하기", onClick = rangeVm::retryStage)
-                    else -> HoloButton("음역 측정 시작", onClick = start)
+                    else -> AnimatedVisibility(visible = !introActive || showStartPrompt,
+                        enter = fadeIn(tween(300)), exit = fadeOut(tween(300))) {
+                        HoloButton("음역 측정 시작", onClick = start)
+                    }
                 }
             }
         },
