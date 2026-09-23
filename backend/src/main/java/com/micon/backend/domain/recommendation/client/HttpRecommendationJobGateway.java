@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -29,13 +30,23 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
 
     @Override
     public Result submit(Command command) {
-        AiJobResponse response = restClient.post()
-                .uri("/recommendations")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request(command))
-                .retrieve()
-                .body(AiJobResponse.class);
-        return response == null ? null : new Result(response.id(), response.status());
+        try {
+            AiJobResponse response = restClient.post()
+                    .uri("/recommendations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request(command))
+                    .retrieve()
+                    .body(AiJobResponse.class);
+            return response == null ? null : new Result(response.id(), response.status());
+        } catch (RestClientResponseException exception) {
+            // The current AI contract uses 503 for several causes. Only this exact
+            // pre-admission rejection is safe to retry without an AI job ID.
+            if (exception.getStatusCode().value() == 503
+                    && exception.getResponseBodyAsString().contains("추천 처리 대기열이 가득 찼습니다")) {
+                throw new RecommendationQueueFullException(exception);
+            }
+            throw exception;
+        }
     }
 
     private AiRecommendationRequest request(Command command) {

@@ -3,6 +3,7 @@ package com.micon.backend.recommendation.client;
 import com.micon.backend.domain.recommendation.service.RecommendationInput;
 import com.micon.backend.domain.recommendation.client.HttpRecommendationJobGateway;
 import com.micon.backend.domain.recommendation.client.RecommendationJobGateway;
+import com.micon.backend.domain.recommendation.client.RecommendationQueueFullException;
 import com.micon.backend.domain.recommendation.config.RecommendationAiProperties;
 import com.micon.backend.domain.recommendation.entity.RecommendationMode;
 import com.sun.net.httpserver.HttpExchange;
@@ -20,6 +21,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.springframework.web.client.HttpServerErrorException;
 
 class HttpRecommendationJobGatewayTest {
     private HttpServer server;
@@ -59,6 +62,51 @@ class HttpRecommendationJobGatewayTest {
         assertThat(body.get("preferredArtists").get(0).asText()).isEqualTo("아이유");
         assertThat(body.get("userEmbedding").get("ecapa").get(0).asDouble()).isEqualTo(0.1);
         assertThat(body.get("voiceProfile").get("pitchHistogram").get("52").asDouble()).isEqualTo(0.4);
+    }
+
+    @Test
+    void onlyQueueCapacity503IsSafeToRetry() throws Exception {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/recommendations", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            String body = "{\"detail\":\"추천 처리 대기열이 가득 찼습니다. 잠시 후 다시 요청해 주세요.\"}";
+            byte[] response = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(503, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        var properties = new RecommendationAiProperties(
+                "http://localhost:" + server.getAddress().getPort(), "", Duration.ofSeconds(1), Duration.ofSeconds(1));
+        var gateway = new HttpRecommendationJobGateway(properties, new ObjectMapper());
+
+        assertThatThrownBy(() -> gateway.submit(new RecommendationJobGateway.Command(
+                input(), RecommendationMode.OVERALL, 50)))
+                .isInstanceOf(RecommendationQueueFullException.class);
+    }
+
+    @Test
+    void catalogUnavailable503IsNotMistakenForAFullQueue() throws Exception {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/recommendations", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            byte[] response = "{\"detail\":\"DB song_id 카탈로그 연결이 준비되지 않았습니다.\"}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(503, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        var properties = new RecommendationAiProperties(
+                "http://localhost:" + server.getAddress().getPort(), "", Duration.ofSeconds(1), Duration.ofSeconds(1));
+        var gateway = new HttpRecommendationJobGateway(properties, new ObjectMapper());
+
+        assertThatThrownBy(() -> gateway.submit(new RecommendationJobGateway.Command(
+                input(), RecommendationMode.OVERALL, 50)))
+                .isInstanceOf(HttpServerErrorException.class)
+                .isNotInstanceOf(RecommendationQueueFullException.class);
     }
 
     private void respond(HttpExchange exchange, AtomicReference<String> authorization,
