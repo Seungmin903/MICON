@@ -29,12 +29,12 @@ def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",
 class HelpersTest(unittest.TestCase):
     def test_backend_preference_labels_exclude_selected_styles_from_discovery(self) -> None:
         self.assertEqual(selected_tags(["알앤비/소울", "락/메탈", "포크/어쿠스틱", "성인가요"]),
-                         {"K-Pop", "R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
+                         {"R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
 
     def test_rap_and_tags(self) -> None:
         self.assertTrue(is_rap({"genres": ["Hip-Hop", "K-Pop"]}))
         self.assertFalse(is_rap({"genres": ["K-Pop"]}))
-        self.assertEqual(selected_tags(["R&B", "발라드"]), {"K-Pop", "R&B", "Ballad"})
+        self.assertEqual(selected_tags(["R&B", "발라드"]), {"R&B", "Ballad"})
         self.assertGreaterEqual(MIN_PROFILE_CONFIDENCE, 0.5)
 
 
@@ -74,6 +74,27 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertNotIn("10", ids)                                                 # |키| 5 초과
         self.assertTrue(all(it["axis"] is None and it["label"] == "최종 점수 순" for it in voice))
         self.assertTrue(all(it["shelf"] == "voice" for it in voice))
+
+    def test_selected_styles_rank_before_other_known_styles(self) -> None:
+        rows = [
+            _row("20", "Dance artist", timbre=.40, genres=("Dance",)),
+            _row("21", "Trot artist", timbre=.90, genres=("Trot",), outside_ratio=.03),
+        ]
+        rows[1]["range_fit"]["score"] = .80  # strong style mismatch without the exceptional range fit
+        shelves = build_shelves(rows, top_k=2, genres=["댄스", "R&B/소울"], range_enabled=True,
+                                genre_preferences_enabled=True, seed=1)
+        voice = next(s for s in shelves if s["key"] == "voice")["items"]
+        self.assertEqual([item["track_id"] for item in voice], ["20", "21"])
+
+    def test_very_strong_timbre_and_range_match_can_override_style_demotion(self) -> None:
+        rows = [
+            _row("20", "Dance artist", timbre=.40, genres=("Dance",)),
+            _row("21", "Trot artist", timbre=.90, genres=("Trot",)),
+        ]
+        shelves = build_shelves(rows, top_k=2, genres=["댄스"], range_enabled=True,
+                                genre_preferences_enabled=True, seed=1)
+        voice = next(s for s in shelves if s["key"] == "voice")["items"]
+        self.assertEqual([item["track_id"] for item in voice], ["21", "20"])
 
     def test_voice_gate_rejects_more_than_five_percent_outside_range(self) -> None:
         rows = [

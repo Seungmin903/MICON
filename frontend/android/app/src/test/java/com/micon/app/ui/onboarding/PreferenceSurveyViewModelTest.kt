@@ -39,8 +39,9 @@ class PreferenceSurveyViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { models.forEach { it.viewModelScope.cancel() }; Dispatchers.resetMain() }
 
-    private fun model(repo: FakeRepository, drafts: MemoryDrafts = MemoryDrafts(), userId: Long = 7, editing: Boolean = false, current: () -> Boolean = { true }) =
-        PreferenceSurveyViewModel(repo, drafts, userId, editing, current).also(models::add)
+    private fun model(repo: FakeRepository, drafts: MemoryDrafts = MemoryDrafts(), userId: Long = 7, editing: Boolean = false,
+                      current: () -> Boolean = { true }, refresh: suspend () -> Unit = {}) =
+        PreferenceSurveyViewModel(repo, drafts, userId, editing, current, refresh).also(models::add)
 
     @Test fun `genres precede artists and final save requires both selections`() = runTest(dispatcher) {
         val repo = FakeRepository()
@@ -247,6 +248,24 @@ class PreferenceSurveyViewModelTest {
         advanceUntilIdle()
         assertEquals(1, repo.saves.size)
         assertTrue(repo.saves.single().onboardingCompleted)
+    }
+
+    @Test fun `recommendations regenerate once only after a successful settings save`() = runTest(dispatcher) {
+        var refreshes = 0
+        val repo = FakeRepository().apply { preferences = saved(SavePreferencesRequest(listOf(1), listOf(1), true)) }
+        val vm = model(repo, editing = true, refresh = { refreshes++ })
+        runCurrent()
+        vm.toggleGenre(genres[1])
+        advanceUntilIdle()
+        assertEquals(0, refreshes) // local draft changes never start a job
+
+        vm.toggleGenre(genres.first())
+        vm.finish()
+        vm.finish()
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.saved)
+        assertEquals(1, refreshes)
     }
 
     @Test fun `catalogue errors can be retried without losing server choices`() = runTest(dispatcher) {

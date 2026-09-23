@@ -53,11 +53,11 @@ class SongIdAndLanguageTest(unittest.TestCase):
         self.assertEqual(track_language({"languages": "jpn"}), "jp")
         self.assertIsNone(track_language({"languages": "mul"}))
         self.assertIsNone(allowed_languages([]))
-        self.assertEqual(allowed_languages(["팝"]), {"en"})
-        self.assertEqual(allowed_languages(["발라드", "팝"]), {"ko", "en"})
+        self.assertIsNone(allowed_languages(["팝"]))
+        self.assertIsNone(allowed_languages(["발라드", "팝"]))
         self.assertEqual(allowed_languages(["영어곡"]), {"en"})
         self.assertEqual(allowed_languages(["일본곡"]), {"jp"})
-        self.assertEqual(allowed_languages(["발라드", "일본곡", "영어곡"]), {"ko", "jp", "en"})
+        self.assertEqual(allowed_languages(["발라드", "일본곡", "영어곡"]), {"jp", "en"})
 
 
 class ComposeTest(unittest.TestCase):
@@ -177,12 +177,12 @@ class ComposeTest(unittest.TestCase):
 
     def test_language_gate_and_song_id_filter(self) -> None:
         ranked = self.ranked + [_item("J", 0.99, 0.99, lang="jpn"), _item("N", 0.99, 0.99, tj=None)]
-        out = compose_two_axis(ranked, top_k=5, genres=["발라드"], range_enabled=True, scoring_version="s")
+        out = compose_two_axis(ranked, top_k=5, genres=["영어곡"], range_enabled=True, scoring_version="s")
         ids = {r["track_id"] for r in out["recommendations"]}
         self.assertNotIn("J", ids)
         self.assertNotIn("N", ids)
-        self.assertEqual(out["language_gate"]["allowed"], ["ko"])
-        self.assertEqual(out["language_gate"]["excluded_count"], 1)
+        self.assertEqual(out["language_gate"]["allowed"], ["en"])
+        self.assertEqual(out["language_gate"]["excluded_count"], 7)
         self.assertEqual(out["catalog_filter"]["excluded_without_song_id"], 1)
 
     def test_foreign_choices_include_every_style_in_the_language(self) -> None:
