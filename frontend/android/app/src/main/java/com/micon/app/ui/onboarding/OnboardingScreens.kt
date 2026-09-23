@@ -153,11 +153,6 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically) {
             Text("회원가입", fontSize = 13.5.sp, color = Grey,
                 modifier = Modifier.clickable(enabled = !state.submitting, onClick = onSignup).padding(12.dp))
-            Text("|", fontSize = 13.sp, color = GreyLight)
-            Text("비밀번호 찾기", fontSize = 13.5.sp, color = Grey,
-                modifier = Modifier.clickable(enabled = !state.submitting) {
-                    notice = null; onFindPassword()
-                }.padding(12.dp))
         }
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
