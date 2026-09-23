@@ -1,6 +1,8 @@
 package com.micon.app.ui.favorites
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -444,7 +446,9 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     LaunchedEffect(draggedSongId, autoScrollDirection) {
         while (draggedSongId != null && autoScrollDirection != 0) {
             val dragged = draggedSongId ?: break
-            val scrolled = listState.scrollBy(autoScrollDirection * 12f)
+            // 한 프레임에 너무 멀리 움직이면 곡이 서로 건너뛰는 것처럼 보여서,
+            // 작은 거리로 연속 이동시킨다. 드래그한 행은 같은 화면 위치를 유지한다.
+            val scrolled = listState.scrollBy(autoScrollDirection * 6f)
             if (scrolled == 0f) {
                 autoScrollDirection = 0
                 break
@@ -564,7 +568,9 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         val dragging = draggedSongId == song.songId
                         Row(
                             Modifier.fillMaxWidth()
-                                .then(if (dragging) Modifier else Modifier.animateItem())
+                                // 드래그 중인 행은 손가락에 즉시 반응하고, 비워진 자리를
+                                // 채우는 다른 행만 짧은 위치 애니메이션으로 자연스럽게 이동한다.
+                                .then(if (dragging) Modifier else Modifier.animateItem(placementSpec = tween(180, easing = FastOutSlowInEasing)))
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
                                     translationY = if (dragging) dragOffset else 0f
@@ -606,13 +612,15 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
                                                 val currentIndex = songItems.indexOfFirst { it.key == dragged }
                                                 val current = songItems.getOrNull(currentIndex) ?: return@detectDragGesturesAfterLongPress
-                                                // 화면 끝에 이웃 곡이 두 곡 이하로 남으면, 손가락을 멈춰도
-                                                // 다음/이전 곡을 계속 교체할 수 있도록 자동 스크롤을 이어 간다.
-                                                val songsBelow = songItems.size - currentIndex - 1
-                                                val songsAbove = currentIndex
+                                                // 드래그 중인 카드가 화면 가장자리 가까이에 왔을 때만
+                                                // 자동 스크롤한다. 화면에 남은 곡 개수가 아니라 실제
+                                                // 카드 위치를 기준으로 하므로 손가락과 목록이 따로 놀지 않는다.
+                                                val cardTop = current.offset + dragOffset
+                                                val cardBottom = cardTop + current.size
+                                                val edgeInset = 72f
                                                 autoScrollDirection = when {
-                                                    amount.y > 0f && songsBelow <= 2 -> 1
-                                                    amount.y < 0f && songsAbove <= 2 -> -1
+                                                    amount.y > 0f && cardBottom >= listState.layoutInfo.viewportEndOffset - edgeInset -> 1
+                                                    amount.y < 0f && cardTop <= listState.layoutInfo.viewportStartOffset + edgeInset -> -1
                                                     else -> 0
                                                 }
                                                 val target = when {
