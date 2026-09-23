@@ -45,6 +45,8 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.voice.VoiceProfileMapper
+import com.micon.app.ui.holo.VoiceResultContent
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -53,6 +55,8 @@ import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
 import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.design.molecules.OctaveRangeText
+import com.micon.app.ui.design.molecules.karaokeNoteText
 import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.common.MiconHeader
@@ -64,37 +68,27 @@ import kotlin.math.roundToInt
 
 /**
  * 분석 탭 — 프로토타입 `analysis` (이전 이름 리포트).
- * 내 목소리 카드(편한 음역 막대) · 나와 닮은 목소리 · 노래로 분석하기 · 음역 다시 측정하기.
+ * 분석 결과 카드(음역대 지도 · 내 목소리에 맞는 음악 · 나와 닮은 목소리) · 내 목소리 다시 분석하기.
  * 데이터는 홀로 결과(기기 저장) → 없으면 서버 프로필(UserStore) → 없으면 빈 상태.
  */
 @Composable
 fun AnalysisScreen(
+    /** 기존 분석 결과 상세 화면이 사용하던 결과를 그대로 전달받는다. */
+    result: HoloResult?,
     /** 처음부터 — 음역 측정 → 음색 측정 */
     onAnalyze: () -> Unit,
-    /** 음색만 다시 — 노래를 불러 음색을 본다. 음역은 지난 값을 쓴다 */
-    onSingAnalyze: () -> Unit = onAnalyze,
-    /** 음역만 다시 */
+    /** 내 목소리 다시 분석하기 — 음역 측정 → 음색 측정을 처음부터 */
     onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
-    onDetail: () -> Unit,
     onLogin: (() -> Unit)? = null,
 ) {
-    val context = LocalContext.current
-    val store = remember { HoloResultStore(context) }
-    val profile by UserStore.profile.collectAsStateWithLifecycle()
-    val revision by UserStore.voiceDataRevision.collectAsStateWithLifecycle()
-    val notation by NoteNames.notation.collectAsStateWithLifecycle()
-    val ownerId = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
-    val holo = remember(revision, ownerId) { store.read(ownerId) }
-    val view = remember(holo, profile, notation) { holo?.let { VoiceView.from(it) } ?: profile?.let { VoiceView.from(it) } }
-
     MiconScreen(
         appBar = {
             MiconHeader(onSettings = onSettings, onLogin = onLogin)
         },
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        if (view == null) {
+        if (result == null) {
             MiconCard(kind = MiconCardKind.Elevated) {
                 Text("아직 분석한 목소리가 없어요", style = MaterialTheme.typography.titleMedium)
                 Text("30초만 부르면 편한 음역과 어울리는 곡을 찾아 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -102,18 +96,8 @@ fun AnalysisScreen(
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
             }
         } else {
-            MyVoiceCard(view, onDetail)
-            if (view.artists.isNotEmpty()) SimilarCard(view)
-            MiconCard(kind = MiconCardKind.Tinted, modifier = Modifier.clickable(onClick = onSingAnalyze)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("노래로 분석하기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("한 곡 부르면 음역·음정 정확도를 같이 봐드려요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-            MiconButton("음역 다시 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
+            VoiceResultContent(result, showStatus = false, showSummary = false)
+            MiconButton("내 목소리 다시 분석하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }
 }
@@ -144,7 +128,7 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text("내 목소리 · 편한 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
-                Text(NoteNames.displayRange(v.comfortLow, v.comfortHigh), fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 32.sp)
+                OctaveRangeText(v.comfortLow, v.comfortHigh, size = 24.sp)
             }
             Text(SimpleDateFormat("M월 d일", Locale.KOREA).format(Date(v.measuredAt)), fontFamily = MiconMonoFamily, fontSize = 12.sp, color = muted)
         }
@@ -156,7 +140,7 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
 }
 
 /**
- * 프로토타입 `.range` — 트랙 h12 위에 내 편한 음역(보라 그라디언트)이 자라나고, 아래 눈금 3개(낮은 도 · 중간 도 · 높은 도).
+ * 프로토타입 `.range` — 트랙 h12 위에 내 편한 음역(보라 그라디언트)이 자라나고, 아래 눈금 3개(1옥타브 도 · 2옥타브 도 · 3옥타브 도).
  * 자의 범위는 C2(36)~C6(84) 고정이라 모든 사용자 막대를 같은 자에 놓고 비교할 수 있다.
  */
 @Composable
@@ -167,7 +151,7 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
     val grow = remember { Animatable(0f) }
     LaunchedEffect(low, high) { grow.snapTo(0f); grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val ticks = listOf(48 to "낮은 도", 60 to "중간 도", 72 to "높은 도")
+    val ticks = listOf(48, 60, 72)
     fun f(m: Int) = ((m - 36) / 48f).coerceIn(0f, 1f)
     Column {
         Canvas(Modifier.fillMaxWidth().height(22.dp)) {
@@ -181,14 +165,14 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
                 drawRoundRect(Color(0xFFC92A5E), Offset(sx, 0f), Size(sw, size.height), CornerRadius(11.dp.toPx()),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 5f))))
             }
-            ticks.forEach { (m, _) -> drawLine(Color(0xFFBDB8D0), Offset(size.width * f(m), trackTop + trackH), Offset(size.width * f(m), size.height), 1.dp.toPx()) }
+            ticks.forEach { m -> drawLine(Color(0xFFBDB8D0), Offset(size.width * f(m), trackTop + trackH), Offset(size.width * f(m), size.height), 1.dp.toPx()) }
         }
         // 눈금 글자는 3등분한 칸에 왼쪽·가운데·오른쪽으로 둔다. 비율 폭 상자에 넣으면
-        // 칸이 글자보다 좁아 "낮은 도" 가 잘렸다.
+        // 칸이 글자보다 좁아 잘렸다.
         Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-            ticks.forEachIndexed { i, (_, label) ->
+            ticks.forEachIndexed { i, m ->
                 Text(
-                    label, Modifier.weight(1f), fontSize = 12.sp, color = muted,
+                    karaokeNoteText(m, 12.sp, weight = FontWeight.SemiBold), Modifier.weight(1f), color = muted,
                     textAlign = when (i) { 0 -> TextAlign.Start; 1 -> TextAlign.Center; else -> TextAlign.End },
                 )
             }

@@ -108,7 +108,8 @@ class PreferenceSurveyViewModel(
                     it.copy(
                         loading = false, genres = genres, selectedGenres = selectedGenres,
                         selectedArtists = selectedArtists, draftPending = dirty,
-                        step = (draft?.step ?: 0).coerceIn(0, 1),
+                        // Initial onboarding always reopens at the first question; only settings edits resume a draft step.
+                        step = if (isEditing) (draft?.step ?: 0).coerceIn(0, 1) else 0,
                         saveError = null, draftError = null,
                     )
                 }
@@ -168,6 +169,13 @@ class PreferenceSurveyViewModel(
         mutableState.update { it.copy(step = 0, message = null) }
         persistDraft()
         return true
+    }
+
+    /** Leaving an incomplete initial survey discards its page position, but keeps the user's choices. */
+    fun restartAtFirstStep() {
+        if (isEditing || state.value.saved || state.value.isSaving || state.value.step == 0) return
+        mutableState.update { it.copy(step = 0, query = "", message = null) }
+        persistDraft()
     }
 
     fun setQuery(query: String) {

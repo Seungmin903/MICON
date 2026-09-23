@@ -40,19 +40,44 @@ class LiveScorerTest {
     }
 
     @Test
-    fun `120 cents high is sharp, 300 cents is wrong, 60 cents is still good, octave error is folded`() {
-        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60, 0), note(2.0, 2.5, 60, 1), note(3.0, 3.5, 60, 2), note(4.0, 4.5, 60, 3)))
+    fun `120 cents high is sharp, 300 cents is wrong, and 60 cents is still good`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60, 0), note(2.0, 2.5, 60, 1), note(3.0, 3.5, 60, 2)))
         scorer.feed(1.0, 1.5, 61.2)      // +120¢ → sharp (라이브 완화: 70¢ 까지 good)
         scorer.feed(2.0, 2.5, 63.0)      // +300¢ → wrong (2반음 초과)
-        scorer.feed(3.0, 3.5, 72.1)      // 한 옥타브 위 +10¢ → fold → good
-        scorer.feed(4.0, 4.5, 60.6)      // +60¢ → good (예전 기준으론 sharp)
+        scorer.feed(3.0, 3.5, 60.6)      // +60¢ → good (예전 기준으론 sharp)
         val done = scorer.tick(5.0)
-        assertEquals(listOf(LiveStatus.SHARP, LiveStatus.WRONG, LiveStatus.GOOD, LiveStatus.GOOD), done.map { it.status })
+        assertEquals(listOf(LiveStatus.SHARP, LiveStatus.WRONG, LiveStatus.GOOD), done.map { it.status })
         assertEquals(120, done[0].cents)
         assertEquals(300, done[1].cents)
-        assertEquals(10, done[2].cents)
         assertEquals(0.0, done[1].pitchScore!!, 1e-9)   // 250¢ 이상 → 0
-        assertEquals(0.95, done[3].pitchScore!!, 1e-6)  // 1 - (60-50)/(250-50)
+        assertEquals(0.95, done[2].pitchScore!!, 1e-6)  // 1 - (60-50)/(250-50)
+    }
+
+    @Test
+    fun `octave errors keep their absolute pitch and do not become good`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60, 0), note(2.0, 2.5, 60, 1), note(3.0, 3.5, 60, 2)))
+        scorer.feed(1.0, 1.5, 48.1)      // 한 옥타브 낮음
+        scorer.feed(2.0, 2.5, 72.1)      // 한 옥타브 높음
+        scorer.feed(3.0, 3.5, 36.0)      // 두 옥타브 낮음
+
+        val done = scorer.tick(4.0)
+        assertEquals(listOf(LiveStatus.WRONG, LiveStatus.WRONG, LiveStatus.WRONG), done.map { it.status })
+        assertEquals(listOf(-1190, 1210, -2400), done.map { it.cents })
+        assertEquals(listOf(60, 60, 60), done.map { it.judgedTargetMidi })
+        assertEquals(listOf(48.1, 72.1, 36.0), done.map { it.sungMidi!! })
+    }
+
+    @Test
+    fun `pitch judgment follows the observed majority while octave-insensitive onset preserves timing`() {
+        val scorer = LiveScorer(listOf(note(1.0, 1.5, 60)))
+        scorer.feed(1.0, 1.2, 60.0)       // 40%: 목표음
+        scorer.feed(1.2, 1.5, 48.0)       // 60%: 실제로 부른 한 옥타브 낮은 음
+
+        val judged = scorer.tick(1.8).single()
+        assertEquals(LiveStatus.WRONG, judged.status) // 목표에 가까운 소수 프레임이 아니라 실제 과반수 음으로 판정
+        assertEquals(-1200, judged.cents)
+        assertEquals(48.0, judged.sungMidi!!, 1e-9)
+        assertEquals(0.0, judged.deviation!!, 0.03)   // 옥타브가 달라도 온셋을 잡아 박자 점수는 유지
     }
 
     @Test

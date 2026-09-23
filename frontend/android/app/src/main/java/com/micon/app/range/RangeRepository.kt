@@ -60,6 +60,17 @@ class RangeRepository(context: Context, private val modelApi: RangePreviewClient
         android.util.AtomicFile(pendingFile).delete()
     }
 
+    /** Start a fresh free-range attempt without erasing the last verified report or voice profile. */
+    @Synchronized fun discardUnfinishedFreeMeasurement() {
+        val checkpointId = freeCheckpoint()?.id
+        val pendingId = pending()?.submission?.sessionId
+        discardPending()
+        if (checkpointId != null && checkpointId != pendingId && !RangeDiagnostics.retainsAudio(appContext, checkpointId)) {
+            audio(checkpointId).delete()
+        }
+        finalized = false
+    }
+
     @Synchronized fun savePending(pending: PendingRange, checkpoint: Boolean = false) {
         if (closed) return
         if (checkpoint && finalized) return

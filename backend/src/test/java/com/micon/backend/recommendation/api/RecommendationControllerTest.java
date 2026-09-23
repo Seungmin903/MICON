@@ -39,4 +39,20 @@ class RecommendationControllerTest {
         assertThat(response.getBody().data().generatedAt()).isEqualTo(generatedAt);
         assertThat(response.getBody().data().shelves()).isEmpty();
     }
+
+    @Test
+    void returnsGeneratingWhileWaitingForAiQueueCapacity() {
+        RecommendationCreationService service = mock(RecommendationCreationService.class);
+        LocalDateTime generatedAt = LocalDateTime.of(2026, 9, 23, 13, 0);
+        when(service.createFromLatestAnalysis(1L))
+                .thenReturn(new RecommendationDispatchResult(20L, null, "queued", generatedAt));
+        RecommendationController controller = new RecommendationController(service);
+        Jwt jwt = Jwt.withTokenValue("token").header("alg", "none").subject("1").build();
+
+        var response = controller.create(jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody().data().jobId()).isNull();
+        assertThat(response.getBody().data().status()).isEqualTo(RecommendationStatus.GENERATING);
+    }
 }

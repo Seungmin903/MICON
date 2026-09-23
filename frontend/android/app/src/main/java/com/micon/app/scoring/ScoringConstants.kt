@@ -41,14 +41,14 @@ object ScoringConstants {
     const val LIVE_ONSET_SEARCH_SECONDS = 0.30   // 더 넓히면 같은 음의 앞 음표 꼬리를 온셋으로 잡아 보정이 틀어진다
     /** 이보다 짧은 음표(장식음·경과음)는 판정하지 않고 총점에서 뺀다. 원곡 음표의 40 % 가 0.18 s 미만이다. */
     const val LIVE_MIN_JUDGE_SECONDS = 0.18
-    /** 음정 오차 계산에 쓰는 프레임 비율: 목표에 가까운 순으로 이 비율만 남긴다(비브라토·스쿱·꺾기 관용) */
-    const val LIVE_CORE_FRAME_RATIO = 0.6
     /** 판정 창을 음표 앞뒤로 이만큼 넓혀 살짝 이르거나 늦은 발성도 잡는다 */
     const val LIVE_WINDOW_PAD_SECONDS = 0.08
 
     // --- 라이브 채점 전용 (live-scoring.tsx L26–33) ---
     const val CLARITY_MIN = 0.6             // YIN 명료도 게이트
     const val RMS_MIN = 0.004               // ≈ −48 dBFS
+    /** 연습은 낮은 옥타브로 부른 경우도 놓치지 않도록 C♯2 아래 A1까지 탐색한다. */
+    const val PRACTICE_PITCH_MIN_HZ = 55.0
     const val ONSET_NEAR_SEMITONES = 0.6
     const val ONSET_SEARCH_SECONDS = 0.3    // 음표 시작 ± 탐색
     const val CALIBRATION_LIMIT_SECONDS = 0.4  // 자동 지연 보정 한계 (TIMING_ZERO 와 우연히 같은 값, 별개 상수)

@@ -185,9 +185,9 @@ internal fun rangeVerdict(
             "추천 키를 적용했어요. 곡이 내 음역 안에 들어옵니다."
         key == 0 && overTop <= 0 && underLow <= 0 -> "곡이 내 음역 안에 들어와요. 원래 키로 불러도 편합니다."
         key == 0 && overTop > 0 -> "후렴 고음이 내 음역보다 ${NoteNames.distanceText(0, overTop).removeSuffix("요")}. 키를 내려 보세요."
-        key == 0 && underLow > 0 -> "곡의 낮은 음이 내 음역보다 ${underLow}음 낮아요. 키를 올려 보세요."
+        key == 0 && underLow > 0 -> "곡의 낮은 음이 내 음역보다 ${NoteNames.distanceText(underLow, 0).removeSuffix("요")}. 키를 올려 보세요."
         key < 0 && overTop <= 0 -> "${-key}키 내림 · 후렴 고음이 한결 편해집니다."
-        key < 0 -> "${-key}키 내림 · 아직 고음이 ${overTop}음 남았어요."
+        key < 0 -> "${-key}키 내림 · 아직 고음이 ${NoteNames.distanceText(0, overTop).removeSuffix(" 높아요")} 남았어요."
         overTop > 0 -> "${key}키 올림 · 후렴에서 음이 내 음역을 벗어나요."
         else -> "${key}키 올림 · 아직 내 음역 안이에요."
     }

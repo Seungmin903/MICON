@@ -77,6 +77,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.scoring.LiveNote
 import com.micon.app.scoring.LiveStatus
+import com.micon.app.scoring.KaraokeNames
 import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.LyricTiming
 import com.micon.app.scoring.ScoringConstants
@@ -88,6 +89,7 @@ import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.formatSec
+import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.practice.PracticeViewModel.Phase
 import com.micon.app.ui.practice.PracticeViewModel.SavePhase
 import com.micon.app.ui.rememberAppContainer
@@ -117,7 +119,13 @@ import kotlin.math.roundToInt
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
-fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> Unit, initialKey: Int = 0) {
+fun PracticeScreen(
+    songId: String,
+    onBack: () -> Unit,
+    onOpenResult: (Long) -> Unit,
+    onReturnToPractice: () -> Unit = onBack,
+    initialKey: Int = 0,
+) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
@@ -259,6 +267,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
         if (state.phase != Phase.LOADING && state.phase != Phase.ERROR) {
             BottomSheet(state, vm, finishedExpanded, onFinishedExpandedChange = { finishedExpanded = it }, onStart = ::startWithPermission,
                 onBack = { vm.stopAudioForExit(); onBack() },
+                onReturnToPractice = { vm.stopAudioForExit(); onReturnToPractice() },
                 onOpenResult = { id -> vm.stopAudioForExit(); onOpenResult(id) })
         }
     }
@@ -333,7 +342,7 @@ private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, ena
     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("−", fontSize = 22.sp, color = if (canUse && keyShift > ScoringConstants.KEY_SHIFT_MIN) Purple else GreyLight, modifier = Modifier.clickable(enabled = canUse) { onChange(keyShift - 1) }.padding(horizontal = 8.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (keyShift == 0) "원키" else (if (keyShift > 0) "+$keyShift key" else "$keyShift key"), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
+            Text(NoteNames.keyShiftText(keyShift), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
             // 키별 S3 반주로 전환하는 동안에는 상위에서 입력을 막는다.
             val label = when {
                 keyName == null -> null
@@ -435,7 +444,7 @@ private fun ScoreBoard(
     }
 }
 
-/** 방금 판정된 음표는 숫자·가사 없이 낮음/정확/높음/안 부름 등의 판정만 표시한다. */
+/** 방금 판정된 음표의 음정 상태를 표시하고, 옥타브 오류면 목표음과 실제음을 함께 보여 준다. */
 @Composable
 private fun JudgementLabel(note: LiveNote?, atMs: Long) {
     if (note == null || !note.status.judged) { Text("첫 음표를 기다리고 있어요", fontSize = 12.sp, color = Grey); return }
@@ -444,13 +453,27 @@ private fun JudgementLabel(note: LiveNote?, atMs: Long) {
     val color = Color(status.argb)
     val label = when (note.status) {
         LiveStatus.GOOD -> "Perfect"
-        LiveStatus.SHARP -> "Low"
-        LiveStatus.FLAT -> "High"
+        LiveStatus.SHARP -> "High"
+        LiveStatus.FLAT -> "Low"
         LiveStatus.WRONG -> "Bad"
         LiveStatus.MISSED -> "Miss"
         else -> ""
     }
-    Text(label, fontSize = 14.sp, color = if (fresh) color else color.copy(alpha = 0.55f), fontWeight = FontWeight.Bold)
+    val targetMidi = note.judgedTargetMidi
+    val sungMidi = note.sungMidi
+    val octaveFeedback = if (targetMidi != null && sungMidi != null) {
+        val difference = sungMidi - targetMidi
+        val octaves = (difference / 12.0).roundToInt()
+        if (octaves != 0 && abs(difference - octaves * 12.0) <= 1.0) {
+            "${KaraokeNames.koreanShort(targetMidi)} → ${KaraokeNames.koreanShort(sungMidi.roundToInt())} · ${abs(octaves)}옥타브 ${if (octaves < 0) "낮게" else "높게"}"
+        } else null
+    } else null
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 14.sp, color = if (fresh) color else color.copy(alpha = 0.55f), fontWeight = FontWeight.Bold)
+        octaveFeedback?.let {
+            Text(it, fontSize = 9.sp, color = if (fresh) color else color.copy(alpha = 0.55f), maxLines = 1)
+        }
+    }
 }
 
 // 재생 중 가사(KaraokePanel)는 불러서 분석하기와 공유 → PracticeLyrics.kt
@@ -558,6 +581,7 @@ private fun BottomSheet(
     onFinishedExpandedChange: (Boolean) -> Unit,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    onReturnToPractice: () -> Unit,
     onOpenResult: (Long) -> Unit,
 ) {
     val running = state.isRunning
@@ -597,7 +621,7 @@ private fun BottomSheet(
                     Spacer(Modifier.height(10.dp))
                 }
                 if (state.phase == Phase.FINISHED && finishedExpanded) {
-                    FinishedPanel(state, vm, onOpenResult)
+                    FinishedPanel(state, vm, onOpenResult, onReturnToPractice)
                     Spacer(Modifier.height(16.dp))
                 }
                 Box(Modifier.fillMaxWidth().padding(horizontal = 36.dp), contentAlignment = Alignment.Center) {
@@ -631,7 +655,10 @@ private fun BottomSheet(
                     if (state.phase != Phase.FINISHED) {
                         val finishEnabled = state.phase == Phase.PAUSED
                         Column(Modifier.align(Alignment.CenterEnd), horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = vm::finishEarly, enabled = finishEnabled) {
+                            IconButton(
+                                onClick = vm::finishEarly,
+                                enabled = finishEnabled,
+                            ) {
                                 Icon(Icons.Filled.Stop, "여기까지 마치기", Modifier.size(32.dp), tint = if (finishEnabled) Ink else GreyLight)
                             }
                             Text("마치기", fontSize = 11.sp, color = if (finishEnabled) Grey else GreyLight)
@@ -653,7 +680,12 @@ private fun BottomSheet(
 }
 
 @Composable
-private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewModel, onOpenResult: (Long) -> Unit) {
+private fun FinishedPanel(
+    state: PracticeViewModel.UiState,
+    vm: PracticeViewModel,
+    onOpenResult: (Long) -> Unit,
+    onReturnToPractice: () -> Unit,
+) {
     Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FinishedActionButton(if (state.takePlaying) "정지" else "녹음 듣기", { if (state.takePlaying) vm.stopTake() else vm.playTake() }, Modifier.weight(1f), filled = false)
@@ -661,7 +693,8 @@ private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewMode
                 SavePhase.SAVED -> FinishedActionButton("리포트 상세 보기", { state.save.practiceId?.let(onOpenResult) }, Modifier.weight(1.3f), filled = true)
                 SavePhase.ERROR -> OutlinePurpleButton("기록 다시 저장", vm::retrySave, Modifier.weight(1.3f), height = 46.dp)
                 SavePhase.SAVING -> Box(Modifier.weight(1.3f).height(46.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), color = Purple, strokeWidth = 2.dp) }
-                SavePhase.GUEST, SavePhase.NONE -> {}
+                SavePhase.GUEST -> FinishedActionButton("목록으로", onReturnToPractice, Modifier.weight(1.3f), filled = true)
+                SavePhase.NONE -> {}
             }
         }
         Spacer(Modifier.height(18.dp))

@@ -38,6 +38,7 @@ import com.micon.app.ui.theme.Grey
 import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +50,7 @@ import kotlin.math.ceil
 
 internal class FreeRangeViewModel(context: Context, private val repository: RangeRepository,
     private val onboarding: Boolean) : ViewModel() {
+    private val appContext = context.applicationContext
     data class State(
         val view: FreeRangeSession.View,
         val recording: Boolean = false,
@@ -57,69 +59,125 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         val savedId: String? = null,
         val report: RangeReport? = null,
     )
-    private val session = repository.freeCheckpoint()?.let(FreeRangeSession::restore) ?: FreeRangeSession()
+    private var session = if (onboarding) {
+        // A new onboarding visit starts at the first measurement, even after process recreation.
+        repository.discardUnfinishedFreeMeasurement()
+        FreeRangeSession()
+    } else repository.freeCheckpoint()?.let(FreeRangeSession::restore) ?: FreeRangeSession()
     private val capture = PitchCapture(collectCandidates = true)
-    private val pausing = AtomicBoolean(false)
+    private var pausing = AtomicBoolean(false)
     private val stateFlow = MutableStateFlow(State(session.view()))
     val state = stateFlow.asStateFlow()
+    private var appliedRestartVersion = 0L
+    private val restartLock = Any()
+    @Volatile private var attemptGeneration = 0L
+    private var transitionJob: Job? = null
+    private var saveJob: Job? = null
+
+    private fun updateIfCurrent(generation: Long, change: (State) -> State) {
+        stateFlow.update { current -> if (generation == attemptGeneration) change(current) else current }
+    }
+
+    /** A result-screen retry must reset the retained HOLO ViewModel as well as its stored audio. */
+    fun restartMeasurement(version: Long) {
+        synchronized(restartLock) {
+            if (!onboarding || version <= appliedRestartVersion) return
+            appliedRestartVersion = version
+            attemptGeneration++
+            transitionJob?.cancel()
+            saveJob?.cancel()
+            capture.stop()
+            val oldId = session.id
+            repository.discardUnfinishedFreeMeasurement()
+            // A failed save may have left WAV audio without a checkpoint or pending submission.
+            if (!com.micon.app.range.RangeDiagnostics.retainsAudio(appContext, oldId)) repository.audio(oldId).delete()
+            session = FreeRangeSession()
+            pausing = AtomicBoolean(false)
+            stateFlow.value = State(session.view())
+        }
+    }
 
     fun permissionDenied() { stateFlow.update { it.copy(error = "마이크 권한을 허용해 주세요.") } }
     fun resume() { if (session.view().phase == "done") save() else start() }
 
     fun start() {
         if (stateFlow.value.recording || stateFlow.value.busy || stateFlow.value.savedId != null) return
-        val phase = session.view().phase
-        val wav = repository.audio(session.id)
+        val activeSession = session
+        val generation = attemptGeneration
+        val pauseFlag = pausing
+        val phase = activeSession.view().phase
+        val wav = repository.audio(activeSession.id)
         if (phase == "transition") {
             val durableSeconds = runCatching { Pcm16MonoWav.duration(wav, Pcm16MonoWav.sampleRate(wav), false) }
                 .getOrNull() ?: capture.capturedSeconds
-            session.advance(maxOf(capture.capturedSeconds, durableSeconds))
+            activeSession.advance(maxOf(capture.capturedSeconds, durableSeconds))
         }
         if (phase == "done") return
-        stateFlow.update { it.copy(recording = true, error = null, view = session.view()) }
+        stateFlow.update { it.copy(recording = true, error = null, view = activeSession.view()) }
         try {
-            val callback: (PitchCapture.PitchFrame) -> Unit = { f ->
-                val view = session.onFrame(RangeFrame(f.t, f.duration, f.f0, f.clarity, f.rms, f.rmsLow, f.clippedRatio))
-                stateFlow.update { it.copy(view = view) }
-                if (view.phase in setOf("transition", "done", "failed") && pausing.compareAndSet(false, true)) {
-                    viewModelScope.launch {
+            val callback: (PitchCapture.PitchFrame) -> Unit = callback@{ f ->
+                if (generation != attemptGeneration) return@callback
+                val view = activeSession.onFrame(RangeFrame(f.t, f.duration, f.f0, f.clarity, f.rms, f.rmsLow, f.clippedRatio))
+                updateIfCurrent(generation) { it.copy(view = view) }
+                if (generation == attemptGeneration && view.phase in setOf("transition", "done", "failed") &&
+                    pauseFlag.compareAndSet(false, true)) {
+                    transitionJob = viewModelScope.launch {
                         try {
-                            withContext(Dispatchers.IO) { capture.stop() }
-                            session.checkpoint(capture.capturedSeconds)?.let { checkpoint ->
-                                withContext(Dispatchers.IO) { repository.saveFreeCheckpoint(checkpoint) }
+                            withContext(Dispatchers.IO) {
+                                synchronized(restartLock) { if (generation == attemptGeneration) capture.stop() }
                             }
-                            stateFlow.update { it.copy(recording = false, view = session.view()) }
-                            if (session.view().phase == "done") save()
-                            else if (session.view().phase == "transition") {
+                            if (generation != attemptGeneration) return@launch
+                            activeSession.checkpoint(capture.capturedSeconds)?.let { checkpoint ->
+                                withContext(Dispatchers.IO) {
+                                    synchronized(restartLock) {
+                                        if (generation == attemptGeneration) repository.saveFreeCheckpoint(checkpoint)
+                                    }
+                                }
+                            }
+                            if (generation != attemptGeneration) return@launch
+                            updateIfCurrent(generation) { it.copy(recording = false, view = activeSession.view()) }
+                            if (activeSession.view().phase == "done") save()
+                            else if (activeSession.view().phase == "transition") {
                                 delay(1_200)
-                                start()
+                                if (generation == attemptGeneration) start()
                             }
                         } catch (cancelled: CancellationException) { throw cancelled }
                         catch (_: Exception) {
-                            stateFlow.update { it.copy(recording = false, error = "녹음을 저장하지 못했어요. 다시 시도해 주세요.") }
-                        } finally { pausing.set(false) }
+                            updateIfCurrent(generation) { it.copy(recording = false, error = "녹음을 저장하지 못했어요. 다시 시도해 주세요.") }
+                        } finally { pauseFlag.set(false) }
                     }
                 }
             }
-            if (wav.isFile && wav.length() >= 44) capture.resume(wav, ::captureFailed, callback)
-            else capture.start(wav, ::captureFailed, callback)
+            if (wav.isFile && wav.length() >= 44) capture.resume(wav, { captureFailed(generation, pauseFlag, it) }, callback)
+            else capture.start(wav, { captureFailed(generation, pauseFlag, it) }, callback)
         } catch (_: Exception) {
-            stateFlow.update { it.copy(recording = false, error = "마이크를 시작하지 못했어요. 다시 시도해 주세요.") }
+            updateIfCurrent(generation) { it.copy(recording = false, error = "마이크를 시작하지 못했어요. 다시 시도해 주세요.") }
         }
     }
 
-    private fun captureFailed(error: Throwable) {
-        if (!pausing.compareAndSet(false, true)) return
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) { capture.stop() }
-            stateFlow.update { it.copy(recording = false, error = "녹음이 중단됐어요. 현재 단계를 다시 시도해 주세요.") }
-            pausing.set(false)
+    private fun captureFailed(generation: Long, pauseFlag: AtomicBoolean, error: Throwable) {
+        if (generation != attemptGeneration) return
+        if (!pauseFlag.compareAndSet(false, true)) return
+        transitionJob = viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                synchronized(restartLock) { if (generation == attemptGeneration) capture.stop() }
+            }
+            updateIfCurrent(generation) { it.copy(recording = false, error = "녹음이 중단됐어요. 현재 단계를 다시 시도해 주세요.") }
+            pauseFlag.set(false)
         }
     }
 
     fun retryStage() {
         if (stateFlow.value.recording || stateFlow.value.busy) return
-        if (session.view().phase == "done") { save(); return }
+        when (session.view().phase) {
+            "done" -> { save(); return }
+            "transition" -> {
+                // The previous stage already completed; resume its paused handoff instead of retrying it.
+                stateFlow.update { it.copy(error = null) }
+                start()
+                return
+            }
+        }
         if (!session.retryCurrent(capture.capturedSeconds)) return
         stateFlow.update { it.copy(view = session.view(), error = null) }
         start()
@@ -127,28 +185,39 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
 
     private fun save() {
         if (stateFlow.value.busy || stateFlow.value.savedId != null) return
+        val activeSession = session
+        val generation = attemptGeneration
         stateFlow.update { it.copy(busy = true) }
-        viewModelScope.launch {
+        saveJob = viewModelScope.launch {
             try {
-                val wav = repository.audio(session.id)
+                val wav = repository.audio(activeSession.id)
                 val rate = Pcm16MonoWav.sampleRate(wav)
                 withContext(Dispatchers.IO) { repository.repairWav(wav, rate) }
+                if (generation != attemptGeneration) return@launch
                 val duration = Pcm16MonoWav.duration(wav, rate, true) ?: error("녹음 파일을 확인하지 못했어요.")
-                val submission = checkNotNull(session.submission(duration))
+                val submission = checkNotNull(activeSession.submission(duration))
                 val ready = withContext(Dispatchers.IO) {
                     RangeInputQuality().inspect(submission, wav, rate, true)
                 }
+                if (generation != attemptGeneration) return@launch
                 check(ready.ready) { ready.message }
-                withContext(Dispatchers.IO) { repository.savePending(PendingRange(submission, sampleRate = rate)) }
-                stateFlow.update { it.copy(savedId = session.id) }
+                withContext(Dispatchers.IO) {
+                    synchronized(restartLock) {
+                        if (generation == attemptGeneration) repository.savePending(PendingRange(submission, sampleRate = rate))
+                    }
+                }
+                if (generation != attemptGeneration) return@launch
+                updateIfCurrent(generation) { it.copy(savedId = activeSession.id) }
                 if (!onboarding) {
                     val report = repository.submit { }
-                    stateFlow.update { it.copy(report = report) }
+                    updateIfCurrent(generation) { it.copy(report = report) }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) {
-                stateFlow.update { it.copy(error = e.message ?: "음역 분석을 시작하지 못했어요. 녹음은 보존돼 있어요.") }
-            } finally { stateFlow.update { it.copy(busy = false) } }
+                updateIfCurrent(generation) { it.copy(error = e.message ?: "음역 분석을 시작하지 못했어요. 녹음은 보존돼 있어요.") }
+            } finally {
+                updateIfCurrent(generation) { it.copy(busy = false) }
+            }
         }
     }
 

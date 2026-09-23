@@ -21,10 +21,13 @@ object NoteNames {
     val notation: kotlinx.coroutines.flow.StateFlow<Notation> = _notation
     fun setNotation(value: Notation) { _notation.value = value }
 
-    /** 설정을 따르는 표기: 도레미면 "중간 도", CDE 면 "C4" */
-    fun display(midi: Int): String = if (_notation.value == Notation.LETTERS) scientific(midi) else friendly(midi)
+    /**
+     * 설정을 따르는 표기: 도레미면 노래방식 "2옥타브 도", CDE 면 "C4".
+     * 화면의 음이름은 전부 이 둘 중 하나다. 크기를 나눠 그리려면 [OctaveNoteText] / [karaokeNoteText] 를 쓴다.
+     */
+    fun display(midi: Int): String = if (_notation.value == Notation.LETTERS) scientific(midi) else karaoke(midi)
     fun displayRange(lowMidi: Int, highMidi: Int): String =
-        if (_notation.value == Notation.LETTERS) scientificRange(lowMidi, highMidi) else rangeText(lowMidi, highMidi)
+        if (_notation.value == Notation.LETTERS) scientificRange(lowMidi, highMidi) else karaokeRange(lowMidi, highMidi)
 
     private val syllables = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
 
@@ -56,7 +59,7 @@ object NoteNames {
         else -> "아주 높은"
     }
 
-    /** "중간 도" · "낮은 라" · "아주 높은 솔" */
+    /** "중간 도" · "낮은 라" · "아주 높은 솔" — 화면 표기는 [karaoke] 로 통일했고, 이건 TalkBack([spoken])·카탈로그용 */
     fun friendly(midi: Int): String = "${heightWord(midi)} ${syllableOf(midi)}"
 
     fun friendly(midi: Double): String = friendly(midi.roundToInt())
@@ -100,4 +103,7 @@ object NoteNames {
      * 예전에는 여기서 한 옥타브 어긋나게 세고 있었다(C4 를 "3옥타브 도" 로).
      */
     fun karaoke(midi: Int): String = com.micon.app.scoring.KaraokeNames.korean(midi)
+
+    /** "1옥타브 라 ~ 2옥타브 솔" */
+    fun karaokeRange(lowMidi: Int, highMidi: Int): String = "${karaoke(lowMidi)} ~ ${karaoke(highMidi)}"
 }

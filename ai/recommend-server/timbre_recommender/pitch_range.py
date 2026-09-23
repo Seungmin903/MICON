@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+import time
 from typing import Any, Mapping
 
 import numpy as np
@@ -100,7 +101,10 @@ class RangeCatalog:
         *,
         expected_track_ids: set[str] | None = None,
         verify_hashes: bool = False,
+        timings: dict[str, float] | None = None,
     ) -> "RangeCatalog":
+        load_started = time.perf_counter()
+        hash_verify_seconds = 0.0
         directory = Path(root).resolve()
         path = directory / RANGE_CATALOG_FILENAME
         if not path.is_file():
@@ -137,8 +141,15 @@ class RangeCatalog:
             source_path = directory / str(source_file)
             if not source_path.is_file():
                 raise FileNotFoundError(f"range catalog source index not found: {source_path}")
+            verify_started = time.perf_counter()
             if canonical_json_sha256(source_path) != source_hash:
                 raise RuntimeError(f"range catalog source hash mismatch: {source_path}")
+            hash_verify_seconds = time.perf_counter() - verify_started
+        if timings is not None:
+            timings.update(
+                totalMs=(time.perf_counter() - load_started) * 1000,
+                hashVerifyMs=hash_verify_seconds * 1000,
+            )
         return cls(directory, payload, profiles)
 
 

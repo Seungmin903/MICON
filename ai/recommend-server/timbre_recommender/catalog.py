@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import time
 from typing import Any, Iterable
 
 import numpy as np
@@ -260,7 +261,15 @@ class CatalogIndex:
         self._by_id = {track.track_id: track for track in self.tracks}
 
     @classmethod
-    def load(cls, root: Path | str, *, verify_hashes: bool = False) -> "CatalogIndex":
+    def load(
+        cls,
+        root: Path | str,
+        *,
+        verify_hashes: bool = False,
+        timings: dict[str, float] | None = None,
+    ) -> "CatalogIndex":
+        load_started = time.perf_counter()
+        hash_verify_seconds = 0.0
         directory = Path(root).resolve()
         index_path = directory / INDEX_FILENAME
         if not index_path.is_file():
@@ -281,8 +290,11 @@ class CatalogIndex:
                 raise ValueError(f"catalog model contract mismatch for {model_key}")
             record = metadata["files"][model_key]
             path = directory / record["filename"]
-            if verify_hashes and sha256_file(path) != record["sha256"]:
-                raise RuntimeError(f"catalog array hash mismatch: {path}")
+            if verify_hashes:
+                verify_started = time.perf_counter()
+                if sha256_file(path) != record["sha256"]:
+                    raise RuntimeError(f"catalog array hash mismatch: {path}")
+                hash_verify_seconds += time.perf_counter() - verify_started
             values = np.load(path, mmap_mode="r", allow_pickle=False)
             expected_shape = tuple(record["shape"])
             if values.shape != expected_shape or values.shape[1] != MODEL_CONTRACTS[model_key].dimension:
@@ -298,6 +310,11 @@ class CatalogIndex:
                     raise ValueError(
                         f"invalid {model_key} array span for track {track.track_id}: {span}"
                     )
+        if timings is not None:
+            timings.update(
+                totalMs=(time.perf_counter() - load_started) * 1000,
+                hashVerifyMs=hash_verify_seconds * 1000,
+            )
         return catalog
 
     def embeddings(self, track: Track | str, model_key: str) -> np.ndarray:

@@ -42,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8788/health', timeout=4)" || exit 1
 USER 10001:10001
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8788"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8788", "--workers", "1"]

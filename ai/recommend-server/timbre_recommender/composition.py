@@ -44,11 +44,10 @@ MAX_SONGS_PER_ARTIST = 2
 
 # 언어 게이트. 카탈로그 metadata.languages 는 ISO 639-2. mul/zxx(다국어·가사 없음)는 항상 통과.
 CATALOG_LANGUAGE = {"kor": "ko", "eng": "en", "jpn": "jp"}
-# Foreign preferences cover every style in that song language. Other choices are Korean styles.
-# Keep prior labels/import keys readable for existing clients and stored preferences.
+# Only explicit language choices constrain catalog languages. Musical genres such as pop,
+# dance, ballad, or R&B must never become language gates.
 GENRE_LANGUAGE = {
-    "영어곡": "en", "팝": "en", "pop": "en", "global-pop": "en",
-    "일본곡": "jp", "j-pop": "jp", "jpop": "jp", "j팝": "jp", "etc-jpop": "jp",
+    "영어곡": "en", "일본곡": "jp",
 }
 
 _TJ_NUMBER = re.compile(r"(\d+)\s*$")
@@ -71,11 +70,10 @@ def song_id_of(metadata: Mapping[str, Any] | None) -> str | int | None:
 
 
 def allowed_languages(genres: Iterable[str]) -> set[str] | None:
-    """None = 제한 없음."""
+    """Only explicit language preferences (영어곡/일본곡) limit catalog language."""
     cleaned = [g.strip() for g in genres if g and g.strip()]
-    if not cleaned:
-        return None
-    return {GENRE_LANGUAGE.get(genre.lower(), "ko") for genre in cleaned}
+    selected = {GENRE_LANGUAGE[genre.lower()] for genre in cleaned if genre.lower() in GENRE_LANGUAGE}
+    return selected or None
 
 
 def track_language(metadata: Mapping[str, Any] | None) -> str | None:

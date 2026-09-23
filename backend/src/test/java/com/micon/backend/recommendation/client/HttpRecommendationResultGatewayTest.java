@@ -49,6 +49,10 @@ class HttpRecommendationResultGatewayTest {
         authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
         byte[] response = """
                 {"id":"job-123","status":"complete","progress":100,"message":"done","error":null,
+                 "requestReceivedAt":"2026-09-23T03:00:00Z","acceptedAt":"2026-09-23T03:00:00Z",
+                 "startedAt":"2026-09-23T03:00:01Z","completedAt":"2026-09-23T03:00:02Z",
+                 "requestToAcceptedMs":2.5,"catalogLinkEnsureMs":0.1,
+                 "timing":{"queueWaitMs":12,"scoringMs":50},
                  "result":{"algorithm":{"scoring_version":"score-v2","shelves_version":"shelves-v1"},
                  "shelves":[{"key":"voice","title":"내 목소리","metric":"음색",
                  "items":[{"position":1,"song_id":"tj-00042","axis":"CONSENSUS","label":"유사",

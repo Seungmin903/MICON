@@ -90,7 +90,6 @@ import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
 import com.micon.app.data.ShelfKeys
 import com.micon.app.ui.design.atoms.CompactDisc
-import com.micon.app.ui.design.atoms.MiconBadge
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.geometry.Offset
@@ -282,20 +281,14 @@ fun RecommendDeckScreen(
                         NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
                     }
 
-                    if (loaded == null) {
-                        CardFan(
-                            header = shelf?.let(::rackLabel).orEmpty(),
-                            songs = items,
-                            onLoad = ::putOnDeck,
-                            onFloat = { floating = it },
-                        )
-                    } else {
-                        DiscRow(
-                            title = shelf?.let(::rackLabel).orEmpty(),
-                            songs = items.filter { it.song.id != loadedId },
-                            onPick = ::putOnDeck,
-                        )
-                    }
+                    // 곡을 올린 뒤에도 선택 전과 같은 카드 목록을 유지한다.
+                    // 현재 재생 중인 곡만 빼고, 다른 카드로 바로 교체할 수 있다.
+                    CardFan(
+                        header = shelf?.let(::rackLabel).orEmpty(),
+                        songs = items.filter { it.song.id != loadedId },
+                        onLoad = ::putOnDeck,
+                        onFloat = { floating = it },
+                    )
 
                     Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
                 }
@@ -429,8 +422,7 @@ private fun TopBar(
 // ---------------------------------------------------------------------------
 
 /**
- * 제목 · 가수 · 음역 배지. 비어 있어도 자리를 지켜 데크가 튀지 않는다.
- * 권장 키 배지와 곡 길이는 뺐다 — 그만큼 최소 높이도 같이 낮춰야 아래 데크가 위로 붙는다.
+ * 제목 · 가수와 미리듣기 상태. 비어 있어도 자리를 지켜 데크가 튀지 않는다.
  */
 @Composable
 private fun NowInfo(item: RecommendedSong?, preview: RecommendPreview? = null) {
@@ -443,11 +435,6 @@ private fun NowInfo(item: RecommendedSong?, preview: RecommendPreview? = null) {
         if (item == null) return
         Text(item.song.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         Text(item.song.artist, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        val lo = item.fit?.rangeFit?.songCoreLowMidi
-        val hi = item.fit?.rangeFit?.songCoreHighMidi
-        if (lo != null && hi != null) {
-            Row(Modifier.padding(top = 2.dp)) { MiconBadge(text = NoteNames.rangeText(lo, hi)) }
-        }
         val status = when {
             preview?.error != null -> preview.error
             preview?.loading == true -> "미리듣기 준비 중…"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -11,6 +12,7 @@ import subprocess
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from collections.abc import Mapping
@@ -20,6 +22,7 @@ import numpy as np
 import soundfile as sf
 
 import catalog_link
+import catalog_cache
 from artist_catalog import ArtistCatalog, public_response
 from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
@@ -49,6 +52,42 @@ LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
 router = APIRouter(tags=["timbre-recommendations"])
+log = logging.getLogger("uvicorn.error")
+
+
+def _env_limit(name: str, default: int, *, minimum: int) -> int:
+    try:
+        return max(minimum, int(os.environ.get(name, "") or default))
+    except ValueError:
+        return default
+
+
+JSON_RECOMMEND_CONCURRENCY = _env_limit("RECOMMEND_JSON_CONCURRENCY", 1, minimum=1)
+JSON_RECOMMEND_QUEUE_LIMIT = _env_limit("RECOMMEND_JSON_QUEUE_LIMIT", 5, minimum=0)
+_JSON_RECOMMEND_SLOTS = threading.BoundedSemaphore(JSON_RECOMMEND_CONCURRENCY)
+_JSON_ADMISSION_LOCK = threading.Lock()
+_JSON_OUTSTANDING = 0
+
+
+def _reserve_json_recommendation() -> bool:
+    """Bound running plus waiting JSON jobs before creating a job record."""
+    global _JSON_OUTSTANDING
+    with _JSON_ADMISSION_LOCK:
+        capacity = JSON_RECOMMEND_CONCURRENCY + JSON_RECOMMEND_QUEUE_LIMIT
+        if _JSON_OUTSTANDING >= capacity:
+            return False
+        _JSON_OUTSTANDING += 1
+        return True
+
+
+def _release_json_recommendation() -> None:
+    global _JSON_OUTSTANDING
+    with _JSON_ADMISSION_LOCK:
+        _JSON_OUTSTANDING = max(0, _JSON_OUTSTANDING - 1)
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 def _replace_with_retry(source: Path, destination: Path) -> None:
@@ -96,10 +135,12 @@ def _save_job(job_id: str) -> None:
     _replace_with_retry(temporary, job_dir / "job.json")
 
 
-def _update(job_id: str, **values: Any) -> None:
+def _update(job_id: str, **values: Any) -> float:
+    started = time.perf_counter()
     with LOCK:
         JOBS[job_id].update(values)
         _save_job(job_id)
+    return round((time.perf_counter() - started) * 1000, 2)
 
 
 def _convert_to_wav(source: Path, target: Path) -> None:
@@ -140,6 +181,7 @@ def build_result(
     preferred_artists: tuple[str, ...] = (),
     excluded_track_ids: tuple[str, ...] = (),
     seed: int | None = None,
+    genre_preferences_enabled: bool = False,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
     range_enabled = bool(pitch_profile and pitch_profile.get("reliable", False))
@@ -157,7 +199,8 @@ def build_result(
     rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
     if seed is None:
         seed = int(time.strftime("%Y%m%d"))          # 새로운 발견: 하루 단위로 섞임
-    shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists, range_enabled=range_enabled, seed=seed)
+    shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists,
+                            genre_preferences_enabled=genre_preferences_enabled, range_enabled=range_enabled, seed=seed)
     allowed = allowed_languages(genres)
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
@@ -187,7 +230,7 @@ def build_result(
 
 
 # ── BE JSON 입력 ─────────────────────────────────────────────────────────────
-# 모델 추론이 없으므로 INFERENCE_LOCK 을 잡지 않는다 — 추천 요청은 서로 기다리지 않는다.
+# 저장된 임베딩을 쓰므로 음성 분석의 INFERENCE_LOCK 과 분리하고, JSON 추천 전용 슬롯으로 제한한다.
 
 MODEL_DIMENSIONS = {"ecapa": 192, "singer_byol": 1000}
 _MODEL_ALIASES = {"ecapa": "ecapa", "ECAPA": "ecapa", "singer_byol": "singer_byol",
@@ -317,33 +360,106 @@ def profile_from_voice_profile(voice_profile: Any) -> tuple[dict[str, Any] | Non
     return profile, None
 
 
-def _json_process(job_id: str, payload: dict[str, Any]) -> None:
+def _json_process(
+    job_id: str,
+    payload: dict[str, Any],
+    accepted_monotonic: float | None = None,
+) -> None:
+    accepted_monotonic = time.perf_counter() if accepted_monotonic is None else accepted_monotonic
+    _JSON_RECOMMEND_SLOTS.acquire()
+    started_monotonic = time.perf_counter()
+    started_at = _utc_now()
+    job = JOBS[job_id]
+    timings: dict[str, Any] = {
+        "queueWaitMs": round((started_monotonic - accepted_monotonic) * 1000, 2),
+        "catalogCacheHit": False,
+    }
+    result: dict[str, Any] | None = None
+    failure: tuple[str, str, str] | None = None
     try:
+        _update(job_id, status="processing", progress=40,
+                message="저장된 음색·음역으로 곡을 고르고 있습니다.", startedAt=started_at,
+                timing=timings)
+        log.info(
+            "event=recommendation_ai_started job_id=%s accepted_at=%s started_at=%s queue_wait_ms=%.2f",
+            job_id, job.get("acceptedAt"), started_at, timings["queueWaitMs"],
+        )
         config, missing = _configuration_status()
         if missing:
             raise RuntimeError(f"추천 데모 설정 누락: {', '.join(missing)}")
-        _update(job_id, status="processing", progress=40, message="저장된 음색·음역으로 곡을 고르고 있습니다.")
         query = user_embedding_matrices(payload.get("userEmbedding"))
         profile, profile_error = profile_from_voice_profile(payload.get("voiceProfile"))
-        catalog = CatalogIndex.load(config["index_dir"], verify_hashes=True)
-        ranges = RangeCatalog.load(
-            config["index_dir"], expected_track_ids={track.track_id for track in catalog.tracks}, verify_hashes=True,
+        catalog, ranges, catalog_timings = catalog_cache.load_catalogs(config["index_dir"])
+        timings.update(catalog_timings)
+        timings["catalogLoadMs"] = round(
+            catalog_timings["catalogIndexLoadMs"] + catalog_timings["rangeCatalogLoadMs"], 2
         )
+        timings["catalogValidationMs"] = round(
+            catalog_timings["catalogIndexVerifyMs"] + catalog_timings["rangeCatalogVerifyMs"], 2
+        )
+        timings["catalogLoadAndValidationMs"] = round(
+            timings["catalogLoadMs"] + timings["catalogValidationMs"], 2
+        )
+        scoring_started = time.perf_counter()
         result = build_result(
             catalog, ranges, query=query, pitch_profile=profile, pitch_error=profile_error,
             mode=_ai_mode(payload.get("mode")), top_k=max(1, min(int(payload.get("topK") or 10), MAX_TOP_K)),
             genres=_strings(payload.get("genres")), preferred_artists=_strings(payload.get("preferredArtists")),
             excluded_track_ids=_excluded_tracks(payload.get("sourceSongId"), catalog),
             seed=payload.get("seed"),
+            genre_preferences_enabled=True,
         )
+        timings["scoringMs"] = round((time.perf_counter() - scoring_started) * 1000, 2)
+        mapping_started = time.perf_counter()
         result = catalog_link.apply(result)
-        _update(job_id, status="complete", progress=100, result=result,
-                message="음색과 음역 추천이 완료되었습니다." if result["algorithm"]["range_enabled"]
-                        else "음역 신뢰도가 낮아 음색 추천으로 완료했습니다.")
+        timings["resultMappingMs"] = round((time.perf_counter() - mapping_started) * 1000, 2)
     except HTTPException as error:
-        _update(job_id, status="failed", progress=100, message="추천 입력이 올바르지 않습니다.", error=str(error.detail))
+        failure = ("추천 입력이 올바르지 않습니다.", str(error.detail), type(error).__name__)
     except Exception as error:
-        _update(job_id, status="failed", progress=100, message="맞춤 추천에 실패했습니다.", error=str(error))
+        failure = ("맞춤 추천에 실패했습니다.", str(error), type(error).__name__)
+    finally:
+        completed_at = _utc_now()
+        timings["executionMs"] = round((time.perf_counter() - started_monotonic) * 1000, 2)
+        try:
+            if failure is None and result is not None:
+                save_ms = _update(
+                    job_id, status="complete", progress=100, result=result,
+                    message="음색과 음역 추천이 완료되었습니다." if result["algorithm"]["range_enabled"]
+                            else "음역 신뢰도가 낮아 음색 추천으로 완료했습니다.",
+                    completedAt=completed_at, timing=timings,
+                )
+                timings["resultSaveMs"] = save_ms
+                timings["totalMs"] = round((time.perf_counter() - accepted_monotonic) * 1000, 2)
+                _update(job_id, timing=timings)
+                log.info(
+                    "event=recommendation_ai_completed job_id=%s accepted_at=%s started_at=%s completed_at=%s "
+                    "queue_wait_ms=%.2f catalog_load_ms=%.2f catalog_validation_ms=%.2f "
+                    "catalog_load_validation_ms=%.2f scoring_ms=%.2f result_mapping_ms=%.2f "
+                    "result_save_ms=%.2f total_ms=%.2f cache_hit=%s",
+                    job_id, job.get("acceptedAt"), started_at, completed_at,
+                    timings["queueWaitMs"], timings["catalogLoadMs"], timings["catalogValidationMs"],
+                    timings["catalogLoadAndValidationMs"], timings["scoringMs"],
+                    timings["resultMappingMs"], timings["resultSaveMs"], timings["totalMs"],
+                    timings["catalogCacheHit"],
+                )
+            else:
+                message, detail, error_type = failure or (
+                    "맞춤 추천에 실패했습니다.", "추천 결과가 없습니다.", "RuntimeError",
+                )
+                save_ms = _update(job_id, status="failed", progress=100, message=message,
+                                  error=detail, completedAt=completed_at, timing=timings)
+                timings["resultSaveMs"] = save_ms
+                timings["totalMs"] = round((time.perf_counter() - accepted_monotonic) * 1000, 2)
+                _update(job_id, timing=timings)
+                log.warning(
+                    "event=recommendation_ai_failed job_id=%s accepted_at=%s started_at=%s completed_at=%s "
+                    "queue_wait_ms=%.2f total_ms=%.2f error_type=%s",
+                    job_id, job.get("acceptedAt"), started_at, completed_at,
+                    timings["queueWaitMs"], timings["totalMs"], error_type,
+                )
+        finally:
+            _JSON_RECOMMEND_SLOTS.release()
+            _release_json_recommendation()
 
 
 def _ai_mode(value: Any) -> str:
@@ -546,12 +662,25 @@ def recommendation_status() -> dict[str, Any]:
 @router.post("/recommendations", status_code=202)
 async def create_recommendation(request: Request, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """BE 는 JSON(저장된 임베딩), 개발용 데모는 multipart(오디오)로 부른다. Content-Type 으로 가른다."""
+    request_started = time.perf_counter()
+    request_received_at = _utc_now()
     if request.headers.get("content-type", "").startswith("application/json"):
-        return _create_from_json(await request.json(), background_tasks)
+        return _create_from_json(
+            await request.json(), background_tasks,
+            request_started=request_started, request_received_at=request_received_at,
+        )
     return await _create_from_multipart(await request.form(), background_tasks)
 
 
-def _create_from_json(payload: Any, background_tasks: BackgroundTasks) -> dict[str, Any]:
+def _create_from_json(
+    payload: Any,
+    background_tasks: BackgroundTasks,
+    *,
+    request_started: float | None = None,
+    request_received_at: str | None = None,
+) -> dict[str, Any]:
+    request_started = time.perf_counter() if request_started is None else request_started
+    request_received_at = _utc_now() if request_received_at is None else request_received_at
     _, missing = _configuration_status()
     if missing:
         raise HTTPException(503, f"추천 데모 설정이 필요합니다: {', '.join(missing)}")
@@ -559,23 +688,46 @@ def _create_from_json(payload: Any, background_tasks: BackgroundTasks) -> dict[s
         raise HTTPException(422, "요청 본문은 객체여야 합니다.")
     user_embedding_matrices(payload.get("userEmbedding"))      # 잡을 만들기 전에 입력부터 검증한다
     _ai_mode(payload.get("mode"))
-    if catalog_link.ensure()["mappedTracks"] == 0:
-        raise HTTPException(503, "DB song_id 카탈로그 연결이 준비되지 않았습니다.")
     if type(payload.get("topK")) is not int or not 1 <= payload["topK"] <= MAX_TOP_K:
         raise HTTPException(422, "topK는 1~50 정수여야 합니다.")
     if type(payload.get("profileId")) is not int or payload["profileId"] < 1:
         raise HTTPException(422, "profileId는 양수 DB ID여야 합니다.")
+    # ensure() returns the last good mapping immediately and schedules stale refreshes.
+    catalog_link_started = time.perf_counter()
+    catalog_link_state = catalog_link.ensure()
+    catalog_link_ensure_ms = round((time.perf_counter() - catalog_link_started) * 1000, 2)
+    if catalog_link_state["mappedTracks"] == 0:
+        raise HTTPException(503, "DB song_id 카탈로그 연결이 준비되지 않았습니다.")
+    if not _reserve_json_recommendation():
+        raise HTTPException(503, "추천 처리 대기열이 가득 찼습니다. 잠시 후 다시 요청해 주세요.")
     job_id = str(uuid.uuid4())
+    accepted_at = _utc_now()
+    accepted_monotonic = time.perf_counter()
+    request_to_accept_ms = round((accepted_monotonic - request_started) * 1000, 2)
     JOBS[job_id] = {
         "id": job_id, "filename": None, "mode": _ai_mode(payload.get("mode")),
         "sourceTrackId": None, "profileId": payload.get("profileId"), "sourceSongId": payload.get("sourceSongId"),
         "genres": list(_strings(payload.get("genres"))), "preferred_artists": list(_strings(payload.get("preferredArtists"))),
         "createdAt": time.time(), "status": "queued", "progress": 8,
+        "requestReceivedAt": request_received_at, "acceptedAt": accepted_at,
+        "startedAt": None, "completedAt": None,
+        "requestToAcceptedMs": request_to_accept_ms, "catalogLinkEnsureMs": catalog_link_ensure_ms,
         "message": "추천 대기열에 추가되었습니다.", "result": None, "error": None,
     }
-    (JOBS_DIR / job_id).mkdir(parents=True, exist_ok=True)
-    _save_job(job_id)
-    background_tasks.add_task(_json_process, job_id, dict(payload))
+    try:
+        (JOBS_DIR / job_id).mkdir(parents=True, exist_ok=True)
+        _save_job(job_id)
+        log.info(
+            "event=recommendation_ai_accepted job_id=%s request_received_at=%s accepted_at=%s "
+            "request_to_accept_ms=%.2f catalog_link_ensure_ms=%.2f concurrency_limit=%d queue_limit=%d",
+            job_id, request_received_at, accepted_at, request_to_accept_ms, catalog_link_ensure_ms,
+            JSON_RECOMMEND_CONCURRENCY, JSON_RECOMMEND_QUEUE_LIMIT,
+        )
+        background_tasks.add_task(_json_process, job_id, dict(payload), accepted_monotonic)
+    except Exception:
+        _release_json_recommendation()
+        JOBS.pop(job_id, None)
+        raise
     return _public_job(JOBS[job_id])
 
 
