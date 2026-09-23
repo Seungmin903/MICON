@@ -80,6 +80,16 @@ class SongQueryRepositoryTest {
 	}
 
 	@Test
+	void filtersSongsByExactArtistIdAcrossPagesAndCounts() {
+		assertThat(repository.findPage("", 1, 0, null, null, 10L))
+			.extracting(SongResponse.Summary::songId).containsExactly("tj-00281");
+		assertThat(repository.findPage("", 1, 1, null, null, 10L)).isEmpty();
+		assertThat(repository.count("", null, 10L)).isEqualTo(1);
+		assertThat(repository.findPage("", 20, 0, null, null, 999L)).isEmpty();
+		assertThat(repository.count("", null, 999L)).isZero();
+	}
+
+	@Test
 	void returnsNoSongsForAnUnknownGenre() {
 		assertThat(repository.findGenrePage(999L, 20, 0, null)).isEmpty();
 		assertThat(repository.countGenre(999L)).isZero();

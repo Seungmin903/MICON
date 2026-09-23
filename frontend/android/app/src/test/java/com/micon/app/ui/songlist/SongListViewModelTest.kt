@@ -41,6 +41,7 @@ class SongListViewModelTest {
         val all = (1..total).map { SongSummary("s$it", if (it % 10 == 0) "비 오는 날 $it" else "곡 $it", "가수 ${it % 7}", null, 200_000) }
         val requests = mutableListOf<Pair<String, Int>>()
         val genreRequests = mutableListOf<Long?>()
+        val artistRequests = mutableListOf<Triple<Long, String, Int>>()
         var failNext = false
         override suspend fun search(query: String, page: Int, size: Int): SongPage {
             requests += query to page
@@ -50,6 +51,11 @@ class SongListViewModelTest {
             requests += query to page
             genreRequests += genreId
             return page(query, page, size)
+        }
+        override suspend fun searchByArtist(artistId: Long, query: String, page: Int, size: Int, genreId: Long?): SongPage {
+            artistRequests += Triple(artistId, query, page)
+            val hit = all.filter { it.artist == "가수 $artistId" && (query.isBlank() || it.title.contains(query)) }
+            return SongPage(hit.drop(page * size).take(size), page, size, hit.size.toLong(), (hit.size + size - 1) / size)
         }
         private fun page(query: String, page: Int, size: Int): SongPage {
             if (failNext) { failNext = false; throw IllegalStateException("network") }
@@ -92,6 +98,18 @@ class SongListViewModelTest {
 
         vm.loadMore(); advanceUntilIdle()                                // 더 없으면 서버를 부르지 않는다
         assertEquals(listOf("" to 0, "" to 1, "" to 2), songs.requests)
+    }
+
+    @Test fun `artist list stays filtered while paging and searching`() = runTest {
+        val songs = FakeSongs(400)
+        val vm = SongListViewModel(songs, recommend, preferences, artistId = 3L); advanceUntilIdle()
+        assertEquals(50, vm.state.value.songs.size)
+        vm.loadMore(); advanceUntilIdle()
+        assertTrue(vm.state.value.songs.all { it.artist == "가수 3" })
+        vm.setQuery("비 오는"); advanceUntilIdle()
+        assertTrue(vm.state.value.songs.all { it.artist == "가수 3" && it.title.contains("비 오는") })
+        assertEquals(listOf(Triple(3L, "", 0), Triple(3L, "", 1), Triple(3L, "비 오는", 0)), songs.artistRequests)
+        assertTrue(songs.requests.isEmpty())
     }
 
     @Test fun `load more failure keeps the list and can be retried`() = runTest {

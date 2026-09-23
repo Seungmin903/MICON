@@ -83,6 +83,7 @@ class SongListViewModel(
     private val repo: SongRepository,
     private val recommend: RecommendRepository,
     private val preferences: PreferenceRepository,
+    private val artistId: Long? = null,
 ) : ViewModel() {
     data class State(
         val query: String = "",
@@ -145,9 +146,11 @@ class SongListViewModel(
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null, moreError = null, loadingMore = false) }
             val request = _state.value
-            if (forceNetwork) repo.invalidateSearchCache(request.query, PAGE_SIZE, request.selectedGenreId)
+            if (forceNetwork && artistId == null) repo.invalidateSearchCache(request.query, PAGE_SIZE, request.selectedGenreId)
             try {
-                val page = repo.search(
+                val page = if (artistId != null) repo.searchByArtist(artistId,
+                    query = request.query, page = 0, size = PAGE_SIZE, genreId = request.selectedGenreId,
+                ) else repo.search(
                     query = request.query,
                     page = 0,
                     size = PAGE_SIZE,
@@ -169,7 +172,9 @@ class SongListViewModel(
         pageJob = viewModelScope.launch {
             _state.update { it.copy(loadingMore = true, moreError = null) }
             try {
-                val page = repo.search(
+                val page = if (artistId != null) repo.searchByArtist(artistId,
+                    query = s.query, page = s.page + 1, size = PAGE_SIZE, genreId = s.selectedGenreId,
+                ) else repo.search(
                     query = s.query,
                     page = s.page + 1,
                     size = PAGE_SIZE,
@@ -213,6 +218,7 @@ fun SongListScreen(
     backTitle: String? = null,
     onBack: () -> Unit = {},
     subtitle: String? = null,
+    artistId: Long? = null,
 ) {
     val container = rememberAppContainer()
     val vm: SongListViewModel = viewModel(factory = viewModelFactory {
@@ -221,6 +227,7 @@ fun SongListScreen(
                 container.songs,
                 container.recommend,
                 NetworkPreferenceRepository(container.backend.retrofit.create(PreferenceApi::class.java)),
+                artistId,
             )
         }
     })
@@ -263,6 +270,7 @@ fun SongListScreen(
             onSongClick = onSongClick,
             likedIds = liked.takeIf { loggedIn },
             onLike = ::like,
+            emptyMessage = if (artistId != null) "이 가수의 곡이 없습니다." else "검색 결과가 없습니다.",
             modifier = Modifier.weight(1f),
         )
     }
@@ -282,6 +290,7 @@ fun SongCatalogContent(
     onLike: (String) -> Unit = {},
     excludedIds: Set<String> = emptySet(),
     searchPlaceholder: String = "노래나 가수를 검색해 보세요",
+    emptyMessage: String = "검색 결과가 없습니다.",
 ) {
     val visibleSongs = state.songs.filterNot { it.id in excludedIds }
     LaunchedEffect(visibleSongs.size, state.hasMore, state.loading, state.loadingMore, excludedIds) {
@@ -342,7 +351,7 @@ fun SongCatalogContent(
                             trailing = liked?.let { { HeartButton(it) { onLike(song.id) } } },
                         )
                     }
-                    if (visibleSongs.isEmpty() && !state.hasMore) item { Text("검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey) }
+                    if (visibleSongs.isEmpty() && !state.hasMore) item { Text(emptyMessage, Modifier.padding(vertical = 24.dp), color = Grey) }
                     item { LoadMoreFooter(loading = state.loadingMore, error = state.moreError, onRetry = onLoadMore) }
                 }
             }

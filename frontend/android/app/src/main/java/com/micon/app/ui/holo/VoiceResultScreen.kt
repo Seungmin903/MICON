@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,12 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.ui.design.atoms.CompactDisc
-import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
-import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.molecules.OctaveRangeText
 import com.micon.app.ui.design.molecules.karaokeNoteText
 import com.micon.app.ui.design.molecules.karaokeRangeText
@@ -55,7 +54,6 @@ import kotlin.math.roundToInt
 
 private val Ser1 = Color(0xFF6C5CE7)
 private val Ser2 = Color(0xFF0F9B6C)
-private val Ser3 = Color(0xFFC2410C)
 
 /**
  * 분석 결과 — 프로토타입 `voiceResult`. 항목: 나의 음역대 · 음역대 지도 · 음역별 안정성 · 내 목소리에 맞는 음악 ·
@@ -96,22 +94,22 @@ fun VoiceResultScreen(
         }) else null,
     ) {
         if (onBack == null) Spacer(Modifier.height(12.dp))
-        FadeIn(0) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                MiconBadge("측정 완료", tone = MiconChipTone.Success)
-                Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge)
-            }
+        VoiceResultContent(result)
+    }
+}
+
+/** 분석 탭과 측정 직후 화면이 공유하는 결과 본문. */
+@Composable
+fun VoiceResultContent(result: HoloResult, onArtistClick: (Long, String) -> Unit = { _, _ -> }) {
+    FadeIn(0) { Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge) }
+    FadeIn(1) { RangeMapCard(result) }
+    FadeIn(2) { MatchingMusicCard(result) }
+    if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result, onArtistClick) }
+    else if (result.timbreSubmitted) FadeIn(4) {
+        MiconCard(kind = MiconCardKind.Outlined) {
+            Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("음색을 분석하는 중이에요. 잠시 뒤 여기서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        FadeIn(1) { RangeMapCard(result) }
-        FadeIn(2) { MatchingMusicCard(result) }
-        if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
-        else if (result.timbreSubmitted) FadeIn(4) {
-            MiconCard(kind = MiconCardKind.Outlined) {
-                Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        FadeIn(5) { SummaryTint(result) }
     }
 }
 
@@ -395,32 +393,22 @@ private fun Piano(r: HoloResult) {
 }
 
 @Composable
-private fun SimilarVoicesCard(r: HoloResult) {
+private fun SimilarVoicesCard(r: HoloResult, onArtistClick: (Long, String) -> Unit) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("나와 닮은 목소리")
-        Spacer(Modifier.height(6.dp))
-        r.artists.take(3).forEach { a ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                CompactDisc(title = a.name, imageUrl = a.imageUrl, size = 44.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(a.name, Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("${(a.similarity * 100).roundToInt()}%", fontFamily = MiconMonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            r.artists.take(3).forEach { a ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.clickable { onArtistClick(a.artistId, a.name) }) {
+                        CompactDisc(title = a.name, imageUrl = a.imageUrl, size = 56.dp)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(a.name, fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.Center)
+                    Text("${(a.similarity * 100).roundToInt()}%", fontFamily = MiconMonoFamily, fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
             }
+            repeat(3 - r.artists.take(3).size) { Spacer(Modifier.weight(1f)) }
         }
-    }
-}
-
-@Composable
-private fun SummaryTint(r: HoloResult) {
-    MiconCard(kind = MiconCardKind.Tinted) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val stable = r.stability.maxOrNull() ?: 0f
-            val lowHeavy = r.stabilityMidis.zip(r.stability).filter { it.first <= 59 }.maxOfOrNull { it.second } ?: 0f
-            MiconBadge(if (r.octaves >= 2) "넓은 음역" else "또렷한")
-            MiconBadge(if (r.phraseSec >= 5) "긴 호흡" else "부드러운")
-            MiconBadge(if (lowHeavy >= 0.6f) "중저음 안정" else if (stable >= 0.7f) "음정 안정" else "표현력", tone = MiconChipTone.Success)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text("이 조건에 맞는 곡을 추천 탭에서 골라 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
