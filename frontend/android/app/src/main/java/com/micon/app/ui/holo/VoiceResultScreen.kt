@@ -45,7 +45,9 @@ import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
 import com.micon.app.ui.design.atoms.MiconChipTone
-import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.design.molecules.OctaveRangeText
+import com.micon.app.ui.design.molecules.karaokeNoteText
+import com.micon.app.ui.design.molecules.karaokeRangeText
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconSpace
@@ -133,16 +135,12 @@ private fun RangeMapCard(r: HoloResult) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("음역대 지도")
         Spacer(Modifier.height(6.dp))
-        Text(
-            NoteNames.scientificRange(r.lowMidi, r.highMidi),
-            fontFamily = MiconMonoFamily, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp,
-        )
+        OctaveRangeText(r.lowMidi, r.highMidi, size = 26.sp, weight = FontWeight.Bold)
         val oct = r.octaves
         val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
-        // 온보딩 측정 화면과 같은 노래방 표기("0옥타브 도")로 맞춘다. 뒤의 폭은 "음역 폭" 이라고 못 박아
-        // 앞의 옥타브 숫자와 헷갈리지 않게 한다.
+        // 범위는 위 제목이 노래방 표기로 보여 주므로 여기는 폭만. "음역 폭" 이라고 못 박아 옥타브 숫자와 헷갈리지 않게 한다.
         Text(
-            "${NoteNames.karaoke(r.lowMidi)} ~ ${NoteNames.karaoke(r.highMidi)} · 음역 폭 $octText",
+            "음역 폭 $octText",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(14.dp))
@@ -153,7 +151,7 @@ private fun RangeMapCard(r: HoloResult) {
             Spacer(Modifier.width(80.dp))
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { p ->
-                    Text(NoteNames.scientific((r.lowMidi + p * span).roundToInt()), fontSize = 12.sp, fontFamily = MiconMonoFamily,
+                    Text(karaokeNoteText((r.lowMidi + p * span).roundToInt(), 12.sp, weight = FontWeight.SemiBold, short = true),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -202,7 +200,7 @@ private fun MatchingMusicCard(r: HoloResult) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("내 목소리에 맞는 음악")
         Spacer(Modifier.height(10.dp))
-        KeyValue("편한 음역", NoteNames.scientificRange(r.comfortLow, r.comfortHigh))
+        KeyValue("편한 음역", karaokeRangeText(r.comfortLow, r.comfortHigh, 14.sp, weight = FontWeight.Bold))
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth()) {
             // 좌측 눈금 라벨. 폭을 고정해야 아래 건반과 가로가 어긋나지 않는다
@@ -216,15 +214,14 @@ private fun MatchingMusicCard(r: HoloResult) {
                 Keyboard(r, axis)
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    Text(NoteNames.scientific(axis.low), Modifier.weight(1f), fontSize = 12.sp, fontFamily = MiconMonoFamily, color = muted)
+                    Text(karaokeNoteText(axis.low, 12.sp, weight = FontWeight.SemiBold, short = true), Modifier.weight(1f), color = muted)
                     Text(
-                        NoteNames.scientificRange(r.comfortLow, r.comfortHigh),
-                        Modifier.weight(2f), fontSize = 12.sp, fontFamily = MiconMonoFamily,
-                        color = accent, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                        karaokeRangeText(r.comfortLow, r.comfortHigh, 12.sp, weight = FontWeight.Bold, short = true),
+                        Modifier.weight(2f), color = accent, textAlign = TextAlign.Center,
                     )
                     Text(
-                        NoteNames.scientific(axis.high), Modifier.weight(1f), fontSize = 12.sp,
-                        fontFamily = MiconMonoFamily, color = muted, textAlign = TextAlign.End,
+                        karaokeNoteText(axis.high, 12.sp, weight = FontWeight.SemiBold, short = true), Modifier.weight(1f),
+                        color = muted, textAlign = TextAlign.End,
                     )
                 }
             }
@@ -347,6 +344,16 @@ private fun KeyValue(k: String, v: String) {
     }
 }
 
+/** 값이 음이름(크기가 나뉜 AnnotatedString)일 때 */
+@Composable
+private fun KeyValue(k: String, v: androidx.compose.ui.text.AnnotatedString) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(k, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.weight(1f))
+        Text(v, color = MaterialTheme.colorScheme.onPrimaryContainer)
+    }
+}
+
 @Composable
 private fun Divider() = Box(Modifier.fillMaxWidth().padding(vertical = 12.dp).height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
 
@@ -380,9 +387,9 @@ private fun Piano(r: HoloResult) {
         val li = whites.indexOfFirst { it >= r.comfortLow }.coerceAtLeast(0)
         val hi = whites.indexOfLast { it <= r.comfortHigh }.coerceAtLeast(li)
         Spacer(Modifier.weight((li + 0.5f).coerceAtLeast(0.01f)))
-        Text(NoteNames.scientific(r.comfortLow), fontSize = 12.sp, fontFamily = MiconMonoFamily, color = accent)
+        Text(karaokeNoteText(r.comfortLow, 12.sp, weight = FontWeight.Bold, short = true), color = accent)
         Spacer(Modifier.weight((hi - li).coerceAtLeast(1).toFloat()))
-        Text(NoteNames.scientific(r.comfortHigh), fontSize = 12.sp, fontFamily = MiconMonoFamily, color = accent)
+        Text(karaokeNoteText(r.comfortHigh, 12.sp, weight = FontWeight.Bold, short = true), color = accent)
         Spacer(Modifier.weight((14.5f - hi).coerceAtLeast(0.01f)))
     }
 }

@@ -7,7 +7,7 @@ package com.micon.app.scoring
 object KaraokeNames {
     private val SYLLABLES = arrayOf("도", "도♯", "레", "레♯", "미", "파", "파♯", "솔", "솔♯", "라", "라♯", "시")
 
-    private fun octave(midi: Int) = midi / 12 - 3
+    private fun octave(midi: Int) = Math.floorDiv(midi, 12) - 3
     private fun syllable(midi: Int) = SYLLABLES[((midi % 12) + 12) % 12]
 
     /** 60 → "2옥타브 도" */
