@@ -193,6 +193,7 @@ fun RecommendDeckScreen(
 
     MiconDesignTheme {
         val scheme = MaterialTheme.colorScheme
+        val contentScroll = rememberScrollState()
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(scheme.background).statusBarsPadding()) {
             // 로고·설정 행과 ?·검색 행을 한 줄로 합쳤다 — 검색이 화면 맨 위에 온다
@@ -237,7 +238,11 @@ fun RecommendDeckScreen(
                 }
 
                 else -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    Modifier
+                        .fillMaxSize()
+                        // 곡을 올리기 전에는 플레이어와 카드 행을 화면 안에 고정한다.
+                        // 선택 후에만 현재 곡 정보와 교체 목록까지 자연스럽게 스크롤한다.
+                        .then(if (loaded != null) Modifier.verticalScroll(contentScroll) else Modifier),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     LazyRow(
