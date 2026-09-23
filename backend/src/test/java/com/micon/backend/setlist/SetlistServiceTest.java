@@ -39,7 +39,8 @@ class SetlistServiceTest {
 		jdbcTemplate.execute("""
 			CREATE TABLE SETLIST_ITEM (
 			  setlist_item_id BIGINT PRIMARY KEY, setlist_id BIGINT NOT NULL, song_id VARCHAR(64) NOT NULL,
-			  position_no INT NOT NULL, added_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) NOT NULL
+			  position_no INT NOT NULL, added_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) NOT NULL,
+			  CONSTRAINT uk_setlist_item_position UNIQUE (setlist_id, position_no)
 			)
 			""");
 		jdbcTemplate.execute("CREATE TABLE SONG (song_id VARCHAR(64) PRIMARY KEY, title VARCHAR(100), duration_ms BIGINT)");
