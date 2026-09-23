@@ -56,7 +56,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -515,12 +518,24 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         Spacer(Modifier.height(6.dp))
                     }
                     items(detail.songs, key = { it.songId }) { song ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        val dragging = draggedSongId == song.songId
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .zIndex(if (dragging) 1f else 0f)
+                                .graphicsLayer {
+                                    translationY = if (dragging) dragOffset else 0f
+                                    scaleX = if (dragging) 0.98f else 1f
+                                    scaleY = if (dragging) 0.98f else 1f
+                                }
+                                .then(if (dragging) Modifier.shadow(8.dp, RoundedCornerShape(12.dp)) else Modifier)
+                                .background(if (dragging) Color.White else Color.Transparent, RoundedCornerShape(12.dp)),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             if (state.editing) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier.size(48.dp)
-                                        .background(if (draggedSongId == song.songId) Purple.copy(alpha = 0.14f) else Color.Transparent, CircleShape)
+                                        .background(if (dragging) Purple.copy(alpha = 0.14f) else Color.Transparent, CircleShape)
                                         .pointerInput(state.busy, song.songId) {
                                         if (state.busy) return@pointerInput
                                         detectDragGesturesAfterLongPress(
@@ -551,7 +566,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                     Icon(
                                         Icons.Filled.DragHandle,
                                         contentDescription = "길게 눌러 곡 순서 변경",
-                                        tint = if (draggedSongId == song.songId) Purple else Grey,
+                                        tint = if (dragging) Purple else Grey,
                                         modifier = Modifier.size(20.dp),
                                     )
                                 }
