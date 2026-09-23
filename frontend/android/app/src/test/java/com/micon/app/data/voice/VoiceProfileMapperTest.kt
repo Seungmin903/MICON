@@ -1,5 +1,6 @@
 package com.micon.app.data.voice
 
+import com.micon.app.data.local.UserStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -7,6 +8,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoiceProfileMapperTest {
+    @Test
+    fun `saved profile can be shown as a voice result after process restart`() {
+        val profile = UserStore.VoiceProfile(
+            lowMidi = 48,
+            highMidi = 72,
+            comfortLow = 55,
+            comfortHigh = 67,
+            stability = listOf(0f, 0.5f, 1f),
+            bpmRange = "72-96",
+            phraseLevel = 4,
+            measuredAt = 123L,
+        )
+
+        val result = VoiceProfileMapper.toDisplayResult(profile)
+
+        assertEquals(48, result.lowMidi)
+        assertEquals(72, result.highMidi)
+        assertEquals(listOf(48, 60, 72), result.stabilityMidis)
+        assertEquals(listOf(0f, 0.5f, 1f), result.stability)
+        assertEquals(72, result.bpmLow)
+        assertEquals(96, result.bpmHigh)
+        assertEquals(123L, result.measuredAt)
+        assertTrue(result.profileSaved)
+    }
+
     private fun analysis(completedAt: String? = null) =
         VoiceAnalysis(9, 57, "42", "SONG", VoiceAnalysisStatus.COMPLETED, "VALID", null, null, "2026-09-13T21:00:00", completedAt)
 

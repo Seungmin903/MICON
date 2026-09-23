@@ -45,6 +45,8 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.voice.VoiceProfileMapper
+import com.micon.app.ui.holo.VoiceResultContent
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -71,32 +73,22 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun AnalysisScreen(
+    /** 기존 분석 결과 상세 화면이 사용하던 결과를 그대로 전달받는다. */
+    result: HoloResult?,
     /** 처음부터 — 음역 측정 → 음색 측정 */
     onAnalyze: () -> Unit,
-    /** 음색만 다시 — 노래를 불러 음색을 본다. 음역은 지난 값을 쓴다 */
-    onSingAnalyze: () -> Unit = onAnalyze,
     /** 음역만 다시 */
     onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
-    onDetail: () -> Unit,
     onLogin: (() -> Unit)? = null,
 ) {
-    val context = LocalContext.current
-    val store = remember { HoloResultStore(context) }
-    val profile by UserStore.profile.collectAsStateWithLifecycle()
-    val revision by UserStore.voiceDataRevision.collectAsStateWithLifecycle()
-    val notation by NoteNames.notation.collectAsStateWithLifecycle()
-    val ownerId = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
-    val holo = remember(revision, ownerId) { store.read(ownerId) }
-    val view = remember(holo, profile, notation) { holo?.let { VoiceView.from(it) } ?: profile?.let { VoiceView.from(it) } }
-
     MiconScreen(
         appBar = {
             MiconHeader(onSettings = onSettings, onLogin = onLogin)
         },
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        if (view == null) {
+        if (result == null) {
             MiconCard(kind = MiconCardKind.Elevated) {
                 Text("아직 분석한 목소리가 없어요", style = MaterialTheme.typography.titleMedium)
                 Text("30초만 부르면 편한 음역과 어울리는 곡을 찾아 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -104,17 +96,7 @@ fun AnalysisScreen(
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
             }
         } else {
-            MyVoiceCard(view, onDetail)
-            if (view.artists.isNotEmpty()) SimilarCard(view)
-            MiconCard(kind = MiconCardKind.Tinted, modifier = Modifier.clickable(onClick = onSingAnalyze)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("노래로 분석하기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("한 곡 부르면 음역·음정 정확도를 같이 봐드려요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
+            VoiceResultContent(result, showStatus = false, showSummary = false)
             MiconButton("음역 다시 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }

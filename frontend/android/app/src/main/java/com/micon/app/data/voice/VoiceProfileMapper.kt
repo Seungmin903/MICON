@@ -1,6 +1,7 @@
 package com.micon.app.data.voice
 
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.holo.HoloResult
 import com.micon.app.range.RangeReport
 import com.micon.app.scoring.ScoringMath
 import java.time.LocalDateTime
@@ -15,6 +16,39 @@ import kotlin.math.roundToInt
  * 서버 계약에 아직 없어 [UserStore.VoiceProfile] 기본값을 그대로 둔다(간편 분석과 같은 처리).
  */
 object VoiceProfileMapper {
+    /**
+     * 앱 재시작 뒤 서버에서 복원한 프로필을 기존 음성 결과 상세 화면에 표시하기 위한 변환이다.
+     * 상세 화면이 실제로 사용하는 음역/안정성 값만 복원하고, 녹음 세션 전용 값은 비워 둔다.
+     */
+    fun toDisplayResult(profile: UserStore.VoiceProfile): HoloResult {
+        val pointCount = profile.stability.size
+        val stabilityMidis = when (pointCount) {
+            0 -> emptyList()
+            1 -> listOf((profile.lowMidi + profile.highMidi) / 2)
+            else -> (0 until pointCount).map { index ->
+                profile.lowMidi + ((profile.highMidi - profile.lowMidi) * index.toDouble() / (pointCount - 1)).roundToInt()
+            }
+        }
+        val bpm = profile.bpmRange.split('-').mapNotNull { it.trim().toIntOrNull() }
+        return HoloResult(
+            measuredAt = profile.measuredAt,
+            lowMidi = profile.lowMidi,
+            highMidi = profile.highMidi,
+            comfortLow = profile.comfortLow,
+            comfortHigh = profile.comfortHigh,
+            recommendLow = profile.recommendLow,
+            recommendHigh = profile.recommendHigh,
+            stability = profile.stability,
+            stabilityMidis = stabilityMidis,
+            phraseSec = profile.phraseLevel.toDouble(),
+            bpmLow = bpm.getOrElse(0) { 0 },
+            bpmHigh = bpm.getOrElse(1) { bpm.firstOrNull() ?: 0 },
+            notes = emptyList(),
+            voicedSec = 0.0,
+            profileSaved = true,
+        )
+    }
+
     /** 음역 결과가 없거나 값이 말이 안 되면(high ≤ low) null — 리포트 탭은 기존 프로필을 유지한다. */
     fun toProfile(report: VoiceAnalysisReport, now: Long = System.currentTimeMillis()): UserStore.VoiceProfile? {
         val range = report.range ?: return null

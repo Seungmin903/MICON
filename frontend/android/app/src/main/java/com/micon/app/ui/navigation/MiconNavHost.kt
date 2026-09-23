@@ -27,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.micon.app.appContainer
 import com.micon.app.data.onboarding.VoiceProfileSync
+import com.micon.app.data.local.UserStore
+import com.micon.app.data.voice.VoiceProfileMapper
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -313,19 +315,23 @@ private fun MiconNavHost(
         // ---- 탭: 분석 (이전 리포트) ----
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
+            // 예전 상세 화면과 같은 우선순위로 결과를 골라 닮은 가수 등 최신 분석값을 보존한다.
+            val analysisResult = holoState.result ?: holo.previousResult()
+                ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             AnalysisScreen(
+                result = analysisResult,
                 onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
-                // 노래로 분석하기 — 음역은 지난 값을 쓰고 음색(노래)만 다시 본다
-                onSingAnalyze = { holo.startTimbreOnly(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onMeasureRange = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
-                onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
         composable(Routes.VOICE_RESULT_VIEW) {
             val holoState by holo.state.collectAsStateWithLifecycle()
-            val result = holoState.result ?: holo.previousResult()
+            val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult() ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
         }

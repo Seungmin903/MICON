@@ -96,23 +96,29 @@ fun VoiceResultScreen(
         }) else null,
     ) {
         if (onBack == null) Spacer(Modifier.height(12.dp))
-        FadeIn(0) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                MiconBadge("측정 완료", tone = MiconChipTone.Success)
-                Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge)
-            }
-        }
-        FadeIn(1) { RangeMapCard(result) }
-        FadeIn(2) { MatchingMusicCard(result) }
-        if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
-        else if (result.timbreSubmitted) FadeIn(4) {
-            MiconCard(kind = MiconCardKind.Outlined) {
-                Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        FadeIn(5) { SummaryTint(result) }
+        VoiceResultContent(result)
     }
+}
+
+/** 분석 완료 화면과 분석 탭이 같은 결과 UI를 공유한다. */
+@Composable
+fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true, showSummary: Boolean = true) {
+    FadeIn(0) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (showStatus) MiconBadge("측정 완료", tone = MiconChipTone.Success)
+            Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge)
+        }
+    }
+    FadeIn(1) { RangeMapCard(result) }
+    FadeIn(2) { MatchingMusicCard(result) }
+    if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
+    else if (result.timbreSubmitted) FadeIn(4) {
+        MiconCard(kind = MiconCardKind.Outlined) {
+            Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    if (showSummary) FadeIn(5) { SummaryTint(result) }
 }
 
 @Composable
