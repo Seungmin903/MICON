@@ -377,6 +377,7 @@ private fun MiconNavHost(
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getString("songId") ?: return@composable
             PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) },
+                onReturnToPractice = { nav.openBottomTab(Routes.PRACTICE) },
                 initialKey = entry.arguments?.getInt("selectedKey") ?: 0)
         }
 
