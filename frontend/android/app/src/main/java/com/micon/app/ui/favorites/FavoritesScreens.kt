@@ -551,12 +551,23 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 change.consume()
                                                 dragOffset += amount.y
                                                 val dragged = draggedSongId ?: return@detectDragGesturesAfterLongPress
-                                                val info = listState.layoutInfo.visibleItemsInfo
-                                                val current = info.firstOrNull { it.key == dragged } ?: return@detectDragGesturesAfterLongPress
-                                                val center = current.offset + current.size / 2 + dragOffset
-                                                val target = info.firstOrNull { item -> center >= item.offset && center <= item.offset + item.size }
-                                                val targetId = target?.key as? String
-                                                if (targetId != null && targetId != dragged) {
+                                                val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
+                                                val currentIndex = songItems.indexOfFirst { it.key == dragged }
+                                                val current = songItems.getOrNull(currentIndex) ?: return@detectDragGesturesAfterLongPress
+                                                val target = when {
+                                                    dragOffset > 0f -> songItems.getOrNull(currentIndex + 1)
+                                                    dragOffset < 0f -> songItems.getOrNull(currentIndex - 1)
+                                                    else -> null
+                                                } ?: return@detectDragGesturesAfterLongPress
+                                                val draggedCenter = current.offset + current.size / 2 + dragOffset
+                                                val targetCenter = target.offset + target.size / 2
+                                                val crossedTargetCenter = if (dragOffset > 0f) {
+                                                    draggedCenter >= targetCenter
+                                                } else {
+                                                    draggedCenter <= targetCenter
+                                                }
+                                                val targetId = target.key as? String
+                                                if (crossedTargetCenter && targetId != null) {
                                                     // 순서가 바뀐 직후에도 선택 행이 손가락 아래에 머물도록
                                                     // 새 기준 위치만큼 드래그 오프셋을 보정한다.
                                                     dragOffset -= target.offset - current.offset
