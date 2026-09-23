@@ -15,6 +15,7 @@ import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.backend.dto.toLiveNotes
+import com.micon.app.range.RangeRepository
 import com.micon.app.range.RangeReport
 import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.LyricSheet
@@ -102,6 +103,7 @@ class HoloViewModel(
     val state = _state.asStateFlow()
 
     private val store = HoloResultStore(appContext)
+    private val resultStoreLock = Any()
     private val client = HoloAnalysisClient(api)
     private val player = InstrumentalPlayer(appContext, mediaHttp)
     private val capture = PitchCapture(analyzePitch = true, timbreRecording = true)
@@ -122,14 +124,25 @@ class HoloViewModel(
     private var pollVersion: Long = 0
     private var saveAllowed = false
     private var autoSaveAttemptedFor: Long? = null
-    private val ownerId: Long? get() = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
+    private data class OwnerKey(val generation: Long, val userId: Long?)
+    private fun currentOwner() = TokenManager.snapshot().let { session ->
+        OwnerKey(session.generation, session.userId.takeIf { session.isLoggedIn && it > 0 })
+    }
+    private val ownerId: Long? get() = currentOwner().userId
+    private var resultOwner: OwnerKey? = null
 
     init {
+        // A guest result belongs only to the current app session, not to a later visitor.
+        synchronized(resultStoreLock) { store.clear(null) }
         _state.update { it.copy(hasPrevious = store.read(ownerId) != null || UserStore.profile.value != null) }
         player.onError = { msg -> _state.update { it.copy(error = msg) } }
     }
 
+    fun currentResult(): HoloResult? = _state.value.result?.takeIf { resultOwner == currentOwner() }
     fun previousResult(): HoloResult? = store.read(ownerId)
+    private fun writeResultIfCurrent(owner: OwnerKey, result: HoloResult) = synchronized(resultStoreLock) {
+        if (owner == currentOwner()) store.write(owner.userId, result)
+    }
 
     /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
     fun loadCatalog() {
@@ -322,6 +335,7 @@ class HoloViewModel(
     fun finishEarly() { if (_state.value.phase == Phase.REC) finish() }
 
     private fun finish() {
+        val owner = currentOwner()
         tick?.cancel()
         player.pause()
         val file = capture.stop() ?: wav
@@ -336,45 +350,50 @@ class HoloViewModel(
             file?.delete()
             return
         }
+        if (owner != currentOwner()) { file?.delete(); return }
         cancelPendingSubmission()
+        resultOwner = owner
         _state.update { it.copy(phase = Phase.DONE, result = result, saving = false, saved = false,
             saveAllowed = false, analysisFinished = false, saveError = null) }
         applyProfile(result)
-        runCatching { store.write(ownerId, result) }
+        runCatching { writeResultIfCurrent(owner, result) }
         val recordedSec = capture.capturedSeconds
-        submitJob = viewModelScope.launch(Dispatchers.IO) { submit(result, file, picked, recordedSec) }
+        submitJob = viewModelScope.launch(Dispatchers.IO) { submit(owner, result, file, picked, recordedSec) }
     }
 
-    private suspend fun submit(result: HoloResult, file: File?, picked: SongSummary?, recordedSec: Double) {
+    private suspend fun submit(owner: OwnerKey, result: HoloResult, file: File?, picked: SongSummary?, recordedSec: Double) {
         try {
-            val s = client.createSession(ownerId)
-            if (_state.value.result?.measuredAt != result.measuredAt) return
+            if (owner != currentOwner()) return
+            val s = client.createSession(owner.userId)
+            if (owner != currentOwner() || _state.value.result?.measuredAt != result.measuredAt) return
             session = s
             client.submitRange(s, result)
+            if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
             _state.update { it.copy(result = it.result?.copy(sessionId = s.id)) }
             if (picked != null && file != null && file.isFile && recordedSec >= 4.0) {
                 client.submitTimbre(s, file, picked.id, capture.recordingRate, (recordedSec * 1000).toInt(),
                     (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
+                if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
                 _state.update { it.copy(result = it.result?.copy(timbreSubmitted = true)) }
                 client.poll(s) { p ->
-                    if (session !== s || _state.value.result?.measuredAt != result.measuredAt) return@poll
+                    if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return@poll
                     pollVersion = p.version; saveAllowed = p.saveAllowed
                     _state.update { it.copy(saveAllowed = p.saveAllowed, analysisFinished = p.done,
                         result = if (p.artists.isNotEmpty()) it.result?.copy(artists = p.artists) else it.result) }
-                    _state.value.result?.let { r -> runCatching { store.write(ownerId, r) } }
+                    _state.value.result?.let { r -> runCatching { writeResultIfCurrent(owner, r) } }
                     // 음역·음색 분석이 끝나면 결과 화면의 버튼을 기다리지 않고 저장한다.
                     // 가수 검색은 결과 버전을 바꾸지 않으므로 기다릴 필요가 없다.
-                    if (p.saveAllowed && ownerId != null && autoSaveAttemptedFor != s.id) {
+                    if (p.saveAllowed && owner.userId != null && autoSaveAttemptedFor != s.id) {
                         autoSaveAttemptedFor = s.id
                         viewModelScope.launch { save() }
                     }
                 }
-                _state.update { if (it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
+                _state.update { if (owner == currentOwner() && it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
                     saveError = if (!saveAllowed && !it.saved) "음색 분석이 끝나지 않아 저장할 수 없어요. 다시 측정해 주세요." else it.saveError) else it }
-            } else _state.update { it.copy(analysisFinished = true) }
+            } else if (owner == currentOwner()) _state.update { it.copy(analysisFinished = true) }
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) {
-            _state.update { if (it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
+            _state.update { if (owner == currentOwner() && it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
                 saveError = "서버에 연결할 수 없어 저장하지 못했어요.") else it }
         }
     }
@@ -391,25 +410,29 @@ class HoloViewModel(
 
     /** 분석 완료 시 자동 호출한다. 버튼에서는 완료 후 이동하거나 저장 실패를 재시도한다. */
     fun save(onDone: () -> Unit = {}) {
+        val owner = currentOwner()
+        if (resultOwner != owner || owner.userId == null) return
         if (_state.value.saved) { onDone(); return }
         if (_state.value.saving) return
         val s = session
-        if (ownerId == null || s == null || !saveAllowed) return
+        if (s == null || !saveAllowed) return
         val version = pollVersion
         val measuredAt = _state.value.result?.measuredAt
         _state.update { it.copy(saving = true, saveError = null) }
         saveJob = viewModelScope.launch {
             try {
                 client.saveProfile(s, version)
-                if (session !== s || _state.value.result?.measuredAt != measuredAt) return@launch
+                if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != measuredAt) return@launch
                 _state.update { it.copy(saving = false, saved = true, saveError = null,
                     result = it.result?.copy(profileSaved = true)) }
-                _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { store.write(ownerId, r) } } }
-                UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) }
-                onDone()
+                _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { writeResultIfCurrent(owner, r) } } }
+                if (owner == currentOwner()) {
+                    UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) }
+                    onDone()
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                if (session === s) _state.update { it.copy(saving = false, saveError = e.message ?: "프로필을 저장하지 못했어요.") }
+                if (owner == currentOwner() && session === s) _state.update { it.copy(saving = false, saveError = e.message ?: "프로필을 저장하지 못했어요.") }
             }
         }
     }
@@ -424,10 +447,19 @@ class HoloViewModel(
         startJob?.cancel()
         searchJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
-        if (_state.value.phase != Phase.DONE) wav?.delete()
+        wav?.delete()
         wav = null
+        resultOwner = null
         synchronized(frames) { frames.clear() }
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
+    }
+
+    /** Authentication boundaries must discard transient analysis, guest files and range previews. */
+    fun resetForIdentityChange() {
+        reset()
+        synchronized(resultStoreLock) { store.clear(null) }
+        RangeRepository(appContext).clear()
+        _state.update { it.copy(hasPrevious = store.read(ownerId) != null || UserStore.profile.value != null) }
     }
 
     override fun onCleared() {
