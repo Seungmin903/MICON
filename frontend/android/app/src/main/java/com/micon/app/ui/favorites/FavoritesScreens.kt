@@ -521,10 +521,9 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         val dragging = draggedSongId == song.songId
                         Row(
                             Modifier.fillMaxWidth()
-                                .then(if (dragging) Modifier else Modifier.animateItem())
+                                .animateItem()
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
-                                    translationY = if (dragging) dragOffset else 0f
                                     scaleX = if (dragging) 0.98f else 1f
                                     scaleY = if (dragging) 0.98f else 1f
                                 }
@@ -568,9 +567,9 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 }
                                                 val targetId = target.key as? String
                                                 if (crossedTargetCenter && targetId != null) {
-                                                    // 순서가 바뀐 직후에도 선택 행이 손가락 아래에 머물도록
-                                                    // 새 기준 위치만큼 드래그 오프셋을 보정한다.
-                                                    dragOffset -= target.offset - current.offset
+                                                    // 자유 이동은 하지 않고, 이웃 곡과 한 칸씩만 교체한다.
+                                                    // 실제 행 이동은 LazyColumn의 재배치 애니메이션이 맡는다.
+                                                    dragOffset = 0f
                                                     vm.moveSong(dragged, targetId)
                                                 }
                                             },
