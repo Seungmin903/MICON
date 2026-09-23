@@ -69,8 +69,12 @@ class BackendRecommendRepositoryTest {
 
     /** 로컬 폴백 표식: 섹션 key "local", fit 은 null */
     private object FakeLocal : RecommendRepository {
+        var shelvesCalls = 0
         override suspend fun fit(songId: String): SongFit? = null
-        override suspend fun shelves(limit: Int, reshuffle: Int) = RecommendShelves(true, listOf(RecommendShelf("local", "내 음역에 맞는 곡", null, emptyList<RecommendedSong>())))
+        override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
+            shelvesCalls++
+            return RecommendShelves(true, listOf(RecommendShelf("local", "내 음역에 맞는 곡", null, emptyList<RecommendedSong>())))
+        }
     }
 
     private lateinit var server: MockWebServer
@@ -79,6 +83,7 @@ class BackendRecommendRepositoryTest {
     private var loggedIn = true
 
     @Before fun setUp() {
+        FakeLocal.shelvesCalls = 0
         server = MockWebServer().apply { start() }
         val tokens = MemoryTokenStore().apply { saveSession(1, "access", "refresh") }
         val api = BackendClient(server.url("/api/v1/").toString(), false, tokens) {}.api
@@ -138,7 +143,7 @@ class BackendRecommendRepositoryTest {
         assertEquals(0, pagedSongs.detailCalls)
     }
 
-    @Test fun `no recommendation yet requests one and falls back to local with a note`() = runBlocking {
+    @Test fun `no recommendation yet requests one without calculating local shelves`() = runBlocking {
         currentProfile()
         server.enqueue(json(404, """{"code":"RECOMMENDATION_NOT_FOUND","message":"추천 결과를 찾을 수 없습니다.","data":null}"""))
         server.enqueue(ok("""{"recommendationId":6,"jobId":"j1","status":"GENERATING","progress":0,"generatedAt":"2026-09-14T10:00:00","shelves":[]}""", 202))
@@ -147,7 +152,8 @@ class BackendRecommendRepositoryTest {
         assertEquals("/api/v1/recommendations/latest", server.takeRequest().path)
         val create = server.takeRequest()
         assertEquals("POST", create.method); assertEquals("/api/v1/recommendations", create.path)
-        assertEquals("local", result.shelves.single().key)
+        assertTrue(result.shelves.isEmpty())
+        assertEquals(0, FakeLocal.shelvesCalls)
         assertTrue(result.note!!.contains("만들고 있어요"))
         assertTrue(result.generating)
     }
@@ -167,15 +173,20 @@ class BackendRecommendRepositoryTest {
         assertTrue(repo.shelves().note!!.contains("준비되지 않았어요"))
     }
 
-    @Test fun `generating or failed recommendation keeps local shelves with a status note`() = runBlocking {
+    @Test fun `generating skips local shelves but failed recommendation still falls back`() = runBlocking {
         currentProfile()
         server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"GENERATING","progress":40,"shelves":[]}"""))
-        assertTrue(repo.shelves().note!!.contains("만들고 있어요"))
+        val generating = repo.shelves()
+        assertTrue(generating.generating)
+        assertTrue(generating.shelves.isEmpty())
+        assertTrue(generating.note!!.contains("만들고 있어요"))
+        assertEquals(0, FakeLocal.shelvesCalls)
         server.takeRequest(); server.takeRequest()
         currentProfile()
         server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"FAILED","failureReason":"임베딩 없음","shelves":[]}"""))
         val failed = repo.shelves()
         assertEquals("local", failed.shelves.single().key)
+        assertEquals(1, FakeLocal.shelvesCalls)
         assertTrue(failed.note!!.contains("임베딩 없음"))
     }
 
@@ -193,6 +204,8 @@ class BackendRecommendRepositoryTest {
         server.enqueue(ok("""{"recommendationId":6,"status":"GENERATING"}""", 202))
         val result = repo.shelves()
         assertTrue(result.generating)
+        assertTrue(result.shelves.isEmpty())
+        assertEquals(0, FakeLocal.shelvesCalls)
         server.takeRequest(); server.takeRequest()
         assertEquals("POST", server.takeRequest().method)
     }

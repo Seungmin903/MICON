@@ -26,7 +26,7 @@ class AxisScores(BaseModel):
 
 
 class RangeFit(BaseModel):
-    """음역 적합도 상세 (`vocal-range-keyshift-continuous-v2`). 나머지 서버 필드는 통과시킨다."""
+    """음역 적합도 상세 (`vocal-range-keyshift-first-98-v3`). 나머지 서버 필드는 통과시킨다."""
 
     model_config = ConfigDict(extra="allow")
 

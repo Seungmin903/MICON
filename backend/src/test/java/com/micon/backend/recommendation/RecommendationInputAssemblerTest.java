@@ -53,8 +53,8 @@ class RecommendationInputAssemblerTest {
         when(profile.getUser()).thenReturn(user); when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
         when(profile.getId()).thenReturn(10L); when(profile.getSession()).thenReturn(session);
         when(session.getId()).thenReturn(20L); when(session.getSongId()).thenReturn("30");
-        when(range.getFullLowMidi()).thenReturn(new BigDecimal("48.5"));
-        when(range.getFullHighMidi()).thenReturn(new BigDecimal("70.5"));
+        when(range.getStableLowMidi()).thenReturn(new BigDecimal("52.5"));
+        when(range.getStableHighMidi()).thenReturn(new BigDecimal("67.5"));
         when(profiles.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(profile));
         when(ranges.findBySessionId(20L)).thenReturn(Optional.of(range));
         when(models.findBySessionIdAndModelKey(20L, "ECAPA")).thenReturn(Optional.of(ecapa));
@@ -64,7 +64,8 @@ class RecommendationInputAssemblerTest {
         RecommendationInput input = assembler.assemble(1L, 10L);
         assertThat(input.profileId()).isEqualTo(10L);
         assertThat(input.sourceSongId()).isEqualTo("30");
-        assertThat(input.voiceProfile().stableLowMidi()).isEqualByComparingTo("48.5");
+        assertThat(input.voiceProfile().stableLowMidi()).isEqualByComparingTo("52.5");
+        assertThat(input.voiceProfile().stableHighMidi()).isEqualByComparingTo("67.5");
         var embedding = new tools.jackson.databind.ObjectMapper().readTree(input.voiceProfile().userEmbedding());
         assertThat(embedding.get("ECAPA").get("embedding").size()).isEqualTo(192);
         assertThat(embedding.get("SINGER_BYOL").get("embedding").size()).isEqualTo(1000);

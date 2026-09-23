@@ -53,7 +53,7 @@ object Routes {
     fun setlist(setlistId: Long) = "setlist/$setlistId"
 
     /** 하단 탭을 보이는 경로 — 프로토타입은 탭 5개 루트에서만 탭바가 보인다 */
-    val withBottomBar: Set<String> = BottomTab.routes + SONG_MATCH
+    val withBottomBar: Set<String> = BottomTab.routes
 }
 
 /**

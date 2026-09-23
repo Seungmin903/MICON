@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.JsonNode;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -96,15 +97,24 @@ public class RecommendationInputAssembler {
     }
 
     private RecommendationInput.VoiceProfile profile(VoiceRangeMeasurement range, String embeddings) {
-        boolean free = range != null && "guided-range-v8".equals(range.getRuleVersion());
+        BigDecimal low = range == null ? null : range.getStableLowMidi();
+        BigDecimal high = range == null ? null : range.getStableHighMidi();
+        if (!validRange(low, high) && range != null) {
+            low = range.getFullLowMidi();
+            high = range.getFullHighMidi();
+        }
         return new RecommendationInput.VoiceProfile(
-                range == null ? null : free ? range.getStableLowMidi() : range.getFullLowMidi(),
-                range == null ? null : free ? range.getStableHighMidi() : range.getFullHighMidi(),
+                low,
+                high,
                 null,
                 range == null ? null : range.getNoteResults(),
                 null,
                 null, null, null, embeddings,
                 null,
                 null, null, null, null);
+    }
+
+    private boolean validRange(BigDecimal low, BigDecimal high) {
+        return low != null && high != null && low.compareTo(high) <= 0;
     }
 }

@@ -143,7 +143,7 @@
     },
     "RangeFit": {
       "additionalProperties": true,
-      "description": "음역 적합도 상세 (`vocal-range-keyshift-continuous-v2`). 나머지 서버 필드는 통과시킨다.",
+      "description": "음역 적합도 상세 (`vocal-range-keyshift-first-98-v3`). 나머지 서버 필드는 통과시킨다.",
       "properties": {
         "scoringVersion": {
           "title": "Scoringversion",
@@ -180,8 +180,8 @@
           "type": "number"
         },
         "keyShift": {
-          "maximum": 5,
-          "minimum": -6,
+          "maximum": 3,
+          "minimum": -3,
           "title": "Keyshift",
           "type": "integer"
         },
@@ -416,8 +416,8 @@
         "recommended_key": {
           "anyOf": [
             {
-              "maximum": 5,
-              "minimum": -6,
+              "maximum": 3,
+              "minimum": -3,
               "type": "integer"
             },
             {

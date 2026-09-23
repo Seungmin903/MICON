@@ -173,6 +173,8 @@ fun RecommendDeckScreen(
 
     val preview = rememberRecommendPreview(container.songs, container.mediaHttp)
     LaunchedEffect(loadedId) { if (loadedId != preview.songId) preview.stop() }
+    // 올리는 동작에서만 튼다 — loadedId 는 rememberSaveable 이라 효과로 틀면 상세에서 돌아올 때도 재생된다
+    fun putOnDeck(item: RecommendedSong) { loadedId = item.song.id; preview.load(item.song.id) }
 
     fun open(item: RecommendedSong) {
         vm.onTap(item)
@@ -209,6 +211,15 @@ fun RecommendDeckScreen(
 
                 state.loading && shelves.isEmpty() ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = scheme.primary) }
+
+                state.generating && shelves.isEmpty() ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            CircularProgressIndicator(color = scheme.primary)
+                            Text(state.note ?: "내 목소리에 맞는 추천곡을 준비하고 있어요", style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        }
+                    }
 
                 state.error != null && shelves.isEmpty() ->
                     EmptyState(text = state.error!!, actionLabel = "다시 불러오기", onAction = vm::load)
@@ -253,8 +264,8 @@ fun RecommendDeckScreen(
                         playing = preview.playing && preview.songId == loadedId,
                         progress = if (preview.songId == loadedId) preview.progress else 0f,
                         onDiscClick = { loaded?.let { preview.toggle(it.song.id) } },
-                        onPrev = { items.getOrNull(loadedIndex - 1)?.let { loadedId = it.song.id } },
-                        onNext = { items.getOrNull(loadedIndex + 1)?.let { loadedId = it.song.id } },
+                        onPrev = { items.getOrNull(loadedIndex - 1)?.let(::putOnDeck) },
+                        onNext = { items.getOrNull(loadedIndex + 1)?.let(::putOnDeck) },
                         onDiscDragDown = { loadedId = null },
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
@@ -265,13 +276,14 @@ fun RecommendDeckScreen(
                         CardFan(
                             header = shelf?.let(::rackLabel).orEmpty(),
                             songs = items,
-                            onLoad = { loadedId = it.song.id },
+                            onLoad = ::putOnDeck,
                             onFloat = { floating = it },
                         )
                     } else {
                         DiscRow(
+                            title = shelf?.let(::rackLabel).orEmpty(),
                             songs = items.filter { it.song.id != loadedId },
-                            onPick = { loadedId = it.song.id },
+                            onPick = ::putOnDeck,
                         )
                     }
 
@@ -580,10 +592,10 @@ private fun DeckCardFace(item: RecommendedSong) {
 
 /** 프로토타입 `.discrow` — 올린 뒤. 누르면 바로 교체 */
 @Composable
-private fun DiscRow(songs: List<RecommendedSong>, onPick: (RecommendedSong) -> Unit) {
+private fun DiscRow(title: String, songs: List<RecommendedSong>, onPick: (RecommendedSong) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        PickHead("이 곡과 비슷한 곡", "누르면 바로 교체")
+        PickHead(title, "누르면 바로 교체")
         LazyRow(
             contentPadding = PaddingValues(horizontal = MiconSpace.screenHorizontal),
             horizontalArrangement = Arrangement.spacedBy(MiconSpace.sm),

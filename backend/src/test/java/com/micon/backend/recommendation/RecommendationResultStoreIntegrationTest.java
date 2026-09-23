@@ -116,10 +116,10 @@ class RecommendationResultStoreIntegrationTest {
                                 new RecommendationResultGateway.Algorithm("score-v2", "shelves-v1"),
                                 List.of(new RecommendationResultGateway.Shelf("range", "내 음역", "음역 적합도",
                                         List.of(
-                                                item(1, lowSong, json.readTree("{\"keyShift\":-6}"),
-                                                        (short) -6, null),
-                                                item(2, highSong, json.readTree("{\"keyShift\":5}"),
-                                                        (short) 5, null))))), null));
+                                                item(1, lowSong, json.readTree("{\"keyShift\":-3}"),
+                                                        (short) -3, null),
+                                                item(2, highSong, json.readTree("{\"keyShift\":3}"),
+                                                        (short) 3, null))))), null));
 
         entityManager.flush();
         entityManager.clear();
@@ -128,12 +128,12 @@ class RecommendationResultStoreIntegrationTest {
         assertThat(saved.getStatus()).isEqualTo(RecommendationStatus.COMPLETED);
         assertThat(songs.findByRecommendationIdOrderByOverallRank(saved.getId()))
                 .extracting(RecommendationSong::getRecommendedKey)
-                .containsExactly((short) -6, (short) 5);
+                .containsExactly((short) -3, (short) 3);
     }
 
     @Test
     void rejectsRecommendedKeyOutsideAvailableInstrumentalRange() throws Exception {
-        assertInvalidRangeResult("key-plus-six", json.readTree("{\"score\":0.91,\"keyShift\":6}"), (short) 6);
+        assertInvalidRangeResult("key-plus-four", json.readTree("{\"score\":0.91,\"keyShift\":4}"), (short) 4);
     }
 
     @Test

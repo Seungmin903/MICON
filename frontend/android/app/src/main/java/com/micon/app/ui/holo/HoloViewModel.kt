@@ -62,6 +62,10 @@ class HoloViewModel(
         /** 검색 전에도 고를 수 있게 미리 받아 두는 곡 목록 */
         val catalog: List<SongSummary> = emptyList(),
         val catalogLoading: Boolean = false,
+        val catalogLoadingMore: Boolean = false,
+        val catalogPage: Int = 0,
+        val catalogHasMore: Boolean = true,
+        val catalogMoreFailed: Boolean = false,
         val searching: Boolean = false,
         val picked: SongSummary? = null,
         /** 0..30 */
@@ -107,9 +111,12 @@ class HoloViewModel(
     private var dataVersion: String? = null
     private var tick: Job? = null
     private var searchJob: Job? = null
+    private var submitJob: Job? = null
+    private var saveJob: Job? = null
     private var session: HoloAnalysisClient.Session? = null
     private var pollVersion: Long = 0
     private var saveAllowed = false
+    private var autoSaveAttemptedFor: Long? = null
     private val ownerId: Long? get() = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
 
     init {
@@ -122,10 +129,46 @@ class HoloViewModel(
     /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
     fun loadCatalog() {
         if (_state.value.catalog.isNotEmpty() || _state.value.catalogLoading) return
-        _state.update { it.copy(catalogLoading = true) }
+        _state.update { it.copy(catalogLoading = true, catalogMoreFailed = false) }
         viewModelScope.launch {
-            val items = runCatching { songs.search("", 0, 40).items }.getOrDefault(emptyList())
-            _state.update { it.copy(catalog = items, catalogLoading = false) }
+            try {
+                val page = songs.search("", 0, CATALOG_PAGE_SIZE)
+                _state.update { it.copy(catalog = page.items, catalogLoading = false, catalogPage = page.page,
+                    catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size)) }
+            } catch (_: Exception) {
+                _state.update { it.copy(catalogLoading = false) }
+            }
+        }
+    }
+
+    /** 곡 선택 시트가 끝에 닿으면 다음 카탈로그 페이지를 이어 붙인다. */
+    fun loadMoreCatalog() {
+        val current = _state.value
+        if (current.query.isNotBlank() || current.catalogLoading || current.catalogLoadingMore ||
+            !current.catalogHasMore || current.catalogMoreFailed) return
+        viewModelScope.launch {
+            _state.update { it.copy(catalogLoadingMore = true) }
+            try {
+                val page = songs.search("", current.catalogPage + 1, CATALOG_PAGE_SIZE)
+                _state.update { state ->
+                    val known = state.catalog.mapTo(HashSet()) { it.id }
+                    state.copy(catalog = state.catalog + page.items.filter { it.id !in known },
+                        catalogLoadingMore = false, catalogPage = page.page,
+                        catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size))
+                }
+            } catch (_: Exception) {
+                _state.update { it.copy(catalogLoadingMore = false, catalogMoreFailed = true) }
+            }
+        }
+    }
+
+    /** 실패한 다음 페이지는 시트를 다시 열 때 한 번 더 시도할 수 있게 한다. */
+    fun retryCatalogMore() {
+        if (_state.value.catalogMoreFailed) {
+            _state.update { it.copy(catalogMoreFailed = false) }
+            loadMoreCatalog()
+        } else {
+            loadCatalog()
         }
     }
 
@@ -141,6 +184,7 @@ class HoloViewModel(
      * 음역은 지난 측정값을 그대로 쓴다. 없으면 1단계부터 하게 둔다.
      */
     fun startTimbreOnly() {
+        cancelPendingSubmission()
         val last = store.read(ownerId)
         if (last == null) { _state.update { State(hasPrevious = it.hasPrevious) }; return }
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
@@ -150,6 +194,7 @@ class HoloViewModel(
     }
 
     fun backToRange() {
+        cancelPendingSubmission()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update { State(hasPrevious = it.hasPrevious) }
     }
@@ -267,16 +312,19 @@ class HoloViewModel(
             file?.delete()
             return
         }
-        _state.update { it.copy(phase = Phase.DONE, result = result) }
+        cancelPendingSubmission()
+        _state.update { it.copy(phase = Phase.DONE, result = result, saving = false, saved = false,
+            saveAllowed = false, analysisFinished = false, saveError = null) }
         applyProfile(result)
         runCatching { store.write(ownerId, result) }
         val recordedSec = capture.capturedSeconds
-        viewModelScope.launch(Dispatchers.IO) { submit(result, file, picked, recordedSec) }
+        submitJob = viewModelScope.launch(Dispatchers.IO) { submit(result, file, picked, recordedSec) }
     }
 
     private suspend fun submit(result: HoloResult, file: File?, picked: SongSummary?, recordedSec: Double) {
         try {
             val s = client.createSession(ownerId)
+            if (_state.value.result?.measuredAt != result.measuredAt) return
             session = s
             client.submitRange(s, result)
             _state.update { it.copy(result = it.result?.copy(sessionId = s.id)) }
@@ -285,15 +333,26 @@ class HoloViewModel(
                     (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
                 _state.update { it.copy(result = it.result?.copy(timbreSubmitted = true)) }
                 client.poll(s) { p ->
+                    if (session !== s || _state.value.result?.measuredAt != result.measuredAt) return@poll
                     pollVersion = p.version; saveAllowed = p.saveAllowed
                     _state.update { it.copy(saveAllowed = p.saveAllowed, analysisFinished = p.done,
                         result = if (p.artists.isNotEmpty()) it.result?.copy(artists = p.artists) else it.result) }
                     _state.value.result?.let { r -> runCatching { store.write(ownerId, r) } }
+                    // 음역·음색 분석이 끝나면 결과 화면의 버튼을 기다리지 않고 저장한다.
+                    // 가수 검색은 결과 버전을 바꾸지 않으므로 기다릴 필요가 없다.
+                    if (p.saveAllowed && ownerId != null && autoSaveAttemptedFor != s.id) {
+                        autoSaveAttemptedFor = s.id
+                        viewModelScope.launch { save() }
+                    }
                 }
-                _state.update { it.copy(analysisFinished = true) }
+                _state.update { if (it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
+                    saveError = if (!saveAllowed && !it.saved) "음색 분석이 끝나지 않아 저장할 수 없어요. 다시 측정해 주세요." else it.saveError) else it }
             } else _state.update { it.copy(analysisFinished = true) }
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { /* 서버 저장 실패는 결과 화면을 막지 않는다 */ }
+        catch (_: Exception) {
+            _state.update { if (it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
+                saveError = "서버에 연결할 수 없어 저장하지 못했어요.") else it }
+        }
     }
 
     /** 결과를 추천·곡 상세가 바로 쓰도록 사용자 프로필로 반영 */
@@ -306,32 +365,38 @@ class HoloViewModel(
         ))
     }
 
-    /**
-     * 회원: 서버 프로필 저장 → 추천. 음색 분석이 아직 돌고 있으면 끝날 때까지(최대 2분) 기다린다.
-     * 추천은 노래를 부른 분석(음색 임베딩)이 있어야 서버가 만들 수 있으므로, 간편 분석 결과는 호출부가 막는다.
-     */
-    fun save(onDone: () -> Unit) {
+    /** 분석 완료 시 자동 호출한다. 버튼에서는 완료 후 이동하거나 저장 실패를 재시도한다. */
+    fun save(onDone: () -> Unit = {}) {
+        if (_state.value.saved) { onDone(); return }
         if (_state.value.saving) return
+        val s = session
+        if (ownerId == null || s == null || !saveAllowed) return
+        val version = pollVersion
+        val measuredAt = _state.value.result?.measuredAt
         _state.update { it.copy(saving = true, saveError = null) }
-        viewModelScope.launch {
-            var waited = 0
-            while (!saveAllowed && !_state.value.analysisFinished && waited < 120_000) { delay(1_000); waited += 1_000 }
-            val s = session
-            if (ownerId == null || s == null || !saveAllowed) {
-                _state.update { it.copy(saving = false, saveError = if (s == null) "서버에 연결할 수 없어 저장하지 못했어요." else "음색 분석이 끝나지 않아 저장할 수 없어요. 조금 더 길게 불러 다시 측정해 주세요.") }
-                return@launch
-            }
-            val ok = runCatching { client.saveProfile(s, pollVersion) }
-            if (ok.isSuccess) {
-                _state.update { it.copy(saving = false, saved = true, result = it.result?.copy(profileSaved = true)) }
+        saveJob = viewModelScope.launch {
+            try {
+                client.saveProfile(s, version)
+                if (session !== s || _state.value.result?.measuredAt != measuredAt) return@launch
+                _state.update { it.copy(saving = false, saved = true, saveError = null,
+                    result = it.result?.copy(profileSaved = true)) }
                 _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { store.write(ownerId, r) } } }
-                UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) } // 추천 저장소가 서버 프로필 id 를 다시 읽게
+                UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) }
                 onDone()
-            } else _state.update { it.copy(saving = false, saveError = ok.exceptionOrNull()?.message ?: "프로필을 저장하지 못했어요.") }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (session === s) _state.update { it.copy(saving = false, saveError = e.message ?: "프로필을 저장하지 못했어요.") }
+            }
         }
     }
 
+    private fun cancelPendingSubmission() {
+        submitJob?.cancel(); saveJob?.cancel()
+        session = null; pollVersion = 0; saveAllowed = false; autoSaveAttemptedFor = null
+    }
+
     fun reset() {
+        cancelPendingSubmission()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update { State(hasPrevious = it.hasPrevious, picked = it.picked, query = it.query) }
     }
@@ -346,6 +411,10 @@ class HoloViewModel(
         /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
         const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
+        private const val CATALOG_PAGE_SIZE = 40
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }
 }
+
+internal fun hasNextCatalogPage(page: Int, totalPages: Int, itemCount: Int, pageSize: Int): Boolean =
+    if (totalPages > 0) page + 1 < totalPages else itemCount >= pageSize

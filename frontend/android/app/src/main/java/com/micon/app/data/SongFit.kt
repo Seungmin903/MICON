@@ -49,7 +49,7 @@ enum class TimbreAxis { ECAPA, SINGER_BYOL, CONSENSUS }
 /** 축별 0~1 백분위 */
 data class AxisScores(val ecapa: Float, val singerByol: Float, val consensus: Float)
 
-/** 음역 적합도 상세 (recommend-algo `vocal-range-keyshift-continuous-v2` 항목과 같은 의미) */
+/** 음역 적합도 상세 (recommend-algo `vocal-range-keyshift-first-98-v3` 항목과 같은 의미) */
 data class RangeFit(
     /** 최종 음역 점수 0~1 */
     val score: Float,

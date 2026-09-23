@@ -69,11 +69,11 @@ class PitchProfile(
 }
 
 /**
- * 음역 적합도·추천 키. recommend-algo `timbre_recommender/pitch_range.py` (`vocal-range-keyshift-continuous-v2`) 를 그대로 옮겼다.
+ * 음역 적합도·추천 키. recommend-algo `timbre_recommender/pitch_range.py` (`vocal-range-keyshift-first-98-v3`) 를 그대로 옮겼다.
  * 서버와 답이 달라지면 이 파일이 아니라 입력(프로필)이 다른 것이다.
  */
 object RangeFitCalculator {
-    const val SCORING_VERSION = "vocal-range-keyshift-continuous-v2"
+    const val SCORING_VERSION = "vocal-range-keyshift-first-98-v3"
 
     // TODO(§15 미확정): 종합 적합도 공식·추천 키 조정 범위는 요구사항 명세 15장 확정 대상. 아래는 recommend-algo v2 의 임시값이며
     //   확정되면 이 블록과 KEY_SHIFTS 만 바꾼다. 서버 파라미터 세트와 함께 바뀌어야 한다 (TIMBRE_RECOMMENDER.md "사용자 평가 후 조정할 값").
@@ -83,14 +83,14 @@ object RangeFitCalculator {
     private const val CORE_EXCESS_DECAY = 4.0
     private const val CENTER_DECAY = 3.0
     private const val SPAN_DECAY = 4.0
-    private const val W_COVERAGE = 0.65
-    private const val W_CENTER = 0.20
+    private const val W_COVERAGE = 0.85
     private const val W_SPAN = 0.15
     private const val W_BASE = 0.70
     private const val W_SOFT = 0.30
+    private const val GUIDED_TARGET_COVERAGE = 0.98f
 
-    /** 추천 키 계약은 서버와 앱 모두 −6…+5다. 수동 연습의 실시간 시프트 범위(±3)와는 별도다. */
-    val KEY_SHIFTS: IntRange = -6..5
+    /** 추천 키와 실시간 연습 키는 같은 범위만 사용한다. */
+    val KEY_SHIFTS: IntRange = ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX
 
     data class Result(val keyShift: Int, val fit: RangeFit)
 
@@ -107,7 +107,9 @@ object RangeFitCalculator {
         val centerScore = exp(-centerDistance / CENTER_DECAY)
         val spanExcess = maxOf(0, (song.coreHigh - song.coreLow) - (obsHigh - obsLow))
         val spanFit = exp(-spanExcess / SPAN_DECAY)
-        val base = W_COVERAGE * coverage + W_CENTER * centerScore + W_SPAN * spanFit
+        // 앱의 사용자 프로필은 안정 음역 측정값이다. 중앙값은 자연스러운 노래에서 관찰한 값이
+        // 아니므로 서버의 guided-first-98 정책처럼 중심음 점수를 추천 키에 섞지 않는다.
+        val base = W_COVERAGE * coverage + W_SPAN * spanFit
         val lowExcess = maxOf(0, obsLow - (song.coreLow + shift))
         val highExcess = maxOf(0, (song.coreHigh + shift) - obsHigh)
         val coverageFit = 1.0 / (1.0 + exp(-((coverage - COVERAGE_CENTER) / COVERAGE_SIGMOID_SCALE).coerceIn(-60.0, 60.0)))
@@ -118,20 +120,29 @@ object RangeFitCalculator {
     }
 
     /**
-     * 최적 키. 동점이면 softFit → coverage → 원키 근접 → 낮은 키 순.
+     * 안정 음역 측정용 최적 키. 원키에서 가장 적게 움직여 커버리지 98%를 처음 만족하는 키를 고른다.
+     * ±3 안에서 98%가 불가능하면 core 경계 초과가 가장 작은 키를 고른다.
      * 곡 프로필이 unreliable 이면 키는 고르되 score·softFit 을 0 으로 둔다(서버와 동일).
      */
     fun best(user: PitchProfile, song: PitchProfile): Result {
-        val chosen = KEY_SHIFTS
-            .map { k -> k to scoreAtShift(user, song, k) }
-            .sortedWith(
-                compareByDescending<Pair<Int, RangeFit>> { it.second.score }
-                    .thenByDescending { it.second.softFit }
-                    .thenByDescending { it.second.coverage }
-                    .thenBy { abs(it.first) }
-                    .thenBy { it.first },
-            )
-            .first()
+        val options = KEY_SHIFTS.map { k -> k to scoreAtShift(user, song, k) }
+        val covered = options.filter { it.second.coverage >= GUIDED_TARGET_COVERAGE }
+        val chosen = if (covered.isNotEmpty()) {
+            covered.sortedWith(compareBy<Pair<Int, RangeFit>> { abs(it.first) }
+                .thenByDescending { it.second.coverage }
+                .thenByDescending { it.second.score }
+                .thenBy { it.first }).first()
+        } else {
+            options.sortedWith(compareBy<Pair<Int, RangeFit>> { (key, _) ->
+                val observedLow = user.coreLow - COMFORT_PADDING_SEMITONES
+                val observedHigh = user.coreHigh + COMFORT_PADDING_SEMITONES
+                maxOf(0, observedLow - (song.coreLow + key)) +
+                    maxOf(0, (song.coreHigh + key) - observedHigh)
+            }.thenByDescending { it.second.coverage }
+                .thenByDescending { it.second.score }
+                .thenBy { abs(it.first) }
+                .thenBy { it.first }).first()
+        }
         val fit = if (song.reliable) chosen.second else chosen.second.copy(score = 0f, softFit = 0f)
         return Result(chosen.first, fit)
     }

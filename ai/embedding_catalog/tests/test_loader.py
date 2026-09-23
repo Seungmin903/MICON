@@ -66,7 +66,7 @@ def test_range_catalog_writer_uses_playable_key_bounds(tmp_path, monkeypatch):
     _write_range_catalog(catalog, tmp_path, index_path, {"catalog-1": 1})
 
     payload = json.loads((tmp_path / "range_profiles.json").read_text(encoding="utf-8"))
-    assert payload["keyShiftRange"] == [-6, 5]
+    assert payload["keyShiftRange"] == [-3, 3]
     assert set(payload["profiles"]) == {"1"}
 
 

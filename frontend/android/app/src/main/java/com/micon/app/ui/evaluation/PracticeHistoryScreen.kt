@@ -1,6 +1,12 @@
 package com.micon.app.ui.evaluation
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,32 +18,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -62,6 +72,7 @@ import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.design.tokens.MiconSpace
+import com.micon.app.ui.theme.Red
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -140,10 +151,14 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
     fun confirmDelete() {
         val target = _state.value.confirmDelete ?: return
         val index = _state.value.items.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
+        // 삭제 전 목록을 가져오던 응답이 나중에 도착해 삭제한 행을 되살리지 못하게 한다.
+        loadJob?.cancel()
         _state.update { s -> s.copy(confirmDelete = null, items = s.items.filterNot { it.id == target.id }) }
         viewModelScope.launch {
             try {
                 practices.delete(target.id)
+                // 서버 상태를 기준으로 요약 점수와 필터 결과까지 다시 맞춘다.
+                load()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -184,6 +199,8 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
     RefreshOnResume { vm.load() }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val accent = MaterialTheme.colorScheme.onPrimaryContainer
+    // 아이폰처럼 한 번에 한 행만 열린다
+    var openId by remember { mutableStateOf<Long?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         MiconScreen(
@@ -226,10 +243,15 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                     state.visible.forEach { item ->
                         val score = item.overallScore?.roundToInt()
                         key(item.id) {
-                            SwipeToDeleteRow(onDelete = { vm.askDelete(item) }) {
+                            SwipeToDeleteRow(
+                                opened = openId == item.id,
+                                onOpenChange = { open -> openId = if (open) item.id else null },
+                                onDelete = { vm.askDelete(item) },
+                            ) {
                                 SongRow(
                                     title = item.songTitle ?: "곡 ${item.songId}", artist = historyMeta(item), imageUrl = item.imageUrl,
-                                    onClick = { onOpenResult(item.id) },
+                                    // 열려 있으면 탭은 먼저 닫는 데 쓴다 — 실수로 상세가 열리지 않는다
+                                    onClick = { if (openId == item.id) openId = null else onOpenResult(item.id) },
                                     trailing = {
                                         if (score != null) Text("$score", fontFamily = MiconMonoFamily, fontSize = 18.sp, fontWeight = FontWeight.Black,
                                             color = if (score >= 80) accent else muted)
@@ -255,47 +277,76 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
 
     state.confirmDelete?.let { target ->
         AlertDialog(
-            onDismissRequest = vm::dismissDelete,
+            onDismissRequest = { openId = null; vm.dismissDelete() },
             title = { Text("기록을 삭제할까요?") },
             text = { Text("${target.songTitle ?: "이 곡"} 연습 기록이 지워져요. 되돌릴 수 없어요.") },
-            confirmButton = { TextButton(vm::confirmDelete) { Text("삭제") } },
-            dismissButton = { TextButton(vm::dismissDelete) { Text("취소") } },
+            confirmButton = { TextButton({ openId = null; vm.confirmDelete() }) { Text("삭제") } },
+            dismissButton = { TextButton({ openId = null; vm.dismissDelete() }) { Text("취소") } },
         )
     }
 }
 
+/** 드러나는 빨간 영역의 폭. 터치 타깃 48dp 에 "삭제" 글자가 숨 쉴 자리를 더했다. */
+private val DeleteActionWidth = 88.dp
+
 /**
- * 왼쪽으로 밀면 빨간 삭제 영역이 드러난다. 실제 삭제는 확인 다이얼로그를 거치므로
- * [SwipeToDismissBox] 에는 값 변경을 허락하지 않고(행은 제자리로 돌아온다) 콜백만 쏜다.
+ * 아이폰의 목록 삭제. 행을 왼쪽으로 밀면 그 자리에 멈춰 서고, 드러난 빨간 "삭제" 를 눌러야 지워진다.
+ *
+ * [SwipeToDismissBox] 를 쓰지 않는다 — 임계점을 넘는 순간 값 변경을 거부하며 튕겨 돌아가서
+ * 빨간 영역을 볼 틈이 없었다. 열린 상태는 화면이 [opened] 로 들고 있어 한 번에 한 행만 열린다.
  */
 @Composable
-private fun SwipeToDeleteRow(onDelete: () -> Unit, content: @Composable () -> Unit) {
+private fun SwipeToDeleteRow(
+    opened: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit,
+) {
     val delete by rememberUpdatedState(onDelete)
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) delete()
-            false
-        },
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            Row(
-                Modifier.fillMaxSize()
-                    .clip(RoundedCornerShape(MiconSpace.sm))
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .padding(horizontal = MiconSpace.md),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
+    val openChange by rememberUpdatedState(onOpenChange)
+    val maxOffset = with(LocalDensity.current) { DeleteActionWidth.toPx() }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    // 바깥에서 열림이 바뀌면(다른 행을 열었다·다이얼로그를 닫았다) 따라 움직인다
+    LaunchedEffect(opened, maxOffset) {
+        offset.animateTo(if (opened) -maxOffset else 0f, tween(220))
+    }
+
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(MiconSpace.sm))) {
+        // 드러나는 폭만 빨강이다 — 살짝 밀었다고 행 전체가 빨개지지 않는다
+        Box(Modifier.matchParentSize()) {
+            Box(
+                Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(DeleteActionWidth)
+                    .background(Red)
+                    .clickable { delete() },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.size(MiconSpace.xxs))
-                Text("삭제", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
+                Text("삭제", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
-        },
-    ) {
-        // 뒤의 빨간 영역이 비치지 않도록 행은 불투명하게 깐다
-        Box(Modifier.background(MaterialTheme.colorScheme.background)) { content() }
+        }
+        Box(
+            Modifier
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                // 뒤의 빨간 영역이 비치지 않도록 행은 불투명하게 깐다
+                .background(MaterialTheme.colorScheme.background)
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch { offset.snapTo((offset.value + delta).coerceIn(-maxOffset, 0f)) }
+                    },
+                    onDragStopped = { velocity ->
+                        // 반쯤 넘겼거나 왼쪽으로 튕겼으면 열고, 아니면 닫는다
+                        val open = offset.value < -maxOffset / 2 || velocity < -600f
+                        openChange(open)
+                        offset.animateTo(if (open) -maxOffset else 0f, tween(220))
+                    },
+                )
+                .semantics {
+                    customActions = listOf(CustomAccessibilityAction("삭제") { delete(); true })
+                },
+        ) {
+            content()
+        }
     }
 }

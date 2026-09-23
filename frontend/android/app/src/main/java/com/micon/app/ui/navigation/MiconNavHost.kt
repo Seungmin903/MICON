@@ -244,9 +244,12 @@ private fun MiconNavHost(
             val result = holoState.result ?: holo.previousResult()
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
+                saved = holoState.saved || result.profileSaved, saveReady = holoState.saveAllowed,
+                requiresLogin = !TokenManager.isLoggedIn(),
                 // 회원: 서버 프로필로 저장 → 추천 탭. 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
                 onSave = {
-                    if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
+                    if (TokenManager.isLoggedIn() && result.profileSaved) leaveHolo(Routes.RECOMMEND)
+                    else if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
                     else { session.rememberDestinationRoute(Routes.HOLO); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
                 },
                 onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
@@ -397,7 +400,10 @@ private fun MiconNavHost(
             ResultScreen(
                 practiceId = practiceId,
                 onBack = { nav.popBackStack() },
-                onHome = { nav.navigate(Routes.PRACTICE) { popUpTo(Routes.PRACTICE) { inclusive = false }; launchSingleTop = true } },
+                onHistory = { nav.openBottomTab(Routes.EVALUATION) },
+                onPractice = { songId, selectedKey ->
+                    nav.navigate(Routes.practice(songId, selectedKey))
+                },
             )
         }
 
@@ -471,10 +477,10 @@ private fun GuestMemberTab(title: String, openLogin: () -> Unit) {
 /** Survives configuration changes, but a fresh process must validate its server session. */
 class NavigationSessionViewModel(private val savedState: SavedStateHandle) : ViewModel() {
     /**
-     * 로그인한 사람은 앱을 열면 바로 목소리 분석(홀로)으로, 아직 로그인하지 않았으면 로그인 화면으로.
-     * 분석 결과는 계정에 저장돼야 추천까지 이어지므로, 재기 전에 누구인지 먼저 안다.
+     * 저장된 세션은 먼저 서버에서 검증한다. 유효하면 보류된 목적지나 추천 탭으로 이동하고,
+     * 취향 설문이 끝나지 않은 계정만 설문으로 보낸다.
      */
-    val initialRoute = if (TokenManager.isLoggedIn()) Routes.HOLO else Routes.LOGIN
+    val initialRoute = initialNavigationRoute(TokenManager.isLoggedIn())
     var verified by mutableStateOf(false)
     var guest by mutableStateOf(false)
 
@@ -490,6 +496,9 @@ class NavigationSessionViewModel(private val savedState: SavedStateHandle) : Vie
     fun consumeDestination(): String = savedState.remove<String>("loginDestination") ?: Routes.RECOMMEND
     fun clearDestination() { savedState.remove<String>("loginDestination") }
 }
+
+internal fun initialNavigationRoute(hasSavedSession: Boolean): String =
+    if (hasSavedSession) Routes.SPLASH else Routes.LOGIN
 
 /** Initial preferences lead directly into voice onboarding; settings edits keep their own return path. */
 internal fun NavHostController.completeInitialPreferenceSurvey(session: NavigationSessionViewModel) {

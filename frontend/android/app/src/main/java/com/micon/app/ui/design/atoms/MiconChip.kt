@@ -147,9 +147,9 @@ fun MiconBadge(
     }
 }
 
-/** `+2 key` 대신 사람 말로. 키 조절은 "한 키 올려/내려" 로 읽힌다 */
+/** `+2 key` 대신 사람 말로. 키 조절은 "한 키 올리기/내리기" 로 읽힌다 */
 fun keyShiftLabel(steps: Int): String = when {
-    steps == 0 -> "원래 키"
-    steps > 0 -> "${steps}키 올려"
-    else -> "${-steps}키 내려"
+    steps == 0 -> "원키로 부르기"
+    steps > 0 -> "${listOf("", "한", "두", "세").getOrElse(steps) { "$steps" }} 키 올리기"
+    else -> "${listOf("", "한", "두", "세").getOrElse(-steps) { "${-steps}" }} 키 내리기"
 }

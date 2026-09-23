@@ -88,11 +88,11 @@ object NoteNames {
         return if (diff > 0) "$word 음 높아요" else "$word 음 낮아요"
     }
 
-    /** 키 조절. "원래 키" / "한 키 내려" / "두 키 올려" */
+    /** 키 조절 행동. "원키로 부르기" / "한 키 내리기" / "두 키 올리기" */
     fun keyShiftText(steps: Int): String = when {
-        steps == 0 -> "원래 키"
-        steps > 0 -> "${counts.getOrElse(steps) { "$steps" }} 키 올려"
-        else -> "${counts.getOrElse(-steps) { "${-steps}" }} 키 내려"
+        steps == 0 -> "원키로 부르기"
+        steps > 0 -> "${counts.getOrElse(steps) { "$steps" }} 키 올리기"
+        else -> "${counts.getOrElse(-steps) { "${-steps}" }} 키 내리기"
     }
 
     /**

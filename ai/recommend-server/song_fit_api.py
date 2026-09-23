@@ -110,11 +110,12 @@ def _reason(shift: int, best: Mapping[str, Any]) -> str:
     high_excess = float(best.get("highCoreExcessSemitones") or 0.0)
     low_excess = float(best.get("lowCoreExcessSemitones") or 0.0)
     direction = "내려" if shift < 0 else "올려"
+    count = {1: "한", 2: "두", 3: "세"}.get(abs(shift), str(abs(shift)))
     if high_excess > low_excess:
-        return f"최고음이 안정 음역보다 높아 {abs(shift)}키 {direction} 부르는 편이 낫습니다."
+        return f"최고음이 안정 음역보다 높아 {count} 키 {direction} 부르는 편이 낫습니다."
     if low_excess > 0:
-        return f"최저음이 안정 음역보다 낮아 {abs(shift)}키 {direction} 부르는 편이 낫습니다."
-    return f"곡 중심음이 내 중심음에 맞도록 {abs(shift)}키 {direction} 부르는 편이 낫습니다."
+        return f"최저음이 안정 음역보다 낮아 {count} 키 {direction} 부르는 편이 낫습니다."
+    return f"곡 음정의 98%가 안정 음역에 들어오도록 {count} 키 {direction} 부르는 편이 낫습니다."
 
 
 @router.post("/song-fit")

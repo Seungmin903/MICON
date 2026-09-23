@@ -151,6 +151,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         /** 서버 추천 대신 기기 계산을 보여 주는 이유, 또는 shelves 가 빈 이유(로그인·분석 필요). null 이면 없음 */
         val note: String? = null,
         val loading: Boolean = true,
+        val generating: Boolean = false,
         val error: String? = null,
         /** 필터 바(시안: 성별·시대·장르·인기). null = 전체. 성별·인기는 데이터가 아직 없어 화면에서 비활성 */
         val era: String? = null,
@@ -231,7 +232,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
         loadJob?.cancel()
         if (clear) {
             searchJob?.cancel()
-            _state.value = _state.value.copy(shelves = emptyList(), searchItems = emptyList(), personalized = false, note = null)
+            _state.value = _state.value.copy(shelves = emptyList(), searchItems = emptyList(), personalized = false, note = null, generating = false)
         }
         if (!visible) return
         loadJob = viewModelScope.launch {
@@ -243,14 +244,18 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
                     val r = recommend.shelves(limit = 30, reshuffle = reshuffle)
                     currentCoroutineContext().ensureActive()
                     if (request != generation || revision != UserStore.voiceDataRevision.value) return@launch
-                    _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note, loading = false)
+                    _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note,
+                        loading = false, generating = r.generating)
                     if (!r.generating) return@launch
                     delay(2_000)
                 }
+                if (request == generation && revision == UserStore.voiceDataRevision.value)
+                    _state.value = _state.value.copy(generating = false,
+                        error = "추천 준비가 예상보다 오래 걸리고 있어요. 잠시 후 다시 불러와 주세요.")
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (request == generation && revision == UserStore.voiceDataRevision.value)
-                    _state.value = _state.value.copy(loading = false, error = e.message ?: e.toString())
+                    _state.value = _state.value.copy(loading = false, generating = false, error = e.message ?: e.toString())
             }
         }
     }

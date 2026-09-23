@@ -151,6 +151,10 @@ fun MiconAppBar(
     }
 }
 
-/** 프로토타입 `.tabpad`/`.pad` 를 쓰지 않는 특수 화면(홀로 등)이 직접 쓸 여백 값 */
+/**
+ * 프로토타입 `.tabpad`/`.pad` 를 쓰지 않는 특수 화면(홀로 등)이 직접 쓸 여백 값.
+ * 곡 목록처럼 좌우 여백도 `contentPadding` 으로 줘야 하는 곳은 [horizontal] 을 같이 넘긴다.
+ */
 @Composable
-fun tabBarContentPadding(): PaddingValues = PaddingValues(bottom = LocalTabBarPadding.current)
+fun tabBarContentPadding(horizontal: Dp = 0.dp): PaddingValues =
+    PaddingValues(start = horizontal, end = horizontal, bottom = LocalTabBarPadding.current)

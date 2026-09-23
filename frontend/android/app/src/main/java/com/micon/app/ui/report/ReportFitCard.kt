@@ -55,6 +55,7 @@ import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.MiconSearchBar
 import com.micon.app.ui.design.molecules.SongRow
+import com.micon.app.ui.design.molecules.songListGutter
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.rememberAppContainer
@@ -301,7 +302,7 @@ private fun SongPickerSheet(state: ReportFitViewModel.State, onQuery: (String) -
                     val listState = rememberLazyListState()
                     LoadMoreOnScrollEnd(listState, enabled = state.pickerHasMore && !state.pickerLoadingMore && state.pickerMoreError == null,
                         itemCount = state.candidates.size, key = state.pickerPage, onLoadMore = onLoadMore)
-                    LazyColumn(Modifier.heightIn(max = 420.dp), state = listState) {
+                    LazyColumn(Modifier.heightIn(max = 420.dp), state = listState, contentPadding = songListGutter) {
                         items(state.candidates, key = { it.id }) { song ->
                             SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
                         }
