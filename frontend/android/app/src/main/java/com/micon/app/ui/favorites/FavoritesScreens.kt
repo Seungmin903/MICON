@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -105,6 +107,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /**
@@ -425,10 +428,17 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var showAdd by remember { mutableStateOf(false) }
     var draggedSongId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    var autoScrollDirection by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
+    LaunchedEffect(draggedSongId, autoScrollDirection) {
+        while (draggedSongId != null && autoScrollDirection != 0) {
+            listState.scrollBy(autoScrollDirection * 12f)
+            delay(16)
+        }
+    }
 
     val detail = state.detail
     if (showRename && detail != null) {
@@ -539,11 +549,20 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                         .pointerInput(state.busy, song.songId) {
                                         if (state.busy) return@pointerInput
                                         detectDragGesturesAfterLongPress(
-                                            onDragStart = { draggedSongId = song.songId; dragOffset = 0f },
-                                            onDragCancel = { draggedSongId = null; dragOffset = 0f },
+                                            onDragStart = {
+                                                draggedSongId = song.songId
+                                                dragOffset = 0f
+                                                autoScrollDirection = 0
+                                            },
+                                            onDragCancel = {
+                                                draggedSongId = null
+                                                dragOffset = 0f
+                                                autoScrollDirection = 0
+                                            },
                                             onDragEnd = {
                                                 draggedSongId = null
                                                 dragOffset = 0f
+                                                autoScrollDirection = 0
                                                 vm.saveSongOrder()
                                             },
                                             onDrag = { change, amount ->
@@ -553,13 +572,14 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
                                                 val currentIndex = songItems.indexOfFirst { it.key == dragged }
                                                 val current = songItems.getOrNull(currentIndex) ?: return@detectDragGesturesAfterLongPress
-                                                // 화면 끝에 이웃 곡이 두 곡 이하로 남으면 목록도 함께 움직여
-                                                // 다음/이전 곡을 계속 한 칸씩 교체할 수 있게 한다.
+                                                // 화면 끝에 이웃 곡이 두 곡 이하로 남으면, 손가락을 멈춰도
+                                                // 다음/이전 곡을 계속 교체할 수 있도록 자동 스크롤을 이어 간다.
                                                 val songsBelow = songItems.size - currentIndex - 1
                                                 val songsAbove = currentIndex
-                                                when {
-                                                    amount.y > 0f && songsBelow <= 2 -> listState.dispatchRawDelta((amount.y * 2f).coerceAtMost(48f))
-                                                    amount.y < 0f && songsAbove <= 2 -> listState.dispatchRawDelta((amount.y * 2f).coerceAtLeast(-48f))
+                                                autoScrollDirection = when {
+                                                    amount.y > 0f && songsBelow <= 2 -> 1
+                                                    amount.y < 0f && songsAbove <= 2 -> -1
+                                                    else -> 0
                                                 }
                                                 val target = when {
                                                     dragOffset > 0f -> songItems.getOrNull(currentIndex + 1)
