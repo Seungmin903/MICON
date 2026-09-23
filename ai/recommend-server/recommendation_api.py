@@ -140,6 +140,7 @@ def build_result(
     preferred_artists: tuple[str, ...] = (),
     excluded_track_ids: tuple[str, ...] = (),
     seed: int | None = None,
+    genre_preferences_enabled: bool = False,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
     range_enabled = bool(pitch_profile and pitch_profile.get("reliable", False))
@@ -157,7 +158,8 @@ def build_result(
     rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
     if seed is None:
         seed = int(time.strftime("%Y%m%d"))          # 새로운 발견: 하루 단위로 섞임
-    shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists, range_enabled=range_enabled, seed=seed)
+    shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists,
+                            genre_preferences_enabled=genre_preferences_enabled, range_enabled=range_enabled, seed=seed)
     allowed = allowed_languages(genres)
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
@@ -335,6 +337,7 @@ def _json_process(job_id: str, payload: dict[str, Any]) -> None:
             genres=_strings(payload.get("genres")), preferred_artists=_strings(payload.get("preferredArtists")),
             excluded_track_ids=_excluded_tracks(payload.get("sourceSongId"), catalog),
             seed=payload.get("seed"),
+            genre_preferences_enabled=True,
         )
         result = catalog_link.apply(result)
         _update(job_id, status="complete", progress=100, result=result,
