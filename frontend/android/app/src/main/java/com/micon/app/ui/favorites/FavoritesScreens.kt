@@ -443,7 +443,28 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
     LaunchedEffect(draggedSongId, autoScrollDirection) {
         while (draggedSongId != null && autoScrollDirection != 0) {
-            listState.scrollBy(autoScrollDirection * 12f)
+            val dragged = draggedSongId ?: break
+            val scrolled = listState.scrollBy(autoScrollDirection * 12f)
+            if (scrolled == 0f) {
+                autoScrollDirection = 0
+                break
+            }
+            // 목록이 스크롤된 만큼 선택 곡도 손가락 아래에 계속 남겨 둔다.
+            dragOffset += scrolled
+            val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
+            val currentIndex = songItems.indexOfFirst { it.key == dragged }
+            val current = songItems.getOrNull(currentIndex)
+            val target = songItems.getOrNull(currentIndex + autoScrollDirection)
+            if (current != null && target != null) {
+                val draggedCenter = current.offset + current.size / 2 + dragOffset
+                val targetCenter = target.offset + target.size / 2
+                val crossedTargetCenter = if (autoScrollDirection > 0) draggedCenter >= targetCenter else draggedCenter <= targetCenter
+                val targetId = target.key as? String
+                if (crossedTargetCenter && targetId != null) {
+                    dragOffset -= target.offset - current.offset
+                    vm.moveSong(dragged, targetId)
+                }
+            }
             delay(16)
         }
     }
@@ -524,6 +545,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                 )
                 LazyColumn(
                     Modifier.fillMaxSize().background(Color(0xFFF7F5FC)),
+                    state = listState,
                     contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
                 ) {
                     if (state.editing) item {
@@ -542,9 +564,10 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         val dragging = draggedSongId == song.songId
                         Row(
                             Modifier.fillMaxWidth()
-                                .animateItem()
+                                .then(if (dragging) Modifier else Modifier.animateItem())
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
+                                    translationY = if (dragging) dragOffset else 0f
                                     scaleX = if (dragging) 0.98f else 1f
                                     scaleY = if (dragging) 0.98f else 1f
                                 }
@@ -606,9 +629,8 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 }
                                                 val targetId = target.key as? String
                                                 if (crossedTargetCenter && targetId != null) {
-                                                    // 자유 이동은 하지 않고, 이웃 곡과 한 칸씩만 교체한다.
-                                                    // 실제 행 이동은 LazyColumn의 재배치 애니메이션이 맡는다.
-                                                    dragOffset = 0f
+                                                    // 선택 행은 손가락 아래를 유지하고, 다른 행만 빈자리를 애니메이션으로 채운다.
+                                                    dragOffset -= target.offset - current.offset
                                                     vm.moveSong(dragged, targetId)
                                                 }
                                             },
