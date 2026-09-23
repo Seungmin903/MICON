@@ -199,6 +199,10 @@ interface BackendApi {
     @GET("practices/report")
     suspend fun practices(@Query("page") page: Int, @Query("size") size: Int, @Query("date") date: String? = null): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
 
+    /** 같은 곡의 완료된 연습 점수 변화. 최근 [limit]건을 시간순으로 반환한다. */
+    @GET("practices/songs/{songId}/score-trend")
+    suspend fun practiceScoreTrend(@Path("songId") songId: String, @Query("limit") limit: Int = 100): Response<ApiResponse<PracticeScoreTrendDto>>
+
     /** 세션 생성(READY). 곡·반주(선택 키)가 준비돼야 한다: 409 PRACTICE_ASSET_NOT_READY, 422 UNSUPPORTED_PRACTICE_KEY. */
     @POST("practices/session")
     suspend fun createPractice(@Body body: PracticeCreateRequest): Response<ApiResponse<PracticeDetailDto>>

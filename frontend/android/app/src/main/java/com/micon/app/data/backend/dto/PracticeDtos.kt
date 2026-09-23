@@ -118,6 +118,28 @@ data class PracticeSummaryDto(
     val overallScore: Double? = null,
 )
 
+/** `GET /practices/songs/{songId}/score-trend` — 같은 곡을 반복 연습한 완료 점수 변화. */
+data class PracticeScoreTrendDto(
+    val songId: String = "",
+    val totalCount: Int = 0,
+    val firstScore: Double? = null,
+    val latestScore: Double? = null,
+    val bestScore: Double? = null,
+    val scoreDelta: Double? = null,
+    val points: List<PracticeScoreTrendPointDto> = emptyList(),
+)
+
+data class PracticeScoreTrendPointDto(
+    val practiceId: Long = 0,
+    val playedAt: String? = null,
+    val overallScore: Double? = null,
+    val pitchScore: Double? = null,
+    val rhythmScore: Double? = null,
+    val selectedKey: Int = 0,
+    val practiceScope: String? = null,
+    val durationMs: Int? = null,
+)
+
 /** PracticeResultResponse.Report */
 data class PracticeReportDto(
     val practiceId: Long = 0,

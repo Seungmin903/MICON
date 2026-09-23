@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.micon.app.data.*
 import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeScoreTrend
 import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -29,6 +31,7 @@ data class SongDetailState(
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
     val playbackError: String? = null,
+    val scoreTrend: PracticeScoreTrend? = null,
 ) {
     val playable get() = mediaKey == selectedKey && !keyLoading && !assetsLoading
     val practiceEnabled get() = playable && detail?.practiceReady == true && notes.isNotEmpty()
@@ -38,9 +41,11 @@ internal class SongDetailViewModel(
     private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String,
     private val playerFactory: () -> SongPreviewPlayer,
     profile: StateFlow<UserStore.VoiceProfile?> = UserStore.profile,
+    private val practices: PracticeRepository? = null,
 ) : ViewModel() {
-    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository, songId: String) :
-        this(repo, recommend, songId, { Media3SongPreview(context, http) })
+    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository,
+        practices: PracticeRepository, songId: String) :
+        this(repo, recommend, songId, { Media3SongPreview(context, http) }, practices = practices)
 
     private val _state = MutableStateFlow(SongDetailState())
     val state = _state.asStateFlow()
@@ -56,7 +61,25 @@ internal class SongDetailViewModel(
 
     init {
         load()
+        loadScoreTrend()
         viewModelScope.launch { profile.collectLatest { refreshFit() } }
+    }
+
+    private fun loadScoreTrend() {
+        val practiceRepository = practices ?: return
+        viewModelScope.launch {
+            try {
+                val trend = practiceRepository.scoreTrend(songId)
+                ensureActive()
+                if (trend.songId == songId && trend.points.isNotEmpty()) {
+                    _state.update { it.copy(scoreTrend = trend) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // 비회원·기록 없음·구버전 서버에서는 기존 상세 화면만 보인다.
+            }
+        }
     }
 
     fun load() {

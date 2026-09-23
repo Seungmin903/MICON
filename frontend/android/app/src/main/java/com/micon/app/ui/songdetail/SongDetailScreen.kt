@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Canvas
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -29,6 +30,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +49,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongFit
+import com.micon.app.data.practice.PracticeScoreTrend
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.ui.analysis.RangeBar
@@ -74,7 +81,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Un
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(key = "song-$songId", factory = viewModelFactory {
-        initializer { SongDetailViewModel(context.applicationContext, container.songs, container.mediaHttp, container.recommend, songId) }
+        initializer { SongDetailViewModel(context.applicationContext, container.songs, container.mediaHttp, container.recommend, container.practices, songId) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
@@ -143,6 +150,61 @@ fun SongDetailContent(
         MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
         KeyCard(key, onKey)
         DifficultCard(state, fit)
+        val scoreTrend = state.scoreTrend
+        if (scoreTrend != null) PracticeScoreTrendCard(scoreTrend)
+    }
+}
+
+/** 같은 곡을 반복 연습한 완료 점수만 노래 상세의 마지막에 보여 준다. */
+@Composable
+private fun PracticeScoreTrendCard(trend: PracticeScoreTrend) {
+    val latest = trend.latestScore ?: return
+    val delta = trend.scoreDelta ?: 0.0
+    val deltaText = when {
+        delta > 0.0 -> "첫 연습보다 +${"%.1f".format(delta)}점"
+        delta < 0.0 -> "첫 연습보다 ${"%.1f".format(delta)}점"
+        else -> "첫 연습과 같은 점수예요"
+    }
+    MiconCard(kind = MiconCardKind.Outlined) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("연습 점수 변화", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
+                Text(deltaText, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("${"%.1f".format(latest)}점", fontFamily = MiconMonoFamily, fontSize = 22.sp,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(12.dp))
+        ScoreTrendChart(trend.points.map { it.overallScore })
+    }
+}
+
+@Composable
+private fun ScoreTrendChart(scores: List<Double>) {
+    val colors = MaterialTheme.colorScheme
+    Canvas(Modifier.fillMaxWidth().height(132.dp)) {
+        val left = 28.dp.toPx()
+        val top = 6.dp.toPx()
+        val bottom = size.height - 20.dp.toPx()
+        val width = size.width - left
+        fun x(index: Int) = left + width * index / maxOf(1, scores.lastIndex)
+        fun y(score: Double) = bottom - (bottom - top) * (score / 100.0).toFloat().coerceIn(0f, 1f)
+        listOf(100, 50, 0).forEach { score ->
+            val py = y(score.toDouble())
+            drawLine(colors.outlineVariant, Offset(left, py), Offset(size.width, py),
+                1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
+        }
+        val line = Path()
+        scores.forEachIndexed { index, score ->
+            if (index == 0) line.moveTo(x(index), y(score)) else line.lineTo(x(index), y(score))
+        }
+        drawPath(line, colors.primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+        scores.forEachIndexed { index, score ->
+            drawCircle(colors.primary, 4.dp.toPx(), Offset(x(index), y(score)))
+            drawCircle(colors.surface, 1.7.dp.toPx(), Offset(x(index), y(score)))
+        }
     }
 }
 
