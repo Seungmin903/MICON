@@ -521,6 +521,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         val dragging = draggedSongId == song.songId
                         Row(
                             Modifier.fillMaxWidth()
+                                .then(if (dragging) Modifier else Modifier.animateItem())
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
                                     translationY = if (dragging) dragOffset else 0f
@@ -556,8 +557,10 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 val target = info.firstOrNull { item -> center >= item.offset && center <= item.offset + item.size }
                                                 val targetId = target?.key as? String
                                                 if (targetId != null && targetId != dragged) {
+                                                    // 순서가 바뀐 직후에도 선택 행이 손가락 아래에 머물도록
+                                                    // 새 기준 위치만큼 드래그 오프셋을 보정한다.
+                                                    dragOffset -= target.offset - current.offset
                                                     vm.moveSong(dragged, targetId)
-                                                    dragOffset = 0f
                                                 }
                                             },
                                         )
