@@ -295,6 +295,28 @@ public class SongQueryRepository {
 		return new HashSet<>(jdbcTemplate.queryForList(sql, Map.of("songIds", songIds), String.class));
 	}
 
+	/** 추천 결과처럼 이미 알고 있는 곡 ID들의 화면용 요약을 한 번에 조회한다. */
+	public Map<String, SongResponse.Summary> findSummariesByIds(Set<String> songIds) {
+		if (songIds.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		String sql = """
+				SELECT s.song_id, s.title, s.duration_ms,
+				       NULLIF(sm.display_image_url, '') AS image_url
+				FROM song s
+				LEFT JOIN song_metadata sm ON sm.song_id = s.song_id
+				WHERE s.song_id IN (:songIds) AND s.status = 'ACTIVE'
+				""";
+		List<SongRow> songs = jdbcTemplate.query(sql, Map.of("songIds", songIds), SONG_ROW_MAPPER);
+		Map<String, List<String>> artists = findArtists(songs.stream().map(SongRow::songId).toList());
+		Map<String, SongResponse.Summary> summaries = new LinkedHashMap<>();
+		for (SongRow song : songs) {
+			summaries.put(song.songId(), new SongResponse.Summary(song.songId(), song.title(),
+					artists.getOrDefault(song.songId(), List.of()), song.imageUrl(), null, song.durationMs()));
+		}
+		return summaries;
+	}
+
 	// 기능: findArtists 조건으로 데이터베이스를 조회한다.
 	public List<String> findArtists(String songId) {
 		return findArtists(List.of(songId)).getOrDefault(songId, List.of());
