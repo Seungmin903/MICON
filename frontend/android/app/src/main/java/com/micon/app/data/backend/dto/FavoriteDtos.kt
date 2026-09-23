@@ -11,6 +11,9 @@ data class FavoriteResponseDto(val songs: List<SongSummaryDto> = emptyList(), va
 /** `POST /setlists`(Create) · `PATCH /setlists/{id}`(Rename). name 1~100자 */
 data class SetlistNameRequest(val name: String)
 
+/** `PUT /setlist/{id}/song-order`. songIds 는 변경 후 전체 순서다. */
+data class SetlistOrderRequest(val songIds: List<String>, val updatedAt: String?)
+
 /** SetlistResponse.Summary */
 data class SetlistSummaryDto(
     val setlistId: Long = 0,
