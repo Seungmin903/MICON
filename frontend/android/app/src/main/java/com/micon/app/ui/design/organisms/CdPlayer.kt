@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -107,6 +108,8 @@ fun CdPlayer(
     hasNext: Boolean = trackIndex < trackTotal,
     /** CD 를 아래로 끌어내리면 — 프로토타입 "CD를 아래로 끌어내리면 빼기". null 이면 드래그 없음 */
     onDiscDragDown: (() -> Unit)? = null,
+    /** 오른쪽 아래 확장 버튼. 선택한 곡의 상세 화면으로 이동한다. */
+    onDetails: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val pullThreshold = with(density) { 72.dp.toPx() }
@@ -232,6 +235,22 @@ fun CdPlayer(
                         visible = loaded && hasNext,
                         modifier = Modifier.align(Alignment.CenterEnd),
                     )
+                    if (loaded && onDetails != null) {
+                        IconButton(
+                            onClick = onDetails,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
+                        ) {
+                            Icon(
+                                Icons.Outlined.OpenInFull,
+                                contentDescription = "곡 상세 보기",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
                 }
             }
 
