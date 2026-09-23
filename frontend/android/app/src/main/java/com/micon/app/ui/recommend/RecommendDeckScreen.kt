@@ -282,20 +282,14 @@ fun RecommendDeckScreen(
                         NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
                     }
 
-                    if (loaded == null) {
-                        CardFan(
-                            header = shelf?.let(::rackLabel).orEmpty(),
-                            songs = items,
-                            onLoad = ::putOnDeck,
-                            onFloat = { floating = it },
-                        )
-                    } else {
-                        DiscRow(
-                            title = shelf?.let(::rackLabel).orEmpty(),
-                            songs = items.filter { it.song.id != loadedId },
-                            onPick = ::putOnDeck,
-                        )
-                    }
+                    // 곡을 올린 뒤에도 선택 전과 같은 카드 목록을 유지한다.
+                    // 현재 재생 중인 곡만 빼고, 다른 카드로 바로 교체할 수 있다.
+                    CardFan(
+                        header = shelf?.let(::rackLabel).orEmpty(),
+                        songs = items.filter { it.song.id != loadedId },
+                        onLoad = ::putOnDeck,
+                        onFloat = { floating = it },
+                    )
 
                     Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
                 }
