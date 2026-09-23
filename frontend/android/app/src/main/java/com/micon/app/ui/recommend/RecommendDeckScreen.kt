@@ -292,13 +292,6 @@ fun RecommendDeckScreen(
                         )
                     }
 
-                    MiconButton(
-                        text = "이 곡 자세히 보기",
-                        onClick = { loaded?.let(::open) },
-                        enabled = loaded != null,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = MiconSpace.screenHorizontal),
-                    )
-
                     Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
                 }
             }
