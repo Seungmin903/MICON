@@ -61,12 +61,10 @@ import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.describeBackendError
-import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
-import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.atoms.MiconFilterChip
 import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.design.organisms.MiconScreen
@@ -104,13 +102,7 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         /** 서버가 날짜를 하나도 주지 않으면 주간 요약·"이번 주" 탭은 감춘다 — 빈 탭을 고장으로 오해하지 않게 */
         val hasDates get() = items.any { it.occurredAt != null }
         val weekItems get() = scored.filter { it.occurredAt?.let(::isThisWeek) == true }
-        val lastWeekItems get() = scored.filter { it.occurredAt?.let(::isLastWeek) == true }
         val weekAverage: Int? get() = weekItems.map { it.overallScore!! }.average().takeIf { weekItems.isNotEmpty() }?.roundToInt()
-        val weekDelta: Int? get() {
-            val now = weekAverage ?: return null
-            val prev = lastWeekItems.map { it.overallScore!! }.average().takeIf { lastWeekItems.isNotEmpty() } ?: return null
-            return now - prev.roundToInt()
-        }
         val visible get() = when (filter) {
             HistoryFilter.ALL -> items
             // 날짜가 없으면 "이번 주" 칩 자체를 감추므로, 고른 채로 남아 있어도 전체를 보여 준다
@@ -172,7 +164,6 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
 private fun parse(iso: String): LocalDate? = runCatching { LocalDateTime.parse(iso.take(19)).toLocalDate() }.getOrNull()
 private fun weekStart(d: LocalDate) = d.minusDays((d.dayOfWeek.value - 1).toLong())
 private fun isThisWeek(iso: String): Boolean { val d = parse(iso) ?: return false; val ws = weekStart(LocalDate.now()); return !d.isBefore(ws) && d.isBefore(ws.plusDays(7)) }
-private fun isLastWeek(iso: String): Boolean { val d = parse(iso) ?: return false; val ws = weekStart(LocalDate.now()).minusDays(7); return !d.isBefore(ws) && d.isBefore(ws.plusDays(7)) }
 
 /** "오늘 · 원래 키" / "어제 · 한 키 ↓" / "9월 17일 · 두 키 ↓" */
 internal fun historyMeta(item: PracticeSummary): String {
@@ -209,7 +200,6 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
             if (avg != null) MiconCard(kind = MiconCardKind.Elevated) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("이번 주 평균", style = MaterialTheme.typography.labelMedium, color = accent, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
-                    state.weekDelta?.let { d -> MiconBadge(if (d >= 0) "지난주 +${d}점" else "지난주 ${d}점", tone = if (d >= 0) MiconChipTone.Success else MiconChipTone.Challenge) }
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("$avg", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, lineHeight = 38.sp)
