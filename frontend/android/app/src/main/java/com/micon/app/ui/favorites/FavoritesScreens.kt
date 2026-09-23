@@ -439,8 +439,8 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var draggedSongId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var autoScrollDirection by remember { mutableIntStateOf(0) }
-    // 다음 교체 대상은 중앙을 넘기 전부터 빈자리 쪽으로 이동시킨다.
-    // 중앙에서 실제 순서가 바뀌어도 화면 위치가 이어져 보여 끊김이 없다.
+    // 다음 교체 대상은 선택 곡이 절반 이상 겹친 뒤에만 빈자리 쪽으로 이동시킨다.
+    // 드래그 시작부터 아래 곡이 움직이는 혼란을 막으면서, 중앙 교체 시점의 끊김도 줄인다.
     var previewTargetId by remember { mutableStateOf<String?>(null) }
     var previewTargetOffset by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
@@ -470,7 +470,8 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                 val targetId = target.key as? String
                 if (targetId != null) {
                     val distance = (target.offset - current.offset).toFloat()
-                    val progress = (kotlin.math.abs(dragOffset) / kotlin.math.abs(distance)).coerceIn(0f, 1f)
+                    val halfDistance = kotlin.math.abs(distance) / 2f
+                    val progress = ((kotlin.math.abs(dragOffset) - halfDistance) / halfDistance).coerceIn(0f, 1f)
                     previewTargetId = targetId
                     previewTargetOffset = -distance * progress
                 }
@@ -661,7 +662,8 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 val targetId = target.key as? String
                                                 if (targetId != null) {
                                                     val distance = (target.offset - current.offset).toFloat()
-                                                    val progress = (kotlin.math.abs(dragOffset) / kotlin.math.abs(distance)).coerceIn(0f, 1f)
+                                                    val halfDistance = kotlin.math.abs(distance) / 2f
+                                                    val progress = ((kotlin.math.abs(dragOffset) - halfDistance) / halfDistance).coerceIn(0f, 1f)
                                                     previewTargetId = targetId
                                                     previewTargetOffset = -distance * progress
                                                 }
