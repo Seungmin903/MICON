@@ -236,11 +236,27 @@ private fun MiconNavHost(
 
         // ---- 첫 화면: 목소리 분석 → 결과 ----
         composable(Routes.HOLO) {
-            HoloScreen(vm = holo, onResult = { leaveHolo(Routes.REPORT) },
+            HoloScreen(vm = holo, onResult = { nav.navigate(Routes.VOICE_RESULT) { launchSingleTop = true } },
                 onSkip = { holo.reset(); leaveHolo(Routes.REPORT) })
         }
         composable(Routes.VOICE_RESULT) {
-            LaunchedEffect(Unit) { leaveHolo(Routes.REPORT) }
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
+                saved = holoState.saved || result.profileSaved, saveReady = holoState.saveAllowed,
+                requiresLogin = !TokenManager.isLoggedIn(),
+                // 회원: 서버 프로필로 저장 → 추천 탭. 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
+                onSave = {
+                    if (TokenManager.isLoggedIn() && result.profileSaved) leaveHolo(Routes.RECOMMEND)
+                    else if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
+                    else {
+                        session.rememberDestinationRoute(Routes.HOLO)
+                        holo.reset()
+                        nav.navigate(Routes.LOGIN) { launchSingleTop = true }
+                    }
+                },
+                onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
         }
 
         composable(Routes.SPLASH) {
@@ -297,52 +313,21 @@ private fun MiconNavHost(
         // ---- 탭: 분석 (이전 리포트) ----
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
-            val holoState by holo.state.collectAsStateWithLifecycle()
-            val result = holoState.result ?: holo.previousResult()
             AnalysisScreen(
                 onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 // 노래로 분석하기 — 음역은 지난 값을 쓰고 음색(노래)만 다시 본다
                 onSingAnalyze = { holo.startTimbreOnly(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onMeasureRange = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
-                latestResult = result,
-                onArtistClick = { artistId, _ -> nav.navigate(Routes.artistSongs(artistId)) },
-                onRecommend = {
-                    if (!TokenManager.isLoggedIn()) {
-                        // 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
-                        session.rememberDestinationRoute(Routes.HOLO)
-                        holo.reset()
-                        nav.navigate(Routes.LOGIN) { launchSingleTop = true }
-                    } else if (holoState.saved || result?.profileSaved == true) nav.navigate(Routes.RECOMMEND)
-                    else holo.save { nav.navigate(Routes.RECOMMEND) }
-                },
-                recommendLabel = when {
-                    !TokenManager.isLoggedIn() -> "로그인하고 추천받기"
-                    holoState.saved || result?.profileSaved == true -> "추천곡 보기"
-                    holoState.saving -> "추천 준비 중…"
-                    holoState.saveError != null -> "프로필 저장 다시 시도"
-                    else -> "분석 결과를 준비하고 있어요…"
-                },
-                recommendEnabled = !holoState.saving && (!TokenManager.isLoggedIn() || holoState.saved || result?.profileSaved == true || holoState.saveAllowed),
-                recommendError = holoState.saveError,
+                onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
         composable(Routes.VOICE_RESULT_VIEW) {
-            LaunchedEffect(Unit) { nav.navigate(Routes.REPORT) { popUpTo(Routes.VOICE_RESULT_VIEW) { inclusive = true } } }
-        }
-        composable(Routes.ARTIST_SONGS, arguments = listOf(navArgument("artistId") { type = NavType.LongType })) { entry ->
-            if (!accessGranted) return@composable
-            val artistId = entry.arguments?.getLong("artistId") ?: return@composable
-            val artist = (holo.state.value.result ?: holo.previousResult())?.artists?.firstOrNull { it.artistId == artistId }
-            SongListScreen(
-                onSongClick = { nav.navigate(Routes.song(it)) },
-                onLogin = if (isGuest) ({ openLogin() }) else null,
-                backTitle = artist?.name ?: "가수의 곡",
-                subtitle = "${artist?.name ?: "선택한 가수"}의 곡",
-                artistId = artistId,
-                onBack = { nav.popBackStack() },
-            )
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult()
+            if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
+            VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
         }
         composable(Routes.QUICK_ANALYSIS) {
             LaunchedEffect(Unit) { nav.navigate(Routes.HOLO) { popUpTo(Routes.QUICK_ANALYSIS) { inclusive = true } } }

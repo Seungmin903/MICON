@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,11 +45,13 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.local.UserStore
-import com.micon.app.ui.holo.VoiceResultContent
+import com.micon.app.ui.design.atoms.CompactDisc
+import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
+import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.OctaveRangeText
 import com.micon.app.ui.design.molecules.karaokeNoteText
@@ -54,10 +62,11 @@ import com.micon.app.ui.design.tokens.MiconMonoFamily
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * 분석 탭 — 프로토타입 `analysis` (이전 이름 리포트).
- * 내 목소리 카드(편한 음역 막대) · 나와 닮은 목소리 · 음색 다시 측정하기 · 음역 다시 측정하기.
+ * 내 목소리 카드(편한 음역 막대) · 나와 닮은 목소리 · 노래로 분석하기 · 음역 다시 측정하기.
  * 데이터는 홀로 결과(기기 저장) → 없으면 서버 프로필(UserStore) → 없으면 빈 상태.
  */
 @Composable
@@ -69,12 +78,7 @@ fun AnalysisScreen(
     /** 음역만 다시 */
     onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
-    latestResult: HoloResult? = null,
-    onArtistClick: (Long, String) -> Unit = { _, _ -> },
-    onRecommend: () -> Unit = {},
-    recommendLabel: String = "추천곡 보기",
-    recommendEnabled: Boolean = false,
-    recommendError: String? = null,
+    onDetail: () -> Unit,
     onLogin: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -84,8 +88,7 @@ fun AnalysisScreen(
     val notation by NoteNames.notation.collectAsStateWithLifecycle()
     val ownerId = TokenManager.getUserId().takeIf { it > 0 && TokenManager.isLoggedIn() }
     val holo = remember(revision, ownerId) { store.read(ownerId) }
-    val result = latestResult ?: holo
-    val view = remember(profile, notation) { profile?.let { VoiceView.from(it) } }
+    val view = remember(holo, profile, notation) { holo?.let { VoiceView.from(it) } ?: profile?.let { VoiceView.from(it) } }
 
     MiconScreen(
         appBar = {
@@ -93,7 +96,7 @@ fun AnalysisScreen(
         },
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        if (result == null && view == null) {
+        if (view == null) {
             MiconCard(kind = MiconCardKind.Elevated) {
                 Text("아직 분석한 목소리가 없어요", style = MaterialTheme.typography.titleMedium)
                 Text("30초만 부르면 편한 음역과 어울리는 곡을 찾아 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -101,43 +104,48 @@ fun AnalysisScreen(
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
             }
         } else {
-            if (result != null) VoiceResultContent(result, onArtistClick)
-            else if (view != null) {
-                MyVoiceCard(view)
-                ProfileStabilityCard(profile!!)
+            MyVoiceCard(view, onDetail)
+            if (view.artists.isNotEmpty()) SimilarCard(view)
+            MiconCard(kind = MiconCardKind.Tinted, modifier = Modifier.clickable(onClick = onSingAnalyze)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("노래로 분석하기", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text("한 곡 부르면 음역·음정 정확도를 같이 봐드려요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
             }
-            if (result?.songId != null) {
-                recommendError?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
-                MiconButton(recommendLabel, onRecommend, Modifier.fillMaxWidth(), enabled = recommendEnabled)
-            }
-            MiconButton("음색 다시 측정하기", onSingAnalyze, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
             MiconButton("음역 다시 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }
 }
 
-/** 상세 결과 파일 없이 서버 프로필만 복원됐을 때 화면이 보는 값. */
+/** 화면이 보는 최소 모델. 홀로 결과와 서버 프로필 어느 쪽에서도 만든다 */
 private data class VoiceView(
     val lowMidi: Int, val highMidi: Int, val comfortLow: Int, val comfortHigh: Int,
-    val measuredAt: Long,
+    val measuredAt: Long, val tags: List<Pair<String, MiconChipTone>>, val artists: List<Triple<String, String?, Int>>,
 ) {
     companion object {
+        fun from(r: HoloResult) = VoiceView(r.lowMidi, r.highMidi, r.comfortLow, r.comfortHigh, r.measuredAt,
+            tags = listOf(
+                (if (r.octaves >= 2) "넓은 음역" else "또렷한") to MiconChipTone.Neutral,
+                (if (r.phraseSec >= 5) "긴 호흡" else "부드러운") to MiconChipTone.Neutral,
+                (if (r.stabilityMidis.zip(r.stability).filter { it.first <= 59 }.maxOfOrNull { it.second } ?: 0f >= 0.6f) "중저음 안정" else "음정 안정") to MiconChipTone.Success,
+            ),
+            artists = r.artists.map { Triple(it.name, it.imageUrl, (it.similarity * 100).roundToInt()) })
         fun from(p: UserStore.VoiceProfile) = VoiceView(p.lowMidi, p.highMidi, p.comfortLow, p.comfortHigh, p.measuredAt,
-        )
+            tags = p.strengths.take(3).mapIndexed { i, s -> s to if (i == p.strengths.lastIndex) MiconChipTone.Success else MiconChipTone.Neutral },
+            artists = emptyList())
     }
 }
 
 @Composable
-private fun MyVoiceCard(v: VoiceView) {
+private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    MiconCard(kind = MiconCardKind.Elevated) {
-        Text("음역대 지도", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+    MiconCard(kind = MiconCardKind.Elevated, modifier = Modifier.clickable(onClick = onDetail)) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Text("전체 음역", style = MaterialTheme.typography.bodySmall, color = muted)
-                OctaveRangeText(v.lowMidi, v.highMidi, size = 24.sp)
-                Spacer(Modifier.height(8.dp))
-                Text("편한 음역", style = MaterialTheme.typography.bodySmall, color = muted)
+                Text("내 목소리 · 편한 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
                 OctaveRangeText(v.comfortLow, v.comfortHigh, size = 24.sp)
             }
             Text(SimpleDateFormat("M월 d일", Locale.KOREA).format(Date(v.measuredAt)), fontFamily = MiconMonoFamily, fontSize = 12.sp, color = muted)
@@ -145,22 +153,7 @@ private fun MyVoiceCard(v: VoiceView) {
         Spacer(Modifier.height(10.dp))
         RangeBar(v)
         Spacer(Modifier.height(8.dp))
-    }
-}
-
-@Composable
-private fun ProfileStabilityCard(profile: UserStore.VoiceProfile) {
-    if (profile.stability.isEmpty()) return
-    MiconCard(kind = MiconCardKind.Outlined) {
-        Text("음역별 안정성", style = MaterialTheme.typography.titleMedium)
-        profile.stability.zip(profile.stabilityLabels).forEach { (value, note) ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(note, Modifier.width(44.dp), style = MaterialTheme.typography.bodySmall)
-                androidx.compose.material3.LinearProgressIndicator(
-                    progress = { value.coerceIn(0f, 1f) }, modifier = Modifier.weight(1f),
-                )
-            }
-        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { v.tags.forEach { (t, tone) -> MiconBadge(t, tone = tone) } }
     }
 }
 
@@ -201,6 +194,30 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
                     textAlign = when (i) { 0 -> TextAlign.Start; 1 -> TextAlign.Center; else -> TextAlign.End },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SimilarCard(v: VoiceView) {
+    MiconCard(kind = MiconCardKind.Outlined) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
+            Spacer(Modifier.weight(1f))
+            Text("${v.artists.size}명", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            v.artists.take(3).forEach { (name, image, pct) ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    CompactDisc(title = name, imageUrl = image, size = 56.dp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                    Text("$pct%", fontSize = 12.sp, fontFamily = MiconMonoFamily,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+            repeat(3 - v.artists.take(3).size) { Spacer(Modifier.weight(1f)) }
         }
     }
 }

@@ -61,17 +61,6 @@ class RemoteSongRepository(
         return result
     }
 
-    override suspend fun searchByArtist(artistId: Long, query: String, page: Int, size: Int, genreId: Long?): SongPage {
-        val body = api.songs(
-            query = query.trim(), genreId = genreId, artistId = artistId,
-            page = page.coerceAtLeast(0), size = size.coerceIn(1, 100),
-        ).unwrapData()
-        return SongPage(
-            items = body.content.map { it.toSummary() },
-            page = body.page, size = body.size, totalElements = body.totalElements, totalPages = body.totalPages,
-        )
-    }
-
     override fun invalidateSearchCache(query: String, size: Int, genreId: Long?) {
         firstPages.remove(SearchKey(tokens.snapshot().userId, query.trim().lowercase(), genreId, size.coerceIn(1, 100)))
     }
