@@ -111,8 +111,6 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
             val prev = lastWeekItems.map { it.overallScore!! }.average().takeIf { lastWeekItems.isNotEmpty() } ?: return null
             return now - prev.roundToInt()
         }
-        /** 스파크라인: 최근 7회(오래된 것 → 최신) */
-        val spark get() = scored.take(7).reversed().map { it.overallScore!!.roundToInt() }
         val visible get() = when (filter) {
             HistoryFilter.ALL -> items
             // 날짜가 없으면 "이번 주" 칩 자체를 감추므로, 고른 채로 남아 있어도 전체를 보여 준다
@@ -216,15 +214,6 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("$avg", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, lineHeight = 38.sp)
                     Text(" 점 · ${state.weekItems.size}회 연습", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                Spacer(Modifier.height(8.dp))
-                val spark = state.spark
-                Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
-                    val max = spark.maxOrNull() ?: 0
-                    spark.forEach { v ->
-                        Box(Modifier.weight(1f).fillMaxHeight((v / 100f).coerceIn(0.04f, 1f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                            .background(if (v == max) MaterialTheme.colorScheme.primary else Color(0xFFDCD6FF)))
-                    }
                 }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(MiconSpace.xs)) {
