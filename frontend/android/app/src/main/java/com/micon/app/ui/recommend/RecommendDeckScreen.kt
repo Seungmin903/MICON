@@ -158,7 +158,7 @@ fun RecommendDeckScreen(
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var coachOpen by rememberSaveable { mutableStateOf(false) }
 
-    val shelves = state.shelves
+    val shelves = state.shelves.filter { it.key == ShelfKeys.DISCOVERY }
     val shelf = shelves.getOrNull(shelfIndex.coerceIn(0, (shelves.size - 1).coerceAtLeast(0)))
     val items = shelf?.let { state.filtered(it.items) } ?: emptyList()
     val loadedIndex = items.indexOfFirst { it.song.id == loadedId }
