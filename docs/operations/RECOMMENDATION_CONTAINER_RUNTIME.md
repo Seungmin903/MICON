@@ -28,6 +28,7 @@ sudo stat -c '%n %u:%g %a' /etc/micon/backend-secrets/ai_service_token \
 AI_RECOMMENDATION_BASE_URL=http://micon-recommendation:8788
 AI_VOICE_ANALYSIS_ENABLED=false
 AI_ARTIST_SEARCH_ENABLED=true
+AI_ARTIST_SEARCH_SCORING_VERSION=ecapa-singer-byol-absolute-fusion-v3
 AI_SONG_FIT_ENABLED=false
 AI_RECOMMENDATION_ENABLED=false
 AI_RECOMMENDATION_POLLING_ENABLED=false
@@ -36,6 +37,8 @@ AI_RECOMMENDATION_RECOVERY_INTERVAL=1m
 AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY=10s
 SCHEDULED_TASK_POOL_SIZE=4
 ```
+
+닮은 가수 검색은 BE가 접수 시 저장한 `scoring_version`과 AI 콜백의 `modelVersion`을 비교한다. 배포 전 AI의 실제 버전을 확인하고 런타임 파일에 같은 값을 넣어야 한다. 기본값이나 런타임 설정을 바꿔도 기존 작업에 저장된 버전은 바뀌지 않는다. 과거 버전 불일치로 409가 난 작업은 `requestId`·`aiJobId`·`analysisId`·기존/신규 버전 및 AI의 보존된 콜백을 개별 대조한 뒤에만 복구한다. 단순 AI `/retry`는 같은 작업의 요청 버전을 갱신하지 않으므로 불일치를 해결하지 못한다. 검증된 작업만 별도로 정정하고 AI `/artist-search-jobs/{jobId}/redeliver`로 재전달한 후 BE 상태가 `COMPLETED` 또는 `NO_RESULT`인지 확인한다. 모든 409를 성공 처리하거나 기존 작업을 일괄 변경하지 않는다.
 
 추천 결과 폴링은 최대 4건의 AI 상태 조회를 동시에 실행한다. 복구 작업은 현재 프로필·설정 버전에 맞는 추천이 없는 사용자만 찾아 한 번에 최대 2건을 제출한다. AI의 JSON 추천 한도(실행 1건·대기 5건)를 복구 작업이 거의 다 차지하지 않도록 하기 위한 상한이다. 운영에서 폴링이 실제 활성화돼 있는지는 배포된 `/etc/micon/runtime/backend.env`와 BE 시작 로그로 확인한다. 서비스 토큰 등 비밀 값은 출력하지 않는다.
 
