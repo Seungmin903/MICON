@@ -267,6 +267,7 @@ fun RecommendDeckScreen(
                         onPrev = { items.getOrNull(loadedIndex - 1)?.let(::putOnDeck) },
                         onNext = { items.getOrNull(loadedIndex + 1)?.let(::putOnDeck) },
                         onDiscDragDown = { loadedId = null },
+                        onDetails = { loaded?.let(::open) },
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
 
