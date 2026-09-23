@@ -68,7 +68,7 @@ import kotlin.math.roundToInt
 
 /**
  * 분석 탭 — 프로토타입 `analysis` (이전 이름 리포트).
- * 내 목소리 카드(편한 음역 막대) · 나와 닮은 목소리 · 노래로 분석하기 · 음역 다시 측정하기.
+ * 분석 결과 카드(음역대 지도 · 내 목소리에 맞는 음악 · 나와 닮은 목소리) · 내 목소리 다시 분석하기.
  * 데이터는 홀로 결과(기기 저장) → 없으면 서버 프로필(UserStore) → 없으면 빈 상태.
  */
 @Composable
@@ -77,7 +77,7 @@ fun AnalysisScreen(
     result: HoloResult?,
     /** 처음부터 — 음역 측정 → 음색 측정 */
     onAnalyze: () -> Unit,
-    /** 음역만 다시 */
+    /** 내 목소리 다시 분석하기 — 음역 측정 → 음색 측정을 처음부터 */
     onMeasureRange: () -> Unit = onAnalyze,
     onSettings: () -> Unit,
     onLogin: (() -> Unit)? = null,
@@ -97,7 +97,7 @@ fun AnalysisScreen(
             }
         } else {
             VoiceResultContent(result, showStatus = false, showSummary = false)
-            MiconButton("음역 다시 측정하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
+            MiconButton("내 목소리 다시 분석하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }
 }
