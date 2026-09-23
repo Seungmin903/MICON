@@ -210,9 +210,26 @@ class PreferenceSurveyViewModelTest {
         advanceUntilIdle()
         assertEquals(setOf(2L), restored.state.value.selectedGenres.keys)
         assertEquals(setOf(5L), restored.state.value.selectedArtists.keys)
-        assertEquals(1, restored.state.value.step)
+        assertEquals(0, restored.state.value.step)
         assertTrue(otherAccount.state.value.selectedGenres.isEmpty())
         assertTrue(otherAccount.state.value.selectedArtists.isEmpty())
+    }
+
+    @Test fun `interrupted initial survey returns to first step without losing selections`() = runTest(dispatcher) {
+        val store = MemoryDrafts()
+        val vm = model(FakeRepository(), store)
+        advanceUntilIdle()
+        vm.toggleGenre(genres.first())
+        vm.next()
+        vm.toggleArtist(artists.first())
+        assertEquals(1, vm.state.value.step)
+
+        vm.restartAtFirstStep()
+
+        assertEquals(0, vm.state.value.step)
+        assertEquals(0, store.read(7, false)?.step)
+        assertEquals(setOf(1L), vm.state.value.selectedGenres.keys)
+        assertEquals(setOf(1L), vm.state.value.selectedArtists.keys)
     }
 
     @Test fun `completed preference edits remain local until explicit valid save`() = runTest(dispatcher) {

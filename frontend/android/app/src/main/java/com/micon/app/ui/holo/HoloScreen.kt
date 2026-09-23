@@ -1,6 +1,7 @@
 package com.micon.app.ui.holo
 
 import android.app.Activity
+import android.content.ContextWrapper
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
@@ -79,6 +80,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -136,8 +140,23 @@ fun HoloScreen(
     vm: HoloViewModel,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activity = generateSequence(LocalContext.current) { (it as? ContextWrapper)?.baseContext }
+        .filterIsInstance<Activity>().firstOrNull()
+    DisposableEffect(lifecycle, vm, activity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true) {
+                val current = vm.state.value
+                if (current.stage == HoloViewModel.Stage.TIMBRE &&
+                    (current.phase != HoloViewModel.Phase.DONE || current.result == null)) vm.reset()
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     LightStatusBarIcons()
-    if (state.stage == HoloViewModel.Stage.RANGE) RangeStage(vm, onSkip) else TimbreStage(vm, onResult, onSkip)
+    if (state.stage == HoloViewModel.Stage.RANGE) RangeStage(vm, onSkip, state.rangeRestartVersion)
+    else TimbreStage(vm, onResult, onSkip)
 }
 
 // ---------------------------------------------------------------- 1단계: 음역
@@ -147,12 +166,29 @@ fun HoloScreen(
  * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 15초 → 높은 음 15초.
  */
 @Composable
-private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?) {
+private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVersion: Long) {
     val context = LocalContext.current
     val repository = remember { RangeRepository(context.applicationContext) }
     val rangeVm: FreeRangeViewModel = viewModel(key = "holo-range", factory = viewModelFactory {
         initializer { FreeRangeViewModel(context.applicationContext, repository, true) }
     })
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val activity = generateSequence(context) { (it as? ContextWrapper)?.baseContext }
+        .filterIsInstance<Activity>().firstOrNull()
+    DisposableEffect(lifecycle, rangeVm, vm, activity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true &&
+                vm.state.value.stage == HoloViewModel.Stage.RANGE) {
+                vm.reset()
+                rangeVm.restartMeasurement(vm.state.value.rangeRestartVersion)
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(rangeRestartVersion, rangeVm) {
+        if (rangeRestartVersion > 0L) rangeVm.restartMeasurement(rangeRestartVersion)
+    }
     val rs by rangeVm.state.collectAsStateWithLifecycle()
     val view = rs.view
     val start = rememberMicrophoneAccess(onAllowed = rangeVm::start, onDenied = { })
@@ -205,11 +241,16 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?) {
                     Box(Modifier.fillMaxWidth(progress).fillMaxSize().background(Color.White))
                 }
                 when {
+                    rs.busy || (done && rs.savedId == null && rs.error == null) ->
+                        HoloButton("정리하는 중…", enabled = false) {}
+                    done && (rs.error != null || preview == null) -> HoloButton("다시 측정하기") {
+                        vm.reset()
+                        rangeVm.restartMeasurement(vm.state.value.rangeRestartVersion)
+                    }
                     done -> HoloButton("노래로 음색 측정하기") { vm.rangeMeasured(preview) }
-                    rs.busy -> HoloButton("정리하는 중…", enabled = false) {}
                     running -> Text("듣고 있어요", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                    rs.error != null -> HoloButton("이 단계 다시 하기", onClick = rangeVm::retryStage)
+                    rs.error != null || view.phase == "failed" -> HoloButton("이 단계 다시 하기", onClick = rangeVm::retryStage)
                     else -> HoloButton("음역 측정 시작", onClick = start)
                 }
             }
