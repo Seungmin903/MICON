@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.util.Optional;
 
 @Service
 public class RecommendationLifecycleService {
@@ -51,8 +53,49 @@ public class RecommendationLifecycleService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void scheduleDispatchRetry(long recommendationId, LocalDateTime nextAttempt) {
+        locked(recommendationId).scheduleDispatchRetry(nextAttempt);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<PendingDispatch> claimDispatchRetry(long recommendationId, LocalDateTime now,
+                                                        Duration lease, Duration maxWait) {
+        Recommendation recommendation = locked(recommendationId);
+        if (recommendation.getStatus() != RecommendationStatus.GENERATING || recommendation.getJobId() != null) {
+            return Optional.empty();
+        }
+        if (recommendation.getDispatchRetryAt() == null) {
+            // A crash before the first AI response is ambiguous: AI may already have
+            // accepted a job. Do not submit a duplicate without an idempotency key.
+            if (recommendation.getGeneratedAt().isBefore(now.minus(lease))) {
+                recommendation.fail("AI_DISPATCH_UNCONFIRMED", "AI 접수 여부를 확인할 수 없어 다시 요청이 필요합니다.", now);
+            }
+            return Optional.empty();
+        }
+        // Another worker may hold a lease even when the overall deadline has passed.
+        // Do not fail its in-flight submission from a stale candidate list.
+        if (recommendation.getDispatchRetryAt().isAfter(now)) return Optional.empty();
+        if (!now.isBefore(recommendation.getGeneratedAt().plus(maxWait))) {
+            recommendation.fail("AI_CAPACITY_TIMEOUT", "추천 서버 대기열이 계속 가득 차 다시 요청이 필요합니다.", now);
+            return Optional.empty();
+        }
+        if (!recommendation.claimDispatchRetry(now, now.plus(lease))) {
+            return Optional.empty();
+        }
+        return Optional.of(new PendingDispatch(recommendation.getId(), recommendation.getUser().getId(),
+                recommendation.getVoiceProfile().getId(), recommendation.getSourceSessionId(),
+                recommendation.getProfileVersion(), recommendation.getPreferenceVersion(),
+                recommendation.getMode(), recommendation.getDispatchAttempts()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void fail(long recommendationId, String reason) {
-        locked(recommendationId).fail("AI_DISPATCH_FAILED", abbreviate(reason), LocalDateTime.now());
+        fail(recommendationId, "AI_DISPATCH_FAILED", reason);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void fail(long recommendationId, String code, String reason) {
+        locked(recommendationId).fail(code, abbreviate(reason), LocalDateTime.now());
     }
 
     private Recommendation locked(long recommendationId) {
@@ -68,5 +111,16 @@ public class RecommendationLifecycleService {
     }
 
     public record Created(long recommendationId, LocalDateTime generatedAt) {
+    }
+
+    public record PendingDispatch(long recommendationId, long userId, long profileId,
+                                  Long sourceSessionId, Long profileVersion, Long preferenceVersion,
+                                  RecommendationMode mode, int attempts) {
+        public boolean matches(RecommendationInput input) {
+            return profileId == input.profileId()
+                    && java.util.Objects.equals(sourceSessionId, input.sourceSessionId())
+                    && java.util.Objects.equals(profileVersion, input.profileVersion())
+                    && java.util.Objects.equals(preferenceVersion, input.preferenceVersion());
+        }
     }
 }
