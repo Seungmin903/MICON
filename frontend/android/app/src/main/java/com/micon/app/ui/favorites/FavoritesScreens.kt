@@ -553,13 +553,13 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
                                                 val currentIndex = songItems.indexOfFirst { it.key == dragged }
                                                 val current = songItems.getOrNull(currentIndex) ?: return@detectDragGesturesAfterLongPress
-                                                // 화면 끝에 이웃 곡이 한 곡 이하로 남으면 목록도 함께 움직여
+                                                // 화면 끝에 이웃 곡이 두 곡 이하로 남으면 목록도 함께 움직여
                                                 // 다음/이전 곡을 계속 한 칸씩 교체할 수 있게 한다.
                                                 val songsBelow = songItems.size - currentIndex - 1
                                                 val songsAbove = currentIndex
                                                 when {
-                                                    amount.y > 0f && songsBelow <= 1 -> listState.dispatchRawDelta(amount.y.coerceAtMost(24f))
-                                                    amount.y < 0f && songsAbove <= 1 -> listState.dispatchRawDelta(amount.y.coerceAtLeast(-24f))
+                                                    amount.y > 0f && songsBelow <= 2 -> listState.dispatchRawDelta((amount.y * 2f).coerceAtMost(48f))
+                                                    amount.y < 0f && songsAbove <= 2 -> listState.dispatchRawDelta((amount.y * 2f).coerceAtLeast(-48f))
                                                 }
                                                 val target = when {
                                                     dragOffset > 0f -> songItems.getOrNull(currentIndex + 1)
