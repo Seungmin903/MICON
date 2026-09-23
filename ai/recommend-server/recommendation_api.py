@@ -658,10 +658,6 @@ def get_recommendation(job_id: str) -> dict[str, Any]:
 
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
-    try:
-        config, _ = _configuration_status()
-        catalog = CatalogIndex.load(config["index_dir"])
-        artists = ArtistCatalog.load(catalog)
-    except (OSError, ValueError, KeyError, TypeError):
-        return public_response(job)
-    return public_response(job, artists, catalog)
+    # 상태 폴링은 수백 ms마다 실행될 수 있다. 작업을 만들 때 이미 곡 ID를 확정했으므로
+    # 여기서 카탈로그·가수 스냅샷을 매번 다시 읽지 않는다.
+    return public_response(job)

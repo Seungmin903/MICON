@@ -247,7 +247,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
                     _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note,
                         loading = false, generating = r.generating)
                     if (!r.generating) return@launch
-                    delay(2_000)
+                    delay(750)
                 }
                 if (request == generation && revision == UserStore.voiceDataRevision.value)
                     _state.value = _state.value.copy(generating = false,

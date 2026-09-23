@@ -49,7 +49,7 @@ data class RecommendationShelfDto(
     val items: List<RecommendationSongDto> = emptyList(),
 )
 
-/** RecommendationResponse.Song — 곡 id 만 있고 제목·가수는 없다(앱이 곡 카탈로그에서 채운다). */
+/** RecommendationResponse.Song — 최신 서버는 [summary]로 카드 표시 정보를 함께 보낸다. */
 data class RecommendationSongDto(
     val songId: String = "",
     val overallRank: Int = 0,
@@ -65,6 +65,7 @@ data class RecommendationSongDto(
     val reasonText: String? = null,
     val scoringVersion: String? = null,
     val compositionVersion: String? = null,
+    val summary: SongSummaryDto? = null,
 )
 
 /** `GET /songs/{songId}/fit?analysisId&keyOffset` → SongFitResponse */

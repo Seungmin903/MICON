@@ -11,6 +11,8 @@ import com.micon.backend.domain.recommendation.entity.Recommendation;
 import com.micon.backend.domain.recommendation.entity.RecommendationShelf;
 import com.micon.backend.domain.recommendation.entity.RecommendationSong;
 import com.micon.backend.domain.preference.repository.UserPreferenceRepository;
+import com.micon.backend.domain.song.dto.SongResponse;
+import com.micon.backend.domain.song.repository.SongQueryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -28,16 +30,19 @@ public class RecommendationQueryService {
     private final RecommendationSongRepository songs;
     private final ObjectMapper objectMapper;
     private final UserPreferenceRepository preferences;
+    private final SongQueryRepository songQueries;
 
     public RecommendationQueryService(RecommendationRepository recommendations,
                                       RecommendationShelfRepository shelves,
                                       RecommendationSongRepository songs,
-                                      ObjectMapper objectMapper, UserPreferenceRepository preferences) {
+                                      ObjectMapper objectMapper, UserPreferenceRepository preferences,
+                                      SongQueryRepository songQueries) {
         this.recommendations = recommendations;
         this.shelves = shelves;
         this.songs = songs;
         this.objectMapper = objectMapper;
         this.preferences = preferences;
+        this.songQueries = songQueries;
     }
 
     @Transactional(readOnly = true)
@@ -71,12 +76,15 @@ public class RecommendationQueryService {
         Map<Long, List<RecommendationSong>> songsByShelf = songs
                 .findByRecommendationIdOrderByOverallRank(recommendation.getId()).stream()
                 .collect(Collectors.groupingBy(item -> item.getShelf().getId()));
+        Map<String, SongResponse.Summary> summaries = songQueries.findSummariesByIds(
+                songsByShelf.values().stream().flatMap(List::stream)
+                        .map(item -> item.getId().getSongId()).collect(Collectors.toSet()));
         List<RecommendationResponse.Shelf> shelfResponses = orderedShelves.stream()
                 .map(shelf -> new RecommendationResponse.Shelf(
                         shelf.getKey(), shelf.getTitle(), shelf.getMetric(), shelf.getOrder(),
                         songsByShelf.getOrDefault(shelf.getId(), List.of()).stream()
                                 .sorted(java.util.Comparator.comparingInt(RecommendationSong::getShelfPosition))
-                                .map(this::song).toList()))
+                                .map(item -> song(item, summaries.get(item.getId().getSongId()))).toList()))
                 .toList();
         return new RecommendationResponse(
                 recommendation.getId(), recommendation.getJobId(), recommendation.getStatus(),
@@ -90,11 +98,15 @@ public class RecommendationQueryService {
     }
 
     private RecommendationResponse.Song song(RecommendationSong song) {
+        return song(song, null);
+    }
+
+    private RecommendationResponse.Song song(RecommendationSong song, SongResponse.Summary summary) {
         return new RecommendationResponse.Song(
                 song.getId().getSongId(), song.getOverallRank(), song.getShelfPosition(), song.getAxis(),
                 song.getLabel(), song.getRecommendedKey(), song.getFinalScore(), song.getTimbreScore(),
                 json(song.getRangeFit()), json(song.getMetrics()), song.getReasonText(),
-                song.getScoringVersion(), song.getCompositionVersion());
+                song.getScoringVersion(), song.getCompositionVersion(), summary);
     }
 
     private JsonNode json(String value) {
