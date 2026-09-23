@@ -270,7 +270,11 @@ fun RecommendDeckScreen(
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
 
-                    NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
+                    // 선택 전에는 제목 영역을 만들지 않아 곡 카드가 그 자리까지 올라온다.
+                    // 곡을 올린 뒤에만 같은 위치에 현재 곡 제목·가수를 표시한다.
+                    if (loaded != null) {
+                        NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
+                    }
 
                     if (loaded == null) {
                         CardFan(
