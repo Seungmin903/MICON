@@ -44,7 +44,7 @@ git lfs pull --include="ai/recommend-server/recommender-assets/catalog-index/*"
 
 설치에는 Python 3.11과 uv가 필요하다. setup은 자체 .venv, 모델 체크포인트, 실행 설정을 만든다. 이 작업에서 사용한 모델 라이브러리 조합은 torch/torchaudio 2.7.1 + torchvision 0.22.1이다. [PyTorch 공식 조합](https://pytorch.org/get-started/previous-versions/#v271)을 따르며 기존 2.13.0/2.11.0 혼용을 제거했다. 새 노트북에 모델 설치·다운로드까지 실행한 것은 아니다.
 
-아래 주소·토큰은 운영자가 실제 값으로 설정한다. 토큰은 BE와 동일한 값을 사용한다.
+아래 주소·토큰은 운영자가 실제 값으로 설정한다. 토큰은 BE와 동일한 값을 사용한다. 직접 환경변수를 설정하거나 `-EnvFile`을 지정하는 두 방식 중 하나를 사용한다.
 
 ```powershell
 $env:AI_SERVICE_TOKEN = '<BE와 공유하는 서비스 토큰>'
@@ -54,6 +54,9 @@ $env:RECOMMEND_CONCURRENCY = '1'
 # RANGE를 다른 가상환경에서 실행할 때만 지정
 # $env:MICON_RANGE_MODEL_PYTHON = 'C:/.../range/.venv/Scripts/python.exe'
 ./start-laptop.ps1 -Port 8788
+# 또는 배포 환경 파일을 불러올 때는 파일 경로와 배포 커밋을 지정한다.
+# ./start-laptop.ps1 -Port 8788 -BindHost 127.0.0.1 -Python C:/micon/.venv-gpu/Scripts/python.exe `
+#   -EnvFile C:/micon/runtime/laptop.env -BuildSha <배포 커밋 SHA>
 ```
 
 BE 설정:
@@ -66,7 +69,9 @@ AI_VOICE_ANALYSIS_MAX_WAIT=10m
 AI_RECOMMENDATION_POLLING_MAX_WAIT=10m
 ```
 
-앱의 API_BASE_URL은 BE 주소다. AI 토큰·노트북 주소를 앱에 넣지 않는다. 기존 외부 BE에서 노트북까지 라우팅할 수 있어야 하며, localhost는 해당 프로세스가 실행되는 컴퓨터 자신이다. 저장소 .gitignore가 .env/.env.*를 제외한다. start-laptop.ps1은 현재 프로세스의 환경변수를 읽으며 .env를 자동 로드하지 않는다.
+앱의 API_BASE_URL은 BE 주소다. AI 토큰·노트북 주소를 앱에 넣지 않는다. 기존 외부 BE에서 노트북까지 라우팅할 수 있어야 하며, localhost는 해당 프로세스가 실행되는 컴퓨터 자신이다. 저장소 .gitignore가 .env/.env.*를 제외한다. `start-laptop.ps1 -EnvFile <경로>`는 지정한 파일을 현재 PowerShell 프로세스에만 읽어들인다. 비밀 값은 출력하지 않는다. `-BuildSha`는 Git 메타데이터가 없는 배포 릴리스에서도 `/health`가 실제 실행 커밋을 표시하게 한다.
+
+Uvicorn을 실행하기 전에 `scripts/preflight_local_catalog.py`가 현재 코드의 카탈로그 계약을 사용해 인덱스·음역 프로파일·가수 스냅샷을 검증한다. 계약 버전과 키 이동 범위는 실행 코드에서 가져오며, 파일 해시와 세 데이터의 곡 집합도 확인한다. 잘못된 카탈로그면 포트를 열지 않고 중단한다.
 
 `MICON_BE_BASE_URL`은 `/api/v1` 없이 BE 내부 주소를 지정한다. AI는 여기에 `/internal/embedding-catalog/active`를 붙인다. 공개 Nginx는 `/internal/`과 `/api/v1/internal/`을 모두 404로 차단하므로 노트북에서 BE 내부망 또는 터널로 접근할 수 있어야 한다. 위 콜백 예시는 공개 API 주소이며, 콜백도 내부 BE로 보낼 때는 `/callbacks/voice-analysis-components`를 사용한다.
 
