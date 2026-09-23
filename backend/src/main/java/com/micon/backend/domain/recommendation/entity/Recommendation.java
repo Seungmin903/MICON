@@ -48,6 +48,12 @@ public class Recommendation {
     @Column(name = "job_id", unique = true, length = 255)
     private String jobId;
 
+    @Column(name = "dispatch_attempts", nullable = false)
+    private int dispatchAttempts;
+
+    @Column(name = "dispatch_retry_at")
+    private LocalDateTime dispatchRetryAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private RecommendationMode mode;
@@ -120,6 +126,8 @@ public class Recommendation {
                 && Objects.equals(sourceSessionId, voiceProfile.getSession().getId());
     }
     public String getJobId() { return jobId; }
+    public int getDispatchAttempts() { return dispatchAttempts; }
+    public LocalDateTime getDispatchRetryAt() { return dispatchRetryAt; }
     public RecommendationMode getMode() { return mode; }
     public RecommendationStatus getStatus() { return status; }
     public short getProgress() { return progress; }
@@ -138,6 +146,23 @@ public class Recommendation {
             throw new IllegalArgumentException("jobId must not be blank");
         }
         this.jobId = jobId;
+        this.dispatchRetryAt = null;
+    }
+
+    public boolean claimDispatchRetry(LocalDateTime now, LocalDateTime leaseUntil) {
+        if (status != RecommendationStatus.GENERATING || jobId != null
+                || dispatchRetryAt == null || dispatchRetryAt.isAfter(now)) return false;
+        dispatchAttempts++;
+        dispatchRetryAt = leaseUntil;
+        return true;
+    }
+
+    public void scheduleDispatchRetry(LocalDateTime nextAttempt) {
+        requireGenerating();
+        if (jobId != null || nextAttempt == null) {
+            throw new IllegalStateException("only an unsubmitted recommendation can be retried");
+        }
+        dispatchRetryAt = nextAttempt;
     }
 
     public void updateProgress(int progress) {
@@ -183,6 +208,7 @@ public class Recommendation {
         this.failureCode = failureCode;
         this.failureReason = failureReason;
         this.completedAt = requiredTime(completedAt);
+        this.dispatchRetryAt = null;
     }
 
     private void requireGenerating() {

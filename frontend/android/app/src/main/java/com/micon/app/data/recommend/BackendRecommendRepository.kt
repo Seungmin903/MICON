@@ -183,7 +183,7 @@ class BackendRecommendRepository(
                 }
                 RecommendShelf(shelf.key, shelf.title, shelf.metric, items)
             }
-            .filter { it.items.isNotEmpty() }
+            .filter { it.items.isNotEmpty() || it.key == ShelfKeys.DISCOVERY }
     }
 
     /** 곡 카탈로그(`GET /songs`)를 페이지로 읽어 id→요약 캐시를 만든다. 캐시에 없는 곡은 상세를 한 번 더 읽는다. */

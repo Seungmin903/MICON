@@ -141,7 +141,7 @@ class PracticeViewModel(
     private var keyChangeCount = 0
     private var sessionInitialKey: Int? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-    private val capture = PitchCapture()
+    private val capture = PitchCapture(fmin = ScoringConstants.PRACTICE_PITCH_MIN_HZ)
     private val cacheDir = appContext.cacheDir
     private val vibrator: Vibrator? = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
@@ -420,7 +420,7 @@ class PracticeViewModel(
         _state.update { it.copy(phase = Phase.PAUSED, countdown = 0, buffering = false, totals = scorer?.totals(), measures = scorer?.measures() ?: emptyList(), interlude = sections.interludeAt(player.positionSec)) }
     }
 
-    /** 끝까지 부르지 않고 마치기(PAUSED → FINISHED). 판정한 음표가 하나도 없으면 READY 로 돌아간다. */
+    /** 끝까지 부르지 않고 마치기. 점수가 0점이어도 정상 완료·기록 저장 흐름으로 이어진다. */
     fun finishEarly() {
         if (_state.value.phase != Phase.PAUSED) return
         finish()
@@ -432,15 +432,16 @@ class PracticeViewModel(
         player.pause()
         wavFile = capture.stop() ?: wavFile
         val scorer = scorer
-        val judged = scorer?.totals()?.judged ?: 0
+        val totals = scorer?.totals()
+        val hasAttempt = scorer != null
         _state.update {
             it.copy(
-                phase = if (judged > 0) Phase.FINISHED else Phase.READY, countdown = 0, buffering = false, interlude = null,
-                totals = scorer?.totals(), measures = scorer?.measures() ?: emptyList(),
+                phase = if (hasAttempt) Phase.FINISHED else Phase.READY, countdown = 0, buffering = false, interlude = null,
+                totals = totals, measures = scorer?.measures() ?: emptyList(),
                 calibrationMs = ((scorer?.calibration ?: 0.0) * 1000).toInt(),
             )
         }
-        if (judged > 0) savePractice() else cancelOpenPractice()
+        if (hasAttempt) savePractice() else cancelOpenPractice()
     }
 
     /** 처음부터: 판정·녹음을 버리고 READY 로. 열린 백엔드 세션은 취소한다. */

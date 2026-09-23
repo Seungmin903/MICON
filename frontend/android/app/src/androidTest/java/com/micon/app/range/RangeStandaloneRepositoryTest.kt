@@ -78,6 +78,29 @@ class RangeStandaloneRepositoryTest {
         assertEquals(second, reopened.lastSessionReport()!!.analysisId)
     }
 
+    @Test fun restartingFreeMeasurementRemovesOnlyUnfinishedAudioAndKeepsVerifiedReport() = runBlocking {
+        val context = context()
+        val model = Model()
+        val repository = RangeRepository(context, model)
+        val verifiedId = pending(repository)
+        model.report = result().copy(analysisId = verifiedId)
+        repository.submit {}
+
+        val pendingId = pending(repository)
+        val checkpointId = UUID.randomUUID().toString()
+        com.micon.app.audio.writeQualityWav(repository.audio(checkpointId))
+        repository.saveFreeCheckpoint(FreeRangeCheckpoint(checkpointId, emptyList(), .001, 3.0))
+
+        repository.discardUnfinishedFreeMeasurement()
+
+        assertNull(repository.pending())
+        assertNull(repository.freeCheckpoint())
+        assertFalse(repository.audio(pendingId).exists())
+        assertFalse(repository.audio(checkpointId).exists())
+        assertEquals(verifiedId, repository.localReport()?.analysisId)
+        assertEquals(verifiedId, repository.lastSessionReport()?.analysisId)
+    }
+
     @Test fun unverifiedOrWrongVersionResponsesPreserveRecordingAndPendingState() = runBlocking {
         val model = Model()
         val repository = RangeRepository(context(), model)

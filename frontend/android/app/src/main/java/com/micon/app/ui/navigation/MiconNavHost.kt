@@ -27,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.micon.app.appContainer
 import com.micon.app.data.onboarding.VoiceProfileSync
+import com.micon.app.data.local.UserStore
+import com.micon.app.data.voice.VoiceProfileMapper
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -237,7 +239,7 @@ private fun MiconNavHost(
         // ---- 첫 화면: 목소리 분석 → 결과 ----
         composable(Routes.HOLO) {
             HoloScreen(vm = holo, onResult = { nav.navigate(Routes.VOICE_RESULT) { launchSingleTop = true } },
-                onSkip = { leaveHolo(Routes.REPORT) })
+                onSkip = { holo.reset(); leaveHolo(Routes.REPORT) })
         }
         composable(Routes.VOICE_RESULT) {
             val holoState by holo.state.collectAsStateWithLifecycle()
@@ -250,7 +252,11 @@ private fun MiconNavHost(
                 onSave = {
                     if (TokenManager.isLoggedIn() && result.profileSaved) leaveHolo(Routes.RECOMMEND)
                     else if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
-                    else { session.rememberDestinationRoute(Routes.HOLO); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
+                    else {
+                        session.rememberDestinationRoute(Routes.HOLO)
+                        holo.reset()
+                        nav.navigate(Routes.LOGIN) { launchSingleTop = true }
+                    }
                 },
                 onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
         }
@@ -290,7 +296,7 @@ private fun MiconNavHost(
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
             else RecommendDeckScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
-                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } })
+                onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (isGuest || !accessGranted) return@composable
@@ -309,19 +315,23 @@ private fun MiconNavHost(
         // ---- 탭: 분석 (이전 리포트) ----
         composable(Routes.REPORT) {
             if (!accessGranted) return@composable
+            val holoState by holo.state.collectAsStateWithLifecycle()
+            val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
+            // 예전 상세 화면과 같은 우선순위로 결과를 골라 닮은 가수 등 최신 분석값을 보존한다.
+            val analysisResult = holoState.result ?: holo.previousResult()
+                ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             AnalysisScreen(
+                result = analysisResult,
                 onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
-                // 노래로 분석하기 — 음역은 지난 값을 쓰고 음색(노래)만 다시 본다
-                onSingAnalyze = { holo.startTimbreOnly(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onMeasureRange = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
-                onDetail = { nav.navigate(Routes.VOICE_RESULT_VIEW) },
                 onLogin = if (isGuest) ({ openLogin() }) else null,
             )
         }
         composable(Routes.VOICE_RESULT_VIEW) {
             val holoState by holo.state.collectAsStateWithLifecycle()
-            val result = holoState.result ?: holo.previousResult()
+            val savedProfile by UserStore.profile.collectAsStateWithLifecycle()
+            val result = holoState.result ?: holo.previousResult() ?: savedProfile?.let(VoiceProfileMapper::toDisplayResult)
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = false, onSave = {}, onRetry = {}, onBack = { nav.popBackStack() })
         }
@@ -377,6 +387,7 @@ private fun MiconNavHost(
             if (!accessGranted) return@composable
             val songId = entry.arguments?.getString("songId") ?: return@composable
             PracticeScreen(songId = songId, onBack = { nav.popBackStack() }, onOpenResult = { practiceId -> nav.navigate(Routes.result(practiceId)) },
+                onReturnToPractice = { nav.openBottomTab(Routes.PRACTICE) },
                 initialKey = entry.arguments?.getInt("selectedKey") ?: 0)
         }
 

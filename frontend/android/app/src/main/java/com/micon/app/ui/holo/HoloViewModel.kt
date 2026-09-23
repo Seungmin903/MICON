@@ -24,7 +24,9 @@ import com.micon.app.ui.design.molecules.NoteNames
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -53,6 +55,8 @@ class HoloViewModel(
 
     data class State(
         val stage: Stage = Stage.RANGE,
+        /** 새 음역 측정을 시작할 때 기존 화면 범위의 측정 ViewModel에도 전달한다. */
+        val rangeRestartVersion: Long = 0,
         /** 1단계에서 잰 음역(또는 지난 측정값). 2단계 결과 카드의 음역은 이 값을 쓴다 */
         val measuredLow: Int? = null,
         val measuredHigh: Int? = null,
@@ -110,6 +114,7 @@ class HoloViewModel(
     private var lastTickPos = -1.0
     private var dataVersion: String? = null
     private var tick: Job? = null
+    private var startJob: Job? = null
     private var searchJob: Job? = null
     private var submitJob: Job? = null
     private var saveJob: Job? = null
@@ -185,18 +190,24 @@ class HoloViewModel(
      */
     fun startTimbreOnly() {
         cancelPendingSubmission()
+        startJob?.cancel()
         val last = store.read(ownerId)
-        if (last == null) { _state.update { State(hasPrevious = it.hasPrevious) }; return }
+        if (last == null) {
+            _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
+            return
+        }
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update {
-            State(hasPrevious = true, stage = Stage.TIMBRE, measuredLow = last.lowMidi, measuredHigh = last.highMidi)
+            State(hasPrevious = true, stage = Stage.TIMBRE, measuredLow = last.lowMidi, measuredHigh = last.highMidi,
+                rangeRestartVersion = it.rangeRestartVersion)
         }
     }
 
     fun backToRange() {
         cancelPendingSubmission()
+        startJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
-        _state.update { State(hasPrevious = it.hasPrevious) }
+        _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
     // ---- 검색 ----
@@ -223,18 +234,28 @@ class HoloViewModel(
     fun start() {
         if (_state.value.phase != Phase.IDLE && _state.value.phase != Phase.ERROR) return
         val picked = _state.value.picked
+        val startVersion = _state.value.rangeRestartVersion
+        startJob?.cancel()
         frames.clear()
         _state.update { it.copy(phase = Phase.LOADING, error = null, elapsedSec = 0.0) }
-        viewModelScope.launch {
+        startJob = viewModelScope.launch {
             try {
                 if (picked != null) prepareSong(picked)
                 else { sheet = null; songStartSec = 0.0 }
+                currentCoroutineContext().ensureActive()
+                if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return@launch
                 val file = File(File(appContext.filesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
                 wav = file
                 sungAccum = 0.0
                 lastTickPos = -1.0
-                capture.start(file, onError = { e -> _state.update { it.copy(phase = Phase.ERROR, error = e.message ?: "마이크를 열지 못했어요.") } }) { f ->
-                    synchronized(frames) { frames.add(f) }
+                capture.start(file, onError = { e ->
+                    _state.update { current ->
+                        if (current.rangeRestartVersion == startVersion && current.stage == Stage.TIMBRE &&
+                            current.phase in setOf(Phase.LOADING, Phase.REC))
+                            current.copy(phase = Phase.ERROR, error = e.message ?: "마이크를 열지 못했어요.") else current
+                    }
+                }) { f ->
+                    if (_state.value.rangeRestartVersion == startVersion) synchronized(frames) { frames.add(f) }
                 }
                 if (picked != null) { player.seekTo(songStartSec); player.play() }
                 val (l0, i0) = lyricsAt(if (picked != null) songStartSec else 0.0)
@@ -266,7 +287,10 @@ class HoloViewModel(
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                _state.update { it.copy(phase = Phase.ERROR, error = e.message ?: "준비 중 문제가 생겼어요.") }
+                _state.update { current ->
+                    if (current.rangeRestartVersion == startVersion && current.stage == Stage.TIMBRE)
+                        current.copy(phase = Phase.ERROR, error = e.message ?: "준비 중 문제가 생겼어요.") else current
+                }
             }
         }
     }
@@ -397,11 +421,17 @@ class HoloViewModel(
 
     fun reset() {
         cancelPendingSubmission()
+        startJob?.cancel()
+        searchJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
-        _state.update { State(hasPrevious = it.hasPrevious, picked = it.picked, query = it.query) }
+        if (_state.value.phase != Phase.DONE) wav?.delete()
+        wav = null
+        synchronized(frames) { frames.clear() }
+        _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
     override fun onCleared() {
+        startJob?.cancel()
         tick?.cancel()
         if (capture.isRunning) capture.stop()
         player.release()
