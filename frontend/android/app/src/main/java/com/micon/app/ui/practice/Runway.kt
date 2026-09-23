@@ -41,7 +41,6 @@ fun Runway(
 ) {
     val textPaint = remember { Paint().apply { isAntiAlias = true } }
     val ink = Color(ScoringUi.COLOR_INK)
-    val muted = Color(ScoringUi.COLOR_MUTED)
     val nowColor = Color(0xFF6C5CE7)
     val runwayBackground = Color(0xFFF7F5FC)
 
@@ -57,7 +56,20 @@ fun Runway(
         var targetLow = ((pool.minOfOrNull { it.midi } ?: 60) + keyShift - 2).toDouble()
         var targetHigh = ((pool.maxOfOrNull { it.midi } ?: 72) + keyShift + 2).toDouble()
         if (targetHigh - targetLow < 11) { val mid = (targetHigh + targetLow) / 2; targetLow = mid - 5.5; targetHigh = mid + 5.5 }
-        if (view[0].isNaN()) { view[0] = targetLow; view[1] = targetHigh } else { view[0] += (targetLow - view[0]) * 0.12; view[1] += (targetHigh - view[1]) * 0.12 }
+        val traceFrames = frames.takeLast(500).filter {
+            it.t >= nowSec - RUNWAY_SECONDS_BEHIND && it.t <= nowSec + RUNWAY_SECONDS_AHEAD
+        }
+        // 피치는 실제 절대 음높이로 그린다. 한두 옥타브 차이도 잘리지 않도록 현재 창의 유성 음을 축에 포함한다.
+        // 지나치게 튄 프레임 하나가 축을 망가뜨리지 않게 목표 음역에서 ±24반음 안만 사용한다.
+        val traceMidi = traceFrames.mapNotNull { it.midi }
+            .filter { it in (targetLow - 24.0)..(targetHigh + 24.0) }
+        targetLow = minOf(targetLow, traceMidi.minOrNull()?.minus(1.0) ?: targetLow)
+        targetHigh = maxOf(targetHigh, traceMidi.maxOrNull()?.plus(1.0) ?: targetHigh)
+        if (view[0].isNaN()) { view[0] = targetLow; view[1] = targetHigh } else {
+            // 새 음역이 들어오면 즉시 확장해 옥타브 오류가 화면 밖에 숨지 않게 하고, 축소만 부드럽게 한다.
+            view[0] = if (targetLow < view[0]) targetLow else view[0] + (targetLow - view[0]) * 0.12
+            view[1] = if (targetHigh > view[1]) targetHigh else view[1] + (targetHigh - view[1]) * 0.12
+        }
         val low = view[0]
         val high = view[1]
         val nowX = width * 0.3f
@@ -105,25 +117,19 @@ fun Runway(
             }
             drawRoundRect(color, topLeft = Offset(x0, y - barHeight / 2), size = Size(x1 - x0, barHeight), cornerRadius = androidx.compose.ui.geometry.CornerRadius(barHeight / 2))
         }
-        // 내 목소리 궤적 (옥타브는 목표 근처로 폴딩) — 보라, 굵게
+        // 내 목소리 궤적 (실제 옥타브 유지) — 보라, 굵게
         val path = Path()
         var open = false
-        var anchor = (low + high) / 2.0
         var previous = Double.NaN
-        val from = maxOf(0, frames.size - 500)
-        for (i in from until frames.size) {
-            val frame = frames[i]
-            if (frame.t < nowSec - RUNWAY_SECONDS_BEHIND) continue
+        for (frame in traceFrames) {
             val midi = frame.midi
             if (midi == null) { open = false; previous = Double.NaN; continue }
-            val active = bars.firstOrNull { it.start - 0.1 <= frame.t && frame.t <= it.end + 0.1 }
-            if (active != null) anchor = (active.midi + keyShift).toDouble()
-            val displayed = anchor + ScoringMath.fold(midi - anchor)
-            // 옥타브 접기 기준(anchor)이 바뀌거나 피치가 크게 튀면 선을 끊는다 — 세로로 길게 긋는 잡선 방지
-            if (!previous.isNaN() && abs(displayed - previous) > 4.0) open = false
-            previous = displayed
+            if (midi !in (targetLow - 24.0)..(targetHigh + 24.0)) { open = false; previous = Double.NaN; continue }
+            // 피치가 갑자기 튀면 선을 끊는다 — 세로로 길게 긋는 잡선 방지
+            if (!previous.isNaN() && abs(midi - previous) > 4.0) open = false
+            previous = midi
             val x = timeToX(frame.t)
-            val y = midiToY(displayed)
+            val y = midiToY(midi)
             if (!open) { path.moveTo(x, y); open = true } else path.lineTo(x, y)
         }
         drawPath(path, Color(0xFF6C5CE7), style = Stroke(width = 3f * dp, cap = androidx.compose.ui.graphics.StrokeCap.Round))
@@ -142,6 +148,5 @@ fun Runway(
         textPaint.textSize = 10f * dp
         textPaint.color = android.graphics.Color.argb(255, 0x69, 0x73, 0x6C)
         drawContext.canvas.nativeCanvas.drawText(ScoringMath.formatTime(nowSec), nowX + 6f * dp, plotBottom - 3f * dp, textPaint)
-        @Suppress("UNUSED_VARIABLE") val unused = muted
     }
 }

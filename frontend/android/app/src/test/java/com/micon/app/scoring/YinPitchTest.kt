@@ -24,6 +24,14 @@ class YinPitchTest {
     }
 
     @Test
+    fun `YIN tracks low C2 when practice search floor is lowered below C sharp 2`() {
+        val frequency = 65.406 // C2, commonly reached when singing a low song note one octave down
+        val result = YinPitch.yinPitch(sine(frequency), rate, fmin = 55.0)
+        assertTrue("expected $frequency Hz, got ${result.f0} Hz", abs(result.f0 - frequency) < 1.5)
+        assertTrue("clarity ${result.clarity}", result.clarity > 0.9)
+    }
+
+    @Test
     fun `YIN keeps the fundamental when the second harmonic is stronger`() {
         val frequency = 110.0
         val signal = FloatArray(YinPitch.WINDOW) { i ->

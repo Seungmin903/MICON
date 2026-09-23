@@ -141,7 +141,7 @@ class PracticeViewModel(
     private var keyChangeCount = 0
     private var sessionInitialKey: Int? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-    private val capture = PitchCapture()
+    private val capture = PitchCapture(fmin = ScoringConstants.PRACTICE_PITCH_MIN_HZ)
     private val cacheDir = appContext.cacheDir
     private val vibrator: Vibrator? = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) (appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator

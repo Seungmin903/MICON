@@ -2,7 +2,6 @@ package com.micon.app.scoring
 
 import com.micon.app.scoring.ScoringConstants.CALIBRATION_LIMIT_SECONDS
 import com.micon.app.scoring.ScoringConstants.FRAME_HOP_SECONDS
-import com.micon.app.scoring.ScoringConstants.LIVE_CORE_FRAME_RATIO
 import com.micon.app.scoring.ScoringConstants.LIVE_MIN_JUDGE_SECONDS
 import com.micon.app.scoring.ScoringConstants.LIVE_MISSED_VOICED_RATIO
 import com.micon.app.scoring.ScoringConstants.LIVE_ONSET_NEAR_SEMITONES
@@ -21,7 +20,6 @@ import com.micon.app.scoring.ScoringMath.clamp01
 import com.micon.app.scoring.ScoringMath.fold
 import com.micon.app.scoring.ScoringMath.median
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.floor
 
 /** 라이브 판정 상태. UPCOMING/ACTIVE 는 아직 판정 전. SKIPPED 는 너무 짧아 판정하지 않은 음표(총점 제외). */
@@ -59,13 +57,18 @@ class LiveNote(
     var judgeable: Boolean = true
     var status: LiveStatus = LiveStatus.UPCOMING
     var cents: Int? = null
+    /** 채점 시 키 이동을 반영한 목표 음(MIDI). 결과 화면에서 실제 음과 비교해 표시한다. */
+    var judgedTargetMidi: Int? = null
+    /** 유성 프레임 중앙값으로 구한 실제 음(MIDI). 옥타브를 보존한다. */
+    var sungMidi: Double? = null
     /** 초, +늦음. 온셋을 못 찾으면 null(레가토). */
     var deviation: Double? = null
     var pitchScore: Double? = null
     var timingScore: Double? = null
 
     fun reset() {
-        status = LiveStatus.UPCOMING; cents = null; deviation = null; pitchScore = null; timingScore = null
+        status = LiveStatus.UPCOMING; cents = null; judgedTargetMidi = null; sungMidi = null
+        deviation = null; pitchScore = null; timingScore = null
     }
 }
 
@@ -86,8 +89,8 @@ data class MeasureRow(val measure: Int, val score: Int, val pitch: Int, val timi
 /**
  * 음표별 라이브 판정 (live-scoring.tsx `class LiveScorer` L88–227 포팅). UI 와 분리된 순수 로직.
  * 재생 위치(now)를 알기 때문에 DTW 없이 음표가 끝나는 즉시 판정한다.
- * 판정 기준은 ScoringConstants 의 LIVE_* (정밀 리포트보다 느슨함): 짧은 음표는 건너뛰고(SKIPPED), 음정 오차는 목표에
- * 가까운 60 % 프레임의 중앙값, ±70¢ 까지 정확, 2반음 넘어야 다른 음.
+ * 판정 기준은 ScoringConstants 의 LIVE_* (정밀 리포트보다 느슨함): 짧은 음표는 건너뛰고(SKIPPED), 실제 음높이
+ * 프레임의 중앙값으로 음정 오차를 계산한다. ±70¢ 까지 정확, 2반음 초과는 다른 음.
  * 스레드 안전하지 않음 — 한 스레드(오디오 콜백 → 채널 → 단일 코루틴)에서만 호출할 것.
  */
 class LiveScorer(val notes: List<LiveNote>) {
@@ -180,6 +183,7 @@ class LiveScorer(val notes: List<LiveNote>) {
         val voiced = window.filter { it.midi != null }
         val expected = maxOf(1, Math.round((end - start) / FRAME_HOP_SECONDS).toInt())
         if (voiced.size < 3 || voiced.size.toDouble() / expected < LIVE_MISSED_VOICED_RATIO) {
+            note.judgedTargetMidi = target
             note.status = LiveStatus.MISSED
             note.pitchScore = 0.0
             note.timingScore = 0.0
@@ -187,10 +191,12 @@ class LiveScorer(val notes: List<LiveNote>) {
         }
         val skip = floor(voiced.size * 0.15).toInt() // 어택 제외 (엔진과 동일)
         val body = if (voiced.size - skip >= 3) voiced.subList(skip, voiced.size) else voiced
-        // 목표에 가까운 순으로 60 % 프레임만 남겨 중앙값 — 비브라토·스쿱·끝 꺾기가 판정을 망치지 않게
-        val errors = body.map { fold(it.midi!! - target) }.sortedBy { abs(it) }
-        val core = errors.subList(0, maxOf(3, ceil(errors.size * LIVE_CORE_FRAME_RATIO).toInt()).coerceAtMost(errors.size))
-        val cents = median(core) * 100
+        // 목표에 가까운 프레임을 고르면 옥타브 오류/배음 오검출을 목표음 쪽으로 끌어당긴다.
+        // 프레임 전체의 중앙값은 목표와 독립적이므로 절대 옥타브를 보존하면서 스쿱·비브라토 이상치에 강하다.
+        val sungMidi = median(body.map { it.midi!! })
+        val cents = (sungMidi - target) * 100
+        note.judgedTargetMidi = target
+        note.sungMidi = sungMidi
         note.cents = Math.round(cents).toInt()
         note.status = when {
             abs(cents) <= LIVE_PITCH_GOOD_CENTS -> LiveStatus.GOOD
