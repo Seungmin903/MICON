@@ -88,6 +88,7 @@ import com.micon.app.ui.common.OutlinePurpleButton
 import com.micon.app.ui.common.PrimaryButton
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.common.formatSec
+import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.practice.PracticeViewModel.Phase
 import com.micon.app.ui.practice.PracticeViewModel.SavePhase
 import com.micon.app.ui.rememberAppContainer
@@ -340,7 +341,7 @@ private fun KeyRow(keyShift: Int, keyName: String?, shiftedKeyName: String?, ena
     Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("−", fontSize = 22.sp, color = if (canUse && keyShift > ScoringConstants.KEY_SHIFT_MIN) Purple else GreyLight, modifier = Modifier.clickable(enabled = canUse) { onChange(keyShift - 1) }.padding(horizontal = 8.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (keyShift == 0) "원키" else (if (keyShift > 0) "+$keyShift key" else "$keyShift key"), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
+            Text(NoteNames.keyShiftText(keyShift), fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold)
             // 키별 S3 반주로 전환하는 동안에는 상위에서 입력을 막는다.
             val label = when {
                 keyName == null -> null

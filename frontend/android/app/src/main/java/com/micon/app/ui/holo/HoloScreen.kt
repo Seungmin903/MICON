@@ -101,6 +101,7 @@ import com.micon.app.ui.common.LoadMoreOnScrollEnd
 import com.micon.app.ui.common.rememberMicrophoneAccess
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.OctaveNoteText
+import com.micon.app.ui.design.molecules.OctaveRangeText
 import com.micon.app.ui.report.FreeRangeViewModel
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -189,11 +190,7 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?) {
                 val low = preview?.lowMidi
                 val high = preview?.highMidi
                 if (done && low != null && high != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OctaveNoteText(low, size = 22.sp, color = Color.White)
-                        Text("  ~  ", color = Color.White.copy(alpha = 0.72f), fontSize = 17.sp, fontFamily = MiconMonoFamily)
-                        OctaveNoteText(high, size = 22.sp, color = Color.White)
-                    }
+                    OctaveRangeText(low, high, size = 22.sp, color = Color.White, separator = "  ~  ")
                 }
             }
         },

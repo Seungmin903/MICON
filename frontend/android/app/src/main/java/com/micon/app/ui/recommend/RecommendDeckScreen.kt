@@ -443,7 +443,7 @@ private fun NowInfo(item: RecommendedSong?, preview: RecommendPreview? = null) {
         val lo = item.fit?.rangeFit?.songCoreLowMidi
         val hi = item.fit?.rangeFit?.songCoreHighMidi
         if (lo != null && hi != null) {
-            Row(Modifier.padding(top = 2.dp)) { MiconBadge(text = NoteNames.rangeText(lo, hi)) }
+            Row(Modifier.padding(top = 2.dp)) { MiconBadge(text = NoteNames.displayRange(lo, hi)) }
         }
         val status = when {
             preview?.error != null -> preview.error

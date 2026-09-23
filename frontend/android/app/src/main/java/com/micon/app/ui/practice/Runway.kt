@@ -20,6 +20,8 @@ import com.micon.app.scoring.ScoringConstants.RUNWAY_SECONDS_AHEAD
 import com.micon.app.scoring.ScoringConstants.RUNWAY_SECONDS_BEHIND
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.scoring.ScoringUi
+import com.micon.app.ui.design.molecules.OCTAVE_SCALE
+import com.micon.app.ui.design.molecules.karaokeParts
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -69,17 +71,27 @@ fun Runway(
 
         drawRect(runwayBackground, size = Size(width, height))
 
-        // 옥타브 선 + 음이름 (노래방식: 2옥 도)
-        textPaint.textSize = 10f * dp
+        // 옥타브 선 + 음이름 (노래방식 "2옥 도" — 다른 화면과 같이 "2옥" 은 작게, "도" 는 크게)
+        val syllableSize = 10f * dp
+        val octaveSize = syllableSize * OCTAVE_SCALE
         for (midi in kotlin.math.ceil(low).toInt()..kotlin.math.floor(high).toInt()) {
             if (midi % 12 != 0 && midi % 12 != 7) continue      // 도·솔 줄만
             val y = midiToY(midi.toDouble()) + rowHeight / 2
             drawLine(ink.copy(alpha = if (midi % 12 == 0) 0.18f else 0.09f), Offset(0f, y), Offset(width, y))
-            val label = com.micon.app.scoring.KaraokeNames.koreanShort(midi)
-            val labelW = textPaint.measureText(label)
+            val (octave, syllable) = karaokeParts(midi, short = true)
+            textPaint.textSize = octaveSize
+            val octaveW = if (octave.isEmpty()) 0f else textPaint.measureText(octave) + 1.5f * dp
+            textPaint.textSize = syllableSize
+            val labelW = octaveW + textPaint.measureText(syllable)
             drawRect(runwayBackground.copy(alpha = 0.85f), topLeft = Offset(2f * dp, y - 12f * dp), size = Size(labelW + 4f * dp, 12f * dp))
             textPaint.color = android.graphics.Color.argb(255, 0x9A, 0xA1, 0x9C)
-            drawContext.canvas.nativeCanvas.drawText(label, 4f * dp, y - 3f * dp, textPaint)
+            val baseline = y - 3f * dp
+            if (octave.isNotEmpty()) {
+                textPaint.textSize = octaveSize
+                drawContext.canvas.nativeCanvas.drawText(octave, 4f * dp, baseline, textPaint)
+                textPaint.textSize = syllableSize
+            }
+            drawContext.canvas.nativeCanvas.drawText(syllable, 4f * dp + octaveW, baseline, textPaint)
         }
         // 마디선
         beatGrid?.let { grid ->

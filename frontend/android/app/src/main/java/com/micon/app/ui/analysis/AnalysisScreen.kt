@@ -53,6 +53,8 @@ import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
 import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.molecules.NoteNames
+import com.micon.app.ui.design.molecules.OctaveRangeText
+import com.micon.app.ui.design.molecules.karaokeNoteText
 import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.common.MiconHeader
@@ -144,7 +146,7 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text("내 목소리 · 편한 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
-                Text(NoteNames.displayRange(v.comfortLow, v.comfortHigh), fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 32.sp)
+                OctaveRangeText(v.comfortLow, v.comfortHigh, size = 24.sp)
             }
             Text(SimpleDateFormat("M월 d일", Locale.KOREA).format(Date(v.measuredAt)), fontFamily = MiconMonoFamily, fontSize = 12.sp, color = muted)
         }
@@ -156,7 +158,7 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
 }
 
 /**
- * 프로토타입 `.range` — 트랙 h12 위에 내 편한 음역(보라 그라디언트)이 자라나고, 아래 눈금 3개(낮은 도 · 중간 도 · 높은 도).
+ * 프로토타입 `.range` — 트랙 h12 위에 내 편한 음역(보라 그라디언트)이 자라나고, 아래 눈금 3개(1옥타브 도 · 2옥타브 도 · 3옥타브 도).
  * 자의 범위는 C2(36)~C6(84) 고정이라 모든 사용자 막대를 같은 자에 놓고 비교할 수 있다.
  */
 @Composable
@@ -167,7 +169,7 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
     val grow = remember { Animatable(0f) }
     LaunchedEffect(low, high) { grow.snapTo(0f); grow.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val ticks = listOf(48 to "낮은 도", 60 to "중간 도", 72 to "높은 도")
+    val ticks = listOf(48, 60, 72)
     fun f(m: Int) = ((m - 36) / 48f).coerceIn(0f, 1f)
     Column {
         Canvas(Modifier.fillMaxWidth().height(22.dp)) {
@@ -181,14 +183,14 @@ internal fun RangeBar(low: Int, high: Int, song: IntRange? = null) {
                 drawRoundRect(Color(0xFFC92A5E), Offset(sx, 0f), Size(sw, size.height), CornerRadius(11.dp.toPx()),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 5f))))
             }
-            ticks.forEach { (m, _) -> drawLine(Color(0xFFBDB8D0), Offset(size.width * f(m), trackTop + trackH), Offset(size.width * f(m), size.height), 1.dp.toPx()) }
+            ticks.forEach { m -> drawLine(Color(0xFFBDB8D0), Offset(size.width * f(m), trackTop + trackH), Offset(size.width * f(m), size.height), 1.dp.toPx()) }
         }
         // 눈금 글자는 3등분한 칸에 왼쪽·가운데·오른쪽으로 둔다. 비율 폭 상자에 넣으면
-        // 칸이 글자보다 좁아 "낮은 도" 가 잘렸다.
+        // 칸이 글자보다 좁아 잘렸다.
         Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
-            ticks.forEachIndexed { i, (_, label) ->
+            ticks.forEachIndexed { i, m ->
                 Text(
-                    label, Modifier.weight(1f), fontSize = 12.sp, color = muted,
+                    karaokeNoteText(m, 12.sp, weight = FontWeight.SemiBold), Modifier.weight(1f), color = muted,
                     textAlign = when (i) { 0 -> TextAlign.Start; 1 -> TextAlign.Center; else -> TextAlign.End },
                 )
             }

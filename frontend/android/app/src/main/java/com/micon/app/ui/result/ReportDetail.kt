@@ -35,7 +35,7 @@ import com.micon.app.data.practice.PitchCurve
 import com.micon.app.data.practice.PracticeReport
 import com.micon.app.scoring.LiveStatus
 import com.micon.app.scoring.LyricLines
-import com.micon.app.scoring.ScoringMath
+import com.micon.app.ui.design.molecules.karaokeNoteText
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.theme.Grey
@@ -187,9 +187,9 @@ fun PitchCurveCard(detail: ReportDetail) {
         val yHigh = ceil(midiValues.max() + 1).toInt()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.height(170.dp).width(34.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(ScoringMath.midiName(yHigh.toDouble()), fontSize = 11.sp, color = Grey)
-                Text(ScoringMath.midiName(((yLow + yHigh) / 2).toDouble()), fontSize = 11.sp, color = Grey)
-                Text(ScoringMath.midiName(yLow.toDouble()), fontSize = 11.sp, color = Grey)
+                Text(karaokeNoteText(yHigh, 11.sp, weight = FontWeight.SemiBold, short = true), color = Grey)
+                Text(karaokeNoteText((yLow + yHigh) / 2, 11.sp, weight = FontWeight.SemiBold, short = true), color = Grey)
+                Text(karaokeNoteText(yLow, 11.sp, weight = FontWeight.SemiBold, short = true), color = Grey)
             }
             Canvas(Modifier.weight(1f).height(170.dp).background(GreyBg, RoundedCornerShape(12.dp))) {
                 val w = size.width; val h = size.height
