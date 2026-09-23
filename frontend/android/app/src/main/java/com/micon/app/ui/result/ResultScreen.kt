@@ -47,6 +47,7 @@ import com.micon.app.data.SongRepository
 import com.micon.app.data.practice.PracticeRecord
 import com.micon.app.data.practice.PracticeReport
 import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.data.practice.SectionEvaluation
 import com.micon.app.ui.common.CardTitle
 import com.micon.app.ui.common.describeBackendError
@@ -78,6 +79,7 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
     sealed interface State {
         data object Loading : State
         data class Error(val message: String) : State
+        data class Incomplete(val practice: PracticeSummary) : State
         /**
          * [report] 가 null 이면 세션은 있지만 저장된 점수가 없다.
          * [detail] 은 절충안 확장(노트 판정·음정 곡선)을 practice-assets 와 결합한 것 — 서버가 아직 확장 필드를 돌려주지 않거나
@@ -112,7 +114,12 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
             }
             _state.value = try {
                 // 세션 상세(GET /practices/{practiceId})는 BE 명세에서 제거됨 — 리포트 상세가 곡·키·범위·시간을 함께 준다.
-                val report = practices.report(practiceId) ?: throw NoSuchElementException("저장된 연습 결과가 없어요.")
+                val report = practices.report(practiceId)
+                if (report == null) {
+                    val practice = findPracticeSummary(practiceId)
+                        ?: throw NoSuchElementException("연습 기록을 찾을 수 없어요.")
+                    return@launch run { _state.value = State.Incomplete(practice) }
+                }
                 val practice = report.toRecord()
                 val artist = runCatching { songs?.detail(report.songId)?.summary?.artist }.getOrNull()
                 val previousScore = runCatching { findPreviousScore(report.songId, report.practiceId) }.getOrNull()
@@ -127,6 +134,17 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
                 State.Error(describeBackendError(e, "연습 기록을 불러오지 못했어요."))
             }
         }
+    }
+
+    /** 리포트가 생성되지 않은 세션도 목록에는 남아 있으므로 곡·키 정보를 목록에서 복원한다. */
+    private suspend fun findPracticeSummary(targetPracticeId: Long): PracticeSummary? {
+        var page = 0
+        do {
+            val history = practices.history(page = page, size = 100)
+            history.items.firstOrNull { it.id == targetPracticeId }?.let { return it }
+            page++
+        } while (page < history.totalPages)
+        return null
     }
 
     /** 기록 목록은 최신순이므로 현재 결과를 제외한 같은 곡의 첫 점수가 바로 직전 연습이다. */
@@ -250,6 +268,25 @@ fun ResultDetailCards(
     when (val s = state) {
         ResultViewModel.State.Loading -> Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
         is ResultViewModel.State.Error -> RetryBlock(s.message, vm::load)
+        is ResultViewModel.State.Incomplete -> Column(
+            Modifier.fillMaxWidth().padding(top = 56.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("분석을 완료하지 못했어요", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink, textAlign = TextAlign.Center)
+            Text(
+                "측정이 중단되었거나 올바르게 완료되지 않아 분석 결과가 생성되지 않았어요.\n다시 연습하면 새로운 결과를 확인할 수 있어요.",
+                fontSize = 15.sp, color = InkSoft, lineHeight = 22.sp, textAlign = TextAlign.Center,
+            )
+            if (onPractice != null) {
+                Spacer(Modifier.height(8.dp))
+                MiconButton(
+                    "이 곡 다시 연습",
+                    { onPractice(s.practice.songId, s.practice.selectedKey) },
+                    Modifier.fillMaxWidth(),
+                )
+            }
+        }
         is ResultViewModel.State.Ready -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val practice = s.practice
             val report = s.report
