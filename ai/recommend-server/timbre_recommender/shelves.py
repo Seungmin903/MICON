@@ -195,6 +195,7 @@ def build_shelves(
     seed: int | None = None,
 ) -> list[dict[str, Any]]:
     genres = list(genres)
+    all_rows = list(rows)
     preferred_tags = selected_tags(genres)
     def genre_tier(row: Mapping[str, Any]) -> int:
         return _genre_tier(row, preferred_tags, enabled=genre_preferences_enabled)
@@ -202,7 +203,7 @@ def build_shelves(
         # Do not fill the visible list with weak matches from a known, unselected style.
         # Missing/unknown genre metadata remains eligible, and very strong voice+range
         # matches are handled as tier 0 by _genre_tier.
-        rows = [row for row in rows if genre_tier(row) < 2]
+        rows = [row for row in all_rows if genre_tier(row) < 2]
     artists = {a.strip() for a in preferred_artists if a and a.strip()}
     used: set[str] = set()
     shelves: list[dict[str, Any]] = []
@@ -257,7 +258,9 @@ def build_shelves(
 
     # E. 새로운 발견: 다른 섹션에 뽑히지 않은 나머지 전부. 장르·음색·음역 조건을 두지 않는다 — 장르 메타데이터가 없어도 채워진다.
     #    서버는 하루 단위 시드로 한 번 섞어 top_k 까지 넉넉히 주고, 앱이 새로고침마다 이 후보 안에서 다시 섞는다.
-    pool_e = [r for r in rows if r["track_id"] not in used]
+    # Keep the full catalog for discovery. Genre preference gates the focused
+    # recommendation shelves above, but must not erase the discovery shelf's pool.
+    pool_e = [r for r in all_rows if r["track_id"] not in used]
     grouped = {tier: [r for r in pool_e if genre_tier(r) == tier] for tier in range(3)}
     rng = random.Random(seed)
     for group in grouped.values():
