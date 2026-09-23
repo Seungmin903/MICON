@@ -31,9 +31,13 @@ AI_ARTIST_SEARCH_ENABLED=true
 AI_SONG_FIT_ENABLED=false
 AI_RECOMMENDATION_ENABLED=false
 AI_RECOMMENDATION_POLLING_ENABLED=false
+AI_RECOMMENDATION_POLL_MAX_CONCURRENT=4
 AI_RECOMMENDATION_RECOVERY_INTERVAL=1m
 AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY=10s
+SCHEDULED_TASK_POOL_SIZE=4
 ```
+
+추천 결과 폴링은 최대 4건의 AI 상태 조회를 동시에 실행한다. 복구 작업은 현재 프로필·설정 버전에 맞는 추천이 없는 사용자만 찾아 한 번에 최대 2건을 제출한다. AI의 JSON 추천 한도(실행 1건·대기 5건)를 복구 작업이 거의 다 차지하지 않도록 하기 위한 상한이다. 운영에서 폴링이 실제 활성화돼 있는지는 배포된 `/etc/micon/runtime/backend.env`와 BE 시작 로그로 확인한다. 서비스 토큰 등 비밀 값은 출력하지 않는다.
 
 ## 빌드와 기동
 

@@ -111,4 +111,33 @@ class RecommendationAfterCommitIntegrationTest {
         assertThatThrownBy(() -> lifecycle.create(saved[0],replacement,RecommendationMode.OVERALL))
                 .isInstanceOf(com.micon.backend.common.exception.BusinessException.class);
     }
+
+    @Test void recoveryQueryOnlyReturnsProfilesWithoutACurrentRecommendation() {
+        long[] saved = new TransactionTemplate(manager).execute(tx -> {
+            User user = users.saveAndFlush(new User(UUID.randomUUID()+"@test.invalid", "not-a-login-password"));
+            VoiceAnalysisSession session = sessions.saveAndFlush(
+                    new VoiceAnalysisSession(user, null, LocalDateTime.now().plusHours(1)));
+            UserVoiceProfile profile = profiles.saveAndFlush(new UserVoiceProfile(user, session, 1));
+            return new long[]{user.getId(), profile.getId()};
+        });
+        var page = org.springframework.data.domain.PageRequest.of(0, 5);
+        assertThat(profiles.findMissingCurrentRecommendationsAfterId(saved[1] - 1, page))
+                .extracting(UserVoiceProfile::getId).contains(saved[1]);
+
+        new TransactionTemplate(manager).executeWithoutResult(tx -> {
+            var profile = profiles.findById(saved[1]).orElseThrow();
+            recommendations.saveAndFlush(new Recommendation(profile.getUser(), profile, RecommendationMode.OVERALL));
+        });
+        assertThat(profiles.findMissingCurrentRecommendationsAfterId(saved[1] - 1, page))
+                .extracting(UserVoiceProfile::getId).doesNotContain(saved[1]);
+
+        new TransactionTemplate(manager).executeWithoutResult(tx -> {
+            var profile = profiles.findById(saved[1]).orElseThrow();
+            var session = sessions.saveAndFlush(new VoiceAnalysisSession(
+                    profile.getUser(), null, LocalDateTime.now().plusHours(1)));
+            profile.replaceWith(session);
+        });
+        assertThat(profiles.findMissingCurrentRecommendationsAfterId(saved[1] - 1, page))
+                .extracting(UserVoiceProfile::getId).contains(saved[1]);
+    }
 }

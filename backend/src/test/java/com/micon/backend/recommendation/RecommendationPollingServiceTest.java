@@ -10,10 +10,18 @@ import com.micon.backend.domain.recommendation.entity.Recommendation;
 import com.micon.backend.domain.recommendation.entity.RecommendationStatus;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RecommendationPollingServiceTest {
@@ -80,5 +88,45 @@ class RecommendationPollingServiceTest {
         var result = new RecommendationPollingService(repository, gateway, store,
                 new RecommendationPollingProperties(true)).pollGeneratingRecommendations();
         assertThat(result.outcomes()).containsEntry(RecommendationResultStore.Outcome.FAILED, 1);
+    }
+
+    @Test void pollsJobsConcurrentlyWithoutExceedingTheConfiguredLimit() throws Exception {
+        var repository = mock(RecommendationRepository.class);
+        var gateway = mock(RecommendationResultGateway.class);
+        var store = mock(RecommendationResultStore.class);
+        var jobs = List.of(recommendation("job-one"), recommendation("job-two"), recommendation("job-three"));
+        when(repository.findByStatusAndJobIdIsNotNullOrderByGeneratedAt(RecommendationStatus.GENERATING))
+                .thenReturn(jobs);
+        var entered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        var active = new AtomicInteger();
+        var peak = new AtomicInteger();
+        when(gateway.fetch(anyString())).thenAnswer(invocation -> {
+            int current = active.incrementAndGet();
+            peak.accumulateAndGet(current, Math::max);
+            try {
+                entered.countDown();
+                if (!release.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("test wait timed out");
+                String jobId = invocation.getArgument(0);
+                return new RecommendationResultGateway.Job(jobId,
+                        RecommendationResultGateway.Status.PROCESSING, 50, null, null, null);
+            } finally {
+                active.decrementAndGet();
+            }
+        });
+        var service = new RecommendationPollingService(repository, gateway, store,
+                new RecommendationPollingProperties(true, Duration.ofMinutes(10), 2));
+        try (var caller = Executors.newSingleThreadExecutor()) {
+            var polling = caller.submit(service::pollGeneratingRecommendations);
+            try {
+                assertThat(entered.await(3, TimeUnit.SECONDS)).isTrue();
+                verify(gateway, never()).fetch("job-three");
+            } finally {
+                release.countDown();
+            }
+            assertThat(polling.get(5, TimeUnit.SECONDS).requested()).isEqualTo(3);
+            assertThat(peak.get()).isEqualTo(2);
+            verify(gateway).fetch("job-three");
+        }
     }
 }
