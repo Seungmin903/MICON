@@ -117,7 +117,13 @@ import kotlin.math.roundToInt
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
-fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> Unit, initialKey: Int = 0) {
+fun PracticeScreen(
+    songId: String,
+    onBack: () -> Unit,
+    onOpenResult: (Long) -> Unit,
+    onReturnToPractice: () -> Unit = onBack,
+    initialKey: Int = 0,
+) {
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
@@ -259,6 +265,7 @@ fun PracticeScreen(songId: String, onBack: () -> Unit, onOpenResult: (Long) -> U
         if (state.phase != Phase.LOADING && state.phase != Phase.ERROR) {
             BottomSheet(state, vm, finishedExpanded, onFinishedExpandedChange = { finishedExpanded = it }, onStart = ::startWithPermission,
                 onBack = { vm.stopAudioForExit(); onBack() },
+                onReturnToPractice = { vm.stopAudioForExit(); onReturnToPractice() },
                 onOpenResult = { id -> vm.stopAudioForExit(); onOpenResult(id) })
         }
     }
@@ -558,6 +565,7 @@ private fun BottomSheet(
     onFinishedExpandedChange: (Boolean) -> Unit,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    onReturnToPractice: () -> Unit,
     onOpenResult: (Long) -> Unit,
 ) {
     val running = state.isRunning
@@ -597,7 +605,7 @@ private fun BottomSheet(
                     Spacer(Modifier.height(10.dp))
                 }
                 if (state.phase == Phase.FINISHED && finishedExpanded) {
-                    FinishedPanel(state, vm, onOpenResult)
+                    FinishedPanel(state, vm, onOpenResult, onReturnToPractice)
                     Spacer(Modifier.height(16.dp))
                 }
                 Box(Modifier.fillMaxWidth().padding(horizontal = 36.dp), contentAlignment = Alignment.Center) {
@@ -631,7 +639,10 @@ private fun BottomSheet(
                     if (state.phase != Phase.FINISHED) {
                         val finishEnabled = state.phase == Phase.PAUSED
                         Column(Modifier.align(Alignment.CenterEnd), horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = vm::finishEarly, enabled = finishEnabled) {
+                            IconButton(
+                                onClick = vm::finishEarly,
+                                enabled = finishEnabled,
+                            ) {
                                 Icon(Icons.Filled.Stop, "여기까지 마치기", Modifier.size(32.dp), tint = if (finishEnabled) Ink else GreyLight)
                             }
                             Text("마치기", fontSize = 11.sp, color = if (finishEnabled) Grey else GreyLight)
@@ -653,7 +664,12 @@ private fun BottomSheet(
 }
 
 @Composable
-private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewModel, onOpenResult: (Long) -> Unit) {
+private fun FinishedPanel(
+    state: PracticeViewModel.UiState,
+    vm: PracticeViewModel,
+    onOpenResult: (Long) -> Unit,
+    onReturnToPractice: () -> Unit,
+) {
     Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FinishedActionButton(if (state.takePlaying) "정지" else "녹음 듣기", { if (state.takePlaying) vm.stopTake() else vm.playTake() }, Modifier.weight(1f), filled = false)
@@ -661,7 +677,8 @@ private fun FinishedPanel(state: PracticeViewModel.UiState, vm: PracticeViewMode
                 SavePhase.SAVED -> FinishedActionButton("리포트 상세 보기", { state.save.practiceId?.let(onOpenResult) }, Modifier.weight(1.3f), filled = true)
                 SavePhase.ERROR -> OutlinePurpleButton("기록 다시 저장", vm::retrySave, Modifier.weight(1.3f), height = 46.dp)
                 SavePhase.SAVING -> Box(Modifier.weight(1.3f).height(46.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), color = Purple, strokeWidth = 2.dp) }
-                SavePhase.GUEST, SavePhase.NONE -> {}
+                SavePhase.GUEST -> FinishedActionButton("목록으로", onReturnToPractice, Modifier.weight(1.3f), filled = true)
+                SavePhase.NONE -> {}
             }
         }
         Spacer(Modifier.height(18.dp))
