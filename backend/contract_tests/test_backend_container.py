@@ -1,6 +1,7 @@
 """Static safety contract for the backend image and production Compose file."""
 
 from pathlib import Path
+import re
 import unittest
 
 
@@ -27,6 +28,8 @@ class BackendContainerContractTests(unittest.TestCase):
         cls.voice_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/voice/service/DirectVoiceAnalysisService.java").read_text(encoding="utf-8")
         cls.recommendation_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/recommendation/service/RecommendationDispatchService.java").read_text(encoding="utf-8")
         cls.application_properties = (ROOT / "backend/src/main/resources/application.properties").read_text(encoding="utf-8")
+        cls.artist_search_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/voice/service/ArtistSearchJobService.java").read_text(encoding="utf-8")
+        cls.ai_artist_contract = (ROOT / "ai/recommend-server/timbre_recommender/contracts.py").read_text(encoding="utf-8")
         cls.song_fit_service = (ROOT / "backend/src/main/java/com/micon/backend/domain/songfit/service/SongFitService.java").read_text(encoding="utf-8")
         cls.ai_gateways = [
             (ROOT / "backend/src/main/java/com/micon/backend/domain/voice/client/HttpVoiceAnalysisJobGateway.java").read_text(encoding="utf-8"),
@@ -90,6 +93,11 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INTERVAL 1m", self.host_prep)
         self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s", self.host_prep)
         self.assertIn("set_runtime_setting AI_ARTIST_SEARCH_ENABLED true", self.host_prep)
+        scoring_version = re.search(r'^SCORING_VERSION = "([^"]+)"$', self.ai_artist_contract, re.MULTILINE).group(1)
+        self.assertIn(f"AI_ARTIST_SEARCH_SCORING_VERSION={scoring_version}", self.runtime_env)
+        self.assertIn(f"set_runtime_setting AI_ARTIST_SEARCH_SCORING_VERSION {scoring_version}", self.host_prep)
+        self.assertIn(f"${{AI_ARTIST_SEARCH_SCORING_VERSION:{scoring_version}}}", self.application_properties)
+        self.assertIn("${ai.artist-search-scoring-version}", self.artist_search_service)
         self.assertIn('sed -i "s|^${setting_name}=.*$|${setting_name}=${setting_value}|"', self.host_prep)
         self.assertIn("${AI_ARTIST_SEARCH_ENABLED:false}", self.application_properties)
         self.assertIn("ai.voice-analysis-enabled:false", self.voice_service)

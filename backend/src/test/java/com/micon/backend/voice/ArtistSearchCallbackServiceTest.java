@@ -41,7 +41,7 @@ class ArtistSearchCallbackServiceTest {
         when(job.getRequestedResultVersion()).thenReturn(2L);
         when(job.getRequestedTopK()).thenReturn(10);
         when(job.getCatalogVersion()).thenReturn("catalog-v1");
-        when(job.getScoringVersion()).thenReturn("fusion-v2");
+        when(job.getScoringVersion()).thenReturn("ecapa-singer-byol-absolute-fusion-v3");
         when(artists.findArtistsByIds(List.of(100L, 101L))).thenReturn(List.of(
                 new PreferenceResponse.Artist(100L, "가수 100", null, null, null, null, null),
                 new PreferenceResponse.Artist(101L, "가수 101", null, null, null, null, null)));
@@ -59,7 +59,7 @@ class ArtistSearchCallbackServiceTest {
         assertThat(captor.getValue().getFirst().getSingerId()).isEqualTo(100L);
         assertThat(captor.getValue().getFirst().getEcapaScore()).isEqualByComparingTo("0.89");
         assertThat(captor.getValue().getFirst().getSingerByolScore()).isEqualByComparingTo("0.93");
-        verify(job).complete("ARTIST_SEARCH", "fusion-v2", completed(2L).processedAt());
+        verify(job).complete("ARTIST_SEARCH", "ecapa-singer-byol-absolute-fusion-v3", completed(2L).processedAt());
         verify(session).completeArtistSearch(org.mockito.ArgumentMatchers.eq(false), any(LocalDateTime.class));
     }
 
@@ -71,12 +71,22 @@ class ArtistSearchCallbackServiceTest {
         verify(results, never()).saveAll(any());
     }
 
+    @Test
+    void rejectsAStaleScoringVersionWithoutReplacingResults() {
+        when(job.getScoringVersion()).thenReturn("ecapa-singer-byol-absolute-fusion-v2");
+
+        assertThatThrownBy(() -> service.accept(job, completed(2L)))
+                .isInstanceOf(BusinessException.class);
+        verify(results, never()).deleteBySessionId(any());
+        verify(results, never()).saveAll(any());
+    }
+
     private VoiceAnalysisComponentCallbackRequest completed(long resultVersion) {
         LocalDateTime processedAt = LocalDateTime.of(2026, 9, 15, 10, 33);
         return new VoiceAnalysisComponentCallbackRequest(
                 "0199f9f5-7e6a-7a20-bc91-23b8c1ed0a31", "artist-search-job-1",
                 "ARTIST_SEARCH", VoiceAnalysisComponentCallbackRequest.Status.COMPLETED,
-                "ARTIST_SEARCH", "fusion-v2", null, null, null, null,
+                "ARTIST_SEARCH", "ecapa-singer-byol-absolute-fusion-v3", null, null, null, null,
                 null, null, processedAt, 1, null, null, null, null, null, null, null,
                 resultVersion, "catalog-v1", List.of(
                         new VoiceAnalysisComponentCallbackRequest.Artist(100L, 1, 0.91, 0.89, 0.93),

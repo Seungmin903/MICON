@@ -44,7 +44,7 @@ public class ArtistSearchJobService {
             JdbcTemplate jdbc,
             ObjectMapper json,
             @Value("${AI_ARTIST_SEARCH_TOP_K:10}") int topK,
-            @Value("${AI_ARTIST_SEARCH_SCORING_VERSION:ecapa-singer-byol-absolute-fusion-v2}") String scoringVersion,
+            @Value("${ai.artist-search-scoring-version}") String scoringVersion,
             @Value("${AI_ARTIST_SEARCH_CALLBACK_URL:http://localhost:8080/api/v1/callbacks/voice-analysis-components}") String callbackUrl,
             @Value("${AI_ARTIST_SEARCH_CONTRACT_VERSION:v1}") String contractVersion
     ) {
