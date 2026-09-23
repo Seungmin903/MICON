@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import com.micon.app.ui.design.organisms.tabBarContentPadding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -90,6 +91,7 @@ import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.HeartButton
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.molecules.SongRow
+import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.common.VinylArt
 import com.micon.app.ui.common.describeBackendError
 import com.micon.app.ui.rememberAppContainer
@@ -238,17 +240,20 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             state.error != null -> RetryBlock(state.error!!, vm::load)
-            tab == Tab.SETLIST -> LazyColumn(Modifier.fillMaxSize()) {
+            tab == Tab.SETLIST -> LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
+            ) {
                 item {
                     Row(
-                        Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showCreate = true }.padding(horizontal = 32.dp, vertical = 18.dp),
+                        Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showCreate = true }.padding(horizontal = 12.dp, vertical = 18.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(Icons.Filled.Add, "새 리스트", Modifier.size(32.dp), tint = Purple)
                         Spacer(Modifier.width(12.dp))
                         Text("새 세트리스트", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                     }
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = Color(0xFFE1DFE8))
+                    HorizontalDivider(color = Color(0xFFE1DFE8))
                     Spacer(Modifier.height(6.dp))
                 }
                 val visibleSetlists = state.setlists.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
@@ -256,13 +261,16 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                     SongRow(title = sl.name, artist = "${sl.songCount}곡", imageUrl = null, onClick = { onSetlistClick(sl.id) })
                 }
                 if (visibleSetlists.isEmpty()) item {
-                    Text(if (query.isBlank()) "세트리스트가 없어요. 위에서 새 리스트를 만들어 보세요." else "검색 결과가 없습니다.", Modifier.padding(24.dp), color = Grey)
+                    Text(if (query.isBlank()) "세트리스트가 없어요. 위에서 새 리스트를 만들어 보세요." else "검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey)
                 }
             }
             else -> {
                 val songs = state.songs
                     .filter { query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) }
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
+                ) {
                     items(songs, key = { it.id }) { song ->
                         SongRow(
                             title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.id) },
@@ -272,7 +280,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                     if (songs.isEmpty()) item {
                         Text(
                             if (query.isBlank()) "찜한 곡이 없어요. 연습 탭에서 하트를 눌러 보세요." else "검색 결과가 없습니다.",
-                            Modifier.padding(24.dp), color = Grey,
+                            Modifier.padding(vertical = 24.dp), color = Grey,
                         )
                     }
                 }
@@ -446,7 +454,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     }
     if (showDelete && detail != null) {
         ConfirmDialog(
-            title = "세트리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요. 찜한 곡은 그대로 남아요.",
+            title = "세트리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요.",
             confirmLabel = "삭제", onDismiss = { showDelete = false }, onConfirm = { showDelete = false; vm.delete() },
         )
     }
@@ -514,17 +522,20 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         ),
                     ),
                 )
-                LazyColumn(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)), state = listState) {
+                LazyColumn(
+                    Modifier.fillMaxSize().background(Color(0xFFF7F5FC)),
+                    contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
+                ) {
                     if (state.editing) item {
                         Row(
-                            Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showAdd = true }.padding(horizontal = 32.dp, vertical = 18.dp),
+                            Modifier.fillMaxWidth().clickable(enabled = !state.busy) { showAdd = true }.padding(horizontal = 12.dp, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(Icons.Filled.Add, "곡 추가", Modifier.size(32.dp), tint = Purple)
                             Spacer(Modifier.width(12.dp))
                             Text("곡 검색해서 추가", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                         }
-                        HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = Color(0xFFE1DFE8))
+                        HorizontalDivider(color = Color(0xFFE1DFE8))
                         Spacer(Modifier.height(6.dp))
                     }
                     items(detail.songs, key = { it.songId }) { song ->
@@ -624,7 +635,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         }
                     }
                     if (detail.songs.isEmpty()) item {
-                        Text("아직 곡이 없어요. 편집(연필)을 눌러 곡을 추가해 보세요.", Modifier.padding(24.dp), color = Grey)
+                        Text("아직 곡이 없어요. 편집(연필)을 눌러 곡을 추가해 보세요.", Modifier.padding(vertical = 24.dp), color = Grey)
                     }
                 }
             }

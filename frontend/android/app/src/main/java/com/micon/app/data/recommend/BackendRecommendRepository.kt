@@ -21,6 +21,7 @@ import com.micon.app.data.backend.dto.RecommendationSongDto
 import com.micon.app.data.backend.dto.SongFitDto
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.data.local.UserStore
+import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
@@ -32,7 +33,7 @@ import kotlin.random.Random
  * 추천·적합도의 백엔드 구현. 앱은 추천 서버(8788)를 직접 부르지 않고 백엔드 `RecommendationController`·`SongFitController` 만 본다.
  *
  * - [shelves]: `GET /recommendations/latest` 가 COMPLETED 면 그 섹션을 곡 카탈로그로 채워 돌려준다. 추천이 없으면 `POST /recommendations` 로
- *   생성을 요청하고, 생성 중·실패·미준비(AI 연동 꺼짐)면 앱 안 계산([local])을 [RecommendShelves.note] 와 함께 돌려준다.
+ *   생성을 요청한다. 생성 중에는 빈 목록을 돌려 화면이 폴링하게 하고, 실패·미준비일 때만 앱 안 계산([local])을 사용한다.
  *   비회원이거나 목소리 분석이 없으면 빈 목록 + 이유(로그인·분석 필요) — 기본 추천은 없다.
  * - [fit]: 저장된 목소리 프로필(`GET /users/me/voice-profile`)이 있으면 `GET /songs/{id}/fit?analysisId=<profileId>` 를 쓴다 —
  *   BE 는 이 파라미터를 user_voice_profile.profile_id 로 조회한다. UNAVAILABLE·오류·비회원이면 [local] 로 내려간다.
@@ -72,8 +73,9 @@ class BackendRecommendRepository(
             if (mapped.isNotEmpty()) return RecommendShelves(
                 personalized = true, shelves = mapped, note = server.note, generating = server.generating)
         }
-        return fallback(limit, reshuffle, server.note ?: noteFor(rec)).copy(
-            generating = server.generating || rec?.status == "GENERATING")
+        if (server.generating || rec?.status == "GENERATING") return RecommendShelves(
+            personalized = true, shelves = emptyList(), note = server.note ?: noteFor(rec), generating = true)
+        return fallback(limit, reshuffle, server.note ?: noteFor(rec))
     }
 
     /**
@@ -206,7 +208,7 @@ class BackendRecommendRepository(
             timbre = if (axis != null && label != null) TimbreMatch(axis, label, null) else null,
             timbreFit = unit(timbreScore),
             rangeFit = null,
-            recommendedKey = recommendedKey,
+            recommendedKey = recommendedKey?.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX),
             strainSections = null,
             overallFit = unit(finalScore) ?: 0f,
             reasons = reasons,
@@ -254,8 +256,8 @@ class BackendRecommendRepository(
         // not a catalog slice: the current catalog can be read past its former five-page limit.
         private const val MAX_CATALOG_PAGES = 100
         private const val PROFILE_CACHE_MS = 60_000L
-        private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시 뒤 다시 불러오면 바뀌어요."
-        private const val NOTE_PREFERENCE_REFRESHING = "변경한 선호를 반영해 추천을 갱신하고 있어요."
+        private const val NOTE_GENERATING = "서버가 내 목소리 분석으로 추천을 만들고 있어요. 잠시만 기다려 주세요."
+        private const val NOTE_PREFERENCE_REFRESHING = "변경한 선호를 반영해 추천을 갱신하고 있어요. 잠시만 기다려 주세요."
         /** 기기 계산 추천을 대신 보여 줄 때 이유 뒤에 붙이는 꼬리 */
         private const val NOTE_LOCAL_TAIL = "지금은 이 기기의 음역 계산 추천이에요."
 
@@ -287,7 +289,9 @@ class BackendRecommendRepository(
                     score = score, coverage = score, centerScore = 0f, spanFit = 0f, softFit = 0f,
                     songCoreLowMidi = range.songLowMidi?.roundToInt(), songCoreHighMidi = range.songHighMidi?.roundToInt(),
                 ),
-                recommendedKey = recommendedKeyOffset,   // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다
+                recommendedKey = recommendedKeyOffset?.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX),
+                // null = 계산되지 않음. 0 으로 바꾸면 원키 추천과 구분이 안 된다.
+                // 구버전 서버에 남은 ±4 이상 값은 현재 재생 가능한 ±3으로 방어적으로 제한한다.
                 strainSections = StrainSections(original = burden, atKey = burden),
                 overallFit = unit(scores?.overall) ?: score,
                 reasons = listOfNotNull(reason?.takeIf { it.isNotBlank() }).ifEmpty { listOf("곡 음역의 ${(score * 100).roundToInt()}%가 내 안정 음역과 겹쳐요") },

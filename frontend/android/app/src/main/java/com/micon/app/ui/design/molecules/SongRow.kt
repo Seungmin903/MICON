@@ -2,6 +2,7 @@ package com.micon.app.ui.design.molecules
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,14 @@ import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.CompactDiscSize
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.tokens.MiconSpace
+
+/**
+ * [SongRow] 를 담는 목록의 가로 여백.
+ *
+ * 행 자체는 edge-to-edge 다 — 여백은 담는 쪽이 준다. 스크롤할 때 콘텐츠가 가장자리 아래로
+ * 지나가도록 행마다 패딩을 거는 대신 `LazyColumn(contentPadding = ...)` 으로 준다.
+ */
+val songListGutter: PaddingValues = PaddingValues(horizontal = MiconSpace.screenHorizontal)
 
 /**
  * 곡 한 줄. 기존 `SongRow` · 검색 버블 · `ReportFitCard` 행 · 기록 행을 하나로 모은다.

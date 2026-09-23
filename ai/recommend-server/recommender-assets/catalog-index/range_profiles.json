@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "scoringVersion": "vocal-range-keyshift-continuous-v2",
+  "scoringVersion": "vocal-range-keyshift-first-98-v3",
   "pitchExtractionVersion": "vocalscope-crepe-viterbi-pyin-notes-v1",
   "createdAt": "2026-09-03T06:14:12.677733+00:00",
   "profileMethod": "VocalScope CREPE full + Viterbi + pYIN; duration-weighted note histogram",
   "keyShiftRange": [
-    -6,
-    5
+    -3,
+    3
   ],
   "generationRuntime": {
     "torch": "2.13.0+cu130",

@@ -162,7 +162,7 @@ def recommend(
     Fast centroid search produces ECAPA/BYOL candidate unions. Precise segment
     matching keeps its absolute cosine-derived score per model and uses fixed
     model weights so a pair's score does not depend on the candidate set. When compatible
-    pitch profiles are supplied, a -6..+5 semitone range match is added before
+    pitch profiles are supplied, a -3..+3 semitone range match is added before
     the final ranking.
     """
 
@@ -371,7 +371,7 @@ def recommend(
                 "The uploaded clip measures only the observed sung range, not the user's "
                 "physiological or fully comfortable range."
             ),
-            "Range fit uses the robust 5th-95th percentile and allows song transposition from -6 through +5 semitones.",
+            "Range fit uses the robust 5th-95th percentile and allows song transposition from -3 through +3 semitones.",
             "Absolute cosine-derived similarity is a stable pairwise score, not a calibrated success probability.",
             "Genre, mood, likes, and accumulated user profile are not used.",
         ],

@@ -16,15 +16,16 @@ class SongDetailRangeVerdictTest {
         assertNull(rangeMatchPercent(null, 60..70, 0))
     }
 
-    @Test fun verdictUsesShiftedRangesInsteadOfRecommendationScore() {
+    @Test fun verdictExplainsRecommendedKeyWithDirectionAndAmount() {
         assertEquals("잘 맞아요", rangeVerdict(60 to 70, 60..70, 0).label)
-        assertEquals("한 키 조절", rangeVerdict(60 to 70, 60..70, 2).label)
-        assertEquals("도전곡", rangeVerdict(60 to 70, 60..70, 3).label)
+        assertEquals("한 키 올리기", rangeVerdict(60 to 70, 60..70, 1, 1).label)
+        assertEquals("두 키 내리기", rangeVerdict(60 to 70, 60..70, -2, -2).label)
+        assertEquals("한 키 내리기", rangeVerdict(60 to 70, 61..73, 0).label)
     }
 
     @Test fun rangeMatchChangesWhenKeyChanges() {
         assertEquals(100, rangeMatchPercent(60 to 70, 60..70, 0))
-        assertEquals(80, rangeMatchPercent(60 to 70, 60..70, 2))
-        assertEquals(0, rangeMatchPercent(60 to 70, 71..81, 0))
+        assertEquals(100, rangeMatchPercent(60 to 70, 60..70, 2))
+        assertEquals(10, rangeMatchPercent(60 to 70, 71..81, 0))
     }
 }

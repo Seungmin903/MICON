@@ -105,7 +105,7 @@ fun RangeVerdict(
     val advice = if (fit == RangeFit.Easy || shift == 0) {
         null
     } else {
-        "${NoteNames.keyShiftText(shift)}면 편하게 불러요."
+        "${NoteNames.keyShiftText(shift)}를 추천해요."
     }
 
     MiconCard(modifier = modifier.fillMaxWidth()) {

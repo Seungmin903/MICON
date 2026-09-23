@@ -307,7 +307,7 @@ def profile_from_voice_profile(voice_profile: Any) -> tuple[dict[str, Any] | Non
     confidence = _decimal(voice_profile.get("rangeConfidence"))
     profile = {
         "schemaVersion": PROFILE_SCHEMA_VERSION, "profileKind": "guided_range_measurement",
-        "method": "on-device guided-range-v7", "histogram": mass.tolist(),
+        "method": "on-device guided-range", "histogram": mass.tolist(),
         "lowestMidi": low, "coreLowMidi": low, "medianMidi": median_midi, "coreHighMidi": high, "highestMidi": high,
         "confidence": 1.0 if confidence is None else confidence,
         "reliable": confidence is None or confidence >= 0.35,

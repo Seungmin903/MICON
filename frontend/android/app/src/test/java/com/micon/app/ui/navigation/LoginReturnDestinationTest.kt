@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LoginReturnDestinationTest {
+    @Test fun savedLoginSessionStartsAtVerificationThenDefaultsToRecommend() {
+        assertEquals(Routes.SPLASH, initialNavigationRoute(hasSavedSession = true))
+        assertEquals(Routes.LOGIN, initialNavigationRoute(hasSavedSession = false))
+    }
+
     @Test fun uuidSurvivesSongPracticeAndLoginReturnRoutes() {
         val id = "d221afea-6dc1-5223-a6bc-68fa055b4820"
         assertEquals("song/$id", Routes.song(id))
@@ -19,7 +24,7 @@ class LoginReturnDestinationTest {
         assertEquals("practice/42", Routes.practice("42"))
         assertEquals("practice/42?selectedKey=-2", Routes.practice("42", -2))
         assertEquals("practice/42?selectedKey=3", Routes.practice("42", 3))
-        assertTrue(Routes.SONG_MATCH in Routes.withBottomBar)
+        assertFalse(Routes.SONG_MATCH in Routes.withBottomBar)
     }
     @Test fun restoresRequestedTabAndSong() {
         assertEquals(Routes.FAVORITES, loginReturnDestination(Routes.FAVORITES))

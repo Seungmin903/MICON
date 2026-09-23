@@ -50,20 +50,35 @@ class RangeFitTest {
     }
 
     @Test
-    fun `key shift contract contains twelve keys from minus six through plus five`() {
-        assertEquals(-6, RangeFitCalculator.KEY_SHIFTS.first)
-        assertEquals(5, RangeFitCalculator.KEY_SHIFTS.last)
-        assertEquals(12, RangeFitCalculator.KEY_SHIFTS.count())
-        assertFalse(6 in RangeFitCalculator.KEY_SHIFTS)
+    fun `key shift contract matches the playable minus three through plus three range`() {
+        assertEquals(-3, RangeFitCalculator.KEY_SHIFTS.first)
+        assertEquals(3, RangeFitCalculator.KEY_SHIFTS.last)
+        assertEquals(7, RangeFitCalculator.KEY_SHIFTS.count())
+        assertFalse(4 in RangeFitCalculator.KEY_SHIFTS)
     }
 
     @Test
-    fun `ideal plus six match is capped at plus five`() {
+    fun `ideal plus six match is capped at plus three`() {
         val songHistogram = DoubleArray(PitchProfile.BINS).also { it[60 - PitchProfile.MIDI_MIN] = 1.0 }
         val songAtSixty = PitchProfile(songHistogram, 60, 60, 60)
         val userAtSixtySix = PitchProfile.ofStableRange(66, 66)
 
-        assertEquals(5, RangeFitCalculator.best(userAtSixtySix, songAtSixty).keyShift)
+        assertEquals(3, RangeFitCalculator.best(userAtSixtySix, songAtSixty).keyShift)
+    }
+
+    @Test
+    fun `guided recommendation uses the first key that reaches ninety eight percent coverage`() {
+        val histogram = DoubleArray(PitchProfile.BINS).also { values ->
+            (56..64).forEach { values[it - PitchProfile.MIDI_MIN] = 1.0 / 9.0 }
+        }
+        val candidate = PitchProfile(histogram, 56, 60, 64)
+        val user = PitchProfile.ofStableRange(60, 64)
+
+        val result = RangeFitCalculator.best(user, candidate)
+
+        assertEquals(2, result.keyShift)
+        assertTrue(result.fit.coverage >= 0.98f)
+        assertTrue(RangeFitCalculator.scoreAtShift(user, candidate, 1).coverage < 0.98f)
     }
 
     @Test
