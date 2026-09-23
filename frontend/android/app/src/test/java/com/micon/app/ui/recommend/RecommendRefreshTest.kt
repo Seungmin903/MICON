@@ -40,11 +40,14 @@ class RecommendRefreshTest {
         assertEquals("new",vm.state.value.shelves.single().key)
     }
     @Test fun generationIsPolledUntilCompleteAndStopsWhenHidden() = runTest(dispatcher) {
-        val recs=Recs().apply { fetch={ n -> result("n$n").copy(generating=n<2) } }
+        val recs=Recs().apply { fetch={ n -> if (n < 2) RecommendShelves(true, emptyList(), "추천 생성 중", generating = true) else result("n$n") } }
         val vm=vm(recs); runCurrent(); vm.onVisible(); runCurrent()
         assertEquals(1,recs.calls)
+        assertTrue(vm.state.value.generating)
+        assertTrue(vm.state.value.shelves.isEmpty())
         advanceTimeBy(2_000); runCurrent()
         assertEquals(2,recs.calls)
+        assertFalse(vm.state.value.generating)
         assertEquals("n2",vm.state.value.shelves.single().key)
         vm.onHidden(); advanceTimeBy(10_000); runCurrent(); assertEquals(2,recs.calls)
         vm.onVisible(); runCurrent(); assertEquals(3,recs.calls)

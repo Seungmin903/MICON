@@ -212,6 +212,15 @@ fun RecommendDeckScreen(
                 state.loading && shelves.isEmpty() ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = scheme.primary) }
 
+                state.generating && shelves.isEmpty() ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            CircularProgressIndicator(color = scheme.primary)
+                            Text(state.note ?: "내 목소리에 맞는 추천곡을 준비하고 있어요", style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        }
+                    }
+
                 state.error != null && shelves.isEmpty() ->
                     EmptyState(text = state.error!!, actionLabel = "다시 불러오기", onAction = vm::load)
 
