@@ -77,6 +77,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.scoring.LiveNote
 import com.micon.app.scoring.LiveStatus
+import com.micon.app.scoring.KaraokeNames
 import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.LyricTiming
 import com.micon.app.scoring.ScoringConstants
@@ -443,7 +444,7 @@ private fun ScoreBoard(
     }
 }
 
-/** 방금 판정된 음표는 숫자·가사 없이 낮음/정확/높음/안 부름 등의 판정만 표시한다. */
+/** 방금 판정된 음표의 음정 상태를 표시하고, 옥타브 오류면 목표음과 실제음을 함께 보여 준다. */
 @Composable
 private fun JudgementLabel(note: LiveNote?, atMs: Long) {
     if (note == null || !note.status.judged) { Text("첫 음표를 기다리고 있어요", fontSize = 12.sp, color = Grey); return }
@@ -452,13 +453,27 @@ private fun JudgementLabel(note: LiveNote?, atMs: Long) {
     val color = Color(status.argb)
     val label = when (note.status) {
         LiveStatus.GOOD -> "Perfect"
-        LiveStatus.SHARP -> "Low"
-        LiveStatus.FLAT -> "High"
+        LiveStatus.SHARP -> "High"
+        LiveStatus.FLAT -> "Low"
         LiveStatus.WRONG -> "Bad"
         LiveStatus.MISSED -> "Miss"
         else -> ""
     }
-    Text(label, fontSize = 14.sp, color = if (fresh) color else color.copy(alpha = 0.55f), fontWeight = FontWeight.Bold)
+    val targetMidi = note.judgedTargetMidi
+    val sungMidi = note.sungMidi
+    val octaveFeedback = if (targetMidi != null && sungMidi != null) {
+        val difference = sungMidi - targetMidi
+        val octaves = (difference / 12.0).roundToInt()
+        if (octaves != 0 && abs(difference - octaves * 12.0) <= 1.0) {
+            "${KaraokeNames.koreanShort(targetMidi)} → ${KaraokeNames.koreanShort(sungMidi.roundToInt())} · ${abs(octaves)}옥타브 ${if (octaves < 0) "낮게" else "높게"}"
+        } else null
+    } else null
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 14.sp, color = if (fresh) color else color.copy(alpha = 0.55f), fontWeight = FontWeight.Bold)
+        octaveFeedback?.let {
+            Text(it, fontSize = 9.sp, color = if (fresh) color else color.copy(alpha = 0.55f), maxLines = 1)
+        }
+    }
 }
 
 // 재생 중 가사(KaraokePanel)는 불러서 분석하기와 공유 → PracticeLyrics.kt
