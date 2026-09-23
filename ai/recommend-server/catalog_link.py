@@ -49,7 +49,8 @@ def _refresh(attempted_at: float | None = None) -> dict[str, Any]:
     base = os.environ.get("MICON_BE_BASE_URL", "").strip().rstrip("/")
     if not base:
         with _LOCK:
-            _CACHE.update(revision=None, batchId=None, songIds={}, error="MICON_BE_BASE_URL 미설정")
+            # Keep the last verified mapping available while the backend is absent.
+            _CACHE["error"] = "MICON_BE_BASE_URL 미설정"
             return dict(_CACHE)
     try:
         body = _get(base + PATH, os.environ.get("AI_SERVICE_TOKEN", "").strip())
@@ -79,14 +80,44 @@ def refresh() -> dict[str, Any]:
         return _refresh()
 
 
+def _refresh_in_background(attempted_at: float) -> None:
+    try:
+        _refresh(attempted_at)
+    finally:
+        _REFRESH_LOCK.release()
+
+
 def ensure(min_interval_seconds: float = 30.0) -> dict[str, Any]:
-    """짝표를 제한적으로 재조회한다. 활성 곡 변경도 재시작 없이 반영한다."""
-    with _REFRESH_LOCK:
-        now = time.monotonic()
-        if (_LAST_ATTEMPT_MONOTONIC is not None
-                and now - _LAST_ATTEMPT_MONOTONIC < max(0.0, min_interval_seconds)):
+    """Return the last mapping immediately and refresh it in a daemon thread if stale."""
+    global _LAST_ATTEMPT_MONOTONIC
+    interval = max(0.0, min_interval_seconds)
+    now = time.monotonic()
+    with _LOCK:
+        last_attempt = _LAST_ATTEMPT_MONOTONIC
+    if last_attempt is not None and now - last_attempt < interval:
+        return status()
+    if not _REFRESH_LOCK.acquire(blocking=False):
+        return status()
+
+    attempted_at = now
+    with _LOCK:
+        last_attempt = _LAST_ATTEMPT_MONOTONIC
+        if last_attempt is not None and attempted_at - last_attempt < interval:
+            _REFRESH_LOCK.release()
             return status()
-        return _refresh(now)
+        _LAST_ATTEMPT_MONOTONIC = attempted_at
+    try:
+        threading.Thread(
+            target=_refresh_in_background,
+            args=(attempted_at,),
+            name="catalog-link-refresh",
+            daemon=True,
+        ).start()
+    except RuntimeError as error:
+        _REFRESH_LOCK.release()
+        with _LOCK:
+            _CACHE["error"] = str(error)[:200]
+    return status()
 
 
 def status() -> dict[str, Any]:
