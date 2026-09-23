@@ -193,6 +193,7 @@ fun RecommendDeckScreen(
 
     MiconDesignTheme {
         val scheme = MaterialTheme.colorScheme
+        val contentScroll = rememberScrollState()
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(scheme.background).statusBarsPadding()) {
             // 로고·설정 행과 ?·검색 행을 한 줄로 합쳤다 — 검색이 화면 맨 위에 온다
@@ -237,7 +238,11 @@ fun RecommendDeckScreen(
                 }
 
                 else -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    Modifier
+                        .fillMaxSize()
+                        // 곡을 올리기 전에는 플레이어와 카드 행을 화면 안에 고정한다.
+                        // 선택 후에만 현재 곡 정보와 교체 목록까지 자연스럽게 스크롤한다.
+                        .then(if (loaded != null) Modifier.verticalScroll(contentScroll) else Modifier),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     LazyRow(
@@ -267,10 +272,15 @@ fun RecommendDeckScreen(
                         onPrev = { items.getOrNull(loadedIndex - 1)?.let(::putOnDeck) },
                         onNext = { items.getOrNull(loadedIndex + 1)?.let(::putOnDeck) },
                         onDiscDragDown = { loadedId = null },
+                        onDetails = { loaded?.let(::open) },
                         modifier = Modifier.padding(horizontal = MiconSpace.screenHorizontal),
                     )
 
-                    NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
+                    // 선택 전에는 제목 영역을 만들지 않아 곡 카드가 그 자리까지 올라온다.
+                    // 곡을 올린 뒤에만 같은 위치에 현재 곡 제목·가수를 표시한다.
+                    if (loaded != null) {
+                        NowInfo(loaded, preview = preview.takeIf { it.songId == loadedId })
+                    }
 
                     if (loaded == null) {
                         CardFan(
@@ -286,13 +296,6 @@ fun RecommendDeckScreen(
                             onPick = ::putOnDeck,
                         )
                     }
-
-                    MiconButton(
-                        text = "이 곡 자세히 보기",
-                        onClick = { loaded?.let(::open) },
-                        enabled = loaded != null,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = MiconSpace.screenHorizontal),
-                    )
 
                     Spacer(Modifier.navigationBarsPadding().height(MiconSpace.navBarContentPadding))
                 }
@@ -473,7 +476,6 @@ private fun PickHead(title: String, hint: String) {
 /** 프로토타입 `.fan` + `.hintDrag`. 카드를 위로 끌어 올리면 데크에 올라간다 */
 @Composable
 private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (RecommendedSong) -> Unit, onFloat: (FloatingCard?) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PickHead(header, "위로 끌어 올려 담기")
         val listState = rememberLazyListState()
@@ -487,13 +489,6 @@ private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (Recom
                 DragCard(songs[i], tilt = tilt, onLoad = { onLoad(songs[i]) }, onFloat = onFloat)
             }
         }
-        Text(
-            buildString { append("카드를 플레이어 쪽으로 끌어 올리면 CD가 올라갑니다") },
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = MiconSpace.screenHorizontal),
-        )
     }
 }
 
@@ -571,22 +566,23 @@ private fun DeckCardFace(item: RecommendedSong) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         CompactDisc(title = item.song.title, artist = item.song.artist, imageUrl = item.song.imageUrl, size = 64.dp)
-        Text(
-            item.song.title,
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.heightIn(min = 32.dp),
-        )
-        Text(
-            item.song.artist,
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                item.song.title,
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                item.song.artist,
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

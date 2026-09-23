@@ -1,10 +1,14 @@
 package com.micon.app.ui.favorites
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +33,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
@@ -40,17 +46,23 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import com.micon.app.ui.design.organisms.tabBarContentPadding
@@ -71,6 +83,7 @@ import com.micon.app.data.favorites.FavoriteRepository
 import com.micon.app.data.favorites.Setlist
 import com.micon.app.data.favorites.SetlistDetail
 import com.micon.app.data.favorites.SetlistRepository
+import com.micon.app.data.favorites.SetlistSong
 import com.micon.app.ui.common.BackHeader
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.MiconSearchBar
@@ -97,6 +110,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /**
@@ -347,6 +361,26 @@ class SetlistViewModel(
         _state.update { it.copy(detail = detail) }
     }
 
+    fun moveSong(songId: String, targetSongId: String) {
+        if (_state.value.busy) return
+        _state.update { state ->
+            val detail = state.detail ?: return@update state
+            state.copy(detail = detail.copy(songs = moveSetlistSong(detail.songs, songId, targetSongId)))
+        }
+    }
+
+    fun saveSongOrder() = run("곡 순서를 바꾸지 못했어요.") {
+        val detail = _state.value.detail ?: return@run
+        try {
+            _state.update { it.copy(detail = setlists.reorderSongs(setlistId, detail.songs.map(SetlistSong::songId), detail.updatedAt)) }
+        } catch (e: Exception) {
+            runCatching { setlists.detail(setlistId) }.getOrNull()?.let { latest ->
+                _state.update { it.copy(detail = latest) }
+            }
+            throw e
+        }
+    }
+
     fun consumeToast() = _state.update { it.copy(toast = null) }
 
     private fun run(failure: String, block: suspend () -> Unit) {
@@ -368,6 +402,13 @@ class SetlistViewModel(
         }
     }
 
+}
+
+internal fun moveSetlistSong(songs: List<SetlistSong>, songId: String, targetSongId: String): List<SetlistSong> {
+    val from = songs.indexOfFirst { it.songId == songId }
+    val to = songs.indexOfFirst { it.songId == targetSongId }
+    if (from < 0 || to < 0 || from == to) return songs
+    return songs.toMutableList().apply { add(to, removeAt(from)) }.mapIndexed { index, song -> song.copy(position = index) }
 }
 
 /** Figma "노래 찜 목록 - 세트리스트 세부" */
@@ -394,9 +435,43 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
+    var draggedSongId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var autoScrollDirection by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
+    LaunchedEffect(draggedSongId, autoScrollDirection) {
+        while (draggedSongId != null && autoScrollDirection != 0) {
+            val dragged = draggedSongId ?: break
+            // 한 프레임에 너무 멀리 움직이면 곡이 서로 건너뛰는 것처럼 보여서,
+            // 작은 거리로 연속 이동시킨다. 드래그한 행은 같은 화면 위치를 유지한다.
+            val scrolled = listState.scrollBy(autoScrollDirection * 6f)
+            if (scrolled == 0f) {
+                autoScrollDirection = 0
+                break
+            }
+            // 목록이 스크롤된 만큼 선택 곡도 손가락 아래에 계속 남겨 둔다.
+            dragOffset += scrolled
+            val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
+            val currentIndex = songItems.indexOfFirst { it.key == dragged }
+            val current = songItems.getOrNull(currentIndex)
+            val target = songItems.getOrNull(currentIndex + autoScrollDirection)
+            if (current != null && target != null) {
+                val draggedCenter = current.offset + current.size / 2 + dragOffset
+                val targetCenter = target.offset + target.size / 2
+                val crossedTargetCenter = if (autoScrollDirection > 0) draggedCenter >= targetCenter else draggedCenter <= targetCenter
+                val targetId = target.key as? String
+                if (crossedTargetCenter && targetId != null) {
+                    // 선택 행은 손가락 아래에 남기고, 빈자리를 다른 곡이 채운다.
+                    dragOffset -= target.offset - current.offset
+                    vm.moveSong(dragged, targetId)
+                }
+            }
+            delay(16)
+        }
+    }
 
     val detail = state.detail
     if (showRename && detail != null) {
@@ -474,6 +549,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                 )
                 LazyColumn(
                     Modifier.fillMaxSize().background(Color(0xFFF7F5FC)),
+                    state = listState,
                     contentPadding = tabBarContentPadding(horizontal = MiconSpace.screenHorizontal),
                 ) {
                     if (state.editing) item {
@@ -489,12 +565,102 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         Spacer(Modifier.height(6.dp))
                     }
                     items(detail.songs, key = { it.songId }) { song ->
-                        SongRow(
-                            title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onSongClick(song.songId) },
-                            trailing = if (state.editing) ({
-                                IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
-                            }) else null,
-                        )
+                        val dragging = draggedSongId == song.songId
+                        Row(
+                            Modifier.fillMaxWidth()
+                                // 멜론처럼 선택 행은 손가락을 따라 떠 있고, 다른 곡이
+                                // 중앙 교체 시점에 빈자리를 부드럽게 메운다.
+                                .then(if (dragging) Modifier else Modifier.animateItem(placementSpec = tween(180, easing = FastOutSlowInEasing)))
+                                .zIndex(if (dragging) 1f else 0f)
+                                .graphicsLayer {
+                                    translationY = if (dragging) dragOffset else 0f
+                                }
+                                .background(if (dragging) Color(0xFFF2F2F2) else Color.Transparent),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (state.editing) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.size(48.dp)
+                                        .background(if (dragging) Purple.copy(alpha = 0.14f) else Color.Transparent, CircleShape)
+                                        .pointerInput(state.busy, song.songId) {
+                                        if (state.busy) return@pointerInput
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggedSongId = song.songId
+                                                dragOffset = 0f
+                                                autoScrollDirection = 0
+                                            },
+                                            onDragCancel = {
+                                                draggedSongId = null
+                                                dragOffset = 0f
+                                                autoScrollDirection = 0
+                                            },
+                                            onDragEnd = {
+                                                draggedSongId = null
+                                                dragOffset = 0f
+                                                autoScrollDirection = 0
+                                                vm.saveSongOrder()
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragOffset += amount.y
+                                                val dragged = draggedSongId ?: return@detectDragGesturesAfterLongPress
+                                                val songItems = listState.layoutInfo.visibleItemsInfo.filter { it.key is String }
+                                                val currentIndex = songItems.indexOfFirst { it.key == dragged }
+                                                val current = songItems.getOrNull(currentIndex) ?: return@detectDragGesturesAfterLongPress
+                                                // 드래그 중인 카드가 화면 가장자리 가까이에 왔을 때만
+                                                // 자동 스크롤한다. 화면에 남은 곡 개수가 아니라 실제
+                                                // 카드 위치를 기준으로 하므로 손가락과 목록이 따로 놀지 않는다.
+                                                val cardTop = current.offset + dragOffset
+                                                val cardBottom = cardTop + current.size
+                                                val edgeInset = 72f
+                                                autoScrollDirection = when {
+                                                    amount.y > 0f && cardBottom >= listState.layoutInfo.viewportEndOffset - edgeInset -> 1
+                                                    amount.y < 0f && cardTop <= listState.layoutInfo.viewportStartOffset + edgeInset -> -1
+                                                    else -> 0
+                                                }
+                                                val target = when {
+                                                    dragOffset > 0f -> songItems.getOrNull(currentIndex + 1)
+                                                    dragOffset < 0f -> songItems.getOrNull(currentIndex - 1)
+                                                    else -> null
+                                                } ?: return@detectDragGesturesAfterLongPress
+                                                val draggedCenter = current.offset + current.size / 2 + dragOffset
+                                                val targetCenter = target.offset + target.size / 2
+                                                val crossedTargetCenter = if (dragOffset > 0f) {
+                                                    draggedCenter >= targetCenter
+                                                } else {
+                                                    draggedCenter <= targetCenter
+                                                }
+                                                val targetId = target.key as? String
+                                                if (crossedTargetCenter && targetId != null) {
+                                                    // 선택 행은 손가락 아래에 유지되고,
+                                                    // 다른 곡만 기존 자리로 자연스럽게 이동한다.
+                                                    dragOffset -= target.offset - current.offset
+                                                    vm.moveSong(dragged, targetId)
+                                                }
+                                            },
+                                        )
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.Filled.DragHandle,
+                                        contentDescription = "길게 눌러 곡 순서 변경",
+                                        tint = if (dragging) Purple else Grey,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                                VerticalDivider(Modifier.height(32.dp), thickness = 1.dp, color = GreyLight)
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            SongRow(
+                                title = song.title, artist = song.artist, imageUrl = song.imageUrl,
+                                onClick = { onSongClick(song.songId) }, modifier = Modifier.weight(1f),
+                                trailing = if (state.editing) ({
+                                    IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
+                                }) else null,
+                            )
+                        }
                     }
                     if (detail.songs.isEmpty()) item {
                         Text("아직 곡이 없어요. 편집(연필)을 눌러 곡을 추가해 보세요.", Modifier.padding(vertical = 24.dp), color = Grey)

@@ -171,6 +171,16 @@ public class SetlistRepository {
 
 	// 기능: reorderSongs 대상 데이터를 데이터베이스에서 변경한다.
 	public void reorderSongs(Long setlistId, List<String> songIds) {
+		// (setlist_id, position_no)는 유니크다. 1번과 2번을 바로 맞바꾸면
+		// 첫 UPDATE가 기존 2번과 충돌하므로, 먼저 현재 범위를 벗어난 임시 순번을 쓴다.
+		int temporaryPositionStart = songIds.size() + 1;
+		for (int index = 0; index < songIds.size(); index++) {
+			jdbcTemplate.update(
+				"UPDATE setlist_item SET position_no = :position "
+					+ "WHERE setlist_id = :setlistId AND song_id = :songId",
+				Map.of("position", temporaryPositionStart + index, "setlistId", setlistId, "songId", songIds.get(index))
+			);
+		}
 		for (int index = 0; index < songIds.size(); index++) {
 			jdbcTemplate.update(
 				"UPDATE setlist_item SET position_no = :position "

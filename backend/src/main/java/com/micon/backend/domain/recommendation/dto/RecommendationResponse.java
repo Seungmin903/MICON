@@ -1,6 +1,7 @@
 package com.micon.backend.domain.recommendation.dto;
 
 import com.micon.backend.domain.recommendation.entity.RecommendationStatus;
+import com.micon.backend.domain.song.dto.SongResponse;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
@@ -42,6 +43,14 @@ public record RecommendationResponse(
             JsonNode metrics,
             String reasonText,
             String scoringVersion,
-            String compositionVersion
-    ) {}
+            String compositionVersion,
+            SongResponse.Summary summary
+    ) {
+        public Song(String songId, int overallRank, int position, String axis, String label, Short recommendedKey,
+                    BigDecimal finalScore, BigDecimal timbreScore, JsonNode rangeFit, JsonNode metrics,
+                    String reasonText, String scoringVersion, String compositionVersion) {
+            this(songId, overallRank, position, axis, label, recommendedKey, finalScore, timbreScore, rangeFit,
+                    metrics, reasonText, scoringVersion, compositionVersion, null);
+        }
+    }
 }

@@ -20,6 +20,7 @@ import com.micon.app.data.backend.dto.RecommendationDto
 import com.micon.app.data.backend.dto.RecommendationSongDto
 import com.micon.app.data.backend.dto.SongFitDto
 import com.micon.app.data.backend.unwrapData
+import com.micon.app.data.backend.toSummary
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.sync.Mutex
@@ -163,7 +164,12 @@ class BackendRecommendRepository(
     /** 서버 순서 그대로(REC-001). 단 새로운 발견은 [reshuffle] 이 바뀔 때마다 서버가 준 후보 안에서 다시 섞어 [limit] 만큼 보인다 — 서버를 다시 부르지 않는다. */
     private suspend fun mapShelves(rec: RecommendationDto, limit: Int, reshuffle: Int): List<RecommendShelf> {
         val ids = rec.shelves.flatMap { s -> s.items.map { it.songId } }.toSet()
-        val songsById = catalogFor(ids)
+        // 최신 응답은 화면에 필요한 곡 요약을 포함한다. 구버전 서버를 만난 경우에만
+        // 누락된 곡을 기존 카탈로그 조회로 보완한다.
+        val embedded = rec.shelves.flatMap { it.items }.mapNotNull { dto ->
+            dto.summary?.toSummary()?.let { dto.songId to it }
+        }.toMap()
+        val songsById = if (ids.all { it in embedded }) embedded else embedded + catalogFor(ids - embedded.keys)
         return rec.shelves
             .filter { it.key != ShelfKeys.CHALLENGE }
             .sortedBy { it.order }
