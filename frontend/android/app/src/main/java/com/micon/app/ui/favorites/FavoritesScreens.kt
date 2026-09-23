@@ -439,6 +439,10 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var draggedSongId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var autoScrollDirection by remember { mutableIntStateOf(0) }
+    // 다음 교체 대상은 중앙을 넘기 전부터 빈자리 쪽으로 이동시킨다.
+    // 중앙에서 실제 순서가 바뀌어도 화면 위치가 이어져 보여 끊김이 없다.
+    var previewTargetId by remember { mutableStateOf<String?>(null) }
+    var previewTargetOffset by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
@@ -464,7 +468,15 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                 val targetCenter = target.offset + target.size / 2
                 val crossedTargetCenter = if (autoScrollDirection > 0) draggedCenter >= targetCenter else draggedCenter <= targetCenter
                 val targetId = target.key as? String
+                if (targetId != null) {
+                    val distance = (target.offset - current.offset).toFloat()
+                    val progress = (kotlin.math.abs(dragOffset) / kotlin.math.abs(distance)).coerceIn(0f, 1f)
+                    previewTargetId = targetId
+                    previewTargetOffset = -distance * progress
+                }
                 if (crossedTargetCenter && targetId != null) {
+                    previewTargetId = null
+                    previewTargetOffset = 0f
                     dragOffset -= target.offset - current.offset
                     vm.moveSong(dragged, targetId)
                 }
@@ -566,14 +578,19 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     }
                     items(detail.songs, key = { it.songId }) { song ->
                         val dragging = draggedSongId == song.songId
+                        val previewing = previewTargetId == song.songId
                         Row(
                             Modifier.fillMaxWidth()
                                 // 드래그 중인 행은 손가락에 즉시 반응하고, 비워진 자리를
                                 // 채우는 다른 행만 짧은 위치 애니메이션으로 자연스럽게 이동한다.
-                                .then(if (dragging) Modifier else Modifier.animateItem(placementSpec = tween(180, easing = FastOutSlowInEasing)))
+                                .then(if (dragging || previewing) Modifier else Modifier.animateItem(placementSpec = tween(180, easing = FastOutSlowInEasing)))
                                 .zIndex(if (dragging) 1f else 0f)
                                 .graphicsLayer {
-                                    translationY = if (dragging) dragOffset else 0f
+                                    translationY = when {
+                                        dragging -> dragOffset
+                                        previewing -> previewTargetOffset
+                                        else -> 0f
+                                    }
                                     scaleX = if (dragging) 0.98f else 1f
                                     scaleY = if (dragging) 0.98f else 1f
                                 }
@@ -593,16 +610,22 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                 draggedSongId = song.songId
                                                 dragOffset = 0f
                                                 autoScrollDirection = 0
+                                                previewTargetId = null
+                                                previewTargetOffset = 0f
                                             },
                                             onDragCancel = {
                                                 draggedSongId = null
                                                 dragOffset = 0f
                                                 autoScrollDirection = 0
+                                                previewTargetId = null
+                                                previewTargetOffset = 0f
                                             },
                                             onDragEnd = {
                                                 draggedSongId = null
                                                 dragOffset = 0f
                                                 autoScrollDirection = 0
+                                                previewTargetId = null
+                                                previewTargetOffset = 0f
                                                 vm.saveSongOrder()
                                             },
                                             onDrag = { change, amount ->
@@ -636,8 +659,16 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                                     draggedCenter <= targetCenter
                                                 }
                                                 val targetId = target.key as? String
+                                                if (targetId != null) {
+                                                    val distance = (target.offset - current.offset).toFloat()
+                                                    val progress = (kotlin.math.abs(dragOffset) / kotlin.math.abs(distance)).coerceIn(0f, 1f)
+                                                    previewTargetId = targetId
+                                                    previewTargetOffset = -distance * progress
+                                                }
                                                 if (crossedTargetCenter && targetId != null) {
                                                     // 선택 행은 손가락 아래를 유지하고, 다른 행만 빈자리를 애니메이션으로 채운다.
+                                                    previewTargetId = null
+                                                    previewTargetOffset = 0f
                                                     dragOffset -= target.offset - current.offset
                                                     vm.moveSong(dragged, targetId)
                                                 }
