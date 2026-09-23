@@ -237,7 +237,7 @@ private fun MiconNavHost(
         // ---- 첫 화면: 목소리 분석 → 결과 ----
         composable(Routes.HOLO) {
             HoloScreen(vm = holo, onResult = { nav.navigate(Routes.VOICE_RESULT) { launchSingleTop = true } },
-                onSkip = { leaveHolo(Routes.REPORT) })
+                onSkip = { holo.reset(); leaveHolo(Routes.REPORT) })
         }
         composable(Routes.VOICE_RESULT) {
             val holoState by holo.state.collectAsStateWithLifecycle()
@@ -250,7 +250,11 @@ private fun MiconNavHost(
                 onSave = {
                     if (TokenManager.isLoggedIn() && result.profileSaved) leaveHolo(Routes.RECOMMEND)
                     else if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
-                    else { session.rememberDestinationRoute(Routes.HOLO); nav.navigate(Routes.LOGIN) { launchSingleTop = true } }
+                    else {
+                        session.rememberDestinationRoute(Routes.HOLO)
+                        holo.reset()
+                        nav.navigate(Routes.LOGIN) { launchSingleTop = true }
+                    }
                 },
                 onRetry = { holo.reset(); nav.popBackStack(Routes.HOLO, inclusive = false) })
         }
@@ -290,7 +294,7 @@ private fun MiconNavHost(
             if (!accessGranted) return@composable
             if (isGuest) GuestMemberTab("추천", openLogin = { openLogin() })
             else RecommendDeckScreen(onSongClick = { nav.navigate(Routes.songMatch(it)) }, onSettings = { nav.navigate(Routes.SETTINGS) },
-                onAnalyze = { nav.navigate(Routes.HOLO) { launchSingleTop = true } })
+                onAnalyze = { holo.reset(); nav.navigate(Routes.HOLO) { launchSingleTop = true } })
         }
         composable(Routes.SONG_MATCH, arguments = listOf(navArgument("songId") { type = NavType.StringType })) { entry ->
             if (isGuest || !accessGranted) return@composable
