@@ -5,4 +5,4 @@ if (-not $env:MICON_BUILD_SHA) {
     $revision = & git -C $PSScriptRoot rev-parse HEAD 2>$null
     $env:MICON_BUILD_SHA = if ($LASTEXITCODE -eq 0) { $revision.Trim() } else { 'unknown' }
 }
-& (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') -m uvicorn app:app --host $BindHost --port $Port
+& (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') -m uvicorn app:app --host $BindHost --port $Port --workers 1

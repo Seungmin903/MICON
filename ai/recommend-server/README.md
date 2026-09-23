@@ -71,9 +71,15 @@ ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
 
 환경변수: `AI_SERVICE_TOKEN`(컨테이너에서는 secret 파일에서 필수 로드; 로컬에서 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_BASE_URL`(카탈로그 조회) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
-`RECOMMEND_CONCURRENCY=1` · `RECOMMEND_EMBEDDING_OFFLOAD=false`(GPU가 작아 상주 모델을 매 작업 뒤 CPU로 내릴 때만 `true`) ·
+`RECOMMEND_CONCURRENCY=1`(음성 임베딩 추론) · `RECOMMEND_JSON_CONCURRENCY=1`(JSON 추천 계산 동시 실행, 기본 1) ·
+`RECOMMEND_JSON_QUEUE_LIMIT=5`(동시 실행분 외 허용 대기 건수, 기본 5; 한도를 넘으면 POST 는 HTTP 503) ·
+`RECOMMEND_EMBEDDING_OFFLOAD=false`(GPU가 작아 상주 모델을 매 작업 뒤 CPU로 내릴 때만 `true`) ·
 `MICON_BUILD_SHA`(배포 커밋; 로컬 시작 스크립트는 자동 설정) · `MICON_RANGE_MODEL_PYTHON`(선택) ·
 `RECOMMEND_AUDIO_TTL_SECONDS=3600` · `RECOMMEND_AUDIO_HARD_TTL_SECONDS=86400` · `RECOMMEND_CREPE_MODEL`.
+
+JSON 추천의 동시 실행·대기 한도는 8788 Uvicorn 프로세스별로 적용한다.
+
+8788은 Uvicorn worker 1개로 실행한다. 추천·음성 분석·가수 검색의 작업 map과 분석 요청 중복 방지 map은 프로세스 메모리에 있고, `job.json`은 재시작 복구용이지 worker 간 실시간 저장소가 아니다. worker를 늘리면 상태 조회가 다른 worker에서 404가 될 수 있고, 실행·대기 한도와 카탈로그 캐시도 worker 수만큼 따로 생긴다. 여러 worker로 확장하려면 공유 job 저장소와 원자적 요청 중복 방지·전역 대기열을 먼저 도입해야 한다.
 
 **응답 계약**: `schemas.py` 가 원본. JSON Schema 는 [docs/response-schema.json](docs/response-schema.json), 실제 값 예시는 [docs/sample-response.json](docs/sample-response.json)
 (카탈로그 곡 하나를 사용자 입력으로 삼은 합성 샘플). FE DTO 는 이 둘로 만든다. 스키마를 바꾸면 `scripts/make_sample_response.py` 를 다시 돌린다.
