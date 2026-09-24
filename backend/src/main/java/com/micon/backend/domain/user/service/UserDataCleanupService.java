@@ -28,7 +28,11 @@ public class UserDataCleanupService {
         // Keep a non-identifying tombstone row for referential/audit integrity.
         jdbc.update("""
                 UPDATE voice_recording
-                SET storage_path = CONCAT('deleted/', recording_id), sha256 = NULL,
+                SET storage_path = CASE
+                        WHEN storage_mode = 'STORED' THEN CONCAT('deleted/', recording_id)
+                        ELSE NULL
+                    END,
+                    sha256 = NULL,
                     file_bytes = NULL, duration_ms = NULL, sample_rate = NULL
                 WHERE user_id = ?
                 """, userId);
