@@ -1,5 +1,7 @@
 package com.micon.app.ui.navigation
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.micon.app.ui.design.organisms.FloatingNavBar
 import com.micon.app.ui.design.organisms.LocalTabBarPadding
 import com.micon.app.ui.design.tokens.MiconSpace
@@ -91,6 +95,9 @@ fun MiconRoot() {
     val accessGranted = sessionVerified || session.guest
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
+    val isExitConfirmationRoute = currentRoute in exitConfirmationRoutes
+    val activity = LocalContext.current as? Activity
     val onboardingChrome = remember { OnboardingChromeState() }
     val darkOnboarding = false
     val showBottomBar = accessGranted && currentRoute in Routes.withBottomBar
@@ -120,6 +127,13 @@ fun MiconRoot() {
             // Also guards restored back stacks and incoming protected deep links.
             nav.replaceAll(Routes.REPORT)
         }
+    }
+
+    // 시스템 뒤로가기로 앱을 닫게 되는 루트에서만 종료 여부를 확인한다.
+    // 하위 화면의 뒤로가기와 녹음·저장 중인 화면의 BackHandler는 그대로 우선한다.
+    BackHandler(enabled = isExitConfirmationRoute) {
+        if (showExitConfirmation) showExitConfirmation = false
+        else showExitConfirmation = true
     }
 
     CompositionLocalProvider(
@@ -160,7 +174,31 @@ fun MiconRoot() {
             }
         }
     }
+
+    if (showExitConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmation = false },
+            title = { Text("앱을 종료할까요?") },
+            text = { Text("MICON을 종료하시겠어요?") },
+            confirmButton = {
+                TextButton(onClick = { activity?.finishAndRemoveTask() }) {
+                    Text("종료")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirmation = false }) {
+                    Text("취소")
+                }
+            },
+        )
+    }
 }
+
+private val exitConfirmationRoutes = Routes.withBottomBar + setOf(
+    Routes.LOGIN,
+    Routes.HOLO,
+    Routes.SPLASH,
+)
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
 private val migratedRoutes: Set<String?> = setOf(
