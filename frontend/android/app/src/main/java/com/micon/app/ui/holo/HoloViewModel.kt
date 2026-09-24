@@ -1,6 +1,8 @@
 package com.micon.app.ui.holo
 
 import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
@@ -86,6 +88,8 @@ class HoloViewModel(
         val sungSec: Double = 0.0,
         /** 지금 간주 구간을 지나가는 중 */
         val interlude: Boolean = false,
+        /** 녹음 전 카운트다운 4→1(0 이면 아님). 곡을 고르면 간주 없이 바로 가사가 나오므로 준비할 틈을 준다 */
+        val countdown: Int = 0,
         /** 서버 저장 상태 문구(결과 화면 하단) */
         val saving: Boolean = false,
         val saved: Boolean = false,
@@ -107,6 +111,8 @@ class HoloViewModel(
     private val client = HoloAnalysisClient(api)
     private val player = InstrumentalPlayer(appContext, mediaHttp)
     private val capture = PitchCapture(analyzePitch = true, timbreRecording = true)
+    /** 카운트다운 비프. 마이크를 켜기 전에만 울린다 */
+    private val clicks: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
     private val frames = ArrayList<PitchCapture.PitchFrame>(3000)
     private var wav: File? = null
     private var sheet: LyricSheet? = null
@@ -256,6 +262,8 @@ class HoloViewModel(
                 if (picked != null) prepareSong(picked)
                 else { sheet = null; songStartSec = 0.0 }
                 currentCoroutineContext().ensureActive()
+                if (picked != null) countdown(startVersion)
+                currentCoroutineContext().ensureActive()
                 if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return@launch
                 val file = File(File(appContext.filesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
                 wav = file
@@ -272,7 +280,7 @@ class HoloViewModel(
                 }
                 if (picked != null) { player.seekTo(songStartSec); player.play() }
                 val (l0, i0) = lyricsAt(if (picked != null) songStartSec else 0.0)
-                _state.update { it.copy(phase = Phase.REC, lyrics = l0, lyricIndex = i0) }
+                _state.update { it.copy(phase = Phase.REC, countdown = 0, lyrics = l0, lyricIndex = i0) }
                 tick = launch {
                     while (true) {
                         val t = capture.capturedSeconds
@@ -305,6 +313,20 @@ class HoloViewModel(
                         current.copy(phase = Phase.ERROR, error = e.message ?: "준비 중 문제가 생겼어요.") else current
                 }
             }
+        }
+    }
+
+    /**
+     * 노래방식 카운트다운 4·3·2·1(1초 간격). 시작 지점이 첫 가사(또는 하이라이트) 바로 앞이라 반주와 노래가 곧바로 나온다.
+     * 그동안 첫 가사를 미리 보여 주고, "1" 이 끝나는 순간 마이크와 반주를 함께 켠다.
+     */
+    private suspend fun countdown(startVersion: Long) {
+        val (lines, index) = lyricsAt(songStartSec)
+        for (step in COUNTDOWN_STEPS downTo 1) {
+            if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return
+            _state.update { it.copy(countdown = step, lyrics = lines, lyricIndex = index) }
+            runCatching { clicks?.startTone(if (step == 1) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP, 60) }
+            delay(COUNTDOWN_STEP_MS)
         }
     }
 
@@ -467,12 +489,15 @@ class HoloViewModel(
         tick?.cancel()
         if (capture.isRunning) capture.stop()
         player.release()
+        runCatching { clicks?.release() }
     }
 
     companion object {
         /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
         const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
+        const val COUNTDOWN_STEPS = 4
+        const val COUNTDOWN_STEP_MS = 1_000L
         private const val CATALOG_PAGE_SIZE = 40
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }
