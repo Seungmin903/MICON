@@ -330,6 +330,17 @@ fun ResultDetailCards(
                         BigStat("음정", report.pitchScore)
                         BigStat("박자", report.rhythmScore)
                     }
+                    Spacer(Modifier.height(18.dp))
+                    val metricText = summaryLines.drop(1).joinToString(" ")
+                    JudgementTooltipTitle()
+                    Spacer(Modifier.height(10.dp))
+                    MetricBars(
+                        "Perfect" to metricCount(metricText, "정확"),
+                        "Low" to metricCount(metricText, "낮게"),
+                        "High" to metricCount(metricText, "높게"),
+                        "Bad" to metricCount(metricText, "다른 음"),
+                        "Miss" to metricCount(metricText, "안 부름"),
+                    )
                 }
 
                 // 서버가 노트 판정을 돌려줄 때만 가사별 판정 카드를 그린다.
