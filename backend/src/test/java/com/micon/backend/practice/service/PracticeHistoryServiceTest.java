@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeScoreTrendResponse;
 import com.micon.backend.domain.practice.repository.PracticeHistoryRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,5 +57,26 @@ class PracticeHistoryServiceTest {
 
 		assertThat(response.content()).isEmpty();
 		assertThat(response.totalPages()).isZero();
+	}
+
+	@Test
+	void returnsSameSongScoresInChronologicalOrderWithSummary() {
+		var first = new PracticeScoreTrendResponse.Point(
+			1L, LocalDateTime.of(2026, 9, 1, 12, 0), new BigDecimal("70.00"),
+			new BigDecimal("68.00"), new BigDecimal("72.00"), 0, "FULL_SONG", 120_000
+		);
+		var latest = new PracticeScoreTrendResponse.Point(
+			2L, LocalDateTime.of(2026, 9, 2, 12, 0), new BigDecimal("82.50"),
+			new BigDecimal("80.00"), new BigDecimal("85.00"), -1, "FULL_SONG", 120_000
+		);
+		when(repository.findScoreTrend(7L, "song-1", 100)).thenReturn(List.of(first, latest));
+
+		var response = service.getScoreTrend(7L, "song-1", 100);
+
+		assertThat(response.points()).containsExactly(first, latest);
+		assertThat(response.firstScore()).isEqualByComparingTo("70.00");
+		assertThat(response.latestScore()).isEqualByComparingTo("82.50");
+		assertThat(response.bestScore()).isEqualByComparingTo("82.50");
+		assertThat(response.scoreDelta()).isEqualByComparingTo("12.50");
 	}
 }
