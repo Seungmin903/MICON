@@ -1,6 +1,15 @@
 package com.micon.app.ui.songdetail
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -320,13 +329,36 @@ private fun KeyCard(key: Int, onKey: (Int) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             KeyStep("−", enabled = key > ScoringConstants.KEY_SHIFT_MIN) { onKey(key - 1) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (key > 0) "+$key" else "$key", fontFamily = MiconMonoFamily, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
-                Text(NoteNames.keyShiftText(key), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // 타이머처럼: − 는 지금 숫자가 위로 빠지고 새 숫자가 아래에서, + 는 아래로 빠지고 위에서 들어온다.
+                // 카드 칸 밖으로 넘친 부분은 잘라서 숫자판 한 칸이 돌아가는 것처럼 보이게 한다.
+                AnimatedContent(
+                    targetState = key,
+                    transitionSpec = {
+                        val down = targetState < initialState
+                        val motion = tween<androidx.compose.ui.unit.IntOffset>(KEY_SLIDE_MS, easing = FastOutSlowInEasing)
+                        val fade = tween<Float>(KEY_SLIDE_MS)
+                        (slideInVertically(motion) { if (down) it else -it } + fadeIn(fade))
+                            .togetherWith(slideOutVertically(motion) { if (down) -it else it } + fadeOut(fade))
+                            .using(SizeTransform(clip = true))
+                    },
+                    label = "key-shift",
+                ) { value ->
+                    Text(if (value > 0) "+$value" else "$value", fontFamily = MiconMonoFamily, fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold, lineHeight = 30.sp, modifier = Modifier.testTag("song-key-value"))
+                }
+                // 보조 문구는 같이 미끄러지면 산만해서 짧게 겹쳐 바뀌기만 한다
+                AnimatedContent(targetState = key, transitionSpec = { fadeIn(tween(KEY_SLIDE_MS)) togetherWith fadeOut(tween(KEY_SLIDE_MS)) },
+                    label = "key-shift-label") { value ->
+                    Text(NoteNames.keyShiftText(value), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             KeyStep("+", enabled = key < ScoringConstants.KEY_SHIFT_MAX) { onKey(key + 1) }
         }
     }
 }
+
+/** 키 숫자가 한 칸 미끄러지는 시간(ms) */
+private const val KEY_SLIDE_MS = 220
 
 @Composable
 internal fun KeyStep(symbol: String, size: androidx.compose.ui.unit.Dp = 48.dp, enabled: Boolean = true, onClick: () -> Unit) {
