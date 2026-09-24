@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +70,7 @@ import com.micon.app.ui.design.organisms.tabBarContentPadding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -197,7 +199,10 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
     val state by vm.state.collectAsStateWithLifecycle()
     RefreshOnResume(vm::load)
     val context = LocalContext.current
-    var tab by remember { mutableStateOf(Tab.FAVORITES) }
+    // A detail screen can dispose this destination. Save the selected tab in
+    // its navigation back-stack entry so returning keeps the user's context.
+    var selectedTabName by rememberSaveable { mutableStateOf(Tab.FAVORITES.name) }
+    val tab = Tab.valueOf(selectedTabName)
     var query by remember { mutableStateOf("") }
     var showCreate by remember { mutableStateOf(false) }
 
@@ -226,7 +231,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Tab.entries.forEach { t -> FavoritesFilterChip(t.label, selected = tab == t, onClick = { tab = t }) }
+            Tab.entries.forEach { t -> FavoritesFilterChip(t.label, selected = tab == t, onClick = { selectedTabName = t.name }) }
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -356,9 +361,35 @@ class SetlistViewModel(
         _state.update { it.copy(detail = setlists.removeSong(setlistId, songId)) }
     }
 
-    fun addSong(songId: String) = run("곡을 추가하지 못했어요.") {
-        val detail = setlists.addSong(setlistId, songId)
-        _state.update { it.copy(detail = detail) }
+    fun addSongs(songIds: Collection<String>, onCompleted: () -> Unit) {
+        val uniqueSongIds = songIds.distinct()
+        if (uniqueSongIds.isEmpty() || _state.value.busy) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true) }
+            try {
+                var updatedDetail: SetlistDetail? = null
+                uniqueSongIds.forEach { songId ->
+                    updatedDetail = setlists.addSong(setlistId, songId)
+                }
+                // 추가 창 안에서는 선택 행을 그대로 유지한다. 모든 요청이 끝난 뒤에만
+                // 목록을 한 번 갱신하고 창을 닫아 곡이 하나씩 사라져 보이지 않게 한다.
+                updatedDetail?.let { detail ->
+                    _state.update { it.copy(detail = detail, toast = "${uniqueSongIds.size}곡 추가되었습니다.") }
+                }
+                onCompleted()
+            } catch (e: Exception) {
+                val message = if (e is BackendRequestException && e.code == "SONG_NOT_FAVORITED") {
+                    "곡을 추가하지 못했어요."
+                } else {
+                    describeBackendError(e, "곡을 추가하지 못했어요.")
+                }
+                // 일부 요청만 성공했을 수도 있으므로 실패 시에는 서버 상태로 다시 맞춘다.
+                val latest = runCatching { setlists.detail(setlistId) }.getOrNull()
+                _state.update { it.copy(detail = latest ?: it.detail, toast = message) }
+            } finally {
+                _state.update { it.copy(busy = false) }
+            }
+        }
     }
 
     fun moveSong(songId: String, targetSongId: String) {
@@ -442,6 +473,11 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
+    LaunchedEffect(state.editing) {
+        // 수정 진입 전에 목록을 보던 위치가 남아 있으면 첫 행의 "곡 검색해서 추가"가
+        // 화면 밖으로 숨는다. 수정 모드에서는 항상 추가 행부터 보이게 한다.
+        if (state.editing) listState.scrollToItem(0)
+    }
     LaunchedEffect(draggedSongId, autoScrollDirection) {
         while (draggedSongId != null && autoScrollDirection != 0) {
             val dragged = draggedSongId ?: break
@@ -492,36 +528,13 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
             onRefresh = pickerVm::refresh,
             onLoadMore = pickerVm::loadMore,
             onDismiss = { showAdd = false },
-            onAdd = vm::addSong,
+            busy = state.busy,
+            onAddSelected = { songIds -> vm.addSongs(songIds) { showAdd = false } },
         )
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
-        BackHeader("나의 세트리스트", onBack) {
-            Box {
-                IconButton(onClick = { menu = true }, enabled = detail != null) { Icon(Icons.Filled.MoreHoriz, "더보기", tint = Ink) }
-                DropdownMenu(
-                    expanded = menu,
-                    onDismissRequest = { menu = false },
-                    modifier = Modifier.width(180.dp).background(Color(0xFFF7F5FC), RoundedCornerShape(16.dp)),
-                    containerColor = Color(0xFFF7F5FC),
-                    shape = RoundedCornerShape(16.dp),
-                    shadowElevation = 6.dp,
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("이름 변경", color = Ink, fontWeight = FontWeight.Medium) },
-                        leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = Purple) },
-                        onClick = { menu = false; showRename = true },
-                    )
-                    HorizontalDivider(Modifier.padding(horizontal = 12.dp), color = Color(0xFFE1DFE8))
-                    DropdownMenuItem(
-                        text = { Text("세트리스트 삭제", color = Red, fontWeight = FontWeight.Medium) },
-                        leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = Red) },
-                        onClick = { menu = false; showDelete = true },
-                    )
-                }
-            }
-        }
+        BackHeader("나의 세트리스트", onBack)
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             detail == null -> RetryBlock(state.error ?: "세트리스트를 찾을 수 없습니다.", vm::load)
@@ -531,12 +544,52 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                         CompactDisc(title = detail.name, imageUrl = detail.songs.firstOrNull()?.imageUrl, size = 120.dp)
                         Spacer(Modifier.width(20.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(detail.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    detail.name,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                IconButton(onClick = { showRename = true }) {
+                                    Icon(Icons.Outlined.Edit, "세트리스트 이름 변경", tint = Purple)
+                                }
+                            }
                             Spacer(Modifier.height(8.dp))
                             Text("총 ${detail.songs.size}곡", fontSize = 15.sp, color = Grey)
                         }
-                        IconButton(onClick = vm::toggleEdit) {
-                            Icon(if (state.editing) Icons.Filled.Check else Icons.Outlined.Edit, if (state.editing) "편집 끝" else "편집", tint = if (state.editing) Purple else Ink)
+                        Box {
+                            if (state.editing) {
+                                IconButton(onClick = vm::toggleEdit) {
+                                    Icon(Icons.Filled.Check, "편집 끝", tint = Purple)
+                                }
+                            } else {
+                                IconButton(onClick = { menu = true }) {
+                                    Icon(Icons.Filled.MoreHoriz, "더보기", tint = Ink)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = menu,
+                                onDismissRequest = { menu = false },
+                                modifier = Modifier.width(180.dp).background(Color(0xFFF7F5FC), RoundedCornerShape(16.dp)),
+                                containerColor = Color(0xFFF7F5FC),
+                                shape = RoundedCornerShape(16.dp),
+                                shadowElevation = 6.dp,
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("곡 편집", color = Ink, fontWeight = FontWeight.Medium) },
+                                    leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = Purple) },
+                                    onClick = { menu = false; vm.toggleEdit() },
+                                )
+                                HorizontalDivider(Modifier.padding(horizontal = 12.dp), color = Color(0xFFE1DFE8))
+                                DropdownMenuItem(
+                                    text = { Text("세트리스트 삭제", color = Red, fontWeight = FontWeight.Medium) },
+                                    leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = Red) },
+                                    onClick = { menu = false; showDelete = true },
+                                )
+                            }
                         }
                     }
                 }
@@ -754,13 +807,18 @@ private fun AddSongDialog(
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onDismiss: () -> Unit,
-    onAdd: (String) -> Unit,
+    busy: Boolean,
+    onAddSelected: (List<String>) -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(excludedIds) { selectedIds = selectedIds - excludedIds }
+    Dialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Column(
             Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
+                .fillMaxWidth(0.96f)
                 .background(Color.White, RoundedCornerShape(22.dp))
                 .padding(top = 8.dp, bottom = 18.dp),
         ) {
@@ -769,7 +827,7 @@ private fun AddSongDialog(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("곡 추가", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = onDismiss, enabled = !busy) {
                     Icon(Icons.Filled.Close, contentDescription = "닫기", tint = Grey)
                 }
             }
@@ -779,11 +837,31 @@ private fun AddSongDialog(
                 onGenreChange = onGenreChange,
                 onRefresh = onRefresh,
                 onLoadMore = onLoadMore,
-                onSongClick = onAdd,
+                onSongClick = {},
                 excludedIds = excludedIds,
+                selectedIds = selectedIds,
+                onSelectionToggle = { songId ->
+                    selectedIds = if (songId in selectedIds) selectedIds - songId else selectedIds + songId
+                },
                 searchPlaceholder = "검색",
-                modifier = Modifier.fillMaxWidth().heightIn(min = 360.dp, max = 560.dp).padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 300.dp, max = 500.dp).padding(horizontal = 8.dp),
             )
+            Spacer(Modifier.height(14.dp))
+            Surface(
+                onClick = { if (!busy && selectedIds.isNotEmpty()) onAddSelected(selectedIds.toList()) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = if (selectedIds.isNotEmpty() && !busy) Purple else GreyLight,
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        if (busy) "추가 중…" else "완료 (${selectedIds.size})",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         }
     }
 }
