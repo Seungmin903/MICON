@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -292,6 +293,7 @@ private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.ph
 private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> Unit)?) {
     val state by vm.state.collectAsStateWithLifecycle()
     val rec = state.phase == HoloViewModel.Phase.REC || state.phase == HoloViewModel.Phase.LOADING
+    val counting = state.phase == HoloViewModel.Phase.LOADING && state.countdown > 0
     var flood by remember { mutableStateOf(false) }
     LaunchedEffect(state.phase) { if (state.phase == HoloViewModel.Phase.DONE) flood = true }
     BackHandler(enabled = rec) { vm.reset() }
@@ -302,15 +304,19 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
     HoloChrome(
         logoVisible = !rec,
         globeScale = if (rec) 0.8f + state.progress * 1.2f else 1f,
-        absorbing = rec,
+        // 방울 흡수는 마이크가 켜진 뒤부터(반주 준비·카운트다운 동안은 아직 듣지 않는다)
+        absorbing = state.phase == HoloViewModel.Phase.REC,
         topPill = when {
+            counting -> null
             rec -> "결과 바로 보기 ›" to vm::finishEarly
             onSkip != null -> "나중에 ›" to onSkip
             else -> null
         },
         error = state.error,
+        globeOverlay = { if (counting) CountdownNumber(state.countdown) },
         middle = {
-            if (rec && state.lyrics.isNotEmpty()) {
+            if (counting) CountdownGuide(state.lyrics.getOrNull(state.lyricIndex).orEmpty())
+            else if (rec && state.lyrics.isNotEmpty()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     state.lyrics.forEachIndexed { i, line ->
                         val cur = i == state.lyricIndex
@@ -320,7 +326,8 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
                             fontSize = if (cur) 21.sp else 16.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal,
                         )
                     }
-                    if (state.interlude) Text("간주는 건너뛸게요", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                    // 시작 지점(첫 가사 1초 전)도 전주로 잡히므로, 부르기 시작한 뒤의 간주에만 알린다
+                    if (state.interlude && state.sungSec > 0.0) Text("간주는 건너뛸게요", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                 }
             } else if (!rec) {
                 Text("2단계 · 노래로 음색을 봐요", color = Color.White, fontSize = 19.sp,
@@ -352,6 +359,36 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
         onLoadMore = vm::loadMoreCatalog,
         onQuery = vm::onQuery, onPick = { vm.pick(it); pickerOpen = false }, onClose = { pickerOpen = false },
     )
+}
+
+/** 구체 위의 큰 숫자 4·3·2·1. 숫자가 바뀔 때마다 살짝 커졌다 돌아온다 */
+@Composable
+internal fun CountdownNumber(value: Int) {
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(value) {
+        pop.snapTo(1.25f)
+        pop.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+    }
+    Text("$value", color = HoloButtonText, fontSize = 56.sp, fontWeight = FontWeight.Black,
+        modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }.testTag("holo-countdown"))
+}
+
+/** 카운트다운 동안 가운데 안내: 간주 없이 곧바로 시작한다는 것 + 처음 부를 가사 */
+@Composable
+internal fun CountdownGuide(firstLine: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("간주 없이 바로 노래가 시작돼요", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center)
+        Text("숫자가 끝나면 첫 가사부터 불러 주세요", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp,
+            textAlign = TextAlign.Center)
+        if (firstLine.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(firstLine, color = Color.White.copy(alpha = 0.9f), fontSize = 16.sp, textAlign = TextAlign.Center,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.14f))
+                    .padding(horizontal = 14.dp, vertical = 8.dp))
+        }
+    }
 }
 
 /**
@@ -410,6 +447,7 @@ private fun HoloChrome(
     error: String?,
     middle: @Composable () -> Unit,
     bottom: @Composable BoxScope.() -> Unit,
+    globeOverlay: @Composable () -> Unit = {},
     flood: Boolean = false,
     onFloodCovered: () -> Unit = {},
     onFloodDone: () -> Unit = {},
@@ -427,6 +465,7 @@ private fun HoloChrome(
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Globe(scale = globeScale, absorbing = absorbing)
+                globeOverlay()
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(horizontal = 24.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center) { middle() }
