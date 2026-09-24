@@ -1,7 +1,5 @@
 package com.micon.app.ui.practice
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +50,7 @@ private fun lyricTypeFor(heightDp: Float, compact: Boolean): LyricType = when {
  *
  * **줄 단위로만 맞춘다.** 글자별 채움 시각(`LyricChar.at`)은 음표에 매칭된 음절만
  * 실측이고 나머지는 선형 보간이라(`LyricLines.fillChars`) 글자 단위로 칠하면 싱크가 눈에 띄게 어긋났다.
- * 줄 안에서의 시간 경과는 글자 색 대신 줄 아래 진행 바로 보여 준다 — 오차가 없고 읽기도 편하다.
+ * 줄 안에서의 시간 경과는 현재 가사 카드 강조로만 보여 준다.
  * 음절 판정 색은 점수판의 판정 라벨과 음표 레인(Runway)이 담당한다.
  */
 @Composable
@@ -81,9 +79,6 @@ internal fun KaraokePanel(
             verticalArrangement = Arrangement.Center,
         ) {
             if (current != null) {
-                // 줄 진행도는 글자 수가 아니라 시각 기준 — 글자별 추정 시각의 오차를 타지 않는다
-                val target = ((nowSec - current.start) / (current.until - current.start).coerceAtLeast(0.001)).toFloat().coerceIn(0f, 1f)
-                val progress by animateFloatAsState(targetValue = target, animationSpec = tween(120), label = "lyricLineProgress")
                 Column(
                     Modifier.fillMaxWidth()
                         .background(if (compactPracticeStyle) Purple.copy(alpha = 0.18f) else Lavender, RoundedCornerShape(14.dp))
@@ -100,10 +95,6 @@ internal fun KaraokePanel(
                         maxLines = 2,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Spacer(Modifier.height(if (compactPracticeStyle) 7.dp else 9.dp))
-                    Box(Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.55f), RoundedCornerShape(50))) {
-                        Box(Modifier.fillMaxWidth(progress).height(3.dp).background(Purple, RoundedCornerShape(50)))
-                    }
                 }
             } else {
                 Text("♪", fontSize = type.current, color = Grey)
