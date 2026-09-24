@@ -1,6 +1,7 @@
 package com.micon.app.ui.songdetail
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.data.*
@@ -56,19 +57,21 @@ internal class SongDetailViewModel(
     private var loadJob: Job? = null
     private var keyJob: Job? = null
     private var fitJob: Job? = null
+    private var scoreTrendJob: Job? = null
     private var progressJob: Job? = null
     private var keyManuallySelected = false
 
     init {
         load()
-        loadScoreTrend()
         viewModelScope.launch { profile.collectLatest { refreshFit() } }
     }
 
     private fun loadScoreTrend() {
         val practiceRepository = practices ?: return
-        viewModelScope.launch {
+        scoreTrendJob?.cancel()
+        scoreTrendJob = viewModelScope.launch {
             try {
+                Log.d(LOG_TAG, "Requesting score trend for songId=$songId")
                 val trend = practiceRepository.scoreTrend(songId)
                 ensureActive()
                 if (trend.songId == songId && trend.points.isNotEmpty()) {
@@ -76,8 +79,9 @@ internal class SongDetailViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // 비회원·기록 없음·구버전 서버에서는 기존 상세 화면만 보인다.
+                Log.w(LOG_TAG, "Failed to load score trend for songId=$songId", e)
             }
         }
     }
@@ -92,6 +96,7 @@ internal class SongDetailViewModel(
                 check(detail.summary.id == songId)
                 _state.update { it.copy(loading = false, detail = mergeAssets(detail),
                     durationSec = maxOf(it.durationSec, (detail.summary.durationMs ?: 0) / 1000.0)) }
+                loadScoreTrend()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(loading = false, error = "곡 정보를 불러오지 못했어요.") } }
         }
@@ -254,4 +259,8 @@ internal class SongDetailViewModel(
 
     fun pause() { player?.pause(); _state.update { it.copy(playing = false) } }
     override fun onCleared() { leaveScreen() }
+
+    private companion object {
+        const val LOG_TAG = "SongDetail"
+    }
 }
