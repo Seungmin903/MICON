@@ -15,11 +15,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Offset
@@ -73,6 +75,7 @@ import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
+import com.micon.app.ui.design.tokens.MiconFontFamily
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
@@ -167,55 +170,90 @@ fun SongDetailContent(
 /** 같은 곡을 반복 연습한 완료 점수만 노래 상세의 마지막에 보여 준다. */
 @Composable
 private fun PracticeScoreTrendCard(trend: PracticeScoreTrend) {
-    val latest = trend.latestScore ?: return
-    val delta = trend.scoreDelta ?: 0.0
-    val deltaText = when {
-        delta > 0.0 -> "첫 연습보다 +${"%.1f".format(delta)}점"
-        delta < 0.0 -> "첫 연습보다 ${"%.1f".format(delta)}점"
-        else -> "첫 연습과 같은 점수예요"
-    }
+    val points = trend.points.takeLast(5)
+    val latest = points.lastOrNull()?.overallScore ?: return
     MiconCard(kind = MiconCardKind.Outlined) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("연습 점수 변화", style = MaterialTheme.typography.labelMedium,
+                Text("최근 ${points.size}회 연습 점수", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
-                Text(deltaText, style = MaterialTheme.typography.bodySmall,
+                Text("같은 곡을 연습한 기록이에요", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text("${"%.1f".format(latest)}점", fontFamily = MiconMonoFamily, fontSize = 22.sp,
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(12.dp))
-        ScoreTrendChart(trend.points.map { it.overallScore })
+        ScoreTrendChart(points)
     }
 }
 
 @Composable
-private fun ScoreTrendChart(scores: List<Double>) {
+private fun ScoreTrendChart(points: List<PracticeScoreTrend.Point>) {
     val colors = MaterialTheme.colorScheme
-    Canvas(Modifier.fillMaxWidth().height(132.dp)) {
-        val left = 28.dp.toPx()
-        val top = 6.dp.toPx()
-        val bottom = size.height - 20.dp.toPx()
-        val width = size.width - left
-        fun x(index: Int) = left + width * index / maxOf(1, scores.lastIndex)
-        fun y(score: Double) = bottom - (bottom - top) * (score / 100.0).toFloat().coerceIn(0f, 1f)
-        listOf(100, 50, 0).forEach { score ->
-            val py = y(score.toDouble())
-            drawLine(colors.outlineVariant, Offset(left, py), Offset(size.width, py),
-                1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())))
+    BoxWithConstraints(Modifier.fillMaxWidth().height(164.dp).padding(horizontal = 4.dp, vertical = 4.dp)) {
+        val chartLeft = 34.dp
+        val chartRight = maxWidth - 10.dp
+        val chartTop = 10.dp
+        val chartBottom = maxHeight - 54.dp
+        val pointInset = 26.dp
+        fun pointX(index: Int) = if (points.size == 1) (chartLeft + chartRight) / 2
+            else chartLeft + pointInset + (chartRight - chartLeft - pointInset * 2) * index / points.lastIndex
+        fun pointY(score: Double) = chartBottom - (chartBottom - chartTop) * (score / 100.0).toFloat().coerceIn(0f, 1f)
+
+        Canvas(Modifier.fillMaxSize()) {
+            fun x(index: Int) = pointX(index).toPx()
+            fun y(score: Double) = pointY(score).toPx()
+            listOf(0, 25, 50, 75, 100).forEach { score ->
+                val lineY = y(score.toDouble())
+                drawLine(colors.outlineVariant, Offset(chartLeft.toPx(), lineY), Offset(chartRight.toPx(), lineY), 1.dp.toPx())
+            }
+            if (points.size > 1) {
+                val line = Path()
+                points.forEachIndexed { index, point ->
+                    if (index == 0) line.moveTo(x(index), y(point.overallScore)) else line.lineTo(x(index), y(point.overallScore))
+                }
+                drawPath(line, colors.primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            }
+            points.forEachIndexed { index, point ->
+                drawCircle(colors.primary, 4.dp.toPx(), Offset(x(index), y(point.overallScore)))
+                drawCircle(colors.surface, 1.7.dp.toPx(), Offset(x(index), y(point.overallScore)))
+            }
         }
-        val line = Path()
-        scores.forEachIndexed { index, score ->
-            if (index == 0) line.moveTo(x(index), y(score)) else line.lineTo(x(index), y(score))
+        listOf(0, 25, 50, 75, 100).forEach { score ->
+            Box(
+                Modifier.width(chartLeft - 8.dp).height(16.dp).offset(y = pointY(score.toDouble()) - 8.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text("$score", fontSize = 10.sp, color = colors.onSurfaceVariant, fontFamily = MiconFontFamily)
+            }
         }
-        drawPath(line, colors.primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
-        scores.forEachIndexed { index, score ->
-            drawCircle(colors.primary, 4.dp.toPx(), Offset(x(index), y(score)))
-            drawCircle(colors.surface, 1.7.dp.toPx(), Offset(x(index), y(score)))
+        points.forEachIndexed { index, point ->
+            Box(
+                Modifier.width(52.dp).height(42.dp).offset(x = pointX(index) - 26.dp, y = chartBottom + 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${point.overallScore.roundToInt()}점", fontSize = 13.sp, color = colors.onSurface, fontWeight = FontWeight.SemiBold, fontFamily = MiconFontFamily)
+                    Text(practiceTrendDate(point.playedAt), fontSize = 9.sp, color = colors.onSurfaceVariant, fontFamily = MiconFontFamily)
+                }
+            }
         }
     }
 }
+
+private fun practiceTrendDate(iso: String?): String = runCatching {
+    val source = iso?.take(10) ?: return "-"
+    val year = source.substring(0, 4).toInt()
+    val month = source.substring(5, 7).toInt()
+    val day = source.substring(8, 10).toInt()
+    val dayNames = arrayOf("일", "월", "화", "수", "목", "금", "토")
+    val calendar = java.util.Calendar.getInstance().apply {
+        clear()
+        set(year, month - 1, day)
+    }
+    "$month.$day ${dayNames[calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1]}"
+}.getOrDefault("-")
 
 internal data class Verdict(val label: String, val tone: MiconChipTone, val message: String)
 

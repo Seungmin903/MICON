@@ -72,9 +72,9 @@ internal class SongDetailViewModel(
         scoreTrendJob = viewModelScope.launch {
             try {
                 Log.d(LOG_TAG, "Requesting score trend for songId=$songId")
-                val trend = practiceRepository.scoreTrend(songId)
+                val trend = loadScoreTrend(practiceRepository)
                 ensureActive()
-                if (trend.songId == songId && trend.points.isNotEmpty()) {
+                if (trend?.points?.isNotEmpty() == true) {
                     _state.update { it.copy(scoreTrend = trend) }
                 }
             } catch (e: CancellationException) {
@@ -84,6 +84,54 @@ internal class SongDetailViewModel(
                 Log.w(LOG_TAG, "Failed to load score trend for songId=$songId", e)
             }
         }
+    }
+
+    /** 전용 추이 API에 아직 반영되지 않은 이전 연습도 기록 목록의 저장 점수로 보완한다. */
+    private suspend fun loadScoreTrend(practiceRepository: PracticeRepository): PracticeScoreTrend? {
+        val serverPoints = runCatching {
+            practiceRepository.scoreTrend(songId, limit = TREND_FETCH_LIMIT).points
+        }.getOrDefault(emptyList())
+        val historyPoints = mutableListOf<PracticeScoreTrend.Point>()
+        var page = 0
+        var totalPages = 1
+        do {
+            val history = runCatching { practiceRepository.history(page = page, size = HISTORY_PAGE_SIZE) }.getOrNull() ?: break
+            totalPages = history.totalPages
+            history.items.asSequence()
+                .filter { it.songId == songId && it.overallScore != null }
+                .map { item ->
+                    PracticeScoreTrend.Point(
+                        practiceId = item.id,
+                        playedAt = item.occurredAt,
+                        overallScore = requireNotNull(item.overallScore),
+                        pitchScore = null,
+                        rhythmScore = null,
+                        selectedKey = item.selectedKey,
+                        practiceScope = item.practiceScope,
+                        durationMs = item.durationMs,
+                    )
+                }
+                .forEach(historyPoints::add)
+            page++
+        } while (historyPoints.size < RECENT_TREND_LIMIT && page < totalPages)
+
+        val points = (serverPoints + historyPoints)
+            .associateBy { it.practiceId }
+            .values
+            .sortedWith(compareBy<PracticeScoreTrend.Point> { it.playedAt ?: "" }.thenBy { it.practiceId })
+            .takeLast(RECENT_TREND_LIMIT)
+        if (points.isEmpty()) return null
+        val first = points.first().overallScore
+        val latest = points.last().overallScore
+        return PracticeScoreTrend(
+            songId = songId,
+            totalCount = points.size,
+            firstScore = first,
+            latestScore = latest,
+            bestScore = points.maxOf { it.overallScore },
+            scoreDelta = latest - first,
+            points = points,
+        )
     }
 
     fun load() {
@@ -262,5 +310,8 @@ internal class SongDetailViewModel(
 
     private companion object {
         const val LOG_TAG = "SongDetail"
+        const val RECENT_TREND_LIMIT = 5
+        const val TREND_FETCH_LIMIT = 100
+        const val HISTORY_PAGE_SIZE = 100
     }
 }

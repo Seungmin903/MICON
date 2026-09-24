@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,8 +31,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.micon.app.ui.navigation.MiconRoot
 import com.micon.app.ui.design.tokens.MiconDesignTheme
+import com.micon.app.ui.design.tokens.MiconFontFamily
+import com.micon.app.ui.design.tokens.MiconMonoFamily
 import com.micon.app.ui.theme.Paper
 import kotlinx.coroutines.delay
 
@@ -71,6 +75,22 @@ private fun MiconSplashScreen() {
         modifier = Modifier.fillMaxSize().background(Paper),
         contentAlignment = Alignment.Center,
     ) {
+        // 다운로드 폰트를 스플래시 동안 미리 해석한다. 화면에 처음 진입할 때 시스템 글꼴에서
+        // Noto Sans KR/JetBrains Mono로 뒤늦게 바뀌는 현상을 막기 위한 워밍업이다.
+        Text(
+            "미0",
+            fontFamily = MiconFontFamily,
+            fontSize = 1.sp,
+            color = androidx.compose.ui.graphics.Color.Transparent,
+            modifier = Modifier.width(1.dp).height(1.dp),
+        )
+        Text(
+            "0",
+            fontFamily = MiconMonoFamily,
+            fontSize = 1.sp,
+            color = androidx.compose.ui.graphics.Color.Transparent,
+            modifier = Modifier.width(1.dp).height(1.dp),
+        )
         MiconAnimatedLogo()
     }
 }
