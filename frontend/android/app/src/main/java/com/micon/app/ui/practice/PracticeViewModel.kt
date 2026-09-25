@@ -532,13 +532,13 @@ class PracticeViewModel(
         seekTo(h.start)
     }
 
-    /** 지금 간주 안이면 다음 보컬이 시작하는 마디의 한 마디 앞으로. 연습 중·일시정지 모두. */
-    fun skipInterlude() {
-        val now = _state.value.nowSec
-        val interlude = _state.value.interlude ?: sections.interludeAt(now) ?: return
-        val target = sections.leadBefore(interlude.end)
-        if (target <= now) return                       // 이미 그 마디 안 → 건너뛸 게 없다
-        seekTo(target)
+    /** 간주 건너뛰기 결과를 돌려줘서, 이동할 수 없는 경우에도 버튼이 사용자에게 이유를 알려줄 수 있게 한다. */
+    internal fun skipInterlude(): SkipInterludeResult {
+        val now = player.positionSec
+        val phase = _state.value.phase
+        val plan = planInterludeSkip(sections, now, phase == Phase.RUNNING || phase == Phase.PAUSED)
+        plan.targetSec?.let(::seekTo)
+        return plan.result
     }
 
     /** 가사 줄을 구간 반복 범위로 지정(다시 누르면 해제). READY·PAUSED 에서만. */
