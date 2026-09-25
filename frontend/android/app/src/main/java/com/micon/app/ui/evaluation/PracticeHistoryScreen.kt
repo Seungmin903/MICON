@@ -233,8 +233,9 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                                     onClick = { if (openId == item.id) openId = null else onOpenResult(item.id) },
                                     trailing = {
                                         if (score != null) Text("$score", fontFamily = MiconMonoFamily, fontSize = 18.sp, fontWeight = FontWeight.Black,
-                                            color = if (score >= 80) accent else muted)
-                                        else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium, color = muted)
+                                            color = if (score >= 80) accent else muted, modifier = Modifier.padding(end = 12.dp))
+                                        else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium,
+                                            color = muted, modifier = Modifier.padding(end = 12.dp))
                                     },
                                 )
                             }

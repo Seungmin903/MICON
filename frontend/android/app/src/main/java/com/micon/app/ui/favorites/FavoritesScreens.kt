@@ -1,6 +1,7 @@
 package com.micon.app.ui.favorites
 
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -8,6 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,9 +19,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +34,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -54,6 +61,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,12 +71,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import com.micon.app.ui.design.organisms.tabBarContentPadding
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -114,6 +128,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlin.math.roundToInt
 
 /**
  * 찜 탭. 데이터: 백엔드 `GET /users/me/favorites`(찜 곡), `GET /setlists`(세트리스트).
@@ -184,6 +199,26 @@ class FavoritesViewModel(
         }
     }
 
+    /** 목록에서 스와이프로 선택한 세트리스트 하나를 삭제한다. */
+    fun deleteSetlist(setlistId: Long) {
+        if (_state.value.busy) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true) }
+            try {
+                setlists.delete(setlistId)
+                _state.update { state ->
+                    state.copy(
+                        setlists = state.setlists.filterNot { it.id == setlistId },
+                        busy = false,
+                        toast = "세트리스트를 삭제했어요.",
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(busy = false, toast = describeBackendError(e, "세트리스트를 삭제하지 못했어요.")) }
+            }
+        }
+    }
+
     fun consumeToast() = _state.update { it.copy(toast = null) }
 }
 
@@ -205,6 +240,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
     val tab = Tab.valueOf(selectedTabName)
     var query by remember { mutableStateOf("") }
     var showCreate by remember { mutableStateOf(false) }
+    var openedDeleteSetlistId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     if (showCreate) {
@@ -264,7 +300,21 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                 }
                 val visibleSetlists = state.setlists.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
                 items(visibleSetlists, key = { it.id }) { sl ->
-                    SongRow(title = sl.name, artist = "${sl.songCount}곡", imageUrl = null, onClick = { onSetlistClick(sl.id) })
+                    SetlistSwipeToDeleteRow(
+                        opened = openedDeleteSetlistId == sl.id,
+                        onOpenChange = { open -> openedDeleteSetlistId = if (open) sl.id else null },
+                        onDelete = {
+                            openedDeleteSetlistId = null
+                            vm.deleteSetlist(sl.id)
+                        },
+                    ) {
+                        SongRow(
+                            title = sl.name,
+                            artist = "${sl.songCount}곡",
+                            imageUrl = null,
+                            onClick = { if (openedDeleteSetlistId == sl.id) openedDeleteSetlistId = null else onSetlistClick(sl.id) },
+                        )
+                    }
                 }
                 if (visibleSetlists.isEmpty()) item {
                     Text(if (query.isBlank()) "세트리스트가 없어요. 위에서 새 리스트를 만들어 보세요." else "검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey)
@@ -358,7 +408,8 @@ class SetlistViewModel(
     }
 
     fun removeSong(songId: String) = run("곡을 빼지 못했어요.") {
-        _state.update { it.copy(detail = setlists.removeSong(setlistId, songId)) }
+        val updated = setlists.removeSong(setlistId, songId)
+        _state.update { it.copy(detail = updated, toast = "곡을 삭제했어요.") }
     }
 
     fun addSongs(songIds: Collection<String>, onCompleted: () -> Unit) {
@@ -466,6 +517,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
+    var openedDeleteSongId by remember { mutableStateOf<String?>(null) }
     var draggedSongId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var autoScrollDirection by remember { mutableIntStateOf(0) }
@@ -619,7 +671,8 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     }
                     items(detail.songs, key = { it.songId }) { song ->
                         val dragging = draggedSongId == song.songId
-                        Row(
+                        val row: @Composable () -> Unit = {
+                            Row(
                             Modifier.fillMaxWidth()
                                 // 멜론처럼 선택 행은 손가락을 따라 떠 있고, 다른 곡이
                                 // 중앙 교체 시점에 빈자리를 부드럽게 메운다.
@@ -709,10 +762,23 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                             SongRow(
                                 title = song.title, artist = song.artist, imageUrl = song.imageUrl,
                                 onClick = { onSongClick(song.songId) }, modifier = Modifier.weight(1f),
-                                trailing = if (state.editing) ({
-                                    IconButton(onClick = { vm.removeSong(song.songId) }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "리스트에서 빼기", tint = Red) }
-                                }) else null,
+                                trailing = null,
                             )
+                        }
+                        }
+                        if (state.editing) {
+                            row()
+                        } else {
+                            SetlistSwipeToDeleteRow(
+                                opened = openedDeleteSongId == song.songId,
+                                onOpenChange = { open -> openedDeleteSongId = if (open) song.songId else null },
+                                onDelete = {
+                                    openedDeleteSongId = null
+                                    vm.removeSong(song.songId)
+                                },
+                            ) {
+                                row()
+                            }
                         }
                     }
                     if (detail.songs.isEmpty()) item {
@@ -720,6 +786,60 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                     }
                 }
             }
+        }
+    }
+}
+
+/** 일반 세트리스트 목록에서만 쓰는 명시적 삭제 동작. 편집 화면의 드래그와 충돌하지 않는다. */
+@Composable
+private fun SetlistSwipeToDeleteRow(
+    opened: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val delete by rememberUpdatedState(onDelete)
+    val openChange by rememberUpdatedState(onOpenChange)
+    val actionWidth = 88.dp
+    val maxOffset = with(LocalDensity.current) { actionWidth.toPx() }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(opened, maxOffset) {
+        offset.animateTo(if (opened) -maxOffset else 0f, tween(220))
+    }
+
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(MiconSpace.sm))) {
+        Box(Modifier.matchParentSize()) {
+            Box(
+                Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(actionWidth)
+                    .background(Red)
+                    .clickable { delete() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("삭제", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Box(
+            Modifier
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .background(Color(0xFFF7F5FC))
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch { offset.snapTo((offset.value + delta).coerceIn(-maxOffset, 0f)) }
+                    },
+                    onDragStopped = { velocity ->
+                        val open = offset.value < -maxOffset / 2 || velocity < -600f
+                        openChange(open)
+                        scope.launch { offset.animateTo(if (open) -maxOffset else 0f, tween(220)) }
+                    },
+                )
+                .semantics {
+                    customActions = listOf(CustomAccessibilityAction("삭제") { delete(); true })
+                },
+        ) {
+            content()
         }
     }
 }
