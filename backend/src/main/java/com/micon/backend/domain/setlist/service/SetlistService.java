@@ -35,7 +35,7 @@ public class SetlistService {
 	public List<SetlistResponse.Summary> getSetlists(long userId) {
 		return setlistRepository.findAll(userId).stream()
 			.map(row -> new SetlistResponse.Summary(
-				row.setlistId(), row.name(), row.songCount(), row.createdAt(), row.updatedAt()
+				row.setlistId(), row.name(), row.songCount(), row.coverImageUrl(), row.createdAt(), row.updatedAt()
 			))
 			.toList();
 	}
@@ -125,7 +125,7 @@ public class SetlistService {
 	// 기능: toSummary 원본 값을 API 응답 또는 내부 데이터 형태로 변환한다.
 	private SetlistResponse.Summary toSummary(SetlistRepository.SetlistRow row, int songCount) {
 		return new SetlistResponse.Summary(
-			row.setlistId(), row.name(), songCount, row.createdAt(), row.updatedAt()
+			row.setlistId(), row.name(), songCount, null, row.createdAt(), row.updatedAt()
 		);
 	}
 }
