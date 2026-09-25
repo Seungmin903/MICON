@@ -319,7 +319,7 @@ fun SongCatalogContent(
             Text(
                 when {
                     state.loading -> "불러오는 중…"
-                    onSelectionToggle != null -> "${state.totalElements}곡 중 ${selectedIds.size}곡 선택"
+                    onSelectionToggle != null -> "총 ${state.totalElements}곡"
                     else -> "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${visibleSongs.size}곡 표시" else "")
                 },
                 fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),

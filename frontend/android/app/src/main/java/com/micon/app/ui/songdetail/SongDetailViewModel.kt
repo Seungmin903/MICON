@@ -25,6 +25,8 @@ data class SongDetailState(
     val sections: List<PracticeSection> = emptyList(),
     val assetsLoading: Boolean = true,
     val assetsError: String? = null,
+    val guideLoading: Boolean = true,
+    val guideError: String? = null,
     val selectedKey: Int = 0,
     val mediaKey: Int? = null,
     val keyLoading: Boolean = false,
@@ -56,6 +58,7 @@ internal class SongDetailViewModel(
     private var cachedAssets: PracticeAssets? = null
     private var loadJob: Job? = null
     private var keyJob: Job? = null
+    private var guideJob: Job? = null
     private var fitJob: Job? = null
     private var scoreTrendJob: Job? = null
     private var progressJob: Job? = null
@@ -136,6 +139,7 @@ internal class SongDetailViewModel(
 
     fun load() {
         loadJob?.cancel()
+        loadGuide()
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = it.detail == null, error = null) }
             try {
@@ -149,6 +153,27 @@ internal class SongDetailViewModel(
             catch (e: Exception) { _state.update { it.copy(loading = false, error = "곡 정보를 불러오지 못했어요.") } }
         }
         loadAssets(initial = _state.value.notes.isEmpty())
+    }
+
+    /** 큰 practice-assets와 별개로 어려운 구간만 즉시 조회한다. */
+    private fun loadGuide() {
+        guideJob?.cancel()
+        _state.update { it.copy(guideLoading = true, guideError = null) }
+        guideJob = viewModelScope.launch {
+            try {
+                val guide = repo.practiceGuide(songId, 0)
+                ensureActive()
+                _state.update { current ->
+                    val merged = (current.sections + guide).associateBy { it.sectionId }.values.sortedBy { it.sequenceNo }
+                    current.copy(sections = merged, guideLoading = false)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 구간 안내 실패가 곡 상세·연습 진입을 막지는 않는다. assets의 sections는 계속 사용한다.
+                _state.update { it.copy(guideLoading = false, guideError = "어려운 구간을 불러오지 못했어요.") }
+            }
+        }
     }
 
     private fun mergeAssets(detail: SongDetail): SongDetail {

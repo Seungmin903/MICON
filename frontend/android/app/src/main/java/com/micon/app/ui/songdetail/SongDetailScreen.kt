@@ -27,11 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,6 +61,7 @@ import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.ui.analysis.RangeBar
 import com.micon.app.ui.common.describeBackendError
+import com.micon.app.ui.common.HeartButton
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -122,10 +119,7 @@ fun SongDetailContent(
         appBar = {
             MiconAppBar(onBack = onBack, actions = {
                 if (showFavorite) {
-                    IconButton(onLike, Modifier.size(MiconSpace.touchTarget)) {
-                        Icon(if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (liked) "찜 해제" else "찜",
-                            tint = if (liked) Color(0xFFC92A5E) else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(23.dp))
-                    }
+                    HeartButton(liked = liked, onClick = onLike)
                 }
             })
         },
@@ -412,6 +406,8 @@ private fun DifficultCard(state: SongDetailState, fit: SongFit?) {
     val hard = state.sections.filter { it.difficultyType != "NONE" && it.difficultyType.isNotBlank() }
         .sortedByDescending { it.difficultyScore ?: 0.0 }.take(2)
     val strain = fit?.strainSections?.original.orEmpty()
+    // 어려운 구간은 서버의 practice-assets.sections 또는 /fit burdenSections에서 온다.
+    // 실제로 표시할 구간이 없으면 카드도 표시하지 않는다.
     if (hard.isEmpty() && strain.isEmpty()) return
     MiconCard(kind = MiconCardKind.Outlined) {
         Text("어려운 구간", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
