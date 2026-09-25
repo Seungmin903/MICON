@@ -311,7 +311,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                         SongRow(
                             title = sl.name,
                             artist = "${sl.songCount}곡",
-                            imageUrl = null,
+                            imageUrl = sl.coverImageUrl,
                             onClick = { if (openedDeleteSetlistId == sl.id) openedDeleteSetlistId = null else onSetlistClick(sl.id) },
                         )
                     }

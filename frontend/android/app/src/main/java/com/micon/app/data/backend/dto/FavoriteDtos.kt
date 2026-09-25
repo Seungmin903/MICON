@@ -19,6 +19,7 @@ data class SetlistSummaryDto(
     val setlistId: Long = 0,
     val name: String = "",
     val songCount: Int = 0,
+    val coverImageUrl: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )
