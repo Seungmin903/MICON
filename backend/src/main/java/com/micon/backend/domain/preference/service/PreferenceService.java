@@ -38,8 +38,7 @@ public class PreferenceService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Genre> getGenres(long userId) {
-		requireActiveUser(userId);
+	public List<Genre> getGenres() {
 		return catalogRepository.findGenres();
 	}
 

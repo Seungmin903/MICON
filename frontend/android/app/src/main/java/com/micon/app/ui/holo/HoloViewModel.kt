@@ -64,16 +64,7 @@ class HoloViewModel(
         val measuredLow: Int? = null,
         val measuredHigh: Int? = null,
         val phase: Phase = Phase.IDLE,
-        val query: String = "",
-        val suggestions: List<SongSummary> = emptyList(),
-        /** 검색 전에도 고를 수 있게 미리 받아 두는 곡 목록 */
-        val catalog: List<SongSummary> = emptyList(),
-        val catalogLoading: Boolean = false,
-        val catalogLoadingMore: Boolean = false,
-        val catalogPage: Int = 0,
-        val catalogHasMore: Boolean = true,
-        val catalogMoreFailed: Boolean = false,
-        val searching: Boolean = false,
+        /** 부를 곡. 곡 목록·검색·장르는 연습 탭과 같은 카탈로그(SongListViewModel)가 맡는다 */
         val picked: SongSummary? = null,
         /** 0..30 */
         val elapsedSec: Double = 0.0,
@@ -123,7 +114,6 @@ class HoloViewModel(
     private var dataVersion: String? = null
     private var tick: Job? = null
     private var startJob: Job? = null
-    private var searchJob: Job? = null
     private var submitJob: Job? = null
     private var saveJob: Job? = null
     private var session: HoloAnalysisClient.Session? = null
@@ -148,52 +138,6 @@ class HoloViewModel(
     fun previousResult(): HoloResult? = store.read(ownerId)
     private fun writeResultIfCurrent(owner: OwnerKey, result: HoloResult) = synchronized(resultStoreLock) {
         if (owner == currentOwner()) store.write(owner.userId, result)
-    }
-
-    /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
-    fun loadCatalog() {
-        if (_state.value.catalog.isNotEmpty() || _state.value.catalogLoading) return
-        _state.update { it.copy(catalogLoading = true, catalogMoreFailed = false) }
-        viewModelScope.launch {
-            try {
-                val page = songs.search("", 0, CATALOG_PAGE_SIZE)
-                _state.update { it.copy(catalog = page.items, catalogLoading = false, catalogPage = page.page,
-                    catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size)) }
-            } catch (_: Exception) {
-                _state.update { it.copy(catalogLoading = false) }
-            }
-        }
-    }
-
-    /** 곡 선택 시트가 끝에 닿으면 다음 카탈로그 페이지를 이어 붙인다. */
-    fun loadMoreCatalog() {
-        val current = _state.value
-        if (current.query.isNotBlank() || current.catalogLoading || current.catalogLoadingMore ||
-            !current.catalogHasMore || current.catalogMoreFailed) return
-        viewModelScope.launch {
-            _state.update { it.copy(catalogLoadingMore = true) }
-            try {
-                val page = songs.search("", current.catalogPage + 1, CATALOG_PAGE_SIZE)
-                _state.update { state ->
-                    val known = state.catalog.mapTo(HashSet()) { it.id }
-                    state.copy(catalog = state.catalog + page.items.filter { it.id !in known },
-                        catalogLoadingMore = false, catalogPage = page.page,
-                        catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size))
-                }
-            } catch (_: Exception) {
-                _state.update { it.copy(catalogLoadingMore = false, catalogMoreFailed = true) }
-            }
-        }
-    }
-
-    /** 실패한 다음 페이지는 시트를 다시 열 때 한 번 더 시도할 수 있게 한다. */
-    fun retryCatalogMore() {
-        if (_state.value.catalogMoreFailed) {
-            _state.update { it.copy(catalogMoreFailed = false) }
-            loadMoreCatalog()
-        } else {
-            loadCatalog()
-        }
     }
 
     /** 1단계 음역 측정이 끝났다. 잰 값을 안고 2단계(음색)로 넘어간다 */
@@ -229,25 +173,8 @@ class HoloViewModel(
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
-    // ---- 검색 ----
-    fun onQuery(q: String) {
-        _state.update { it.copy(query = q, picked = null) }
-        searchJob?.cancel()
-        if (q.isBlank()) { _state.update { it.copy(suggestions = emptyList(), searching = false) }; return }
-        searchJob = viewModelScope.launch {
-            delay(250)
-            _state.update { it.copy(searching = true) }
-            val items = runCatching { songs.search(q.trim(), 0, 6).items }.getOrDefault(emptyList())
-            _state.update { it.copy(suggestions = items, searching = false) }
-        }
-    }
-
-    fun pick(song: SongSummary) {
-        searchJob?.cancel()
-        _state.update { it.copy(picked = song, query = "${song.title} · ${song.artist}", suggestions = emptyList()) }
-    }
-
-    fun clearSuggestions() = _state.update { it.copy(suggestions = emptyList()) }
+    // ---- 곡 선택 ----
+    fun pick(song: SongSummary) = _state.update { it.copy(picked = song) }
 
     // ---- 녹음 ----
     fun start() {
@@ -464,10 +391,30 @@ class HoloViewModel(
         session = null; pollVersion = 0; saveAllowed = false; autoSaveAttemptedFor = null
     }
 
+    /**
+     * 2단계에서 노래를 고른 뒤 녹음 준비·카운트다운·녹음을 그만둘 때(뒤로가기·"곡 다시 고르기"·앱 전환).
+     * 1단계에서 30초 넘게 잰 음역은 버리지 않고 2단계 곡 고르기로 돌아간다. 고른 곡도 그대로 둔다.
+     * [State.rangeRestartVersion] 은 진행 중이던 [start] 코루틴·마이크 콜백을 무효화하려고 올린다.
+     * 2단계에서는 RangeStage 가 그려지지 않으므로 이 값 때문에 음역 측정이 다시 시작되지는 않는다.
+     */
+    fun cancelTimbre() {
+        val current = _state.value
+        if (current.stage != Stage.TIMBRE || current.phase == Phase.DONE) return
+        cancelPendingSubmission()
+        startJob?.cancel()
+        tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
+        wav?.delete()
+        wav = null
+        synchronized(frames) { frames.clear() }
+        _state.update {
+            State(hasPrevious = it.hasPrevious, stage = Stage.TIMBRE, measuredLow = it.measuredLow, measuredHigh = it.measuredHigh,
+                picked = it.picked, rangeRestartVersion = it.rangeRestartVersion + 1)
+        }
+    }
+
     fun reset() {
         cancelPendingSubmission()
         startJob?.cancel()
-        searchJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         wav?.delete()
         wav = null
@@ -498,10 +445,6 @@ class HoloViewModel(
         const val DURATION_SEC = 30.0
         const val COUNTDOWN_STEPS = 4
         const val COUNTDOWN_STEP_MS = 1_000L
-        private const val CATALOG_PAGE_SIZE = 40
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }
 }
-
-internal fun hasNextCatalogPage(page: Int, totalPages: Int, itemCount: Int, pageSize: Int): Boolean =
-    if (totalPages > 0) page + 1 < totalPages else itemCount >= pageSize
