@@ -409,6 +409,9 @@ fun ResultDetailCards(
                 Spacer(Modifier.height(10.dp))
             }
 
+            if (BuildConfig.DEBUG && practiceId == RESULT_PREVIEW_PRACTICE_ID) PreviewPracticeRecordingSection()
+            else PracticeRecordingSection(practiceId, container.practiceRecordings)
+
             if (report != null) {
                 // 4. 상세 점수 + 판정 분포
                 MiconCard {

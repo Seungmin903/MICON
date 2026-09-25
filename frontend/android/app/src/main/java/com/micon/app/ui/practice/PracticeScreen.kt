@@ -49,6 +49,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -130,7 +131,7 @@ fun PracticeScreen(
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
         key = "practice-$songId-$initialKey",
-        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, isLoggedIn = { TokenManager.isLoggedIn() }, initialKey = initialKey) } },
+        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, container.practiceRecordings, sessionSnapshot = TokenManager::snapshot, isLoggedIn = TokenManager::isLoggedIn, initialKey = initialKey) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     com.micon.app.ui.common.PlaybackLifecycleEffect(vm, onExit = vm::stopAudioForExit)
@@ -636,6 +637,7 @@ private fun BottomSheet(
                     }
                     Surface(
                         onClick = { when (state.phase) { Phase.PAUSED -> vm.resume(); Phase.RUNNING, Phase.COUNTDOWN -> vm.pause(); else -> onStart() } },
+                        enabled = !(state.phase == Phase.FINISHED && state.save.phase == SavePhase.SAVING),
                         shape = CircleShape,
                         // 재생 중에도 같은 보라를 쓴다 — 예전엔 연한 LavenderDeep 위에 흰 아이콘이라 꺼진 것처럼 보였다
                         color = Purple,
@@ -706,6 +708,9 @@ private fun FinishedPanel(
         }
         if (state.save.message.isNotEmpty()) {
             Text(state.save.message, color = if (state.save.phase == SavePhase.ERROR) Red else Grey, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+        if (state.save.recordingSaveFailed) {
+            TextButton(onClick = vm::retryRecordingSave) { Text("녹음 다시 저장") }
         }
     }
 }

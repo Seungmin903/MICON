@@ -17,6 +17,9 @@ import com.micon.app.data.SongRepository
 import com.micon.app.data.PracticeSection
 import com.micon.app.data.backend.AuthSessionExpiredException
 import com.micon.app.data.backend.BackendRequestException
+import com.micon.app.core.auth.SessionSnapshot
+import com.micon.app.core.auth.matchesRecordingOwner
+import com.micon.app.data.practice.PracticeRecordingStore
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeScoreMapper
 import com.micon.app.data.backend.dto.BeatGrid
@@ -40,6 +43,7 @@ import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.ScoringMath
 import com.micon.app.scoring.Totals
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +57,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.File
 import java.io.IOException
@@ -78,6 +83,8 @@ class PracticeViewModel(
     private val repo: SongRepository,
     mediaHttp: OkHttpClient,
     private val practices: PracticeRepository,
+    private val recordings: PracticeRecordingStore,
+    private val sessionSnapshot: () -> SessionSnapshot,
     private val isLoggedIn: () -> Boolean,
     private val initialKey: Int = 0,
 ) : ViewModel() {
@@ -86,7 +93,8 @@ class PracticeViewModel(
     /** 연습 기록 저장(백엔드 /practices). GUEST 는 비회원이라 저장하지 않는 정상 상태, ERROR 는 [retrySave] 로 다시 시도한다. */
     enum class SavePhase { NONE, SAVING, SAVED, GUEST, ERROR }
 
-    data class Save(val phase: SavePhase = SavePhase.NONE, val message: String = "", val practiceId: Long? = null)
+    data class Save(val phase: SavePhase = SavePhase.NONE, val message: String = "", val practiceId: Long? = null,
+                    val recordingSaveFailed: Boolean = false)
 
     /** 구간 반복 범위(MR 초). lineIndex 는 표시용. */
     data class Loop(val lineIndex: Int, val start: Double, val end: Double)
@@ -172,6 +180,8 @@ class PracticeViewModel(
     private var tickJob: Job? = null
     private var countdownJob: Job? = null
     private var wavFile: File? = null
+    private var takeOwner: SessionSnapshot? = null
+    private var takeSerial = 0L
     private var takePlayer: MediaPlayer? = null
     private var pendingSeek: Double? = null     // READY 에서 사용자가 옮긴 시작 위치 (전주 건너뛰기보다 우선)
 
@@ -347,7 +357,13 @@ class PracticeViewModel(
         refreshHeadset()
         val s = _state.value
         if (s.phase != Phase.READY && s.phase != Phase.FINISHED) return
+        if (s.phase == Phase.FINISHED && s.save.phase == SavePhase.SAVING) return
+        takeSerial++
         stopTake()
+        // READY's microphone preview must not be kept in the user's saved take.
+        if (capture.isRunning) capture.stop()
+        deleteTemporaryTake()
+        takeOwner = sessionSnapshot().takeIf { it.isLoggedIn && it.userId > 0 }
         notes.forEach { it.reset() }
         val newScorer = LiveScorer(notes).also { it.keyShift = s.keyShift; it.autoCalibrate = s.autoCalibrate }
         scorer = newScorer
@@ -355,17 +371,15 @@ class PracticeViewModel(
         keyChangeCount = 0
         sync = null
         _state.update { it.copy(totals = null, measures = emptyList(), lastJudged = null, save = Save(), error = null, loopCount = 0, calibrationMs = 0) }
-        if (!capture.isRunning) {
-            try {
-                wavFile = File(cacheDir, "live-take-${System.currentTimeMillis()}.wav")
-                capture.start(wavFile) { frame -> frameChannel.trySend(frame) }
-            } catch (e: Exception) {
-                _state.update { it.copy(error = "마이크를 사용할 수 없습니다: ${e.message}") }
-                return
-            }
+        try {
+            wavFile = File(cacheDir, "live-take-${System.currentTimeMillis()}.wav")
+            capture.start(wavFile) { frame -> frameChannel.trySend(frame) }
+        } catch (e: Exception) {
+            _state.update { it.copy(error = "마이크를 사용할 수 없습니다: ${e.message}") }
+            return
         }
         // 로그인 사용자: 백엔드 연습 세션(READY → IN_PROGRESS)을 미리 연다. 실패해도 연습은 진행하고 종료 때 다시 만든다.
-        if (isLoggedIn()) viewModelScope.launch { runCatching { openPractice() } }
+        if (takeOwner != null) viewModelScope.launch { runCatching { openPractice() } }
         val startAt = pendingSeek ?: _state.value.loop?.let { maxOf(0.0, it.start - 1.0) }
             ?: if (_state.value.skipIntro) maxOf(0.0, notes.first().start - 4) else 0.0
         pendingSeek = null
@@ -446,11 +460,14 @@ class PracticeViewModel(
 
     /** 처음부터: 판정·녹음을 버리고 READY 로. 열린 백엔드 세션은 취소한다. */
     fun restart() {
+        takeSerial++
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()
         if (capture.isRunning) capture.stop()
         stopTake()
+        deleteTemporaryTake()
+        takeOwner = null
         notes.forEach { it.reset() }
         scorer = null
         sync = null
@@ -645,8 +662,16 @@ class PracticeViewModel(
 
     /** 백엔드 세션을 시작 시 선택한 키로 만든다. 열린 세션이 있으면 그대로 쓴다. */
     private suspend fun openPractice(): Long = practiceMutex.withLock {
+        val owner = takeOwner ?: throw AuthSessionExpiredException()
+        val serial = takeSerial
+        requireCurrentOwner(owner)
         practiceId?.takeIf { practiceOpen }?.let { return@withLock it }
         val created = practices.create(songId, selectedKey = sessionInitialKey ?: _state.value.keyShift)
+        if (serial != takeSerial || takeOwner?.userId != owner.userId || takeOwner?.generation != owner.generation) {
+            if (isCurrentOwner(owner)) cleanupScope.launch { runCatching { practices.cancel(created.id) } }
+            throw CancellationException("연습이 바뀌었습니다.")
+        }
+        requireCurrentOwner(owner)
         practiceId = created.id
         practiceOpen = true
         created.id
@@ -665,7 +690,8 @@ class PracticeViewModel(
      * 비회원은 서버를 부르지 않는다. 실패는 [retrySave] 로 이어 간다(완료된 단계는 건너뛴다).
      */
     private fun savePractice() {
-        if (!isLoggedIn()) {
+        val owner = takeOwner
+        if (owner == null || !isLoggedIn() || !isCurrentOwner(owner)) {
             _state.update { it.copy(save = Save(SavePhase.GUEST, "로그인하면 연습 기록이 저장돼요.")) }
             return
         }
@@ -674,22 +700,29 @@ class PracticeViewModel(
         _state.update { it.copy(save = Save(SavePhase.SAVING, "연습 기록을 저장하고 있어요")) }
         saveJob = viewModelScope.launch {
             try {
+                requireCurrentOwner(owner)
                 val id = openPractice()
+                requireCurrentOwner(owner)
                 val totals = scorer.totals()
                 var keyRecorded = true
                 if (practiceOpen) {
                     keyRecorded = completePractice(id, judgedSpanMs())
                     practiceOpen = false
                 }
+                requireCurrentOwner(owner)
+                // The backend session is complete; preserve the take before the report request can fail or be interrupted.
+                val recordingSaved = saveRecording(owner, id)
                 val result = PracticeScoreMapper.result(
                     totals, notes, backendSections,
                     keyShift = _state.value.keyShift, calibrationMs = (totals.calibration * 1000).roundToInt(),
                     frames = scorer.frames.toList(), dataVersion = assetsDataVersion,
                 )
                 practices.savePerformance(id, result)
-                val message = if (keyRecorded) "연습 기록을 저장했어요."
+                requireCurrentOwner(owner)
+                val message = if (!recordingSaved) "연습 기록은 저장했지만 녹음을 저장하지 못했어요."
+                    else if (keyRecorded) "연습 기록을 저장했어요."
                     else "연습 기록을 저장했어요. 키 ${signedKey(_state.value.keyShift)} 정보는 서버가 아직 받지 않아 원키로 남았어요."
-                _state.update { it.copy(save = Save(SavePhase.SAVED, message, practiceId = id)) }
+                _state.update { it.copy(save = Save(SavePhase.SAVED, message, practiceId = id, recordingSaveFailed = !recordingSaved)) }
             } catch (e: AuthSessionExpiredException) {
                 _state.update { it.copy(save = Save(SavePhase.GUEST, e.message ?: "로그인이 만료됐어요.")) }
             } catch (e: BackendRequestException) {
@@ -730,6 +763,42 @@ class PracticeViewModel(
         if (_state.value.phase == Phase.FINISHED && _state.value.save.phase == SavePhase.ERROR) savePractice()
     }
 
+    fun retryRecordingSave() {
+        val saved = _state.value.save
+        val owner = takeOwner ?: return
+        val id = saved.practiceId ?: return
+        if (_state.value.phase != Phase.FINISHED || !saved.recordingSaveFailed || !isCurrentOwner(owner)) return
+        viewModelScope.launch {
+            val success = try { saveRecording(owner, id) } catch (_: AuthSessionExpiredException) { return@launch }
+            _state.update { it.copy(save = it.save.copy(
+                message = if (success) "녹음도 이 기기에 저장했어요." else "녹음을 저장하지 못했어요. 저장 공간을 확인해 주세요.",
+                recordingSaveFailed = !success,
+            )) }
+        }
+    }
+
+    private suspend fun saveRecording(owner: SessionSnapshot, practiceId: Long): Boolean {
+        val source = wavFile ?: return false
+        return try {
+            requireCurrentOwner(owner)
+            withContext(Dispatchers.IO) { recordings.save(owner.userId, practiceId, source) }
+            requireCurrentOwner(owner)
+            true
+        } catch (_: IOException) { false }
+          catch (_: IllegalArgumentException) { false }
+    }
+
+    private fun isCurrentOwner(owner: SessionSnapshot): Boolean = sessionSnapshot().matchesRecordingOwner(owner)
+
+    private fun requireCurrentOwner(owner: SessionSnapshot) {
+        if (!isCurrentOwner(owner)) throw AuthSessionExpiredException()
+    }
+
+    private fun deleteTemporaryTake() {
+        wavFile?.takeIf { it.parentFile == cacheDir && it.name.startsWith("live-take-") }?.delete()
+        wavFile = null
+    }
+
     /** 이전 세션이 남긴 녹음 파일 정리 (이 화면이 만든 live-take-*.wav 만). */
     private fun cleanupOldTakes() {
         runCatching {
@@ -747,7 +816,7 @@ class PracticeViewModel(
         player.release()
         runCatching { clicks?.release() }
         frameChannel.close()
-        wavFile?.delete()
+        deleteTemporaryTake()
         saveJob?.cancel()
         cancelOpenPractice()
     }

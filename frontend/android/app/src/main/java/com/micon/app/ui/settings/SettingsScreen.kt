@@ -42,6 +42,7 @@ import com.micon.app.ui.onboarding.isValidPassword
 import com.micon.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** HTML 프로토타입의 카드 구성을 적용한 계정 설정 화면. */
 @Composable
@@ -98,14 +99,19 @@ fun SettingsScreen(
                         withdrawError = null
                         scope.launch {
                             try {
+                                val ownerId = TokenManager.snapshot().userId
                                 val response = backend.api.withdraw(WithdrawRequest(withdrawPassword))
                                 if (!response.isSuccessful) {
                                     val backendError = response.errorEnvelope()
                                     withdrawError = withdrawalErrorMessage(backendError?.code, backendError?.message)
                                 } else {
+                                    val localDeleted = runCatching {
+                                        if (ownerId > 0) withContext(Dispatchers.IO) { context.appContainer.practiceRecordings.deleteAll(ownerId) }
+                                    }.isSuccess
                                     TokenManager.clear()
                                     showWithdraw = false
-                                    Toast.makeText(context, "탈퇴와 개인 데이터 삭제가 완료되었습니다.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, if (localDeleted) "탈퇴와 개인 데이터 삭제가 완료되었습니다."
+                                        else "탈퇴는 완료됐지만 기기 녹음 삭제에 실패했습니다.", Toast.LENGTH_LONG).show()
                                     onLogout()
                                 }
                             } catch (_: Exception) {
