@@ -123,6 +123,10 @@ interface BackendApi {
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
 
+    /** 어려운 구간만 먼저 조회한다. 큰 반주·가사·음표 응답은 받지 않는다. */
+    @GET("songs/{songId}/practice-guide")
+    suspend fun practiceGuide(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeGuideDto>>
+
     /** 키별 반주와 만료 URL만 조회한다. */
     @GET("songs/{songId}/mr")
     suspend fun instrumental(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int): Response<ApiResponse<InstrumentalDto>>

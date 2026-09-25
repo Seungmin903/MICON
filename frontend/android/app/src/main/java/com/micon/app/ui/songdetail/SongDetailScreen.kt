@@ -412,6 +412,8 @@ private fun DifficultCard(state: SongDetailState, fit: SongFit?) {
     val hard = state.sections.filter { it.difficultyType != "NONE" && it.difficultyType.isNotBlank() }
         .sortedByDescending { it.difficultyScore ?: 0.0 }.take(2)
     val strain = fit?.strainSections?.original.orEmpty()
+    // 어려운 구간은 서버의 practice-assets.sections 또는 /fit burdenSections에서 온다.
+    // 실제로 표시할 구간이 없으면 카드도 표시하지 않는다.
     if (hard.isEmpty() && strain.isEmpty()) return
     MiconCard(kind = MiconCardKind.Outlined) {
         Text("어려운 구간", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)

@@ -83,6 +83,12 @@ class RemoteSongRepository(
         return response.unwrapData().toAssets()
     }
 
+    override suspend fun practiceGuide(songId: String, selectedKey: Int): List<PracticeSection> {
+        val guide = api.practiceGuide(songId, selectedKey).unwrapData()
+        check(guide.songId == songId && guide.selectedKey == selectedKey)
+        return guide.difficultySections.map { section -> section.toPracticeSection() }.sortedBy { it.sequenceNo }
+    }
+
     override suspend fun instrumental(songId: String, selectedKey: Int): InstrumentalMedia {
         val response = api.instrumental(songId, selectedKey)
         if (!response.isSuccessful) {
@@ -147,17 +153,17 @@ class RemoteSongRepository(
         lyricsSynced = (lyricsSynced as? String)?.takeIf { it.isNotBlank() },
         targetNotes = targetNotes.orEmpty(),
         dataVersion = dataVersion,
-        sections = sections.map {
-            PracticeSection(
-                sectionId = it.sectionId, sectionType = it.sectionType, sectionName = it.sectionName,
-                startMs = it.startMs, endMs = it.endMs, sequenceNo = it.sequenceNo,
-                difficultyType = it.difficultyType, difficultyScore = it.difficultyScore, description = it.description,
-            )
-        }.sortedBy { it.sequenceNo },
+        sections = sections.map { section -> section.toPracticeSection() }.sortedBy { it.sequenceNo },
         keyName = keyName,
         tempoBpm = tempoBpm?.roundToInt(),
         timeSignature = timeSignature,
         beatGrid = beatGrid,
+    )
+
+    private fun com.micon.app.data.backend.dto.SectionDto.toPracticeSection() = PracticeSection(
+        sectionId = sectionId, sectionType = sectionType, sectionName = sectionName,
+        startMs = startMs, endMs = endMs, sequenceNo = sequenceNo,
+        difficultyType = difficultyType, difficultyScore = difficultyScore, description = description,
     )
 
 }
