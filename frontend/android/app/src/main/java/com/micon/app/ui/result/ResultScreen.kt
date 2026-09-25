@@ -2,13 +2,17 @@ package com.micon.app.ui.result
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +55,7 @@ import com.micon.app.data.SongRepository
 import com.micon.app.data.practice.PracticeRecord
 import com.micon.app.data.practice.PracticeReport
 import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeScoreTrend
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.data.practice.SectionEvaluation
 import com.micon.app.ui.common.CardTitle
@@ -55,6 +64,7 @@ import com.micon.app.ui.common.MiconCard
 import com.micon.app.ui.common.RetryBlock
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
+import com.micon.app.ui.design.tokens.MiconFontFamily
 import com.micon.app.ui.rememberAppContainer
 import com.micon.app.ui.theme.GreenBar
 import com.micon.app.ui.theme.Grey
@@ -67,6 +77,7 @@ import com.micon.app.ui.theme.Red
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import kotlin.math.roundToInt
 
 internal const val RESULT_PREVIEW_PRACTICE_ID = 9_999_999L
@@ -90,7 +101,7 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
             val report: PracticeReport?,
             val detail: ReportDetail? = null,
             val artist: String? = null,
-            val previousScore: Double? = null,
+            val scoreTrend: PracticeScoreTrend? = null,
         ) : State
     }
 
@@ -108,7 +119,13 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
                     practice = report.toRecord(),
                     report = report,
                     artist = "백아",
-                    previousScore = 78.0,
+                    scoreTrend = PracticeScoreTrend(
+                        songId = report.songId, totalCount = 5, firstScore = 78.0, latestScore = 84.0,
+                        bestScore = 86.0, scoreDelta = 6.0,
+                        points = listOf(78.0, 81.0, 79.0, 86.0, 84.0).mapIndexed { index, score ->
+                            PracticeScoreTrend.Point(index.toLong(), null, score, null, null, 0, "FULL_SONG", null)
+                        },
+                    ),
                 )
                 return@launch
             }
@@ -122,13 +139,13 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
                 }
                 val practice = report.toRecord()
                 val artist = runCatching { songs?.detail(report.songId)?.summary?.artist }.getOrNull()
-                val previousScore = runCatching { findPreviousScore(report.songId, report.practiceId) }.getOrNull()
+                val scoreTrend = loadScoreTrend(report.songId)
                 State.Ready(
                     practice = practice,
                     report = report,
                     detail = buildDetail(practice, report),
                     artist = artist,
-                    previousScore = previousScore,
+                    scoreTrend = scoreTrend,
                 )
             } catch (e: Exception) {
                 State.Error(describeBackendError(e, "연습 기록을 불러오지 못했어요."))
@@ -147,17 +164,61 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
         return null
     }
 
-    /** 기록 목록은 최신순이므로 현재 결과를 제외한 같은 곡의 첫 점수가 바로 직전 연습이다. */
-    private suspend fun findPreviousScore(songId: String, currentPracticeId: Long): Double? {
+    /**
+     * 전용 추이 API가 아직 반영되지 않은 이전 결과도 연습 기록 목록의 점수로 보완한다.
+     * 두 응답에 같은 연습이 있으면 practiceId를 기준으로 한 번만 사용한다.
+     */
+    private suspend fun loadScoreTrend(songId: String): PracticeScoreTrend? {
+        val serverPoints = runCatching {
+            practices.scoreTrend(songId, limit = HISTORY_TREND_FETCH_LIMIT).points
+        }.getOrDefault(emptyList())
+        val historyPoints = sameSongScoresFromHistory(songId)
+        val points = (serverPoints + historyPoints)
+            .associateBy { it.practiceId }
+            .values
+            .sortedWith(compareBy<PracticeScoreTrend.Point> { it.playedAt ?: "" }.thenBy { it.practiceId })
+            .takeLast(RECENT_TREND_LIMIT)
+        if (points.isEmpty()) return null
+
+        val first = points.first().overallScore
+        val latest = points.last().overallScore
+        return PracticeScoreTrend(
+            songId = songId,
+            totalCount = points.size,
+            firstScore = first,
+            latestScore = latest,
+            bestScore = points.maxOf { it.overallScore },
+            scoreDelta = latest - first,
+            points = points,
+        )
+    }
+
+    /** 최근 기록부터 읽어 같은 곡의 저장 점수 5건을 찾는다. */
+    private suspend fun sameSongScoresFromHistory(songId: String): List<PracticeScoreTrend.Point> {
+        val points = mutableListOf<PracticeScoreTrend.Point>()
         var page = 0
+        var totalPages = 1
         do {
-            val history = practices.history(page = page, size = 100)
-            history.items.firstOrNull {
-                it.id != currentPracticeId && it.songId == songId && it.overallScore != null
-            }?.overallScore?.let { return it }
+            val history = runCatching { practices.history(page = page, size = HISTORY_PAGE_SIZE) }.getOrNull() ?: break
+            totalPages = history.totalPages
+            history.items.asSequence()
+                .filter { it.songId == songId && it.overallScore != null }
+                .map { item ->
+                    PracticeScoreTrend.Point(
+                        practiceId = item.id,
+                        playedAt = item.occurredAt,
+                        overallScore = requireNotNull(item.overallScore),
+                        pitchScore = null,
+                        rhythmScore = null,
+                        selectedKey = item.selectedKey,
+                        practiceScope = item.practiceScope,
+                        durationMs = item.durationMs,
+                    )
+                }
+                .forEach(points::add)
             page++
-        } while (page < history.totalPages)
-        return null
+        } while (points.size < RECENT_TREND_LIMIT && page < totalPages)
+        return points.take(RECENT_TREND_LIMIT)
     }
 
     /** 곡 자산 조회 실패(409·네트워크)는 상세만 포기하고 점수 화면은 그대로 보여 준다. */
@@ -165,6 +226,12 @@ class ResultViewModel(private val practices: PracticeRepository, private val son
         val repo = songs ?: return null
         if (!report.hasDetail) return null
         return runCatching { ReportDetailBuilder.build(repo.practiceAssets(practice.songId, practice.selectedKey), report) }.getOrNull()
+    }
+
+    private companion object {
+        const val RECENT_TREND_LIMIT = 5
+        const val HISTORY_TREND_FETCH_LIMIT = 100
+        const val HISTORY_PAGE_SIZE = 100
     }
 }
 
@@ -216,6 +283,20 @@ internal object PracticeLabels {
     /** "2026-09-13T21:00:00" → "2026.09.13" */
     fun date(iso: String?): String? = iso?.takeIf { it.length >= 10 }?.substring(0, 10)?.replace('-', '.')
 
+    /** 그래프 하단용 날짜. 다섯 기록도 겹치지 않도록 연도는 빼고 요일을 함께 표시한다. */
+    fun chartDate(iso: String?): String? = runCatching {
+        val source = iso?.take(10) ?: return null
+        val year = source.substring(0, 4).toInt()
+        val month = source.substring(5, 7).toInt()
+        val day = source.substring(8, 10).toInt()
+        val dayNames = arrayOf("일", "월", "화", "수", "목", "금", "토")
+        val calendar = Calendar.getInstance().apply {
+            clear()
+            set(year, month - 1, day)
+        }
+        "$month.$day ${dayNames[calendar.get(Calendar.DAY_OF_WEEK) - 1]}"
+    }.getOrNull()
+
     /** "2026-09-13T21:00:00" → "2026.09.13 21:00" */
     fun dateTime(iso: String?): String? = iso?.takeIf { it.length >= 16 }?.let { date(it) + " " + it.substring(11, 16) }
 
@@ -249,7 +330,7 @@ fun ResultScreen(
 }
 
 /**
- * 연습 상세 리포트 본문(MR !207 리디자인): 총점 → 지난 연습 비교 → 곡 정보 → 상세 점수·판정 분포 →
+ * 연습 상세 리포트 본문(MR !207 리디자인): 총점 → 최근 연습 점수 변화 → 곡 정보 → 상세 점수·판정 분포 →
  * (서버가 주면) 가사별 음정 판정·음정 곡선 → 한 줄 평가 → 구간 평가.
  * onOpenFull 이 있으면 마지막에 "전체 리포트 보기" 링크를 둔다.
  */
@@ -306,17 +387,26 @@ fun ResultDetailCards(
                     Text("점", fontSize = 16.sp, color = Grey, modifier = Modifier.padding(bottom = 12.dp))
                 }
 
-                // 2. 이전 기록 비교
-                PracticeComparison(report?.overallScore, s.previousScore)
-            }
-
-            // 3. 곡 제목 · 가수 · 날짜
-            if (showSong) {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(practice.songTitle ?: "곡 #${practice.songId}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink, textAlign = TextAlign.Center)
-                    Text(s.artist ?: "가수 정보 없음", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center)
-                    Text(PracticeLabels.date(practice.startedAt ?: practice.createdAt) ?: "-", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center)
+                // 2. 곡 제목 · 가수 · 날짜
+                if (showSong) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(practice.songTitle ?: "곡 #${practice.songId}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink, textAlign = TextAlign.Center)
+                        Text(s.artist ?: "가수 정보 없음", fontSize = 14.sp, color = Grey, textAlign = TextAlign.Center)
+                        Text(PracticeLabels.date(practice.startedAt ?: practice.createdAt) ?: "-", fontSize = 12.sp, color = Grey, textAlign = TextAlign.Center)
+                    }
                 }
+
+                // 3. 같은 곡의 최근 연습 점수 변화
+                PracticeScoreTrendChart(
+                    trend = s.scoreTrend,
+                    currentPracticeId = practice.id,
+                    currentScore = report?.overallScore,
+                    currentPlayedAt = practice.startedAt ?: practice.createdAt,
+                )
+                Spacer(Modifier.height(10.dp))
             }
 
             if (report != null) {
@@ -411,30 +501,89 @@ fun ResultDetailCards(
     }
 }
 
-/** 지난 연습과의 비교 한 줄. 같은 곡의 직전 점수가 없으면 "처음 연습한 노래예요". */
+/** 같은 곡의 최근 완료 연습(최대 5회)을 시간순 선 그래프로 표시한다. */
 @Composable
-private fun PracticeComparison(currentScore: Double?, previousScore: Double?) {
-    if (previousScore == null) {
-        Text("처음 연습한 노래예요", fontSize = 14.sp, color = InkSoft, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+private fun PracticeScoreTrendChart(
+    trend: PracticeScoreTrend?,
+    currentPracticeId: Long,
+    currentScore: Double?,
+    currentPlayedAt: String?,
+) {
+    val fetched = trend?.points.orEmpty()
+    // 방금 저장한 리포트가 점수 추이 조회에 반영되기 전에도, 현재 연습은 반드시 그래프에 보인다.
+    val points = when {
+        currentScore == null -> fetched.takeLast(5)
+        fetched.any { it.practiceId == currentPracticeId } -> fetched.takeLast(5)
+        else -> (fetched + PracticeScoreTrend.Point(
+            practiceId = currentPracticeId,
+            playedAt = currentPlayedAt,
+            overallScore = currentScore,
+            pitchScore = null,
+            rhythmScore = null,
+            selectedKey = 0,
+            practiceScope = null,
+            durationMs = null,
+        )).takeLast(5)
+    }
+    if (points.isEmpty()) {
         return
     }
-    if (currentScore == null) return
-    val difference = currentScore.roundToInt() - previousScore.roundToInt()
-    val text = buildAnnotatedString {
-        if (difference == 0) {
-            append("지난 연습과 동일해요")
-        } else {
-            append("지난 연습보다 ")
-            withStyle(
-                SpanStyle(
-                    color = if (difference > 0) Color(0xFF2E9D68) else Red,
-                    fontWeight = FontWeight.Bold,
-                ),
-            ) { append("${kotlin.math.abs(difference)}점") }
-            append(if (difference > 0) " 좋아졌어요" else " 부족해요")
+    Column(
+        Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("최근 ${points.size}회 연습 점수", fontSize = 12.sp, color = Grey, fontWeight = FontWeight.SemiBold)
+        BoxWithConstraints(Modifier.fillMaxWidth().height(164.dp).padding(horizontal = 4.dp, vertical = 4.dp)) {
+            val chartLeft = 34.dp
+            val chartRight = maxWidth - 10.dp
+            val chartTop = 10.dp
+            val chartBottom = maxHeight - 54.dp
+            val pointInset = 26.dp
+            fun pointX(index: Int) = if (points.size == 1) (chartLeft + chartRight) / 2
+                else chartLeft + pointInset + (chartRight - chartLeft - pointInset * 2) * index / points.lastIndex
+            fun pointY(score: Double) = chartBottom - (chartBottom - chartTop) * (score / 100.0).toFloat().coerceIn(0f, 1f)
+
+            Canvas(Modifier.fillMaxSize()) {
+                fun x(index: Int) = pointX(index).toPx()
+                fun y(score: Double) = pointY(score).toPx()
+                listOf(0, 25, 50, 75, 100).forEach { score ->
+                    val lineY = y(score.toDouble())
+                    drawLine(Grey.copy(alpha = 0.32f), Offset(chartLeft.toPx(), lineY), Offset(chartRight.toPx(), lineY), 1.dp.toPx())
+                }
+                if (points.size > 1) {
+                    val path = Path()
+                    points.forEachIndexed { index, point ->
+                        if (index == 0) path.moveTo(x(index), y(point.overallScore))
+                        else path.lineTo(x(index), y(point.overallScore))
+                    }
+                    drawPath(path, Purple, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+                }
+                points.forEachIndexed { index, point ->
+                    drawCircle(Purple, 4.dp.toPx(), Offset(x(index), y(point.overallScore)))
+                    drawCircle(Color.White, 1.7.dp.toPx(), Offset(x(index), y(point.overallScore)))
+                }
+            }
+            listOf(0, 25, 50, 75, 100).forEach { score ->
+                Box(
+                    Modifier.width(chartLeft - 8.dp).height(16.dp).offset(y = pointY(score.toDouble()) - 8.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Text("$score", fontSize = 10.sp, color = Grey, fontFamily = MiconFontFamily)
+                }
+            }
+            points.forEachIndexed { index, point ->
+                Box(
+                    Modifier.width(52.dp).height(42.dp).offset(x = pointX(index) - 26.dp, y = chartBottom + 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${point.overallScore.roundToInt()}점", fontSize = 13.sp, color = InkSoft, fontWeight = FontWeight.SemiBold, fontFamily = MiconFontFamily)
+                        Text(PracticeLabels.chartDate(point.playedAt) ?: "-", fontSize = 9.sp, color = Grey, fontFamily = MiconFontFamily)
+                    }
+                }
+            }
         }
     }
-    Text(text, fontSize = 14.sp, color = InkSoft, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
 }
 
 @Composable

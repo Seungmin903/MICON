@@ -93,14 +93,28 @@ object ReportDetailBuilder {
     }
 }
 
+/**
+ * 현재 다듬을 소절은 가장 뚜렷한 문제부터 보여 준다.
+ * Bad가 여러 개인 소절을 우선하고, 없을 때만 Bad 1개 → Low·High·Miss 순으로 범위를 넓힌다.
+ */
+internal fun linesToRefine(lines: List<JudgedLine>): List<JudgedLine> {
+    val multipleBad = lines.filter { line -> line.chars.count { it.status == LiveStatus.WRONG } >= 2 }
+    if (multipleBad.isNotEmpty()) return multipleBad
+
+    val oneBad = lines.filter { line -> line.chars.count { it.status == LiveStatus.WRONG } == 1 }
+    if (oneBad.isNotEmpty()) return oneBad
+
+    return lines.filter { line ->
+        line.chars.any { it.status in setOf(LiveStatus.SHARP, LiveStatus.FLAT, LiveStatus.MISSED) }
+    }
+}
+
 /** 가사 음절별 판정 카드 — Figma "구간 평가"의 음이탈 음절 빨강 표시. */
 @Composable
 fun SyllableJudgementCard(detail: ReportDetail) {
-    val badLines = detail.lines.filter { line ->
-        line.chars.count { it.status == LiveStatus.WRONG } >= 2
-    }
+    val selectedLines = linesToRefine(detail.lines)
     MiconCard {
-        CardTitle("집중 연습 구간")
+        CardTitle("현재 다듬을 구간")
         if (detail.versionMismatch) {
             Text("곡 데이터가 갱신되어 글자 위치가 조금 어긋날 수 있어요.", fontSize = 12.sp, color = Red, modifier = Modifier.padding(top = 4.dp))
         }
@@ -116,11 +130,11 @@ fun SyllableJudgementCard(detail: ReportDetail) {
             Legend(judgementColor(LiveStatus.MISSED), "Miss")
         }
         Spacer(Modifier.height(10.dp))
-        if (badLines.isEmpty()) {
-            Text("Bad가 2개 이상인 소절이 없어요.", fontSize = 14.sp, color = Grey)
+        if (selectedLines.isEmpty()) {
+            Text("현재 다듬을 구간이 없어요", fontSize = 14.sp, color = Grey)
         } else {
             Column(Modifier.fillMaxWidth().background(GreyBg, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                badLines.forEach { line -> JudgedLineRow(line) }
+                selectedLines.forEach { line -> JudgedLineRow(line) }
             }
         }
     }
