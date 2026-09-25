@@ -4,10 +4,8 @@ import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -30,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -262,21 +259,24 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
             placeholder = if (tab == Tab.SETLIST) "세트리스트 이름을 검색해 보세요" else "노래나 가수를 검색해 보세요",
             prototypeStyle = true,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Tab.entries.forEach { t -> FavoritesFilterChip(t.label, selected = tab == t, onClick = { selectedTabName = t.name }) }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                when (tab) { Tab.SETLIST -> "${state.setlists.size}개 리스트"; Tab.FAVORITES -> "${state.songs.size}곡" },
-                fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),
+            FavoritesFolderTab(
+                label = Tab.FAVORITES.label,
+                selected = tab == Tab.FAVORITES,
+                onClick = { selectedTabName = Tab.FAVORITES.name },
+                modifier = Modifier.weight(1f),
+            )
+            FavoritesFolderTab(
+                label = Tab.SETLIST.label,
+                selected = tab == Tab.SETLIST,
+                onClick = { selectedTabName = Tab.SETLIST.name },
+                modifier = Modifier.weight(1f),
             )
         }
-        Spacer(Modifier.height(6.dp))
         HorizontalDivider(color = GreyLight)
 
         when {
@@ -346,20 +346,26 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
 }
 
 @Composable
-private fun FavoritesFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun FavoritesFolderTab(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     Surface(
-        modifier = Modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        color = if (selected) Purple else Color.White,
-        border = BorderStroke(1.dp, if (selected) Purple else Color(0xFFE1DFE8)),
+        modifier = modifier
+            .height(48.dp)
+            .clip(shape)
+            .clickable(onClick = onClick),
+        shape = shape,
+        color = if (selected) Color.White else Color(0xFFEAE7F0),
     ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            color = if (selected) Color.White else Ink,
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(
+                label,
+                modifier = Modifier.padding(horizontal = 14.dp),
+                color = if (selected) Purple else Grey,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }
 
