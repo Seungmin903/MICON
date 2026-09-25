@@ -219,6 +219,12 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                 state.visible.isEmpty() -> Text(if (state.items.isEmpty()) "아직 연습 기록이 없어요. 연습 탭에서 한 곡 불러 보세요." else "이번 주 기록이 없어요.",
                     style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(top = 24.dp))
                 else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "기록을 왼쪽으로 밀면 삭제할 수 있어요",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = muted,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+                    )
                     state.visible.forEach { item ->
                         val score = item.overallScore?.roundToInt()
                         key(item.id) {
@@ -241,7 +247,6 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                             }
                         }
                     }
-                    Text("왼쪽으로 밀면 기록을 지울 수 있어요", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
