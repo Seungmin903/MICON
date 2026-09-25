@@ -1,8 +1,12 @@
 package com.micon.app.ui.practice
 
 import android.graphics.Paint
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,12 +46,20 @@ fun Runway(
     modifier: Modifier = Modifier,
 ) {
     val textPaint = remember { Paint().apply { isAntiAlias = true } }
+    // 키가 바뀌어도 목표 음표와 세로 음역 창이 같은 시간축을 따라 움직인다.
+    // 정수 keyShift를 바로 쓰면 위·아래 경계의 갱신 시점이 달라져 음표가 순간적으로 어긋난다.
+    val animatedKeyShift by animateFloatAsState(
+        targetValue = keyShift.toFloat(),
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "runwayKeyShift",
+    )
     val ink = Color(ScoringUi.COLOR_INK)
     val nowColor = Color(0xFF6C5CE7)
     val runwayBackground = Color(0xFFF7F5FC)
 
-    // 보이는 음표에 맞춰 세로 범위를 움직인다(부드럽게 따라감) — 곡 전체 음역으로 고정하면 막대가 너무 얇아진다
-    val view = remember { doubleArrayOf(Double.NaN, Double.NaN) }
+    // 보이는 음표에 맞춰 세로 범위를 움직인다. 중심과 범위를 함께 보간해야 키 변경 시
+    // 위·아래 경계가 서로 다른 속도로 움직이며 막대 위치가 틀어지는 현상을 막을 수 있다.
+    val view = remember { doubleArrayOf(Double.NaN, Double.NaN) } // center, span
     Canvas(modifier) {
         val width = size.width
         val height = size.height
@@ -55,8 +67,8 @@ fun Runway(
         val plotBottom = height - 4f * dp
         val visible = bars.filter { it.end >= nowSec - RUNWAY_SECONDS_BEHIND && it.start <= nowSec + RUNWAY_SECONDS_AHEAD }
         val pool = if (visible.size >= 2) visible else bars
-        var targetLow = ((pool.minOfOrNull { it.midi } ?: 60) + keyShift - 2).toDouble()
-        var targetHigh = ((pool.maxOfOrNull { it.midi } ?: 72) + keyShift + 2).toDouble()
+        var targetLow = ((pool.minOfOrNull { it.midi } ?: 60) + animatedKeyShift - 2).toDouble()
+        var targetHigh = ((pool.maxOfOrNull { it.midi } ?: 72) + animatedKeyShift + 2).toDouble()
         if (targetHigh - targetLow < 11) { val mid = (targetHigh + targetLow) / 2; targetLow = mid - 5.5; targetHigh = mid + 5.5 }
         val traceFrames = frames.takeLast(500).filter {
             it.t >= nowSec - RUNWAY_SECONDS_BEHIND && it.t <= nowSec + RUNWAY_SECONDS_AHEAD
@@ -67,13 +79,18 @@ fun Runway(
             .filter { it in (targetLow - 24.0)..(targetHigh + 24.0) }
         targetLow = minOf(targetLow, traceMidi.minOrNull()?.minus(1.0) ?: targetLow)
         targetHigh = maxOf(targetHigh, traceMidi.maxOrNull()?.plus(1.0) ?: targetHigh)
-        if (view[0].isNaN()) { view[0] = targetLow; view[1] = targetHigh } else {
-            // 새 음역이 들어오면 즉시 확장해 옥타브 오류가 화면 밖에 숨지 않게 하고, 축소만 부드럽게 한다.
-            view[0] = if (targetLow < view[0]) targetLow else view[0] + (targetLow - view[0]) * 0.12
-            view[1] = if (targetHigh > view[1]) targetHigh else view[1] + (targetHigh - view[1]) * 0.12
+        val targetCenter = (targetLow + targetHigh) / 2.0
+        val targetSpan = targetHigh - targetLow
+        if (view[0].isNaN()) {
+            view[0] = targetCenter
+            view[1] = targetSpan
+        } else {
+            // 키를 올리거나 내릴 때 창 전체가 같은 비율로 이동한다. span도 같이 보간해 줌·늘어남이 없다.
+            view[0] += (targetCenter - view[0]) * 0.18
+            view[1] += (targetSpan - view[1]) * 0.18
         }
-        val low = view[0]
-        val high = view[1]
+        val low = view[0] - view[1] / 2.0
+        val high = view[0] + view[1] / 2.0
         val nowX = width * 0.3f
         val pxPerSecond = width / (RUNWAY_SECONDS_AHEAD + RUNWAY_SECONDS_BEHIND).toFloat()
         fun timeToX(seconds: Double) = nowX + ((seconds - nowSec) * pxPerSecond).toFloat()
@@ -121,7 +138,7 @@ fun Runway(
         for (bar in visible) {
             val x0 = timeToX(bar.start)
             val x1 = maxOf(x0 + 6f * dp, timeToX(bar.end) - 2f * dp)
-            val y = midiToY((bar.midi + keyShift).toDouble())
+            val y = midiToY(bar.midi + animatedKeyShift.toDouble())
             val color = when (val st = bar.statusOf()) {
                 LiveStatus.UPCOMING, LiveStatus.SKIPPED -> Color(ScoringUi.COLOR_UPCOMING)
                 LiveStatus.ACTIVE -> ink
