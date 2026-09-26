@@ -1,6 +1,9 @@
 package com.micon.app.data.voice
 
 import com.micon.app.data.local.UserStore
+import com.micon.app.range.RangeReport
+import com.micon.app.range.VoiceQualityPoint
+import com.micon.app.range.VoiceQualityResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -8,6 +11,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoiceProfileMapperTest {
+    @Test fun `saved onboarding quality restores measured points without interpolation`() {
+        val quality = VoiceQualityResult("personal-acoustic-v1", 57, listOf(
+            VoiceQualityPoint(55, 60.0, 0.0, .4, 90.0),
+            VoiceQualityPoint(57, 100.0, 0.0, 0.0, 100.0),
+            VoiceQualityPoint(60, 70.0, .3, 0.0, 80.0)))
+        val range = RangeReport("holo-v1", emptyList(), 48, 72, emptyList(), "completed",
+            "endpoint_held", "endpoint_held", "available", voiceQuality = quality)
+        val profile = requireNotNull(VoiceProfileMapper.fromOnboarding(range, 123L))
+        assertEquals(quality, profile.voiceQuality)
+        val display = VoiceProfileMapper.toDisplayResult(profile)
+        assertEquals(listOf(55, 57, 60), display.stabilityMidis)
+        assertEquals(listOf(.6f, 1f, .7f), display.stability)
+        assertEquals(quality, display.voiceQuality)
+    }
+
     @Test
     fun `saved profile can be shown as a voice result after process restart`() {
         val profile = UserStore.VoiceProfile(

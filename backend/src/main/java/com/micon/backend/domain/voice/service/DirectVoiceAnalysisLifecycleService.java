@@ -56,6 +56,10 @@ public class DirectVoiceAnalysisLifecycleService {
                 throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
                         "같은 requestId에는 동일한 WAV만 재전송할 수 있습니다.");
             }
+            if (!java.util.Objects.equals(existing.getVoiceQualityJson(), qualityJson(request))) {
+                throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                        "같은 requestId에는 동일한 발성 점수만 재전송할 수 있습니다.");
+            }
             return new PreparedJob(existing.getId(), existing.getStatus(), VoiceAnalysisJobResponse.from(existing));
         }
         VoiceAnalysisSession session = sessions.findByIdAndUserId(sessionId, userId)
@@ -67,8 +71,10 @@ public class DirectVoiceAnalysisLifecycleService {
                 (short) request.attemptNo(), file.getContentType(), file.getSize(),
                 request.durationSeconds().multiply(java.math.BigDecimal.valueOf(1000)).intValue(), sampleRate(request),
                 audioSha256));
-        VoiceAnalysisComponentJob saved = jobs.saveAndFlush(new VoiceAnalysisComponentJob(session, recording,
-                "RANGE", request.attemptNo(), request.requestId()));
+        VoiceAnalysisComponentJob rangeJob = new VoiceAnalysisComponentJob(session, recording,
+                "RANGE", request.attemptNo(), request.requestId());
+        rangeJob.setRangeVoiceQuality(qualityJson(request));
+        VoiceAnalysisComponentJob saved = jobs.saveAndFlush(rangeJob);
         session.beginRangeAnalysis();
         return new PreparedJob(saved.getId(), saved.getStatus(), VoiceAnalysisJobResponse.from(saved));
     }
@@ -109,9 +115,14 @@ public class DirectVoiceAnalysisLifecycleService {
     }
 
     private int sampleRate(VoiceSessionRequest.RangeAnalysisUpload request) {
-        var value = request.sampling().get("sampleRate");
+        var value = request.sampling() == null ? null : request.sampling().get("sampleRate");
         return value != null && value.canConvertToInt() && value.asInt() > 0
                 ? value.asInt() : 16_000;
+    }
+
+    private String qualityJson(VoiceSessionRequest.RangeAnalysisUpload request) {
+        return request.voiceQuality() == null || request.voiceQuality().isNull()
+                ? null : request.voiceQuality().toString();
     }
 
     public record PreparedJob(Long analysisId, String status, VoiceAnalysisJobResponse response) { }

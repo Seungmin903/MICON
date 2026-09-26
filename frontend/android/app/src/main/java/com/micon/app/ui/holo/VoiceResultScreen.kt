@@ -259,13 +259,17 @@ private fun MatchingMusicCard(r: HoloResult, axis: PitchAxis) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("내 목소리에 맞는 음악")
         Spacer(Modifier.height(10.dp))
+        if (r.voiceQuality != null) {
+            Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+        }
         // 편한 음역 값은 위 카드 머리에 있다 — 여기선 같은 자 위의 그림만
         AxisRow(axis)
         Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth()) {
+        if (r.voiceQuality != null) Row(Modifier.fillMaxWidth()) {
             // 좌측 눈금 라벨. [Gutter] 폭이라 위 카드 막대·아래 건반과 가로가 어긋나지 않는다
             Column(Modifier.width(Gutter).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                listOf("안정", "보통", "부담").forEach { Text(it, fontSize = 12.sp, color = muted) }
+                listOf("100", "50", "0").forEach { Text(it, fontSize = 12.sp, color = muted) }
             }
             Column(Modifier.weight(1f)) {
                 StabilityLine(r, axis)
@@ -273,8 +277,11 @@ private fun MatchingMusicCard(r: HoloResult, axis: PitchAxis) {
                 Keyboard(r, axis)
             }
         }
+        else Text("이번 측정에서는 발성 유지 점수를 계산하지 못했어요. 다시 측정하면 확인할 수 있어요.",
+            fontSize = 12.sp, color = muted)
         Text(
-            "보라색 구간이 편한 음역이에요. 이 구간에서 멜로디가 도는 곡이 가장 편하고, 곡선이 높을수록 그 음을 안정적으로 냈어요.",
+            if (r.voiceQuality != null) "곡선은 편한 시작음과 비교한 발성 유지 점수예요. 높은 음의 배음·주기성 변화와 낮은 음의 끊김을 반영합니다. 가성 확률이나 편안함의 확정 판정은 아니에요."
+            else "보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
             fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp),
         )
     }
@@ -353,7 +360,8 @@ private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
         r.stability.forEachIndexed { i, v ->
             val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
             val cy = y(v)
-            if (i == 0) path.moveTo(cx, cy) else {
+            if (i == 0 || (r.voiceQuality != null && r.stabilityMidis.getOrElse(i) { axis.low } -
+                    r.stabilityMidis.getOrElse(i - 1) { axis.low } > 1)) path.moveTo(cx, cy) else {
                 val px = x(r.stabilityMidis.getOrElse(i - 1) { axis.low })
                 val py = y(r.stability[i - 1])
                 path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
@@ -474,11 +482,9 @@ private fun SimilarVoicesCard(r: HoloResult) {
 private fun SummaryTint(r: HoloResult) {
     MiconCard(kind = MiconCardKind.Tinted) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val stable = r.stability.maxOrNull() ?: 0f
-            val lowHeavy = r.stabilityMidis.zip(r.stability).filter { it.first <= 59 }.maxOfOrNull { it.second } ?: 0f
             MiconBadge(if (r.octaves >= 2) "넓은 음역" else "또렷한")
             MiconBadge(if (r.phraseSec >= 5) "긴 호흡" else "부드러운")
-            MiconBadge(if (lowHeavy >= 0.6f) "중저음 안정" else if (stable >= 0.7f) "음정 안정" else "표현력", tone = MiconChipTone.Success)
+            MiconBadge(if (r.voiceQuality != null) "발성 변화 참고" else "발성 점수 미측정", tone = MiconChipTone.Success)
         }
         Spacer(Modifier.height(8.dp))
         Text("이 조건에 맞는 곡을 추천 탭에서 골라 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)

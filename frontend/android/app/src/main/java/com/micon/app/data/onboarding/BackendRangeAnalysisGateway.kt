@@ -69,7 +69,8 @@ class BackendRangeAnalysisGateway(private val api: BackendApi, private val owner
                     emptyList(), submission.stopReason, submission.lowerBoundaryStatus, submission.upperBoundaryStatus,
                     "available", analysisId = checkNotNull(link.analysisId).toString(), verification = "model_verified",
                     backendSessionId = link.sessionId, sampling = submission.sampling,
-                    stableLowMidi = range.stableLowMidi, stableHighMidi = range.stableHighMidi)
+                    stableLowMidi = range.stableLowMidi, stableHighMidi = range.stableHighMidi,
+                    voiceQuality = range.voiceQuality)
             }
             if (result.rangeStatus in setOf("FAILED", "INSUFFICIENT_DATA") ||
                 result.components.any { it.component == "RANGE" && it.status in setOf("FAILED", "INSUFFICIENT_DATA", "CANCELED") }) {

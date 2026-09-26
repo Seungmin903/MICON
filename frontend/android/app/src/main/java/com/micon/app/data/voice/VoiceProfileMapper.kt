@@ -12,7 +12,8 @@ import kotlin.math.roundToInt
  * 서버 음성 분석 리포트 → 리포트 탭이 그리는 [UserStore.VoiceProfile].
  *
  * 서버가 주는 것만 채운다: 전체 음역(fullLow/High), 편안한 음역(stableLow/High, 없으면 전체), 추천곡 음역(= 편안한 음역),
- * 음역별 안정성 곡선은 두 음역에서 유도한다(편안한 음역 안 1.0 → 전체 음역 끝 0). 템포·프레이즈·장르·보컬 특성 6축은
+ * 새 온보딩의 발성 점수는 측정된 음별 값만 사용한다. 구형 프로필의 안정성 곡선만 두 음역에서 유도한다.
+ * 템포·프레이즈·장르·보컬 특성 6축은
  * 서버 계약에 아직 없어 [UserStore.VoiceProfile] 기본값을 그대로 둔다(간편 분석과 같은 처리).
  */
 object VoiceProfileMapper {
@@ -21,8 +22,9 @@ object VoiceProfileMapper {
      * 상세 화면이 실제로 사용하는 음역/안정성 값만 복원하고, 녹음 세션 전용 값은 비워 둔다.
      */
     fun toDisplayResult(profile: UserStore.VoiceProfile): HoloResult {
+        val quality = profile.voiceQuality
         val pointCount = profile.stability.size
-        val stabilityMidis = when (pointCount) {
+        val stabilityMidis = quality?.points?.map { it.midi } ?: when (pointCount) {
             0 -> emptyList()
             1 -> listOf((profile.lowMidi + profile.highMidi) / 2)
             else -> (0 until pointCount).map { index ->
@@ -38,8 +40,9 @@ object VoiceProfileMapper {
             comfortHigh = profile.comfortHigh,
             recommendLow = profile.recommendLow,
             recommendHigh = profile.recommendHigh,
-            stability = profile.stability,
+            stability = quality?.points?.map { (it.score / 100.0).toFloat() } ?: profile.stability,
             stabilityMidis = stabilityMidis,
+            voiceQuality = quality,
             phraseSec = profile.phraseLevel.toDouble(),
             bpmLow = bpm.getOrElse(0) { 0 },
             bpmHigh = bpm.getOrElse(1) { bpm.firstOrNull() ?: 0 },
@@ -96,12 +99,16 @@ object VoiceProfileMapper {
         val comfortLow = (stable?.first ?: low).coerceIn(low, high)
         val comfortHigh = (stable?.last ?: high).coerceIn(comfortLow, high)
         val labelsMidi = (0 until STABILITY_POINTS).map { i -> low + ((high - low) * i.toDouble() / (STABILITY_POINTS - 1)).roundToInt() }
+        val quality = range.voiceQuality?.takeIf { it.version == com.micon.app.range.LocalVoiceQualityAnalyzer.VERSION }
         return UserStore.VoiceProfile(
             lowMidi = low, highMidi = high,
             comfortLow = comfortLow, comfortHigh = comfortHigh,
             recommendLow = comfortLow, recommendHigh = comfortHigh,
-            stability = labelsMidi.map { stabilityAt(it, low, high, comfortLow, comfortHigh) },
-            stabilityLabels = labelsMidi.map(ScoringMath::midiName),
+            stability = quality?.points?.map { (it.score / 100.0).toFloat() }
+                ?: labelsMidi.map { stabilityAt(it, low, high, comfortLow, comfortHigh) },
+            stabilityLabels = quality?.points?.map { ScoringMath.midiName(it.midi) }
+                ?: labelsMidi.map(ScoringMath::midiName),
+            voiceQuality = quality,
             measuredAt = measuredAt,
         )
     }

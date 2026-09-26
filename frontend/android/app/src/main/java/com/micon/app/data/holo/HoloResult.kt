@@ -5,6 +5,7 @@ import androidx.core.util.AtomicFile
 import com.micon.app.audio.PitchCapture
 import com.micon.app.core.network.Json
 import com.micon.app.range.RangeProtocol
+import com.micon.app.range.VoiceQualityResult
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -29,9 +30,10 @@ data class HoloResult(
     /** 추천곡 음역 — 편안한 구간 안쪽 */
     val recommendLow: Int,
     val recommendHigh: Int,
-    /** 음역별 안정성 0(부담)~1(안정). x 축은 [stabilityMidis] */
+    /** 그래프 점수 0~1. [voiceQuality]가 있으면 개인 기준 발성 유지 점수다. */
     val stability: List<Float>,
     val stabilityMidis: List<Int>,
+    val voiceQuality: VoiceQualityResult? = null,
     /** 한 호흡(프레이즈) 평균 초 */
     val phraseSec: Double,
     /** 적정 템포 범위 */
@@ -53,10 +55,16 @@ data class HoloResult(
 
     /**
      * 1단계에서 제대로 잰 음역으로 갈아 끼운다. 2단계(노래) 녹음으로 계산한 음역은 곡이 쓰는
-     * 범위에 갇혀 실제보다 좁다 — 음역은 측정값을, 안정성·호흡·템포는 노래 녹음을 쓴다.
+     * 범위에 갇혀 실제보다 좁다 — 음역과 발성 유지 점수는 1단계 측정값을,
+     * 호흡·템포는 노래 녹음을 쓴다.
      */
-    fun withMeasuredRange(low: Int, high: Int): HoloResult {
-        if (high - low < 5) return this
+    fun withMeasuredRange(low: Int, high: Int, quality: VoiceQualityResult? = null): HoloResult {
+        val points = quality?.points.orEmpty()
+        if (high - low < 5) return copy(
+            stability = if (points.isNotEmpty()) points.map { (it.score / 100.0).toFloat() } else stability,
+            stabilityMidis = if (points.isNotEmpty()) points.map { it.midi } else stabilityMidis,
+            voiceQuality = quality,
+        )
         val cl = comfortLow.coerceIn(low, high)
         val ch = comfortHigh.coerceIn(cl, high)
         val (fixLow, fixHigh) = if (ch - cl >= 4) cl to ch else {
@@ -67,6 +75,9 @@ data class HoloResult(
         return copy(
             lowMidi = low, highMidi = high, comfortLow = fixLow, comfortHigh = fixHigh,
             recommendLow = fixLow + (span * 0.15).roundToInt(), recommendHigh = fixHigh - (span * 0.15).roundToInt(),
+            stability = if (points.isNotEmpty()) points.map { (it.score / 100.0).toFloat() } else stability,
+            stabilityMidis = if (points.isNotEmpty()) points.map { it.midi } else stabilityMidis,
+            voiceQuality = quality,
         )
     }
     val usable: Boolean get() = voicedSec >= 4.0 && highMidi - lowMidi >= 5

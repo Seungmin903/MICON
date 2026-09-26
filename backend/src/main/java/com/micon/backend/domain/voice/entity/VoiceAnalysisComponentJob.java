@@ -27,6 +27,7 @@ public class VoiceAnalysisComponentJob {
     @Column(name = "requested_top_k") private Integer requestedTopK;
     @Column(name = "catalog_version", length = 64) private String catalogVersion;
     @Column(name = "scoring_version", length = 100) private String scoringVersion;
+    @Column(name = "voice_quality_json", columnDefinition = "json") private String voiceQualityJson;
     @Column(name = "started_at") private LocalDateTime startedAt;
     @Column(name = "completed_at") private LocalDateTime completedAt;
     @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
@@ -81,6 +82,13 @@ public class VoiceAnalysisComponentJob {
     public Integer getRequestedTopK() { return requestedTopK; }
     public String getCatalogVersion() { return catalogVersion; }
     public String getScoringVersion() { return scoringVersion; }
+    public String getVoiceQualityJson() { return voiceQualityJson; }
+
+    public void setRangeVoiceQuality(String value) {
+        if (!"RANGE".equals(componentType)) throw new IllegalStateException("range job required");
+        this.voiceQualityJson = value;
+        this.updatedAt = LocalDateTime.now();
+    }
 
     public void configureArtistSearch(long resultVersion, int topK, String catalogVersion,
                                       String scoringVersion) {

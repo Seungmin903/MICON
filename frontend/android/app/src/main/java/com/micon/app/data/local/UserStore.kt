@@ -21,6 +21,7 @@ object UserStore {
         /** 음역별 안정성 0(부담)~1(안정). x 축은 stabilityLabels. */
         val stability: List<Float> = listOf(0f, 0.45f, 0.95f, 1f, 0.85f, 0.55f, 0.3f, 0f),
         val stabilityLabels: List<String> = listOf("G2", "C3", "F3", "B3", "E4", "A4", "D5", "G5"),
+        val voiceQuality: com.micon.app.range.VoiceQualityResult? = null,
         val bpmRange: String = "72-96",
         val phraseLevel: Int = 3,         // 7 단계 중
         val genres: List<String> = listOf("발라드", "어쿠스틱", "감성적인", "R&B"),
