@@ -2,6 +2,7 @@ package com.micon.app.ui.practice
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -49,6 +50,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,7 +84,6 @@ import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.LyricTiming
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.scoring.SectionMap
-import com.micon.app.scoring.SongSections
 import com.micon.app.scoring.ScoringUi
 import com.micon.app.scoring.Totals
 import com.micon.app.ui.common.OutlinePurpleButton
@@ -106,7 +107,6 @@ import com.micon.app.ui.theme.Purple
 import com.micon.app.ui.theme.Red
 import com.micon.app.ui.theme.Teal
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -115,7 +115,7 @@ import kotlin.math.roundToInt
  *     시작 전 설정(이어폰·전주 건너뛰기·지연 보정·진동)과 마이크 미리보기.
  *     구간 칩(1절·2절·하이라이트) — 누르면 그 구간이 시작하는 마디의 한 마디 앞(첫 박)으로 이동(재생 중에도, 카운트인 후).
  * 가운데: 연습 중 실시간 점수판 + 방금 음표 판정 칩, 접을 수 있는 러너웨이(피아노롤), 가사 줄 목록(LRC 줄 텍스트, 글자는 음절 시각으로 채움).
- *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다. 간주에 들어가면 "간주 건너뛰기" 버튼이 뜬다.
+ *        가사 줄을 누르면(정지 상태) 그 줄이 구간 반복 범위가 된다. 간주 건너뛰기 버튼은 항상 보이며 간주 밖에서는 안내한다.
  * 아래: 흰 시트 — 처음부터 · 시작/일시정지/이어서 · 닫기(또는 마치기). 종료 후 요약·녹음 다시 듣기·연습 리포트(백엔드 /practices 에 저장된 기록).
  */
 @Composable
@@ -130,7 +130,7 @@ fun PracticeScreen(
     val context = LocalContext.current
     val vm: PracticeViewModel = viewModel(
         key = "practice-$songId-$initialKey",
-        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, isLoggedIn = { TokenManager.isLoggedIn() }, initialKey = initialKey) } },
+        factory = viewModelFactory { initializer { PracticeViewModel(context.applicationContext, songId, container.songs, container.mediaHttp, container.practices, container.practiceRecordings, sessionSnapshot = TokenManager::snapshot, isLoggedIn = TokenManager::isLoggedIn, initialKey = initialKey) } },
     )
     val state by vm.state.collectAsStateWithLifecycle()
     com.micon.app.ui.common.PlaybackLifecycleEffect(vm, onExit = vm::stopAudioForExit)
@@ -204,10 +204,17 @@ fun PracticeScreen(
                     }
                 }
                 if (running || state.phase == Phase.PAUSED) {
-                    val interludeLeft = state.interlude?.let { it.end - state.nowSec }?.takeIf { it > SongSections.LEAD_FALLBACK_SECONDS + 1.0 }?.let { ceil(it).toInt() }
                     ScoreBoard(
                         state.totals, state.lastJudged, state.lastJudgedAtMs, state.calibrationMs, state.autoCalibrate, state.showRunway, onToggleRunway = vm::toggleRunway,
-                        interludeLeft = interludeLeft, onSkipInterlude = vm::skipInterlude,
+                        onSkipInterlude = {
+                            val message = when (vm.skipInterlude()) {
+                                SkipInterludeResult.SKIPPED -> null
+                                SkipInterludeResult.NOT_INTERLUDE -> "간주 구간이 아닙니다."
+                                SkipInterludeResult.TOO_LATE -> "곧 노래가 시작돼 건너뛸 구간이 없어요."
+                                SkipInterludeResult.NOT_READY -> "카운트다운이 끝나면 다시 눌러 주세요."
+                            }
+                            message?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                        },
                     )
                     // 레인(퍼펙트스코어식 음표 레인)은 고정 180dp 였다. 작은 기기(S10 360×760)에서는
                     // 그 높이 때문에 아래 가사가 0에 가깝게 눌려 잘렸다. 이제 레인과 가사가 남는 높이를
@@ -402,7 +409,7 @@ private fun StartPositionChip(label: String, selected: Boolean, enabled: Boolean
 @Composable
 private fun ScoreBoard(
     totals: Totals?, lastJudged: LiveNote?, lastJudgedAtMs: Long, calibrationMs: Int, autoCalibrate: Boolean, showRunway: Boolean, onToggleRunway: () -> Unit,
-    interludeLeft: Int? = null, onSkipInterlude: () -> Unit = {},
+    onSkipInterlude: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().background(Color(0xFFF4F2FC)).padding(horizontal = 32.dp, vertical = 5.dp),
@@ -414,15 +421,21 @@ private fun ScoreBoard(
         }
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            if (interludeLeft != null) {
-                Surface(onClick = onSkipInterlude, shape = RoundedCornerShape(50), color = Purple) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                JudgementLabel(lastJudged, lastJudgedAtMs)
+                Surface(
+                    onClick = onSkipInterlude,
+                    modifier = Modifier.semantics { contentDescription = "간주 건너뛰기" },
+                    shape = RoundedCornerShape(50),
+                    color = Purple,
+                ) {
                     Row(Modifier.padding(horizontal = 9.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.SkipNext, null, Modifier.size(14.dp), tint = Color.White)
                         Spacer(Modifier.width(3.dp))
                         Text("간주 건너뛰기", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-            } else JudgementLabel(lastJudged, lastJudgedAtMs)
+            }
         }
         Spacer(Modifier.width(16.dp))
         Surface(
@@ -636,6 +649,7 @@ private fun BottomSheet(
                     }
                     Surface(
                         onClick = { when (state.phase) { Phase.PAUSED -> vm.resume(); Phase.RUNNING, Phase.COUNTDOWN -> vm.pause(); else -> onStart() } },
+                        enabled = !(state.phase == Phase.FINISHED && state.save.phase == SavePhase.SAVING),
                         shape = CircleShape,
                         // 재생 중에도 같은 보라를 쓴다 — 예전엔 연한 LavenderDeep 위에 흰 아이콘이라 꺼진 것처럼 보였다
                         color = Purple,
@@ -706,6 +720,9 @@ private fun FinishedPanel(
         }
         if (state.save.message.isNotEmpty()) {
             Text(state.save.message, color = if (state.save.phase == SavePhase.ERROR) Red else Grey, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+        if (state.save.recordingSaveFailed) {
+            TextButton(onClick = vm::retryRecordingSave) { Text("녹음 다시 저장") }
         }
     }
 }

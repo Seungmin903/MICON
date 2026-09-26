@@ -203,6 +203,7 @@ class BackendVoiceOnboardingGateway(private val api: BackendApi,
         backendSessionId = sessionId,
         stableLowMidi = stableLowMidi,
         stableHighMidi = stableHighMidi,
+        voiceQuality = voiceQuality,
     )
 
     private fun String?.toComponentStatus() = runCatching { ComponentStatus.valueOf(this ?: "PENDING") }

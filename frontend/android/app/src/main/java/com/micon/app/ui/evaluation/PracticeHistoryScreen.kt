@@ -56,6 +56,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.core.auth.SessionSnapshot
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.practice.PracticeRecordingStore
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.RefreshOnResume
@@ -73,6 +76,8 @@ import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.theme.Red
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -80,6 +85,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -88,7 +94,12 @@ import kotlin.math.roundToInt
 /** 기록 탭 — 프로토타입 `history` (이전 이름 평가). 이번 주 요약 + 평평한 목록. 아코디언은 없앴다. */
 enum class HistoryFilter(val label: String) { ALL("전체"), WEEK("이번 주"), TOP("높은 점수순") }
 
-class PracticeHistoryViewModel(private val practices: PracticeRepository) : ViewModel() {
+class PracticeHistoryViewModel(
+    private val practices: PracticeRepository,
+    private val recordings: PracticeRecordingStore? = null,
+    private val sessionSnapshot: () -> SessionSnapshot? = { null },
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
@@ -140,6 +151,7 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
      */
     fun confirmDelete() {
         val target = _state.value.confirmDelete ?: return
+        val ownerId = sessionSnapshot()?.takeIf { it.isLoggedIn && it.userId > 0 }?.userId
         val index = _state.value.items.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
         // 삭제 전 목록을 가져오던 응답이 나중에 도착해 삭제한 행을 되살리지 못하게 한다.
         loadJob?.cancel()
@@ -147,6 +159,10 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         viewModelScope.launch {
             try {
                 practices.delete(target.id)
+                if (ownerId != null && recordings != null) {
+                    val localError = runCatching { withContext(ioDispatcher) { recordings.delete(ownerId, target.id) } }.exceptionOrNull()
+                    if (localError != null) _state.update { it.copy(notice = "기록은 삭제했지만 기기 녹음을 정리하지 못했어요.") }
+                }
                 // 서버 상태를 기준으로 요약 점수와 필터 결과까지 다시 맞춘다.
                 load()
             } catch (e: CancellationException) {
@@ -183,7 +199,9 @@ internal fun historyMeta(item: PracticeSummary): String {
 @Composable
 fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
-    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer { PracticeHistoryViewModel(container.practices) } })
+    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer {
+        PracticeHistoryViewModel(container.practices, container.practiceRecordings, TokenManager::snapshot)
+    } })
     val state by vm.state.collectAsStateWithLifecycle()
     RefreshOnResume { vm.load() }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -264,7 +282,7 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
         AlertDialog(
             onDismissRequest = { openId = null; vm.dismissDelete() },
             title = { Text("기록을 삭제할까요?") },
-            text = { Text("${target.songTitle ?: "이 곡"} 연습 기록이 지워져요. 되돌릴 수 없어요.") },
+            text = { Text("${target.songTitle ?: "이 곡"} 연습 기록과 이 기기의 녹음이 지워져요. 되돌릴 수 없어요.") },
             confirmButton = { TextButton({ openId = null; vm.confirmDelete() }) { Text("삭제") } },
             dismissButton = { TextButton({ openId = null; vm.dismissDelete() }) { Text("취소") } },
         )

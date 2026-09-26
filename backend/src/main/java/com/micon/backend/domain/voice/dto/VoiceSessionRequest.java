@@ -27,7 +27,19 @@ public final class VoiceSessionRequest {
             @NotBlank @Size(max = 50) String upperBoundaryStatus,
             JsonNode attempts,
             @NotBlank @Size(max = 20) String contractVersion,
-            JsonNode sampling, JsonNode registerEvents, JsonNode stages) {}
+            JsonNode sampling, JsonNode registerEvents, JsonNode stages,
+            JsonNode voiceQuality) {
+        public RangeAnalysisUpload(String requestId, int attemptNo, String measurementId,
+                LocalDateTime measuredAt, String protocolVersion, String mode, Long parentAnalysisId,
+                int startMidi, BigDecimal noiseRms, BigDecimal durationSeconds, String stopReason,
+                String lowerBoundaryStatus, String upperBoundaryStatus, JsonNode attempts,
+                String contractVersion, JsonNode sampling, JsonNode registerEvents, JsonNode stages) {
+            this(requestId, attemptNo, measurementId, measuredAt, protocolVersion, mode,
+                    parentAnalysisId, startMidi, noiseRms, durationSeconds, stopReason,
+                    lowerBoundaryStatus, upperBoundaryStatus, attempts, contractVersion,
+                    sampling, registerEvents, stages, null);
+        }
+    }
     public record NoteResult(@NotNull BigDecimal midi, @NotBlank String status,
                              BigDecimal accuracy, BigDecimal stability, Integer holdMs) {}
     public record DeviceRangeResult(
@@ -38,5 +50,13 @@ public final class VoiceSessionRequest {
             BigDecimal highMidi,
             @NotNull JsonNode noteResults,
             @NotBlank @Pattern(regexp = "AVAILABLE|INSUFFICIENT_DATA|FAILED") String measurementStatus,
-            @NotBlank @Pattern(regexp = "VALID|NOISY|CLIPPED|INSUFFICIENT_VOICE") String qualityStatus) {}
+            @NotBlank @Pattern(regexp = "VALID|NOISY|CLIPPED|INSUFFICIENT_VOICE") String qualityStatus,
+            JsonNode voiceQuality) {
+        public DeviceRangeResult(String measurementId, LocalDateTime measuredAt, String protocolVersion,
+                BigDecimal lowMidi, BigDecimal highMidi, JsonNode noteResults,
+                String measurementStatus, String qualityStatus) {
+            this(measurementId, measuredAt, protocolVersion, lowMidi, highMidi, noteResults,
+                    measurementStatus, qualityStatus, null);
+        }
+    }
 }

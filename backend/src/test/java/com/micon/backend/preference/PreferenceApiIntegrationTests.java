@@ -97,6 +97,11 @@ class PreferenceApiIntegrationTests {
 			.andExpect(jsonPath("$.data.length()").value(2))
 			.andExpect(jsonPath("$.data[0].genreId").value(202))
 			.andExpect(jsonPath("$.data[0].name").value("록"));
+		// 장르 목록은 비로그인(온보딩 게스트)도 같은 결과를 받는다
+		mockMvc.perform(get("/genres"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.length()").value(2))
+			.andExpect(jsonPath("$.data[0].genreId").value(202));
 
 		mockMvc.perform(get("/artists")
 				.param("query", "day")

@@ -91,9 +91,11 @@ public class VoiceSessionService {
                 throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                         "이미 다른 세션에 저장된 음역 측정 결과입니다.");
             }
-            ranges.save(new VoiceRangeMeasurement(session, request.measurementId(), request.protocolVersion(),
+            VoiceRangeMeasurement measurement = new VoiceRangeMeasurement(session, request.measurementId(), request.protocolVersion(),
                     request.lowMidi(), request.highMidi(), write(request.noteResults()),
-                    request.measurementStatus(), request.qualityStatus(), request.measuredAt()));
+                    request.measurementStatus(), request.qualityStatus(), request.measuredAt());
+            measurement.setVoiceQualityJson(qualityJson(request));
+            ranges.save(measurement);
             session.acceptRange(request.measurementStatus());
         } else if (!Objects.equals(existing.getMeasurementUid(), request.measurementId())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
@@ -113,7 +115,7 @@ public class VoiceSessionService {
             guest.rangeMeasurementId = request.measurementId();
             guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
                     request.measurementStatus(), request.qualityStatus(), null,
-                    request.protocolVersion(), null, null);
+                    request.protocolVersion(), null, null, qualityJson(request));
             guest.rangeStatus = request.measurementStatus();
             guest.rangeFingerprint = fingerprint;
             guest.refreshStatus();
@@ -131,6 +133,16 @@ public class VoiceSessionService {
     private String write(Object value) {
         try { return json.writeValueAsString(value); }
         catch (JacksonException exception) { throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR); }
+    }
+
+    private String qualityJson(VoiceSessionRequest.RangeAnalysisUpload request) {
+        return request.voiceQuality() == null || request.voiceQuality().isNull()
+                ? null : request.voiceQuality().toString();
+    }
+
+    private String qualityJson(VoiceSessionRequest.DeviceRangeResult request) {
+        return request.voiceQuality() == null || request.voiceQuality().isNull()
+                ? null : request.voiceQuality().toString();
     }
 
     private void validateDeviceRange(VoiceSessionRequest.DeviceRangeResult request) {
@@ -151,6 +163,11 @@ public class VoiceSessionService {
         if (request.noteResults() == null || request.noteResults().isNull()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "음역 측정 결과가 필요합니다.");
         }
+        if (request.voiceQuality() != null && !request.voiceQuality().isNull()
+                && (!"holo-v1".equals(request.protocolVersion())
+                    || !VoiceAnalysisUploadValidator.validVoiceQuality(request.voiceQuality(), null))) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "기기 발성 점수의 버전 또는 음별 값이 올바르지 않습니다.");
+        }
     }
 
     private boolean sameRangeResult(VoiceRangeMeasurement existing,
@@ -159,13 +176,14 @@ public class VoiceSessionService {
                 && Objects.equals(existing.getFullHighMidi(), request.highMidi())
                 && Objects.equals(existing.getMeasurementStatus(), request.measurementStatus())
                 && Objects.equals(existing.getQualityStatus(), request.qualityStatus())
-                && Objects.equals(existing.getNoteResults(), write(request.noteResults()));
+                && Objects.equals(existing.getNoteResults(), write(request.noteResults()))
+                && Objects.equals(existing.getVoiceQualityJson(), qualityJson(request));
     }
 
     private String rangeFingerprint(VoiceSessionRequest.DeviceRangeResult request) {
         return String.join("|", request.measurementId(), String.valueOf(request.lowMidi()),
                 String.valueOf(request.highMidi()), request.measurementStatus(), request.qualityStatus(),
-                write(request.noteResults()));
+                write(request.noteResults()), String.valueOf(qualityJson(request)));
     }
 
     public synchronized VoiceAnalysisJobResponse prepareGuestRange(long sessionId, String guestToken,
@@ -180,12 +198,16 @@ public class VoiceSessionService {
                 throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
                         "같은 requestId에는 동일한 WAV만 재전송할 수 있습니다.");
             }
+            if (!Objects.equals(existing.voiceQualityJson, qualityJson(request))) {
+                throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                        "같은 requestId에는 동일한 발성 점수만 재전송할 수 있습니다.");
+            }
             return existing.response();
         }
         if (guest.range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                 "이미 완료된 음역 분석이 있습니다.");
         GuestRangeJob job = new GuestRangeJob(guestIds.getAndDecrement(), guest, request.requestId(),
-                request.attemptNo(), audioSha256);
+                request.attemptNo(), audioSha256, qualityJson(request));
         guestRangeJobs.put(request.requestId(), job);
         guest.rangeStatus = "UPLOADING";
         guest.refreshStatus();
@@ -230,7 +252,7 @@ public class VoiceSessionService {
             case COMPLETED -> {
                 validateRangeResult(request);
                 job.status = "COMPLETED";
-                job.session.accept(request);
+                job.session.accept(request, job.voiceQualityJson);
             }
             case FAILED -> job.fail(request.failureCode(), request.failureReason(), false);
             case INSUFFICIENT_DATA -> job.fail(request.failureCode(), request.failureReason(), true);
@@ -403,7 +425,8 @@ public class VoiceSessionService {
                 s.getArtistSearchStatus(), s.getResultVersion(), profiles.findByUserId(s.getUser().getId()).isPresent(),
                 true, s.getExpiresAt(), r == null ? null : new VoiceSessionResponse.Range(
                 r.getFullLowMidi(), r.getFullHighMidi(), r.getMeasurementStatus(), r.getQualityStatus(),
-                r.getNoteResults(), r.getRuleVersion(), r.getStableLowMidi(), r.getStableHighMidi()));
+                r.getNoteResults(), r.getRuleVersion(), r.getStableLowMidi(), r.getStableHighMidi(),
+                r.getVoiceQualityJson()));
     }
 
     private GuestSession guestByToken(String token) {
@@ -428,9 +451,11 @@ public class VoiceSessionService {
         String rangeMeasurementId, rangeFingerprint;
         VoiceSessionResponse.Range range;
         GuestSession(long id, String token, LocalDateTime expiresAt) { this.id=id; this.token=token; this.expiresAt=expiresAt; }
-        void accept(VoiceAnalysisComponentCallbackRequest r) {
+        void accept(VoiceAnalysisComponentCallbackRequest r, String voiceQualityJson) {
             if (range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
-            range = new VoiceSessionResponse.Range(r.lowMidi(), r.highMidi(), r.measurementStatus(), r.qualityStatus());
+            range = new VoiceSessionResponse.Range(r.lowMidi(), r.highMidi(), r.measurementStatus(), r.qualityStatus(),
+                    r.noteResults() == null ? null : r.noteResults().toString(), r.protocolVersion(),
+                    r.stableLowMidi(), r.stableHighMidi(), voiceQualityJson);
             rangeStatus=r.measurementStatus(); refreshStatus(); version++;
         }
         VoiceSessionResponse.Session response(boolean includeToken) {
@@ -452,10 +477,12 @@ public class VoiceSessionService {
         final long id; final GuestSession session; final String requestId; final int attemptNo;
         String aiJobId, failureCode, failureReason, status = "PENDING";
         LocalDateTime startedAt, completedAt;
-        final String audioSha256;
-        GuestRangeJob(long id, GuestSession session, String requestId, int attemptNo, String audioSha256) {
+        final String audioSha256, voiceQualityJson;
+        GuestRangeJob(long id, GuestSession session, String requestId, int attemptNo,
+                      String audioSha256, String voiceQualityJson) {
             this.id=id; this.session=session; this.requestId=requestId; this.attemptNo=attemptNo;
             this.audioSha256=audioSha256;
+            this.voiceQualityJson=voiceQualityJson;
         }
         void fail(String code, String reason, boolean insufficient) {
             status = insufficient ? "INSUFFICIENT_DATA" : "FAILED";

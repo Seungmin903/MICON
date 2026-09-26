@@ -14,6 +14,7 @@ import com.micon.app.data.favorites.RemoteSetlistRepository
 import com.micon.app.data.favorites.SetlistRepository
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeRecordingStore
 import com.micon.app.data.practice.RemotePracticeRepository
 import com.micon.app.data.recommend.BackendRecommendRepository
 import com.micon.app.data.settings.RemoteSettingsRepository
@@ -54,6 +55,9 @@ class AppContainer(context: Context) {
 
     /** 연습 기록. 백엔드 `/practices`(세션 생성·완료·라이브 채점 저장·목록·리포트). 로컬 엔진 job 은 더 쓰지 않는다. */
     val practices: PracticeRepository = RemotePracticeRepository(backend.api)
+
+    /** 로그인 계정별 연습 녹음. 서버 업로드와 Android 백업에 포함하지 않는다. */
+    val practiceRecordings = PracticeRecordingStore(context)
 
     /** 찜. 백엔드 `/users/me/favorites`. [FavoriteRepository.likedIds] 를 곡 목록·찜 탭·세트리스트의 하트가 구독한다. */
     val favorites: FavoriteRepository = RemoteFavoriteRepository(backend.api)

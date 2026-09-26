@@ -30,9 +30,10 @@ public class PreferenceController {
 		this.preferenceService = preferenceService;
 	}
 
+	/** 공개 카탈로그. 로그인 여부와 관계없이 같은 목록을 준다(SecurityConfig 에서 permitAll). */
 	@GetMapping("/genres")
-	public ApiResponse<List<PreferenceResponse.Genre>> getGenres(@AuthenticationPrincipal Jwt jwt) {
-		return ApiResponse.success(preferenceService.getGenres(userId(jwt)));
+	public ApiResponse<List<PreferenceResponse.Genre>> getGenres() {
+		return ApiResponse.success(preferenceService.getGenres());
 	}
 
 	@GetMapping("/artists")

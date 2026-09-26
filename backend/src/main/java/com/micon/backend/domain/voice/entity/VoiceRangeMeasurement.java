@@ -19,6 +19,7 @@ public class VoiceRangeMeasurement {
     @Column(name = "stable_low_midi", precision = 6, scale = 2) private BigDecimal stableLowMidi;
     @Column(name = "stable_high_midi", precision = 6, scale = 2) private BigDecimal stableHighMidi;
     @Column(name = "note_results", nullable = false, columnDefinition = "json") private String noteResults;
+    @Column(name = "voice_quality_json", columnDefinition = "json") private String voiceQualityJson;
     @Column(name = "measurement_status", nullable = false, length = 30) private String measurementStatus;
     @Column(name = "quality_status", nullable = false, length = 30) private String qualityStatus;
     @Column(name = "measured_at", nullable = false) private LocalDateTime measuredAt;
@@ -59,6 +60,8 @@ public class VoiceRangeMeasurement {
     public String getSource() { return source; }
     public String getMeasurementUid() { return measurementUid; }
     public String getNoteResults() { return noteResults; }
+    public String getVoiceQualityJson() { return voiceQualityJson; }
+    public void setVoiceQualityJson(String value) { this.voiceQualityJson = value; }
     public String getMeasurementStatus() { return measurementStatus; }
     public String getQualityStatus() { return qualityStatus; }
 }

@@ -1,12 +1,13 @@
 # 통합 목소리 분석 API
 
-Android의 목소리 분석 온보딩은 한 세션에서 기기 음역 결과와 노래 녹음의 음색 분석을 결합한다.
+Android의 현재 첫 온보딩은 `guided-range-v8` 자유 음역 측정(기기 미리보기) 후
+`holo-v1` 노래 녹음으로 이어진다. 최종 세션에서는 기기 음역 결과와 노래 녹음의 음색 분석을 결합한다.
 아래 경로는 애플리케이션의 `/api/v1/` 기준 상대 경로다.
 
 ## 호출 순서
 
 1. `POST /voice-analysis-sessions`로 회원 분석 세션을 생성한다.
-2. `PUT /voice-analysis-sessions/{sessionId}/range-result`로 `guided-range-v7` 기기 측정 결과를 저장한다.
+2. `PUT /voice-analysis-sessions/{sessionId}/range-result`로 `holo-v1` 기기 측정 결과와 선택적 `voiceQuality`를 저장한다.
 3. `POST /voice-analysis-sessions/{sessionId}/analysis`에 노래 WAV와 메타데이터를 multipart로 제출한다.
 4. `GET /voice-analysis-sessions/{sessionId}/result`를 분석이 끝날 때까지 조회한다.
 5. 회원이 저장을 선택하면 `POST /voice-analysis-sessions/{sessionId}/profile`을 호출한다.
@@ -25,17 +26,46 @@ Content-Type: application/json
 {
   "measurementId": "device-range-uuid",
   "measuredAt": "2026-09-14T12:00:00",
-  "protocolVersion": "guided-range-v7",
+  "protocolVersion": "holo-v1",
   "lowMidi": 48,
   "highMidi": 72,
   "noteResults": [{ "midi": 48, "status": "passed" }],
   "measurementStatus": "AVAILABLE",
-  "qualityStatus": "VALID"
+  "qualityStatus": "VALID",
+  "voiceQuality": {
+    "version": "personal-acoustic-v1",
+    "referenceMidi": 57,
+    "points": [
+      { "midi": 55, "score": 62.5, "highChange": 0, "lowIrregularity": 0.5, "holdScore": 100 },
+      { "midi": 57, "score": 100, "highChange": 0, "lowIrregularity": 0, "holdScore": 100 }
+    ]
+  }
 }
 ```
 
-동일 세션에 결과가 이미 있으면 기존 결과를 반환한다. 프로토콜 버전과 MIDI 범위가 올바르지 않으면
-`400 INVALID_REQUEST`를 반환한다.
+`voiceQuality`는 생략할 수 있다. 이전 앱의 결과도 계속 받는다. 값이 있으면 버전, 기준음,
+음별 오름차순, 0~100 점수와 구성 요소의 일관성을 검증한다. 동일 `measurementId`에
+다른 점수를 재전송하면 `409 IDEMPOTENCY_KEY_REUSED`를 반환한다. 점수는
+`voice_range_measurement.voice_quality_json`에 저장되고 세션·결과 조회 시 그대로 반환된다.
+별도 `POST /range-analysis` 경로의 `guided-range-v8` 업로드에도 같은 선택적 점수를
+첨부할 수 있으며, 백엔드는 AI 분석 입력과 분리해 보관한 뒤 콜백 결과에 결합한다.
+
+이 점수는 첫 유지음에 대한 개인별 음향 비교다. 높은 음의 배음/주기성 변화와 낮은 음의
+끊김/불규칙성을 반영하지만 가성 확률, 의학적 음성 평가, 확정된 테시투라가 아니다.
+기기 계산식은 `clamp(100 - 75×highChange - 75×lowIrregularity, 0, 100)
+× (0.65 + 0.35×holdScore/100)`이다. `highChange`는 기준음 대비 고차 배음 비율,
+H1/H2 상승 및 주기성의 감소를, `lowIrregularity`는 주기성 저하, 두 배 주기 우세,
+음정 흔들림과 발성 중 추적 끊김을 합친 0~1 지표다. 성대 폐쇄율은 마이크 파형만으로
+직접 측정하지 않는다. 0.3초 이상 유지한 음만 점을 찍고 미측정 반음은 잇지 않는다.
+기존 AI 음역 판정·추천 입력과 임계값은 이 변경으로 바뀌지 않는다. Android는 점수가
+없으면 이전 점수 그래프를 대신 표시하지 않고 미측정 안내를 보여준다.
+
+개선 방향은 서로 다른 휴대폰과 화자에서 같은 음을 진성·가성·불안정 저음으로 반복 녹음해
+점수 분포와 오탐을 검증하고 가중치·구간을 조정하는 것이다. 이 검증 전에는 임의의
+점수 임계값으로 테시투라를 확정하거나 추천 키를 바꾸지 않는다.
+
+백엔드의 `V39__store_on_device_voice_quality.sql`을 먼저 배포한 뒤 새 앱을 배포한다.
+AI 서버는 이 부가 필드를 받지 않으므로 변경·재배포가 필요하지 않다.
 
 ## 통합 결과 조회
 
