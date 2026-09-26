@@ -45,11 +45,19 @@ public class SetlistRepository {
 	// 기능: findAll 조건으로 데이터베이스를 조회한다.
 	public List<SetlistSummaryRow> findAll(long userId) {
 		String sql = """
-			SELECT sl.setlist_id, sl.name, sl.created_at, sl.updated_at, COUNT(item.setlist_item_id) AS song_count
+			SELECT sl.setlist_id, sl.name, sl.created_at, sl.updated_at, COUNT(item.setlist_item_id) AS song_count,
+			       cover.display_image_url AS cover_image_url
 			FROM setlist sl
 			LEFT JOIN setlist_item item ON item.setlist_id = sl.setlist_id
+			LEFT JOIN setlist_item first_item ON first_item.setlist_id = sl.setlist_id
+				AND first_item.position_no = (
+					SELECT MIN(first_position.position_no)
+					FROM setlist_item first_position
+					WHERE first_position.setlist_id = sl.setlist_id
+				)
+			LEFT JOIN song_metadata cover ON cover.song_id = first_item.song_id
 			WHERE sl.user_id = :userId
-			GROUP BY sl.setlist_id, sl.name, sl.created_at, sl.updated_at
+			GROUP BY sl.setlist_id, sl.name, sl.created_at, sl.updated_at, cover.display_image_url
 			ORDER BY sl.updated_at DESC, sl.setlist_id DESC
 			""";
 		return jdbcTemplate.query(sql, Map.of("userId", userId), (resultSet, rowNumber) ->
@@ -57,6 +65,7 @@ public class SetlistRepository {
 				resultSet.getLong("setlist_id"),
 				resultSet.getString("name"),
 				resultSet.getInt("song_count"),
+				resultSet.getString("cover_image_url"),
 				resultSet.getObject("created_at", LocalDateTime.class),
 				resultSet.getObject("updated_at", LocalDateTime.class)
 			)
@@ -278,7 +287,7 @@ public class SetlistRepository {
 	}
 
 	public record SetlistSummaryRow(
-		Long setlistId, String name, int songCount, LocalDateTime createdAt, LocalDateTime updatedAt
+		Long setlistId, String name, int songCount, String coverImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt
 	) {
 	}
 
