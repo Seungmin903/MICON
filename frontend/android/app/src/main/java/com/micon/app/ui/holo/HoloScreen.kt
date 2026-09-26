@@ -345,7 +345,7 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
                     modifier = Modifier.fillMaxWidth(),
                 )
                 HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) {
-                    vm.retryCatalogMore()
+                    vm.openSongPicker()
                     pickerOpen = true
                 }
                 if (picked != null) HoloButton("이 곡으로 시작하기", onClick = requestMic)

@@ -247,6 +247,14 @@ class HoloViewModel(
         _state.update { it.copy(picked = song, query = "${song.title} · ${song.artist}", suggestions = emptyList()) }
     }
 
+    /** 선택한 곡은 유지하되, '곡 바꾸기' 목록은 이전 곡명 검색 결과가 아닌 전체 목록에서 시작한다. */
+    fun openSongPicker() {
+        searchJob?.cancel()
+        _state.update { it.copy(query = "", suggestions = emptyList(), searching = false) }
+        loadCatalog()
+        retryCatalogMore()
+    }
+
     fun clearSuggestions() = _state.update { it.copy(suggestions = emptyList()) }
 
     // ---- 녹음 ----
