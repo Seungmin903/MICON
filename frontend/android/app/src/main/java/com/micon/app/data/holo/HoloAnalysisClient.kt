@@ -43,6 +43,7 @@ class HoloAnalysisClient(private val api: BackendApi) {
             protocolVersion = "holo-v1",
             lowMidi = result.lowMidi.toDouble(), highMidi = result.highMidi.toDouble(),
             noteResults = result.notes.map { DeviceRangeNoteDto(it.midi, it.status, stability = it.stability, holdMs = it.holdMs) },
+            voiceQuality = result.voiceQuality,
             measurementStatus = if (result.usable) "AVAILABLE" else "INSUFFICIENT_DATA",
             qualityStatus = if (result.usable) "VALID" else "INSUFFICIENT_VOICE",
         ), session.access).data()

@@ -24,7 +24,8 @@ fun RangeSubmission.deviceReport(): RangeReport {
         return RangeReport(protocolVersion, emptyList(), low, high, emptyList(), stopReason,
             lowerBoundaryStatus, upperBoundaryStatus, "available", analysisId = sessionId,
             verification = "device_measured", rangeMap = RangeMap(overall = listOf(low, high)),
-            stableLowMidi = stages[1].endpointMidi, stableHighMidi = stages[2].endpointMidi)
+            stableLowMidi = stages[1].endpointMidi, stableHighMidi = stages[2].endpointMidi,
+            voiceQuality = voiceQuality)
     }
     require(protocolVersion == RangeProtocol.VERSION)
     val measured = attempts.filter { it.selectedForVisit && it.clientStatus !in setOf("interrupted", "unmeasured") }

@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.audio.PitchCapture
 import com.micon.app.audio.Pcm16MonoWav
 import com.micon.app.range.FreeRangeSession
+import com.micon.app.range.LocalVoiceQualityAnalyzer
 import com.micon.app.range.PendingRange
 import com.micon.app.range.RangeFrame
 import com.micon.app.range.RangeInputQuality
@@ -65,6 +66,7 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         FreeRangeSession()
     } else repository.freeCheckpoint()?.let(FreeRangeSession::restore) ?: FreeRangeSession()
     private val capture = PitchCapture(collectCandidates = true)
+    private val qualityFrames = mutableListOf<RangeFrame>()
     private var pausing = AtomicBoolean(false)
     private val stateFlow = MutableStateFlow(State(session.view()))
     val state = stateFlow.asStateFlow()
@@ -92,6 +94,7 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
             // A failed save may have left WAV audio without a checkpoint or pending submission.
             if (!com.micon.app.range.RangeDiagnostics.retainsAudio(appContext, oldId)) repository.audio(oldId).delete()
             session = FreeRangeSession()
+            synchronized(qualityFrames) { qualityFrames.clear() }
             pausing = AtomicBoolean(false)
             stateFlow.value = State(session.view())
         }
@@ -117,7 +120,9 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         try {
             val callback: (PitchCapture.PitchFrame) -> Unit = callback@{ f ->
                 if (generation != attemptGeneration) return@callback
-                val view = activeSession.onFrame(RangeFrame(f.t, f.duration, f.f0, f.clarity, f.rms, f.rmsLow, f.clippedRatio))
+                val frame = RangeFrame(f.t, f.duration, f.f0, f.clarity, f.rms, f.rmsLow, f.clippedRatio)
+                if (onboarding) synchronized(qualityFrames) { qualityFrames.add(frame) }
+                val view = activeSession.onFrame(frame)
                 updateIfCurrent(generation) { it.copy(view = view) }
                 if (generation == attemptGeneration && view.phase in setOf("transition", "done", "failed") &&
                     pauseFlag.compareAndSet(false, true)) {
@@ -195,7 +200,14 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
                 withContext(Dispatchers.IO) { repository.repairWav(wav, rate) }
                 if (generation != attemptGeneration) return@launch
                 val duration = Pcm16MonoWav.duration(wav, rate, true) ?: error("녹음 파일을 확인하지 못했어요.")
-                val submission = checkNotNull(activeSession.submission(duration))
+                val original = checkNotNull(activeSession.submission(duration))
+                val submission = if (onboarding) {
+                    val quality = withContext(Dispatchers.IO) {
+                        runCatching { LocalVoiceQualityAnalyzer.analyze(wav,
+                            synchronized(qualityFrames) { qualityFrames.toList() }, original) }.getOrNull()
+                    }
+                    original.copy(voiceQuality = quality)
+                } else original
                 val ready = withContext(Dispatchers.IO) {
                     RangeInputQuality().inspect(submission, wav, rate, true)
                 }

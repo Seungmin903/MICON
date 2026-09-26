@@ -19,6 +19,7 @@ import com.micon.app.data.local.UserStore
 import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.range.RangeRepository
 import com.micon.app.range.RangeReport
+import com.micon.app.range.VoiceQualityResult
 import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.SectionMap
@@ -63,6 +64,7 @@ class HoloViewModel(
         /** 1단계에서 잰 음역(또는 지난 측정값). 2단계 결과 카드의 음역은 이 값을 쓴다 */
         val measuredLow: Int? = null,
         val measuredHigh: Int? = null,
+        val measuredVoiceQuality: VoiceQualityResult? = null,
         val phase: Phase = Phase.IDLE,
         /** 부를 곡. 곡 목록·검색·장르는 연습 탭과 같은 카탈로그(SongListViewModel)가 맡는다 */
         val picked: SongSummary? = null,
@@ -144,6 +146,7 @@ class HoloViewModel(
     fun rangeMeasured(range: RangeReport?) {
         if (_state.value.stage == Stage.TIMBRE) return
         _state.update { it.copy(stage = Stage.TIMBRE, measuredLow = range?.lowMidi, measuredHigh = range?.highMidi,
+            measuredVoiceQuality = range?.voiceQuality,
             phase = Phase.IDLE, error = null) }
     }
 
@@ -162,6 +165,7 @@ class HoloViewModel(
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update {
             State(hasPrevious = true, stage = Stage.TIMBRE, measuredLow = last.lowMidi, measuredHigh = last.highMidi,
+                measuredVoiceQuality = last.voiceQuality,
                 rangeRestartVersion = it.rangeRestartVersion)
         }
     }
@@ -292,8 +296,9 @@ class HoloViewModel(
         val picked = _state.value.picked
         val low = _state.value.measuredLow
         val high = _state.value.measuredHigh
+        val voiceQuality = _state.value.measuredVoiceQuality
         val result = HoloRangeAnalyzer.analyze(snapshot, picked?.id, picked?.title, picked?.artist)
-            ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high) else r }
+            ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high, voiceQuality) else r }
         if (result == null || !result.usable) {
             _state.update { it.copy(phase = Phase.ERROR, error = "목소리가 충분히 잡히지 않았어요. 조금 더 크게, 4초 이상 불러 주세요.") }
             file?.delete()
@@ -353,6 +358,7 @@ class HoloViewModel(
             lowMidi = r.lowMidi, highMidi = r.highMidi, comfortLow = r.comfortLow, comfortHigh = r.comfortHigh,
             recommendLow = r.recommendLow, recommendHigh = r.recommendHigh,
             stability = r.stability, stabilityLabels = r.stabilityMidis.map { NoteNames.scientific(it) },
+            voiceQuality = r.voiceQuality,
             bpmRange = "${r.bpmLow}-${r.bpmHigh}", measuredAt = r.measuredAt,
         ))
     }

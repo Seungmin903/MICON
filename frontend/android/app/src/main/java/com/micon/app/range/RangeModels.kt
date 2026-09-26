@@ -94,7 +94,24 @@ data class RangeSubmission(
     val attempts: List<RangeAttempt>, val registerEvents: List<RegisterEvent>, val keepOriginal: Boolean = false,
     val sampling: RangeSampling? = null,
     val stages: List<FreeRangeStage> = emptyList(),
+    val voiceQuality: VoiceQualityResult? = null,
 )
+
+/** Personal acoustic comparison, never a calibrated register or comfort probability. */
+data class VoiceQualityResult(val version: String, val referenceMidi: Int,
+    val points: List<VoiceQualityPoint>) {
+    fun graphNotes(): List<RangeNote> = points.map { point ->
+        RangeNote(point.midi, "passed", metrics = RangeMetrics(
+            medianAbsErrorCents = null, pitchSpreadCents = null,
+            inTuneRatio = point.score / 100.0, voicedRatio = point.score / 100.0,
+            longestHoldSeconds = 0.0, actualMidi = point.midi.toDouble(),
+            creditedMidi = point.midi, stabilityScore = point.score,
+        ))
+    }
+}
+
+data class VoiceQualityPoint(val midi: Int, val score: Double, val highChange: Double,
+    val lowIrregularity: Double, val holdScore: Double)
 
 data class RangeMap(val overall: List<Int>? = null, val stable: List<Int>? = null,
                     val recommended: List<Int>? = null)
@@ -116,6 +133,7 @@ data class RangeReport(
     val backendSessionId: Long? = null,
     val stableLowMidi: Double? = null,
     val stableHighMidi: Double? = null,
+    val voiceQuality: VoiceQualityResult? = null,
 )
 
 data class RangeAnalysis(val analysisId: String, val status: String, val error: String? = null)

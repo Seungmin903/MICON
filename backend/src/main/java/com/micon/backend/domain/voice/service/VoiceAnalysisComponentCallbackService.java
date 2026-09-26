@@ -215,10 +215,12 @@ public class VoiceAnalysisComponentCallbackService {
         if (ranges.findBySessionId(job.getSession().getId()).isPresent()) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK, "이미 저장된 음역 결과가 있습니다.");
         }
-        ranges.save(new VoiceRangeMeasurement(job.getSession(), request.measurementId(), request.protocolVersion(),
+        VoiceRangeMeasurement measurement = new VoiceRangeMeasurement(job.getSession(), request.measurementId(), request.protocolVersion(),
                 "SERVER_AI", request.lowMidi(), request.highMidi(), request.stableLowMidi(), request.stableHighMidi(),
                 write(request.noteResults()), request.measurementStatus(),
-                request.qualityStatus(), request.processedAt()));
+                request.qualityStatus(), request.processedAt());
+        measurement.setVoiceQualityJson(job.getVoiceQualityJson());
+        ranges.save(measurement);
         job.complete("RANGE", value(request.modelVersion(), request.protocolVersion()), request.processedAt());
         job.getSession().acceptRange(request.measurementStatus());
     }

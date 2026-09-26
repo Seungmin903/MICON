@@ -116,14 +116,35 @@ class VoiceSessionApiIntegrationTest {
                 {"measurementId":"holo-measurement","measuredAt":"2026-09-22T03:14:31",
                  "protocolVersion":"holo-v1","lowMidi":48,"highMidi":72,
                  "noteResults":[{"midi":48,"status":"passed","stability":0.9,"holdMs":300}],
-                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID"}
+                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID",
+                 "voiceQuality":{"version":"personal-acoustic-v1","referenceMidi":57,"points":[
+                    {"midi":57,"score":100,"highChange":0,"lowIrregularity":0,"holdScore":100},
+                    {"midi":59,"score":62.5,"highChange":0.5,"lowIrregularity":0,"holdScore":100}]}}
                 """;
 
         mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
                         .with(member)
                         .contentType(MediaType.APPLICATION_JSON).content(range))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"));
+                .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"))
+                .andExpect(jsonPath("$.data.range.voiceQuality.points[1].score").value(62.5));
+
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(member).contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isOk());
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(member).contentType(MediaType.APPLICATION_JSON)
+                        .content(range.replace("\"score\":62.5", "\"score\":62")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .with(member).contentType(MediaType.APPLICATION_JSON)
+                        .content(range.replace("\"score\":62.5", "\"score\":70")
+                                .replace("\"highChange\":0.5", "\"highChange\":0.4")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
+        mvc.perform(get("/voice-analysis-sessions/{sessionId}/result", sessionId).with(member))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.range.voiceQuality.version").value("personal-acoustic-v1"));
     }
 
     @Test
@@ -223,6 +244,29 @@ class VoiceSessionApiIntegrationTest {
                         .content(range.replace("guest-measurement", "different-measurement")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVALID_VOICE_ANALYSIS_STATE"));
+    }
+
+    @Test
+    void guestHoloQualitySurvivesSessionRead() throws Exception {
+        JsonNode data = json.readTree(mvc.perform(post("/voice-analysis-sessions"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("data");
+        long sessionId = data.get("sessionId").asLong();
+        String token = data.get("guestSessionToken").asText();
+        String range = """
+                {"measurementId":"guest-holo-quality","measuredAt":"2026-09-26T00:00:00",
+                 "protocolVersion":"holo-v1","lowMidi":48,"highMidi":72,"noteResults":[],
+                 "measurementStatus":"AVAILABLE","qualityStatus":"VALID",
+                 "voiceQuality":{"version":"personal-acoustic-v1","referenceMidi":57,"points":[
+                    {"midi":57,"score":100,"highChange":0,"lowIrregularity":0,"holdScore":100}]}}
+                """;
+        mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
+                        .header("X-Guest-Session-Token", token)
+                        .contentType(MediaType.APPLICATION_JSON).content(range))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.range.voiceQuality.referenceMidi").value(57));
+        mvc.perform(get("/voice-analysis-sessions/active").header("X-Guest-Session-Token", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.range.voiceQuality.points[0].score").value(100));
     }
 
     private MockMultipartFile meta(String protocol) {

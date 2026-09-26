@@ -12,13 +12,20 @@ public final class VoiceSessionResponse {
     public record Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
                         String qualityStatus,
                         @com.fasterxml.jackson.annotation.JsonRawValue String noteResults,
-                        String protocolVersion, BigDecimal stableLowMidi, BigDecimal stableHighMidi) {
+                        String protocolVersion, BigDecimal stableLowMidi, BigDecimal stableHighMidi,
+                        @com.fasterxml.jackson.annotation.JsonRawValue String voiceQuality) {
+        public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
+                     String qualityStatus, String noteResults, String protocolVersion,
+                     BigDecimal stableLowMidi, BigDecimal stableHighMidi) {
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, noteResults,
+                    protocolVersion, stableLowMidi, stableHighMidi, null);
+        }
         public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus, String qualityStatus) {
-            this(lowMidi, highMidi, measurementStatus, qualityStatus, null, null, null, null);
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, null, null, null, null, null);
         }
         public Range(BigDecimal lowMidi, BigDecimal highMidi, String measurementStatus,
                      String qualityStatus, String noteResults) {
-            this(lowMidi, highMidi, measurementStatus, qualityStatus, noteResults, null, null, null);
+            this(lowMidi, highMidi, measurementStatus, qualityStatus, noteResults, null, null, null, null);
         }
     }
 }
