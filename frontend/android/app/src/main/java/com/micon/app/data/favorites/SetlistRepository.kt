@@ -10,7 +10,14 @@ import com.micon.app.data.backend.unwrapData
 import com.micon.app.data.backend.unwrapNullable
 
 /** 세트리스트 요약(`SetlistResponse.Summary`). */
-data class Setlist(val id: Long, val name: String, val songCount: Int, val createdAt: String?, val updatedAt: String?)
+data class Setlist(
+    val id: Long,
+    val name: String,
+    val songCount: Int,
+    val coverImageUrl: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
+)
 
 /** 세트리스트 곡(`SetlistResponse.SongItem`). [position] 은 서버 순서(0부터). */
 data class SetlistSong(val songId: String, val title: String, val artist: String, val imageUrl: String?, val durationMs: Long?, val position: Int)
@@ -57,7 +64,7 @@ class RemoteSetlistRepository(private val api: BackendApi) : SetlistRepository {
         api.reorderSetlistSongs(setlistId, SetlistOrderRequest(songIds, updatedAt)).unwrapData().toModel()
 
     private companion object {
-        fun SetlistSummaryDto.toModel() = Setlist(setlistId, name, songCount, createdAt, updatedAt)
+        fun SetlistSummaryDto.toModel() = Setlist(setlistId, name, songCount, coverImageUrl, createdAt, updatedAt)
         fun SetlistSongItemDto.toModel() = SetlistSong(songId, title, artists.joinToString(", "), imageUrl, durationMs, position)
         fun SetlistDetailDto.toModel() = SetlistDetail(setlistId, name, songs.sortedBy { it.position }.map { it.toModel() }, createdAt, updatedAt)
     }

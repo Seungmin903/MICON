@@ -2,6 +2,7 @@ package com.micon.backend.practice.api;
 
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,5 +45,14 @@ class PracticeControllerTest {
 			.andExpect(jsonPath("$.data").doesNotExist());
 
 		verify(practiceService).delete(7L, 50L);
+	}
+
+	@Test
+	void getsScoreTrendForOwnedSong() throws Exception {
+		mockMvc.perform(get("/practices/songs/song-1/score-trend").principal(() -> "7"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.code").value("SUCCESS"));
+
+		verify(historyService).getScoreTrend(7L, "song-1", 100);
 	}
 }

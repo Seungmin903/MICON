@@ -59,6 +59,46 @@ public class VoiceAnalysisUploadValidator {
             throw new BusinessException(ErrorCode.INVALID_REQUEST,
                     "음역 측정 메타데이터가 올바르지 않습니다.");
         }
+        if (request.voiceQuality() != null && !request.voiceQuality().isNull()
+                && (!v8 || !validVoiceQuality(request.voiceQuality(),
+                        (int) Math.round(request.stages().get(0).path("endpointMidi").asDouble())))) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "기기 발성 점수의 버전 또는 음별 값이 올바르지 않습니다.");
+        }
+    }
+
+    /** Old clients omit this optional display-only result. It never changes AI range input. */
+    static boolean validVoiceQuality(JsonNode quality, Integer expectedReference) {
+        if (!quality.isObject() || !"personal-acoustic-v1".equals(quality.path("version").asText())
+                || !quality.path("referenceMidi").isIntegralNumber()
+                || !quality.path("points").isArray()
+                || quality.path("points").isEmpty() || quality.path("points").size() > 49) return false;
+        int reference = quality.path("referenceMidi").asInt();
+        if (expectedReference != null && reference != expectedReference || reference < 36 || reference > 84) return false;
+        int previous = 35;
+        boolean foundReference = false;
+        for (JsonNode point : quality.path("points")) {
+            if (!point.isObject() || !point.path("midi").isIntegralNumber()) return false;
+            int midi = point.path("midi").asInt();
+            if (midi <= previous || midi > 84) return false;
+            previous = midi;
+            foundReference |= midi == reference;
+            if (!bounded(point, "score", 100) || !bounded(point, "holdScore", 100)
+                    || !bounded(point, "highChange", 1) || !bounded(point, "lowIrregularity", 1)) return false;
+            double upper = point.path("highChange").asDouble();
+            double lower = point.path("lowIrregularity").asDouble();
+            if (midi <= reference && upper != 0 || midi >= reference && lower != 0) return false;
+            double expectedScore = Math.max(0, Math.min(100, 100 - 75 * upper - 75 * lower))
+                    * (.65 + .35 * point.path("holdScore").asDouble() / 100);
+            if (Math.abs(expectedScore - point.path("score").asDouble()) > .05) return false;
+        }
+        return foundReference;
+    }
+
+    private static boolean bounded(JsonNode node, String field, double maximum) {
+        JsonNode value = node.path(field);
+        return value.isNumber() && Double.isFinite(value.asDouble())
+                && value.asDouble() >= 0 && value.asDouble() <= maximum;
     }
 
     // Each sweep stage is a fixed mission; comfort still ends on a held note.

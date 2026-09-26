@@ -5,6 +5,10 @@ data class SessionSnapshot(val accessToken: String?, val refreshToken: String?, 
     val isLoggedIn: Boolean get() = !refreshToken.isNullOrBlank()
 }
 
+/** Token rotation keeps the generation; a logout or new login changes it. */
+fun SessionSnapshot.matchesRecordingOwner(owner: SessionSnapshot): Boolean =
+    isLoggedIn && owner.isLoggedIn && userId > 0 && userId == owner.userId && generation == owner.generation
+
 interface AuthTokenStore {
     fun snapshot(): SessionSnapshot
     fun saveSession(userId: Long, accessToken: String, refreshToken: String)

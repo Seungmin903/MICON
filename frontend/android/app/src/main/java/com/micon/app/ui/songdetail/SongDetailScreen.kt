@@ -1,24 +1,33 @@
 package com.micon.app.ui.songdetail
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +38,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -43,10 +56,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.SongDetail
 import com.micon.app.data.SongFit
+import com.micon.app.data.practice.PracticeScoreTrend
 import com.micon.app.data.local.UserStore
 import com.micon.app.scoring.ScoringConstants
 import com.micon.app.ui.analysis.RangeBar
 import com.micon.app.ui.common.describeBackendError
+import com.micon.app.ui.common.HeartButton
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -57,6 +72,7 @@ import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.organisms.MiconAppBar
 import com.micon.app.ui.design.organisms.MiconScreen
 import com.micon.app.ui.design.tokens.MiconMonoFamily
+import com.micon.app.ui.design.tokens.MiconFontFamily
 import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
@@ -74,7 +90,7 @@ fun SongDetailScreen(songId: String, onBack: () -> Unit, onPractice: (Int) -> Un
     val container = rememberAppContainer()
     val context = LocalContext.current
     val vm: SongDetailViewModel = viewModel(key = "song-$songId", factory = viewModelFactory {
-        initializer { SongDetailViewModel(context.applicationContext, container.songs, container.mediaHttp, container.recommend, songId) }
+        initializer { SongDetailViewModel(context.applicationContext, container.songs, container.mediaHttp, container.recommend, container.practices, songId) }
     })
     val state by vm.state.collectAsStateWithLifecycle()
     val profile by UserStore.profile.collectAsStateWithLifecycle()
@@ -103,10 +119,7 @@ fun SongDetailContent(
         appBar = {
             MiconAppBar(onBack = onBack, actions = {
                 if (showFavorite) {
-                    IconButton(onLike, Modifier.size(MiconSpace.touchTarget)) {
-                        Icon(if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (liked) "찜 해제" else "찜",
-                            tint = if (liked) Color(0xFFC92A5E) else MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(23.dp))
-                    }
+                    HeartButton(liked = liked, onClick = onLike)
                 }
             })
         },
@@ -143,8 +156,98 @@ fun SongDetailContent(
         MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
         KeyCard(key, onKey)
         DifficultCard(state, fit)
+        val scoreTrend = state.scoreTrend
+        if (scoreTrend != null) PracticeScoreTrendCard(scoreTrend)
     }
 }
+
+/** 같은 곡을 반복 연습한 완료 점수만 노래 상세의 마지막에 보여 준다. */
+@Composable
+private fun PracticeScoreTrendCard(trend: PracticeScoreTrend) {
+    val points = trend.points.takeLast(5)
+    val latest = points.lastOrNull()?.overallScore ?: return
+    MiconCard(kind = MiconCardKind.Outlined) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("최근 ${points.size}회 연습 점수", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
+                Text("같은 곡을 연습한 기록이에요", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("${"%.1f".format(latest)}점", fontFamily = MiconMonoFamily, fontSize = 22.sp,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(12.dp))
+        ScoreTrendChart(points)
+    }
+}
+
+@Composable
+private fun ScoreTrendChart(points: List<PracticeScoreTrend.Point>) {
+    val colors = MaterialTheme.colorScheme
+    BoxWithConstraints(Modifier.fillMaxWidth().height(164.dp).padding(horizontal = 4.dp, vertical = 4.dp)) {
+        val chartLeft = 34.dp
+        val chartRight = maxWidth - 10.dp
+        val chartTop = 10.dp
+        val chartBottom = maxHeight - 54.dp
+        val pointInset = 26.dp
+        fun pointX(index: Int) = if (points.size == 1) (chartLeft + chartRight) / 2
+            else chartLeft + pointInset + (chartRight - chartLeft - pointInset * 2) * index / points.lastIndex
+        fun pointY(score: Double) = chartBottom - (chartBottom - chartTop) * (score / 100.0).toFloat().coerceIn(0f, 1f)
+
+        Canvas(Modifier.fillMaxSize()) {
+            fun x(index: Int) = pointX(index).toPx()
+            fun y(score: Double) = pointY(score).toPx()
+            listOf(0, 25, 50, 75, 100).forEach { score ->
+                val lineY = y(score.toDouble())
+                drawLine(colors.outlineVariant, Offset(chartLeft.toPx(), lineY), Offset(chartRight.toPx(), lineY), 1.dp.toPx())
+            }
+            if (points.size > 1) {
+                val line = Path()
+                points.forEachIndexed { index, point ->
+                    if (index == 0) line.moveTo(x(index), y(point.overallScore)) else line.lineTo(x(index), y(point.overallScore))
+                }
+                drawPath(line, colors.primary, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            }
+            points.forEachIndexed { index, point ->
+                drawCircle(colors.primary, 4.dp.toPx(), Offset(x(index), y(point.overallScore)))
+                drawCircle(colors.surface, 1.7.dp.toPx(), Offset(x(index), y(point.overallScore)))
+            }
+        }
+        listOf(0, 25, 50, 75, 100).forEach { score ->
+            Box(
+                Modifier.width(chartLeft - 8.dp).height(16.dp).offset(y = pointY(score.toDouble()) - 8.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text("$score", fontSize = 10.sp, color = colors.onSurfaceVariant, fontFamily = MiconFontFamily)
+            }
+        }
+        points.forEachIndexed { index, point ->
+            Box(
+                Modifier.width(52.dp).height(42.dp).offset(x = pointX(index) - 26.dp, y = chartBottom + 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${point.overallScore.roundToInt()}점", fontSize = 13.sp, color = colors.onSurface, fontWeight = FontWeight.SemiBold, fontFamily = MiconFontFamily)
+                    Text(practiceTrendDate(point.playedAt), fontSize = 9.sp, color = colors.onSurfaceVariant, fontFamily = MiconFontFamily)
+                }
+            }
+        }
+    }
+}
+
+private fun practiceTrendDate(iso: String?): String = runCatching {
+    val source = iso?.take(10) ?: return "-"
+    val year = source.substring(0, 4).toInt()
+    val month = source.substring(5, 7).toInt()
+    val day = source.substring(8, 10).toInt()
+    val dayNames = arrayOf("일", "월", "화", "수", "목", "금", "토")
+    val calendar = java.util.Calendar.getInstance().apply {
+        clear()
+        set(year, month - 1, day)
+    }
+    "$month.$day ${dayNames[calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1]}"
+}.getOrDefault("-")
 
 internal data class Verdict(val label: String, val tone: MiconChipTone, val message: String)
 
@@ -258,13 +361,36 @@ private fun KeyCard(key: Int, onKey: (Int) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             KeyStep("−", enabled = key > ScoringConstants.KEY_SHIFT_MIN) { onKey(key - 1) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (key > 0) "+$key" else "$key", fontFamily = MiconMonoFamily, fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
-                Text(NoteNames.keyShiftText(key), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // 타이머처럼: − 는 지금 숫자가 위로 빠지고 새 숫자가 아래에서, + 는 아래로 빠지고 위에서 들어온다.
+                // 카드 칸 밖으로 넘친 부분은 잘라서 숫자판 한 칸이 돌아가는 것처럼 보이게 한다.
+                AnimatedContent(
+                    targetState = key,
+                    transitionSpec = {
+                        val down = targetState < initialState
+                        val motion = tween<androidx.compose.ui.unit.IntOffset>(KEY_SLIDE_MS, easing = FastOutSlowInEasing)
+                        val fade = tween<Float>(KEY_SLIDE_MS)
+                        (slideInVertically(motion) { if (down) it else -it } + fadeIn(fade))
+                            .togetherWith(slideOutVertically(motion) { if (down) -it else it } + fadeOut(fade))
+                            .using(SizeTransform(clip = true))
+                    },
+                    label = "key-shift",
+                ) { value ->
+                    Text(if (value > 0) "+$value" else "$value", fontFamily = MiconMonoFamily, fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold, lineHeight = 30.sp, modifier = Modifier.testTag("song-key-value"))
+                }
+                // 보조 문구는 같이 미끄러지면 산만해서 짧게 겹쳐 바뀌기만 한다
+                AnimatedContent(targetState = key, transitionSpec = { fadeIn(tween(KEY_SLIDE_MS)) togetherWith fadeOut(tween(KEY_SLIDE_MS)) },
+                    label = "key-shift-label") { value ->
+                    Text(NoteNames.keyShiftText(value), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             KeyStep("+", enabled = key < ScoringConstants.KEY_SHIFT_MAX) { onKey(key + 1) }
         }
     }
 }
+
+/** 키 숫자가 한 칸 미끄러지는 시간(ms) */
+private const val KEY_SLIDE_MS = 220
 
 @Composable
 internal fun KeyStep(symbol: String, size: androidx.compose.ui.unit.Dp = 48.dp, enabled: Boolean = true, onClick: () -> Unit) {
@@ -280,6 +406,8 @@ private fun DifficultCard(state: SongDetailState, fit: SongFit?) {
     val hard = state.sections.filter { it.difficultyType != "NONE" && it.difficultyType.isNotBlank() }
         .sortedByDescending { it.difficultyScore ?: 0.0 }.take(2)
     val strain = fit?.strainSections?.original.orEmpty()
+    // 어려운 구간은 서버의 practice-assets.sections 또는 /fit burdenSections에서 온다.
+    // 실제로 표시할 구간이 없으면 카드도 표시하지 않는다.
     if (hard.isEmpty() && strain.isEmpty()) return
     MiconCard(kind = MiconCardKind.Outlined) {
         Text("어려운 구간", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)

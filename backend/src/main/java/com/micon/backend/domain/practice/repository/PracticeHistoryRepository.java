@@ -1,6 +1,7 @@
 package com.micon.backend.domain.practice.repository;
 
 import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeScoreTrendResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -79,6 +80,32 @@ public class PracticeHistoryRepository {
 				""" + dateCondition(date);
 		Long count = jdbcTemplate.queryForObject(sql, parameters(userId, date), Long.class);
 		return count == null ? 0 : count;
+	}
+
+	/** 같은 곡의 완료된 점수만 오래된 순으로 반환한다. */
+	public List<PracticeScoreTrendResponse.Point> findScoreTrend(Long userId, String songId, int limit) {
+		String sql = """
+			SELECT trend.practice_id, trend.created_at, trend.overall_score, trend.pitch_score,
+			       trend.rhythm_score, trend.selected_key, trend.practice_scope, trend.duration_ms
+			FROM (
+			    SELECT ps.practice_id, ps.created_at, pr.overall_score, pr.pitch_score, pr.rhythm_score,
+			           ps.selected_key, ps.practice_scope, ps.duration_ms
+			    FROM practice_session ps
+			    JOIN practice_result pr ON pr.practice_id = ps.practice_id
+			    WHERE ps.user_id = :userId AND ps.song_id = :songId
+			      AND ps.status = 'COMPLETED' AND pr.status = 'COMPLETED' AND pr.overall_score IS NOT NULL
+			    ORDER BY ps.created_at DESC, ps.practice_id DESC
+			    LIMIT :limit
+			) trend
+			ORDER BY trend.created_at ASC, trend.practice_id ASC
+			""";
+		return jdbcTemplate.query(sql, new MapSqlParameterSource()
+				.addValue("userId", userId).addValue("songId", songId).addValue("limit", limit),
+				(resultSet, rowNumber) -> new PracticeScoreTrendResponse.Point(
+						resultSet.getLong("practice_id"), resultSet.getObject("created_at", LocalDateTime.class),
+						resultSet.getBigDecimal("overall_score"), resultSet.getBigDecimal("pitch_score"),
+						resultSet.getBigDecimal("rhythm_score"), resultSet.getInt("selected_key"),
+						resultSet.getString("practice_scope"), resultSet.getObject("duration_ms", Integer.class)));
 	}
 
 	// 기능: dateCondition에 필요한 SQL 실행과 조회 결과 매핑을 수행한다.

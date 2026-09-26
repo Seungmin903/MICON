@@ -74,6 +74,8 @@ class SetlistServiceTest {
 		);
 		assertThat(reordered.songs()).extracting(song -> song.songId()).containsExactly("2", "1");
 		assertThat(reordered.songs()).extracting(song -> song.position()).containsExactly(1, 2);
+		assertThat(service.getSetlists(7L)).singleElement()
+			.extracting(setlist -> setlist.coverImageUrl()).isEqualTo("two.jpg");
 
 		service.removeSong(7L, created.setlistId(), "2");
 		assertThat(service.getSetlist(7L, created.setlistId()).songs()).singleElement()

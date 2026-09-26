@@ -28,21 +28,22 @@ import com.micon.app.ui.theme.*
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** Measured points only; the report overview connects them without creating missing values. */
+/** Measured points only; the new acoustic score never bridges unmeasured semitones. */
 @Composable
 fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (Int) -> Unit,
-                        modifier: Modifier = Modifier, overview: Boolean = false) {
+                        modifier: Modifier = Modifier, overview: Boolean = false,
+                        scoreLabel: String? = null) {
     val measurer = rememberTextMeasurer()
     val points = plot.points
     if (points.isEmpty()) return
     val low = points.first().note.midi
     val span = (points.last().note.midi - low).coerceAtLeast(1)
-    val measure = if (plot.scoreBased) "안정성 점수" else "목표음 유지율"
+    val measure = if (plot.scoreBased) scoreLabel ?: "안정성 점수" else "목표음 유지율"
     val unit = if (plot.scoreBased) "점" else "퍼센트"
     val noteName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::full
     val axisName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::short
-    val label = "음역별 안정성 그래프. 세로축 $measure 0에서 100$unit, 가로축 ${noteName(low)}부터 ${noteName(low + span)}. " +
-        if (overview) "측정한 음 사이를 선으로 연결합니다." else "빈 음은 연결하지 않습니다."
+    val label = "음역별 $measure 그래프. 세로축 $measure 0에서 100$unit, 가로축 ${noteName(low)}부터 ${noteName(low + span)}. " +
+        if (overview && scoreLabel == null) "측정한 음 사이를 선으로 연결합니다." else "빈 음은 연결하지 않습니다."
     Canvas(modifier.fillMaxWidth().height(190.dp).testTag("range-stability-chart")
         .semantics {
             contentDescription = label
@@ -86,7 +87,8 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
             drawText(text, topLeft = Offset((px - text.size.width / 2f).coerceIn(0f, (size.width - text.size.width).coerceAtLeast(0f)), bottom + 12.dp.toPx()))
         }
         drawLine(Grey, Offset(left, top), Offset(left, bottom), 1.dp.toPx())
-        val segments = if (overview) points.filter { it.ratio != null }.zipWithNext() else plot.segments
+        val segments = if (overview && scoreLabel == null) points.filter { it.ratio != null }.zipWithNext()
+            else plot.segments
         segments.forEach { (a, b) ->
             drawLine(Purple, Offset(x(a.note.midi), y(a.ratio!!)), Offset(x(b.note.midi), y(b.ratio!!)), 2.dp.toPx())
         }

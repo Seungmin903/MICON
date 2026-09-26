@@ -30,6 +30,9 @@ interface SongRepository {
      */
     suspend fun practiceAssets(songId: String, selectedKey: Int = 0): PracticeAssets
 
+    /** 어려운 구간만 가볍게 조회한다. 미지원 저장소는 빈 목록으로 동작한다. */
+    suspend fun practiceGuide(songId: String, selectedKey: Int = 0): List<PracticeSection> = emptyList()
+
     /**
      * 키 전환에 필요한 반주 한 건. 원격 구현은 가벼운 `/songs/{id}/mr` API를 사용한다.
      * 테스트/로컬 구현은 별도 구현 없이 기존 연습 리소스 조회로 동작한다.

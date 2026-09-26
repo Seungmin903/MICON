@@ -47,11 +47,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -90,20 +92,18 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.micon.app.appContainer
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.micon.app.data.SongSummary
-import com.micon.app.ui.design.atoms.MiconSearchField
-import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.range.FreeRangeSession
 import com.micon.app.range.RangeRepository
 import com.micon.app.range.onboardingPreview
 import com.micon.app.ui.common.MiconLogo
-import com.micon.app.ui.common.LoadMoreOnScrollEnd
+import com.micon.app.data.preferences.NetworkPreferenceRepository
+import com.micon.app.data.preferences.PreferenceApi
+import com.micon.app.ui.songlist.SongCatalogContent
+import com.micon.app.ui.songlist.SongListViewModel
 import com.micon.app.ui.common.rememberMicrophoneAccess
 import com.micon.app.ui.design.molecules.NoteNames
 import com.micon.app.ui.design.molecules.OctaveNoteText
@@ -150,8 +150,9 @@ fun HoloScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && activity?.isChangingConfigurations != true) {
                 val current = vm.state.value
+                // 2단계에서 앱을 벗어나면 녹음만 버리고 곡 고르기로 돌아간다. 1단계에서 잰 음역은 지우지 않는다.
                 if (current.stage == HoloViewModel.Stage.TIMBRE &&
-                    (current.phase != HoloViewModel.Phase.DONE || current.result == null)) vm.reset()
+                    (current.phase != HoloViewModel.Phase.DONE || current.result == null)) vm.cancelTimbre()
             }
         }
         lifecycle.addObserver(observer)
@@ -215,11 +216,13 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
         else -> view.message
     }
 
+    var confirmSkip by remember { mutableStateOf(false) }
+
     HoloChrome(
         logoVisible = !running,
         globeScale = if (running) 0.85f + progress * 1.1f else 1f,
         absorbing = running,
-        topPill = if (!running && onSkip != null) "나중에 ›" to onSkip else null,
+        topPill = if (!running && onSkip != null) "나중에 ›" to { confirmSkip = true } else null,
         error = rs.error,
         middle = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -276,6 +279,8 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
             }
         },
     )
+    if (confirmSkip && onSkip != null) SkipConfirmDialog(measured = view.completed > 0 || done,
+        onDismiss = { confirmSkip = false }, onConfirm = { confirmSkip = false; onSkip() })
 }
 
 private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.phase) {
@@ -292,25 +297,41 @@ private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.ph
 private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> Unit)?) {
     val state by vm.state.collectAsStateWithLifecycle()
     val rec = state.phase == HoloViewModel.Phase.REC || state.phase == HoloViewModel.Phase.LOADING
+    val counting = state.phase == HoloViewModel.Phase.LOADING && state.countdown > 0
     var flood by remember { mutableStateOf(false) }
     LaunchedEffect(state.phase) { if (state.phase == HoloViewModel.Phase.DONE) flood = true }
-    BackHandler(enabled = rec) { vm.reset() }
+    // 녹음 준비·카운트다운·녹음 중 뒤로가기는 곡 고르기로. 음역부터 다시 재지 않는다.
+    BackHandler(enabled = rec) { vm.cancelTimbre() }
     val requestMic = rememberMicrophoneAccess(onAllowed = vm::start, onDenied = { })
     var pickerOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.loadCatalog() }
+    var confirmSkip by remember { mutableStateOf(false) }
+    // 연습 탭과 같은 곡 카탈로그. 2단계에 들어오자마자 만들어 첫 목록·장르를 미리 받아 둔다.
+    val context = LocalContext.current
+    val catalog: SongListViewModel = viewModel(key = "holo-picker", factory = viewModelFactory {
+        initializer {
+            val container = context.appContainer
+            SongListViewModel(container.songs, container.recommend,
+                NetworkPreferenceRepository(container.backend.retrofit.create(PreferenceApi::class.java)))
+        }
+    })
 
     HoloChrome(
         logoVisible = !rec,
         globeScale = if (rec) 0.8f + state.progress * 1.2f else 1f,
-        absorbing = rec,
+        // 방울 흡수는 마이크가 켜진 뒤부터(반주 준비·카운트다운 동안은 아직 듣지 않는다)
+        absorbing = state.phase == HoloViewModel.Phase.REC,
+        startPill = if (rec) "‹ 곡 다시 고르기" to vm::cancelTimbre else null,
         topPill = when {
+            counting -> null
             rec -> "결과 바로 보기 ›" to vm::finishEarly
-            onSkip != null -> "나중에 ›" to onSkip
+            onSkip != null -> "나중에 ›" to { confirmSkip = true }
             else -> null
         },
         error = state.error,
+        globeOverlay = { if (counting) CountdownNumber(state.countdown) },
         middle = {
-            if (rec && state.lyrics.isNotEmpty()) {
+            if (counting) CountdownGuide(state.lyrics.getOrNull(state.lyricIndex).orEmpty())
+            else if (rec && state.lyrics.isNotEmpty()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     state.lyrics.forEachIndexed { i, line ->
                         val cur = i == state.lyricIndex
@@ -320,7 +341,8 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
                             fontSize = if (cur) 21.sp else 16.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal,
                         )
                     }
-                    if (state.interlude) Text("간주는 건너뛸게요", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                    // 시작 지점(첫 가사 1초 전)도 전주로 잡히므로, 부르기 시작한 뒤의 간주에만 알린다
+                    if (state.interlude && state.sungSec > 0.0) Text("간주는 건너뛸게요", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                 }
             } else if (!rec) {
                 Text("2단계 · 노래로 음색을 봐요", color = Color.White, fontSize = 19.sp,
@@ -337,63 +359,92 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
                     textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) {
-                    vm.retryCatalogMore()
-                    pickerOpen = true
-                }
+                HoloButton(if (picked == null) "노래 고르기" else "곡 바꾸기", enabled = true) { pickerOpen = true }
                 if (picked != null) HoloButton("이 곡으로 시작하기", onClick = requestMic)
             }
         },
         flood = flood, onFloodCovered = onResult, onFloodDone = { flood = false },
     )
-    if (pickerOpen) SongPickerSheet(
-        query = state.query, results = state.suggestions, catalog = state.catalog, loading = state.catalogLoading,
-        loadingMore = state.catalogLoadingMore, hasMore = state.catalogHasMore && !state.catalogMoreFailed,
-        onLoadMore = vm::loadMoreCatalog,
-        onQuery = vm::onQuery, onPick = { vm.pick(it); pickerOpen = false }, onClose = { pickerOpen = false },
-    )
+    if (pickerOpen) SongPickerSheet(catalog, onPick = { vm.pick(it); pickerOpen = false }, onClose = { pickerOpen = false })
+    // 2단계에 왔다면 음역은 이미 잰 상태다
+    if (confirmSkip && onSkip != null) SkipConfirmDialog(measured = true,
+        onDismiss = { confirmSkip = false }, onConfirm = { confirmSkip = false; onSkip() })
 }
 
 /**
- * 부를 노래 고르기. 검색창만 두면 무엇을 쳐야 할지 알 수 없어서, 열자마자 곡 목록이 보이고
- * 검색은 그 위에서 좁히는 방식이다. 시트라서 키보드가 올라와도 목록이 밀려 올라간다.
+ * "나중에" 확인. 나가면 홀로 흐름이 처음으로 돌아가(reset) 다음 분석은 1단계 음역부터 다시 한다.
+ * 30초 넘게 잰 음역을 모르고 버리지 않도록, 이미 잰 게 있으면 그 점을 분명히 알린다.
+ */
+@Composable
+private fun SkipConfirmDialog(measured: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("분석을 나중에 할까요?") },
+        text = {
+            Text(if (measured) "지금 나가면 지금까지 잰 음역은 이어서 쓸 수 없어요. 다음에 분석할 때 음역부터 다시 측정해야 해요."
+                else "지금 나가면 다음에 분석할 때 음역 측정부터 시작해요.")
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("나중에 하기") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("계속 분석하기") } },
+    )
+}
+
+/** 구체 위의 큰 숫자 4·3·2·1. 숫자가 바뀔 때마다 살짝 커졌다 돌아온다 */
+@Composable
+internal fun CountdownNumber(value: Int) {
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(value) {
+        pop.snapTo(1.25f)
+        pop.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+    }
+    Text("$value", color = HoloButtonText, fontSize = 56.sp, fontWeight = FontWeight.Black,
+        modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }.testTag("holo-countdown"))
+}
+
+/** 카운트다운 동안 가운데 안내: 간주 없이 곧바로 시작한다는 것 + 처음 부를 가사 */
+@Composable
+internal fun CountdownGuide(firstLine: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("간주 없이 바로 노래가 시작돼요", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center)
+        Text("숫자가 끝나면 첫 가사부터 불러 주세요", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp,
+            textAlign = TextAlign.Center)
+        if (firstLine.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(firstLine, color = Color.White.copy(alpha = 0.9f), fontSize = 16.sp, textAlign = TextAlign.Center,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.14f))
+                    .padding(horizontal = 14.dp, vertical = 8.dp))
+        }
+    }
+}
+
+/**
+ * 부를 노래 고르기. 연습 탭 곡 목록과 같은 카탈로그(검색 · 장르 칩 · 무한 스크롤)를 시트 안에 그대로 쓴다.
+ * 열자마자 곡 목록이 보이고, 장르나 검색어로 좁힌다. 시트라서 키보드가 올라와도 목록이 밀려 올라간다.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SongPickerSheet(
-    query: String,
-    results: List<SongSummary>,
-    catalog: List<SongSummary>,
-    loading: Boolean,
-    loadingMore: Boolean,
-    hasMore: Boolean,
-    onLoadMore: () -> Unit,
-    onQuery: (String) -> Unit,
-    onPick: (SongSummary) -> Unit,
-    onClose: () -> Unit,
-) {
-    val shown = if (query.isBlank()) catalog else results
-    val listState = rememberLazyListState()
-    LoadMoreOnScrollEnd(listState, enabled = query.isBlank() && hasMore && !loadingMore,
-        itemCount = shown.size, key = catalog.size, onLoadMore = onLoadMore)
+private fun SongPickerSheet(catalog: SongListViewModel, onPick: (SongSummary) -> Unit, onClose: () -> Unit) {
+    val state by catalog.state.collectAsStateWithLifecycle()
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
-            Text("부를 노래 고르기", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text("아는 노래일수록 음색이 잘 잡혀요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            MiconSearchField(query, onQuery, "제목이나 가수로 좁히기")
-            Spacer(Modifier.height(8.dp))
-            when {
-                loading && shown.isEmpty() -> Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                shown.isEmpty() -> Text("찾는 곡이 없어요", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp))
-                else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), state = listState) {
-                    items(shown, key = { it.id }) { song ->
-                        SongRow(title = song.title, artist = song.artist, imageUrl = song.imageUrl, onClick = { onPick(song) })
-                    }
-                }
+        Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                Text("부를 노래 고르기", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text("아는 노래일수록 음색이 잘 잡혀요", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            Spacer(Modifier.height(12.dp))
+            SongCatalogContent(
+                state = state,
+                onQueryChange = catalog::setQuery,
+                onGenreChange = catalog::setGenre,
+                onRefresh = catalog::refresh,
+                onLoadMore = catalog::loadMore,
+                onSongClick = { id -> state.songs.firstOrNull { it.id == id }?.let(onPick) },
+                searchPlaceholder = "제목이나 가수로 찾기",
+                modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 560.dp),
+            )
         }
     }
 }
@@ -408,8 +459,11 @@ private fun HoloChrome(
     absorbing: Boolean,
     topPill: Pair<String, () -> Unit>?,
     error: String?,
+    /** 왼쪽 위 알약(예: 녹음 중 "곡 다시 고르기"). [topPill] 과 같은 모양 */
+    startPill: Pair<String, () -> Unit>? = null,
     middle: @Composable () -> Unit,
     bottom: @Composable BoxScope.() -> Unit,
+    globeOverlay: @Composable () -> Unit = {},
     flood: Boolean = false,
     onFloodCovered: () -> Unit = {},
     onFloodDone: () -> Unit = {},
@@ -427,6 +481,7 @@ private fun HoloChrome(
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Globe(scale = globeScale, absorbing = absorbing)
+                globeOverlay()
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(horizontal = 24.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center) { middle() }
@@ -439,17 +494,21 @@ private fun HoloChrome(
                 color = Color.White.copy(alpha = 0.94f), shape = RoundedCornerShape(14.dp),
             ) { Text(msg, Modifier.padding(12.dp, 10.dp), color = Ink, fontSize = 13.sp) }
         }
-        if (topPill != null) {
-            Box(
-                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 16.dp)
-                    .height(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f))
-                    .border(1.dp, Color.White.copy(alpha = 0.55f), CircleShape)
-                    .clickable(onClick = topPill.second).padding(horizontal = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text(topPill.first, color = Color.White, fontSize = 12.sp, fontFamily = MiconMonoFamily) }
-        }
+        if (startPill != null) HoloPill(startPill, Modifier.align(Alignment.TopStart).statusBarsPadding().padding(top = 12.dp, start = 16.dp))
+        if (topPill != null) HoloPill(topPill, Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 16.dp))
         Flood(active = flood, onCovered = onFloodCovered, onDone = onFloodDone)
     }
+}
+
+/** 홀로 화면 위쪽의 반투명 알약 버튼("나중에 ›" · "결과 바로 보기 ›" · "‹ 곡 다시 고르기") */
+@Composable
+private fun HoloPill(pill: Pair<String, () -> Unit>, modifier: Modifier) {
+    Box(
+        modifier.height(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f))
+            .border(1.dp, Color.White.copy(alpha = 0.55f), CircleShape)
+            .clickable(onClick = pill.second).padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(pill.first, color = Color.White, fontSize = 12.sp, fontFamily = MiconMonoFamily) }
 }
 
 /** 홀로 화면의 흰 알약 버튼 */

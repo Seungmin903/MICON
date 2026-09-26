@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.sp
 import com.micon.app.range.RangeReport
 import com.micon.app.range.RangeNote
 import com.micon.app.range.RangeStabilityPlot
+import com.micon.app.range.LocalVoiceQualityAnalyzer
+import com.micon.app.range.VoiceQualityPoint
 import com.micon.app.range.continuousRangeMap
 import com.micon.app.ui.charts.RangeStabilityChart
 import com.micon.app.ui.charts.GuidedRangeKeyboard
@@ -106,6 +108,7 @@ fun RangeResultCards(report: RangeReport, reportTab: Boolean = false) {
                 GuidedRangeKeyboard(report.notes, noteName = ReportNoteNames::note, showPassedLegend = false)
             }
         }
+        if (report.voiceQuality?.points?.isNotEmpty() == true) RangeStabilityCard(report, overview = reportTab)
     }
 }
 
@@ -176,19 +179,26 @@ private fun noteIntervals(notes: List<Int>): List<IntRange> {
 
 @Composable
 fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
-    var selected by remember(report) { mutableStateOf(report.lowMidi ?: report.notes.firstOrNull { it.status != "unmeasured" }?.midi ?: 60) }
-    val relative = report.protocolVersion in setOf("guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7")
-    val plot = remember(report) { RangeStabilityPlot.from(report.notes, scoreBased = relative) }
+    val quality = report.voiceQuality?.takeIf { it.version == LocalVoiceQualityAnalyzer.VERSION && it.points.isNotEmpty() }
+    val plottedNotes = quality?.graphNotes() ?: report.notes
+    var selected by remember(report) { mutableStateOf(quality?.referenceMidi ?: report.lowMidi ?: report.notes.firstOrNull { it.status != "unmeasured" }?.midi ?: 60) }
+    val relative = quality != null || report.protocolVersion in setOf("guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7")
+    val plot = remember(report) { RangeStabilityPlot.from(plottedNotes, scoreBased = relative) }
     LaunchedEffect(plot) {
         if (plot.points.none { it.note.midi == selected }) {
             selected = plot.points.firstOrNull { it.ratio != null }?.note?.midi ?: plot.points.first().note.midi
         }
     }
     MiconCard {
-        Text("음역별 안정성", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text(if (quality != null) "음역별 발성 유지 점수" else "음역별 안정성",
+            fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(10.dp))
-        RangeStabilityChart(plot, selected, { selected = it }, overview = overview)
-        if (LocalDensity.current.fontScale > 1.3f) {
+        RangeStabilityChart(plot, selected, { selected = it }, overview = overview,
+            scoreLabel = if (quality != null) "개인 기준 발성 유지 점수" else null)
+        if (quality != null) {
+            Text("편한 시작음과 비교한 실험용 상대 점수예요. 높은 음은 배음·주기성 변화, 낮은 음은 끊김·불규칙성을 반영합니다. 가성 확률이나 확정된 테시투라는 아니에요.",
+                color = Grey, fontSize = 12.sp)
+        } else if (LocalDensity.current.fontScale > 1.3f) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { RangeStabilityLegend() }
         } else Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             RangeStabilityLegend()
@@ -197,10 +207,27 @@ fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
             Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth().background(Lavender.copy(alpha = .65f), RoundedCornerShape(12.dp)).padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                RangeNoteDetails(note)
+                if (quality != null) VoiceQualityDetails(quality.points.firstOrNull { it.midi == selected })
+                else RangeNoteDetails(note)
             }
         }
     }
+}
+
+@Composable
+private fun VoiceQualityDetails(point: VoiceQualityPoint?) {
+    if (point == null) {
+        Text("이 음은 0.3초 이상 유지한 기록이 없어 점수를 표시하지 않아요.", color = Grey)
+        return
+    }
+    Text(sharpNoteText(RangeNoteNames.full(point.midi), 18.sp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Text("개인 기준 발성 유지 ${String.format(Locale.ROOT, "%.0f", point.score)}점 / 100점", color = InkSoft)
+    LinearProgressIndicator(progress = { (point.score / 100.0).toFloat().coerceIn(0f, 1f) },
+        modifier = Modifier.fillMaxWidth())
+    Text("음 유지 ${String.format(Locale.ROOT, "%.0f", point.holdScore)}점 · " +
+        "고음 변화 지표 ${String.format(Locale.ROOT, "%.2f", point.highChange)} · " +
+        "저음 불규칙 지표 ${String.format(Locale.ROOT, "%.2f", point.lowIrregularity)} (각 0~1)",
+        color = Grey, fontSize = 12.sp)
 }
 
 @Composable

@@ -8,11 +8,13 @@ data class VoiceSessionDto(
 )
 data class VoiceRangeDto(val lowMidi: Double?, val highMidi: Double?, val measurementStatus: String, val qualityStatus: String,
     val noteResults: List<com.micon.app.range.RangeNote>? = null,
-    val protocolVersion: String? = null, val stableLowMidi: Double? = null, val stableHighMidi: Double? = null)
+    val protocolVersion: String? = null, val stableLowMidi: Double? = null, val stableHighMidi: Double? = null,
+    val voiceQuality: com.micon.app.range.VoiceQualityResult? = null)
 data class DeviceRangeResultRequest(
     val measurementId: String, val measuredAt: String, val protocolVersion: String,
     val lowMidi: Double?, val highMidi: Double?, val noteResults: List<DeviceRangeNoteDto>,
     val measurementStatus: String, val qualityStatus: String,
+    val voiceQuality: com.micon.app.range.VoiceQualityResult? = null,
 )
 data class DeviceRangeNoteDto(val midi: Int, val status: String, val stability: Double? = null, val holdMs: Int? = null)
 data class VoiceTimbreMetaRequest(

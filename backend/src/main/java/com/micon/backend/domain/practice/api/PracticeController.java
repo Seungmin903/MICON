@@ -6,6 +6,7 @@ import com.micon.backend.domain.practice.dto.request.PracticeResultRequest;
 import com.micon.backend.domain.practice.dto.response.PracticeHistoryResponse;
 import com.micon.backend.domain.practice.dto.response.PracticeResponse;
 import com.micon.backend.domain.practice.dto.response.PracticeResultResponse;
+import com.micon.backend.domain.practice.dto.response.PracticeScoreTrendResponse;
 import com.micon.backend.domain.practice.service.PracticeResultService;
 import com.micon.backend.domain.practice.service.PracticeService;
 import com.micon.backend.domain.practice.service.PracticeHistoryService;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import java.security.Principal;
 import java.time.LocalDate;
 import org.springframework.validation.annotation.Validated;
@@ -62,6 +64,16 @@ public class PracticeController {
 		@RequestParam(name = "size", defaultValue = "20") @Min(1) @Max(100) int size
 	) {
 		return ApiResponse.success(historyService.getHistory(userId(principal), date, page, size));
+	}
+
+	@Operation(summary = "곡별 연습 점수 추이", description = "같은 곡의 완료된 연습 점수를 시간순으로 조회합니다.")
+	@GetMapping("/songs/{songId}/score-trend")
+	public ApiResponse<PracticeScoreTrendResponse> getScoreTrend(
+		Principal principal,
+		@PathVariable @NotBlank String songId,
+		@RequestParam(name = "limit", defaultValue = "100") @Min(1) @Max(200) int limit
+	) {
+		return ApiResponse.success(historyService.getScoreTrend(userId(principal), songId, limit));
 	}
 
 	@Operation(summary = "연습 세션 생성", description = "선택한 곡, 키, 재생 속도와 연습 범위로 연습 세션을 생성합니다.")

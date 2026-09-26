@@ -123,6 +123,10 @@ interface BackendApi {
     @GET("songs/{songId}/practice-assets")
     suspend fun practiceAssets(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeAssetsDto>>
 
+    /** 어려운 구간만 먼저 조회한다. 큰 반주·가사·음표 응답은 받지 않는다. */
+    @GET("songs/{songId}/practice-guide")
+    suspend fun practiceGuide(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int = 0): Response<ApiResponse<PracticeGuideDto>>
+
     /** 키별 반주와 만료 URL만 조회한다. */
     @GET("songs/{songId}/mr")
     suspend fun instrumental(@Path("songId") songId: String, @Query("selectedKey") selectedKey: Int): Response<ApiResponse<InstrumentalDto>>
@@ -198,6 +202,10 @@ interface BackendApi {
     /** 연습 리포트 목록. `date`(yyyy-MM-dd) 를 주면 그 날짜만, 없으면 전체 최신순. (BE 2026-09-16 경로 정리) */
     @GET("practices/report")
     suspend fun practices(@Query("page") page: Int, @Query("size") size: Int, @Query("date") date: String? = null): Response<ApiResponse<PageDto<PracticeSummaryDto>>>
+
+    /** 같은 곡의 완료된 연습 점수 변화. 최근 [limit]건을 시간순으로 반환한다. */
+    @GET("practices/songs/{songId}/score-trend")
+    suspend fun practiceScoreTrend(@Path("songId") songId: String, @Query("limit") limit: Int = 100): Response<ApiResponse<PracticeScoreTrendDto>>
 
     /** 세션 생성(READY). 곡·반주(선택 키)가 준비돼야 한다: 409 PRACTICE_ASSET_NOT_READY, 422 UNSUPPORTED_PRACTICE_KEY. */
     @POST("practices/session")

@@ -56,17 +56,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.core.auth.SessionSnapshot
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.data.practice.PracticeRecordingStore
 import com.micon.app.data.practice.PracticeRepository
 import com.micon.app.data.practice.PracticeSummary
 import com.micon.app.ui.common.RefreshOnResume
 import com.micon.app.ui.common.MiconHeader
 import com.micon.app.ui.common.describeBackendError
-import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
 import com.micon.app.ui.design.atoms.MiconButtonKind
 import com.micon.app.ui.design.atoms.MiconCard
 import com.micon.app.ui.design.atoms.MiconCardKind
-import com.micon.app.ui.design.atoms.MiconChipTone
 import com.micon.app.ui.design.atoms.MiconFilterChip
 import com.micon.app.ui.design.molecules.SongRow
 import com.micon.app.ui.design.organisms.MiconScreen
@@ -75,6 +76,8 @@ import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.theme.Red
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -82,6 +85,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -90,7 +94,12 @@ import kotlin.math.roundToInt
 /** 기록 탭 — 프로토타입 `history` (이전 이름 평가). 이번 주 요약 + 평평한 목록. 아코디언은 없앴다. */
 enum class HistoryFilter(val label: String) { ALL("전체"), WEEK("이번 주"), TOP("높은 점수순") }
 
-class PracticeHistoryViewModel(private val practices: PracticeRepository) : ViewModel() {
+class PracticeHistoryViewModel(
+    private val practices: PracticeRepository,
+    private val recordings: PracticeRecordingStore? = null,
+    private val sessionSnapshot: () -> SessionSnapshot? = { null },
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : ViewModel() {
     data class State(
         val loading: Boolean = true,
         val error: String? = null,
@@ -104,15 +113,7 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         /** 서버가 날짜를 하나도 주지 않으면 주간 요약·"이번 주" 탭은 감춘다 — 빈 탭을 고장으로 오해하지 않게 */
         val hasDates get() = items.any { it.occurredAt != null }
         val weekItems get() = scored.filter { it.occurredAt?.let(::isThisWeek) == true }
-        val lastWeekItems get() = scored.filter { it.occurredAt?.let(::isLastWeek) == true }
         val weekAverage: Int? get() = weekItems.map { it.overallScore!! }.average().takeIf { weekItems.isNotEmpty() }?.roundToInt()
-        val weekDelta: Int? get() {
-            val now = weekAverage ?: return null
-            val prev = lastWeekItems.map { it.overallScore!! }.average().takeIf { lastWeekItems.isNotEmpty() } ?: return null
-            return now - prev.roundToInt()
-        }
-        /** 스파크라인: 최근 7회(오래된 것 → 최신) */
-        val spark get() = scored.take(7).reversed().map { it.overallScore!!.roundToInt() }
         val visible get() = when (filter) {
             HistoryFilter.ALL -> items
             // 날짜가 없으면 "이번 주" 칩 자체를 감추므로, 고른 채로 남아 있어도 전체를 보여 준다
@@ -150,6 +151,7 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
      */
     fun confirmDelete() {
         val target = _state.value.confirmDelete ?: return
+        val ownerId = sessionSnapshot()?.takeIf { it.isLoggedIn && it.userId > 0 }?.userId
         val index = _state.value.items.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
         // 삭제 전 목록을 가져오던 응답이 나중에 도착해 삭제한 행을 되살리지 못하게 한다.
         loadJob?.cancel()
@@ -157,6 +159,10 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
         viewModelScope.launch {
             try {
                 practices.delete(target.id)
+                if (ownerId != null && recordings != null) {
+                    val localError = runCatching { withContext(ioDispatcher) { recordings.delete(ownerId, target.id) } }.exceptionOrNull()
+                    if (localError != null) _state.update { it.copy(notice = "기록은 삭제했지만 기기 녹음을 정리하지 못했어요.") }
+                }
                 // 서버 상태를 기준으로 요약 점수와 필터 결과까지 다시 맞춘다.
                 load()
             } catch (e: CancellationException) {
@@ -174,7 +180,6 @@ class PracticeHistoryViewModel(private val practices: PracticeRepository) : View
 private fun parse(iso: String): LocalDate? = runCatching { LocalDateTime.parse(iso.take(19)).toLocalDate() }.getOrNull()
 private fun weekStart(d: LocalDate) = d.minusDays((d.dayOfWeek.value - 1).toLong())
 private fun isThisWeek(iso: String): Boolean { val d = parse(iso) ?: return false; val ws = weekStart(LocalDate.now()); return !d.isBefore(ws) && d.isBefore(ws.plusDays(7)) }
-private fun isLastWeek(iso: String): Boolean { val d = parse(iso) ?: return false; val ws = weekStart(LocalDate.now()).minusDays(7); return !d.isBefore(ws) && d.isBefore(ws.plusDays(7)) }
 
 /** "오늘 · 원래 키" / "어제 · 한 키 ↓" / "9월 17일 · 두 키 ↓" */
 internal fun historyMeta(item: PracticeSummary): String {
@@ -194,7 +199,9 @@ internal fun historyMeta(item: PracticeSummary): String {
 @Composable
 fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
-    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer { PracticeHistoryViewModel(container.practices) } })
+    val vm: PracticeHistoryViewModel = viewModel(factory = viewModelFactory { initializer {
+        PracticeHistoryViewModel(container.practices, container.practiceRecordings, TokenManager::snapshot)
+    } })
     val state by vm.state.collectAsStateWithLifecycle()
     RefreshOnResume { vm.load() }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -211,20 +218,10 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
             if (avg != null) MiconCard(kind = MiconCardKind.Elevated) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("이번 주 평균", style = MaterialTheme.typography.labelMedium, color = accent, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
-                    state.weekDelta?.let { d -> MiconBadge(if (d >= 0) "지난주 +${d}점" else "지난주 ${d}점", tone = if (d >= 0) MiconChipTone.Success else MiconChipTone.Challenge) }
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("$avg", fontFamily = MiconMonoFamily, fontSize = 34.sp, fontWeight = FontWeight.Black, lineHeight = 38.sp)
                     Text(" 점 · ${state.weekItems.size}회 연습", style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                Spacer(Modifier.height(8.dp))
-                val spark = state.spark
-                Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.Bottom) {
-                    val max = spark.maxOrNull() ?: 0
-                    spark.forEach { v ->
-                        Box(Modifier.weight(1f).fillMaxHeight((v / 100f).coerceIn(0.04f, 1f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                            .background(if (v == max) MaterialTheme.colorScheme.primary else Color(0xFFDCD6FF)))
-                    }
                 }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(MiconSpace.xs)) {
@@ -240,6 +237,12 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                 state.visible.isEmpty() -> Text(if (state.items.isEmpty()) "아직 연습 기록이 없어요. 연습 탭에서 한 곡 불러 보세요." else "이번 주 기록이 없어요.",
                     style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.padding(top = 24.dp))
                 else -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "기록을 왼쪽으로 밀면 삭제할 수 있어요",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = muted,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
+                    )
                     state.visible.forEach { item ->
                         val score = item.overallScore?.roundToInt()
                         key(item.id) {
@@ -254,14 +257,14 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
                                     onClick = { if (openId == item.id) openId = null else onOpenResult(item.id) },
                                     trailing = {
                                         if (score != null) Text("$score", fontFamily = MiconMonoFamily, fontSize = 18.sp, fontWeight = FontWeight.Black,
-                                            color = if (score >= 80) accent else muted)
-                                        else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium, color = muted)
+                                            color = if (score >= 80) accent else muted, modifier = Modifier.padding(end = 12.dp))
+                                        else Text(if (item.status == "COMPLETED") "분석 중" else "미완료", style = MaterialTheme.typography.labelMedium,
+                                            color = muted, modifier = Modifier.padding(end = 12.dp))
                                     },
                                 )
                             }
                         }
                     }
-                    Text("왼쪽으로 밀면 기록을 지울 수 있어요", style = MaterialTheme.typography.labelMedium, color = muted, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
@@ -279,7 +282,7 @@ fun PracticeHistoryScreen(onOpenResult: (Long) -> Unit, onSettings: () -> Unit) 
         AlertDialog(
             onDismissRequest = { openId = null; vm.dismissDelete() },
             title = { Text("기록을 삭제할까요?") },
-            text = { Text("${target.songTitle ?: "이 곡"} 연습 기록이 지워져요. 되돌릴 수 없어요.") },
+            text = { Text("${target.songTitle ?: "이 곡"} 연습 기록과 이 기기의 녹음이 지워져요. 되돌릴 수 없어요.") },
             confirmButton = { TextButton({ openId = null; vm.confirmDelete() }) { Text("삭제") } },
             dismissButton = { TextButton({ openId = null; vm.dismissDelete() }) { Text("취소") } },
         )

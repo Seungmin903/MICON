@@ -1,11 +1,14 @@
 package com.micon.app.ui.songdetail
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.data.*
 import com.micon.app.data.backend.dto.KaraokeNote
 import com.micon.app.data.local.UserStore
+import com.micon.app.data.practice.PracticeRepository
+import com.micon.app.data.practice.PracticeScoreTrend
 import com.micon.app.scoring.ScoringConstants
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -22,6 +25,8 @@ data class SongDetailState(
     val sections: List<PracticeSection> = emptyList(),
     val assetsLoading: Boolean = true,
     val assetsError: String? = null,
+    val guideLoading: Boolean = true,
+    val guideError: String? = null,
     val selectedKey: Int = 0,
     val mediaKey: Int? = null,
     val keyLoading: Boolean = false,
@@ -29,6 +34,7 @@ data class SongDetailState(
     val positionSec: Double = 0.0,
     val durationSec: Double = 0.0,
     val playbackError: String? = null,
+    val scoreTrend: PracticeScoreTrend? = null,
 ) {
     val playable get() = mediaKey == selectedKey && !keyLoading && !assetsLoading
     val practiceEnabled get() = playable && detail?.practiceReady == true && notes.isNotEmpty()
@@ -38,9 +44,11 @@ internal class SongDetailViewModel(
     private val repo: SongRepository, private val recommend: RecommendRepository, private val songId: String,
     private val playerFactory: () -> SongPreviewPlayer,
     profile: StateFlow<UserStore.VoiceProfile?> = UserStore.profile,
+    private val practices: PracticeRepository? = null,
 ) : ViewModel() {
-    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository, songId: String) :
-        this(repo, recommend, songId, { Media3SongPreview(context, http) })
+    constructor(context: Context, repo: SongRepository, http: OkHttpClient, recommend: RecommendRepository,
+        practices: PracticeRepository, songId: String) :
+        this(repo, recommend, songId, { Media3SongPreview(context, http) }, practices = practices)
 
     private val _state = MutableStateFlow(SongDetailState())
     val state = _state.asStateFlow()
@@ -50,7 +58,9 @@ internal class SongDetailViewModel(
     private var cachedAssets: PracticeAssets? = null
     private var loadJob: Job? = null
     private var keyJob: Job? = null
+    private var guideJob: Job? = null
     private var fitJob: Job? = null
+    private var scoreTrendJob: Job? = null
     private var progressJob: Job? = null
     private var keyManuallySelected = false
 
@@ -59,8 +69,77 @@ internal class SongDetailViewModel(
         viewModelScope.launch { profile.collectLatest { refreshFit() } }
     }
 
+    private fun loadScoreTrend() {
+        val practiceRepository = practices ?: return
+        scoreTrendJob?.cancel()
+        scoreTrendJob = viewModelScope.launch {
+            try {
+                Log.d(LOG_TAG, "Requesting score trend for songId=$songId")
+                val trend = loadScoreTrend(practiceRepository)
+                ensureActive()
+                if (trend?.points?.isNotEmpty() == true) {
+                    _state.update { it.copy(scoreTrend = trend) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 비회원·기록 없음·구버전 서버에서는 기존 상세 화면만 보인다.
+                Log.w(LOG_TAG, "Failed to load score trend for songId=$songId", e)
+            }
+        }
+    }
+
+    /** 전용 추이 API에 아직 반영되지 않은 이전 연습도 기록 목록의 저장 점수로 보완한다. */
+    private suspend fun loadScoreTrend(practiceRepository: PracticeRepository): PracticeScoreTrend? {
+        val serverPoints = runCatching {
+            practiceRepository.scoreTrend(songId, limit = TREND_FETCH_LIMIT).points
+        }.getOrDefault(emptyList())
+        val historyPoints = mutableListOf<PracticeScoreTrend.Point>()
+        var page = 0
+        var totalPages = 1
+        do {
+            val history = runCatching { practiceRepository.history(page = page, size = HISTORY_PAGE_SIZE) }.getOrNull() ?: break
+            totalPages = history.totalPages
+            history.items.asSequence()
+                .filter { it.songId == songId && it.overallScore != null }
+                .map { item ->
+                    PracticeScoreTrend.Point(
+                        practiceId = item.id,
+                        playedAt = item.occurredAt,
+                        overallScore = requireNotNull(item.overallScore),
+                        pitchScore = null,
+                        rhythmScore = null,
+                        selectedKey = item.selectedKey,
+                        practiceScope = item.practiceScope,
+                        durationMs = item.durationMs,
+                    )
+                }
+                .forEach(historyPoints::add)
+            page++
+        } while (historyPoints.size < RECENT_TREND_LIMIT && page < totalPages)
+
+        val points = (serverPoints + historyPoints)
+            .associateBy { it.practiceId }
+            .values
+            .sortedWith(compareBy<PracticeScoreTrend.Point> { it.playedAt ?: "" }.thenBy { it.practiceId })
+            .takeLast(RECENT_TREND_LIMIT)
+        if (points.isEmpty()) return null
+        val first = points.first().overallScore
+        val latest = points.last().overallScore
+        return PracticeScoreTrend(
+            songId = songId,
+            totalCount = points.size,
+            firstScore = first,
+            latestScore = latest,
+            bestScore = points.maxOf { it.overallScore },
+            scoreDelta = latest - first,
+            points = points,
+        )
+    }
+
     fun load() {
         loadJob?.cancel()
+        loadGuide()
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = it.detail == null, error = null) }
             try {
@@ -69,10 +148,32 @@ internal class SongDetailViewModel(
                 check(detail.summary.id == songId)
                 _state.update { it.copy(loading = false, detail = mergeAssets(detail),
                     durationSec = maxOf(it.durationSec, (detail.summary.durationMs ?: 0) / 1000.0)) }
+                loadScoreTrend()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.update { it.copy(loading = false, error = "곡 정보를 불러오지 못했어요.") } }
         }
         loadAssets(initial = _state.value.notes.isEmpty())
+    }
+
+    /** 큰 practice-assets와 별개로 어려운 구간만 즉시 조회한다. */
+    private fun loadGuide() {
+        guideJob?.cancel()
+        _state.update { it.copy(guideLoading = true, guideError = null) }
+        guideJob = viewModelScope.launch {
+            try {
+                val guide = repo.practiceGuide(songId, 0)
+                ensureActive()
+                _state.update { current ->
+                    val merged = (current.sections + guide).associateBy { it.sectionId }.values.sortedBy { it.sequenceNo }
+                    current.copy(sections = merged, guideLoading = false)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 구간 안내 실패가 곡 상세·연습 진입을 막지는 않는다. assets의 sections는 계속 사용한다.
+                _state.update { it.copy(guideLoading = false, guideError = "어려운 구간을 불러오지 못했어요.") }
+            }
+        }
     }
 
     private fun mergeAssets(detail: SongDetail): SongDetail {
@@ -231,4 +332,11 @@ internal class SongDetailViewModel(
 
     fun pause() { player?.pause(); _state.update { it.copy(playing = false) } }
     override fun onCleared() { leaveScreen() }
+
+    private companion object {
+        const val LOG_TAG = "SongDetail"
+        const val RECENT_TREND_LIMIT = 5
+        const val TREND_FETCH_LIMIT = 100
+        const val HISTORY_PAGE_SIZE = 100
+    }
 }

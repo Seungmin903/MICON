@@ -24,6 +24,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -281,6 +284,8 @@ fun SongCatalogContent(
     likedIds: Set<String>? = null,
     onLike: (String) -> Unit = {},
     excludedIds: Set<String> = emptySet(),
+    selectedIds: Set<String> = emptySet(),
+    onSelectionToggle: ((String) -> Unit)? = null,
     searchPlaceholder: String = "노래나 가수를 검색해 보세요",
 ) {
     val visibleSongs = state.songs.filterNot { it.id in excludedIds }
@@ -312,7 +317,11 @@ fun SongCatalogContent(
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (state.loading) "불러오는 중…" else "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${visibleSongs.size}곡 표시" else ""),
+                when {
+                    state.loading -> "불러오는 중…"
+                    onSelectionToggle != null -> "총 ${state.totalElements}곡"
+                    else -> "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${visibleSongs.size}곡 표시" else "")
+                },
                 fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),
             )
         }
@@ -334,12 +343,23 @@ fun SongCatalogContent(
                     items(visibleSongs, key = { it.id }) { song ->
                         // 권장 키 배지는 붙이지 않는다 — 일반 목록은 곡별 /fit 호출을 하지 않는다(상세에서만 계산).
                         val liked = likedIds?.let { song.id in it }
+                        val selected = song.id in selectedIds
                         SongRow(
                             title = song.title,
                             artist = song.artist,
                             imageUrl = song.imageUrl,
-                            onClick = { onSongClick(song.id) },
-                            trailing = liked?.let { { HeartButton(it) { onLike(song.id) } } },
+                            modifier = if (selected) {
+                                Modifier
+                                    .background(Purple.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 8.dp)
+                            } else Modifier,
+                            onClick = { onSelectionToggle?.invoke(song.id) ?: onSongClick(song.id) },
+                            trailing = when {
+                                onSelectionToggle != null && selected -> ({
+                                    Icon(Icons.Filled.Check, contentDescription = "선택됨", tint = Purple)
+                                })
+                                else -> liked?.let { { HeartButton(it) { onLike(song.id) } } }
+                            },
                         )
                     }
                     if (visibleSongs.isEmpty() && !state.hasMore) item { Text("검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey) }

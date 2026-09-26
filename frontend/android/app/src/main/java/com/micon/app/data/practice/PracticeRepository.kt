@@ -9,6 +9,7 @@ import com.micon.app.data.backend.dto.PracticeDetailDto
 import com.micon.app.data.backend.dto.PracticeNoteDto
 import com.micon.app.data.backend.dto.PracticeReportDto
 import com.micon.app.data.backend.dto.PracticeResultSaveRequest
+import com.micon.app.data.backend.dto.PracticeScoreTrendDto
 import com.micon.app.data.backend.dto.PracticeSummaryDto
 import com.micon.app.data.backend.dto.RetrySectionDto
 import com.micon.app.data.backend.dto.SectionEvaluationDto
@@ -64,6 +65,21 @@ data class PracticeSummary(
 }
 
 data class PracticePage(val items: List<PracticeSummary>, val page: Int, val size: Int, val totalElements: Long, val totalPages: Int)
+
+/** 동일 곡의 완료 점수 변화. 그래프에는 [points]를 시간순으로 쓴다. */
+data class PracticeScoreTrend(
+    val songId: String,
+    val totalCount: Int,
+    val firstScore: Double?,
+    val latestScore: Double?,
+    val bestScore: Double?,
+    val scoreDelta: Double?,
+    val points: List<Point>,
+) {
+    data class Point(val practiceId: Long, val playedAt: String?, val overallScore: Double,
+        val pitchScore: Double?, val rhythmScore: Double?, val selectedKey: Int,
+        val practiceScope: String?, val durationMs: Int?)
+}
 
 data class SectionEvaluation(val sectionId: Long, val score: Double?, val measured: Boolean, val summary: String?)
 
@@ -153,6 +169,8 @@ interface PracticeRepository {
     suspend fun savePerformance(practiceId: Long, result: PracticeResultInput): PracticeReport
     /** 최신순 목록. size 최대 100. [date](yyyy-MM-dd) 를 주면 그 날짜만. */
     suspend fun history(page: Int = 0, size: Int = 50, date: String? = null): PracticePage
+    /** 동일 곡의 완료 점수 추이. 기록이 없으면 빈 [PracticeScoreTrend.points]를 반환한다. */
+    suspend fun scoreTrend(songId: String, limit: Int = 100): PracticeScoreTrend
     /** 저장된 결과. 없으면(404 PRACTICE_RESULT_NOT_FOUND) null. */
     suspend fun report(practiceId: Long): PracticeReport?
     /** 연습 기록(세션+결과) 삭제. 녹음·음성 분석 데이터는 남는다(BE 정책). 없거나 타인 것이면 404. */
@@ -192,6 +210,9 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
         val dto = api.practices(page, size.coerceIn(1, 100), date).unwrapData()
         return PracticePage(dto.content.map { it.toModel() }, dto.page, dto.size, dto.totalElements, dto.totalPages)
     }
+
+    override suspend fun scoreTrend(songId: String, limit: Int): PracticeScoreTrend =
+        api.practiceScoreTrend(songId, limit.coerceIn(1, 200)).unwrapData().toModel()
 
     override suspend fun report(practiceId: Long): PracticeReport? = try {
         api.practiceReport(practiceId).unwrapData().toModel()
@@ -236,6 +257,14 @@ class RemotePracticeRepository(private val api: BackendApi) : PracticeRepository
                 initialKey = firstKey, keyChanged = keyChanged ?: (firstKey != selectedKey),
             )
         }
+
+        private fun PracticeScoreTrendDto.toModel() = PracticeScoreTrend(
+            songId, totalCount, firstScore, latestScore, bestScore, scoreDelta,
+            points.mapNotNull { point -> point.overallScore?.let { score ->
+                PracticeScoreTrend.Point(point.practiceId, point.playedAt, score, point.pitchScore,
+                    point.rhythmScore, point.selectedKey, point.practiceScope, point.durationMs)
+            } },
+        )
 
         private fun SectionEvaluationDto.toModel() = SectionEvaluation(sectionId, score, measured, summary)
         private fun RetrySectionDto.toModel() = RetrySection(sectionId, selectedKey, score)

@@ -1,6 +1,8 @@
 package com.micon.app.ui.holo
 
 import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
@@ -17,6 +19,7 @@ import com.micon.app.data.local.UserStore
 import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.range.RangeRepository
 import com.micon.app.range.RangeReport
+import com.micon.app.range.VoiceQualityResult
 import com.micon.app.scoring.LyricLines
 import com.micon.app.scoring.LyricSheet
 import com.micon.app.scoring.SectionMap
@@ -61,17 +64,9 @@ class HoloViewModel(
         /** 1단계에서 잰 음역(또는 지난 측정값). 2단계 결과 카드의 음역은 이 값을 쓴다 */
         val measuredLow: Int? = null,
         val measuredHigh: Int? = null,
+        val measuredVoiceQuality: VoiceQualityResult? = null,
         val phase: Phase = Phase.IDLE,
-        val query: String = "",
-        val suggestions: List<SongSummary> = emptyList(),
-        /** 검색 전에도 고를 수 있게 미리 받아 두는 곡 목록 */
-        val catalog: List<SongSummary> = emptyList(),
-        val catalogLoading: Boolean = false,
-        val catalogLoadingMore: Boolean = false,
-        val catalogPage: Int = 0,
-        val catalogHasMore: Boolean = true,
-        val catalogMoreFailed: Boolean = false,
-        val searching: Boolean = false,
+        /** 부를 곡. 곡 목록·검색·장르는 연습 탭과 같은 카탈로그(SongListViewModel)가 맡는다 */
         val picked: SongSummary? = null,
         /** 0..30 */
         val elapsedSec: Double = 0.0,
@@ -86,6 +81,8 @@ class HoloViewModel(
         val sungSec: Double = 0.0,
         /** 지금 간주 구간을 지나가는 중 */
         val interlude: Boolean = false,
+        /** 녹음 전 카운트다운 4→1(0 이면 아님). 곡을 고르면 간주 없이 바로 가사가 나오므로 준비할 틈을 준다 */
+        val countdown: Int = 0,
         /** 서버 저장 상태 문구(결과 화면 하단) */
         val saving: Boolean = false,
         val saved: Boolean = false,
@@ -107,6 +104,8 @@ class HoloViewModel(
     private val client = HoloAnalysisClient(api)
     private val player = InstrumentalPlayer(appContext, mediaHttp)
     private val capture = PitchCapture(analyzePitch = true, timbreRecording = true)
+    /** 카운트다운 비프. 마이크를 켜기 전에만 울린다 */
+    private val clicks: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
     private val frames = ArrayList<PitchCapture.PitchFrame>(3000)
     private var wav: File? = null
     private var sheet: LyricSheet? = null
@@ -117,7 +116,6 @@ class HoloViewModel(
     private var dataVersion: String? = null
     private var tick: Job? = null
     private var startJob: Job? = null
-    private var searchJob: Job? = null
     private var submitJob: Job? = null
     private var saveJob: Job? = null
     private var session: HoloAnalysisClient.Session? = null
@@ -144,56 +142,11 @@ class HoloViewModel(
         if (owner == currentOwner()) store.write(owner.userId, result)
     }
 
-    /** 곡 목록을 미리 받아 둔다. 검색어 없이도 고를 수 있어야 한다 */
-    fun loadCatalog() {
-        if (_state.value.catalog.isNotEmpty() || _state.value.catalogLoading) return
-        _state.update { it.copy(catalogLoading = true, catalogMoreFailed = false) }
-        viewModelScope.launch {
-            try {
-                val page = songs.search("", 0, CATALOG_PAGE_SIZE)
-                _state.update { it.copy(catalog = page.items, catalogLoading = false, catalogPage = page.page,
-                    catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size)) }
-            } catch (_: Exception) {
-                _state.update { it.copy(catalogLoading = false) }
-            }
-        }
-    }
-
-    /** 곡 선택 시트가 끝에 닿으면 다음 카탈로그 페이지를 이어 붙인다. */
-    fun loadMoreCatalog() {
-        val current = _state.value
-        if (current.query.isNotBlank() || current.catalogLoading || current.catalogLoadingMore ||
-            !current.catalogHasMore || current.catalogMoreFailed) return
-        viewModelScope.launch {
-            _state.update { it.copy(catalogLoadingMore = true) }
-            try {
-                val page = songs.search("", current.catalogPage + 1, CATALOG_PAGE_SIZE)
-                _state.update { state ->
-                    val known = state.catalog.mapTo(HashSet()) { it.id }
-                    state.copy(catalog = state.catalog + page.items.filter { it.id !in known },
-                        catalogLoadingMore = false, catalogPage = page.page,
-                        catalogHasMore = hasNextCatalogPage(page.page, page.totalPages, page.items.size, page.size))
-                }
-            } catch (_: Exception) {
-                _state.update { it.copy(catalogLoadingMore = false, catalogMoreFailed = true) }
-            }
-        }
-    }
-
-    /** 실패한 다음 페이지는 시트를 다시 열 때 한 번 더 시도할 수 있게 한다. */
-    fun retryCatalogMore() {
-        if (_state.value.catalogMoreFailed) {
-            _state.update { it.copy(catalogMoreFailed = false) }
-            loadMoreCatalog()
-        } else {
-            loadCatalog()
-        }
-    }
-
     /** 1단계 음역 측정이 끝났다. 잰 값을 안고 2단계(음색)로 넘어간다 */
     fun rangeMeasured(range: RangeReport?) {
         if (_state.value.stage == Stage.TIMBRE) return
         _state.update { it.copy(stage = Stage.TIMBRE, measuredLow = range?.lowMidi, measuredHigh = range?.highMidi,
+            measuredVoiceQuality = range?.voiceQuality,
             phase = Phase.IDLE, error = null) }
     }
 
@@ -212,6 +165,7 @@ class HoloViewModel(
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update {
             State(hasPrevious = true, stage = Stage.TIMBRE, measuredLow = last.lowMidi, measuredHigh = last.highMidi,
+                measuredVoiceQuality = last.voiceQuality,
                 rangeRestartVersion = it.rangeRestartVersion)
         }
     }
@@ -223,25 +177,8 @@ class HoloViewModel(
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
-    // ---- 검색 ----
-    fun onQuery(q: String) {
-        _state.update { it.copy(query = q, picked = null) }
-        searchJob?.cancel()
-        if (q.isBlank()) { _state.update { it.copy(suggestions = emptyList(), searching = false) }; return }
-        searchJob = viewModelScope.launch {
-            delay(250)
-            _state.update { it.copy(searching = true) }
-            val items = runCatching { songs.search(q.trim(), 0, 6).items }.getOrDefault(emptyList())
-            _state.update { it.copy(suggestions = items, searching = false) }
-        }
-    }
-
-    fun pick(song: SongSummary) {
-        searchJob?.cancel()
-        _state.update { it.copy(picked = song, query = "${song.title} · ${song.artist}", suggestions = emptyList()) }
-    }
-
-    fun clearSuggestions() = _state.update { it.copy(suggestions = emptyList()) }
+    // ---- 곡 선택 ----
+    fun pick(song: SongSummary) = _state.update { it.copy(picked = song) }
 
     // ---- 녹음 ----
     fun start() {
@@ -255,6 +192,8 @@ class HoloViewModel(
             try {
                 if (picked != null) prepareSong(picked)
                 else { sheet = null; songStartSec = 0.0 }
+                currentCoroutineContext().ensureActive()
+                if (picked != null) countdown(startVersion)
                 currentCoroutineContext().ensureActive()
                 if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return@launch
                 val file = File(File(appContext.filesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
@@ -272,7 +211,7 @@ class HoloViewModel(
                 }
                 if (picked != null) { player.seekTo(songStartSec); player.play() }
                 val (l0, i0) = lyricsAt(if (picked != null) songStartSec else 0.0)
-                _state.update { it.copy(phase = Phase.REC, lyrics = l0, lyricIndex = i0) }
+                _state.update { it.copy(phase = Phase.REC, countdown = 0, lyrics = l0, lyricIndex = i0) }
                 tick = launch {
                     while (true) {
                         val t = capture.capturedSeconds
@@ -305,6 +244,20 @@ class HoloViewModel(
                         current.copy(phase = Phase.ERROR, error = e.message ?: "준비 중 문제가 생겼어요.") else current
                 }
             }
+        }
+    }
+
+    /**
+     * 노래방식 카운트다운 4·3·2·1(1초 간격). 시작 지점이 첫 가사(또는 하이라이트) 바로 앞이라 반주와 노래가 곧바로 나온다.
+     * 그동안 첫 가사를 미리 보여 주고, "1" 이 끝나는 순간 마이크와 반주를 함께 켠다.
+     */
+    private suspend fun countdown(startVersion: Long) {
+        val (lines, index) = lyricsAt(songStartSec)
+        for (step in COUNTDOWN_STEPS downTo 1) {
+            if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return
+            _state.update { it.copy(countdown = step, lyrics = lines, lyricIndex = index) }
+            runCatching { clicks?.startTone(if (step == 1) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP, 60) }
+            delay(COUNTDOWN_STEP_MS)
         }
     }
 
@@ -343,8 +296,9 @@ class HoloViewModel(
         val picked = _state.value.picked
         val low = _state.value.measuredLow
         val high = _state.value.measuredHigh
+        val voiceQuality = _state.value.measuredVoiceQuality
         val result = HoloRangeAnalyzer.analyze(snapshot, picked?.id, picked?.title, picked?.artist)
-            ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high) else r }
+            ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high, voiceQuality) else r }
         if (result == null || !result.usable) {
             _state.update { it.copy(phase = Phase.ERROR, error = "목소리가 충분히 잡히지 않았어요. 조금 더 크게, 4초 이상 불러 주세요.") }
             file?.delete()
@@ -404,6 +358,7 @@ class HoloViewModel(
             lowMidi = r.lowMidi, highMidi = r.highMidi, comfortLow = r.comfortLow, comfortHigh = r.comfortHigh,
             recommendLow = r.recommendLow, recommendHigh = r.recommendHigh,
             stability = r.stability, stabilityLabels = r.stabilityMidis.map { NoteNames.scientific(it) },
+            voiceQuality = r.voiceQuality,
             bpmRange = "${r.bpmLow}-${r.bpmHigh}", measuredAt = r.measuredAt,
         ))
     }
@@ -442,10 +397,30 @@ class HoloViewModel(
         session = null; pollVersion = 0; saveAllowed = false; autoSaveAttemptedFor = null
     }
 
+    /**
+     * 2단계에서 노래를 고른 뒤 녹음 준비·카운트다운·녹음을 그만둘 때(뒤로가기·"곡 다시 고르기"·앱 전환).
+     * 1단계에서 30초 넘게 잰 음역은 버리지 않고 2단계 곡 고르기로 돌아간다. 고른 곡도 그대로 둔다.
+     * [State.rangeRestartVersion] 은 진행 중이던 [start] 코루틴·마이크 콜백을 무효화하려고 올린다.
+     * 2단계에서는 RangeStage 가 그려지지 않으므로 이 값 때문에 음역 측정이 다시 시작되지는 않는다.
+     */
+    fun cancelTimbre() {
+        val current = _state.value
+        if (current.stage != Stage.TIMBRE || current.phase == Phase.DONE) return
+        cancelPendingSubmission()
+        startJob?.cancel()
+        tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
+        wav?.delete()
+        wav = null
+        synchronized(frames) { frames.clear() }
+        _state.update {
+            State(hasPrevious = it.hasPrevious, stage = Stage.TIMBRE, measuredLow = it.measuredLow, measuredHigh = it.measuredHigh,
+                picked = it.picked, rangeRestartVersion = it.rangeRestartVersion + 1)
+        }
+    }
+
     fun reset() {
         cancelPendingSubmission()
         startJob?.cancel()
-        searchJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         wav?.delete()
         wav = null
@@ -467,16 +442,15 @@ class HoloViewModel(
         tick?.cancel()
         if (capture.isRunning) capture.stop()
         player.release()
+        runCatching { clicks?.release() }
     }
 
     companion object {
         /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
         const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
-        private const val CATALOG_PAGE_SIZE = 40
+        const val COUNTDOWN_STEPS = 4
+        const val COUNTDOWN_STEP_MS = 1_000L
         val GUIDE_LINES = listOf("아— 하고 편하게 소리내 주세요", "낮은 음에서 높은 음까지", "천천히 올려 볼게요")
     }
 }
-
-internal fun hasNextCatalogPage(page: Int, totalPages: Int, itemCount: Int, pageSize: Int): Boolean =
-    if (totalPages > 0) page + 1 < totalPages else itemCount >= pageSize

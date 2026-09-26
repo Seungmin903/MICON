@@ -14,6 +14,7 @@ public final class SetlistResponse {
 		Long setlistId,
 		String name,
 		int songCount,
+		String coverImageUrl,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt
 	) {

@@ -57,6 +57,14 @@ data class PracticeAssetsDto(
     val beatGrid: BeatGrid? = null,
 )
 
+/** `GET /songs/{songId}/practice-guide` — 반주·가사·음표 없이 어려운 구간만 반환한다. */
+data class PracticeGuideDto(
+    val songId: String,
+    val selectedKey: Int = 0,
+    val dataVersion: String? = null,
+    val difficultySections: List<SectionDto> = emptyList(),
+)
+
 data class MediaDto(
     val mediaId: Long? = null,
     val filePath: String? = null,
