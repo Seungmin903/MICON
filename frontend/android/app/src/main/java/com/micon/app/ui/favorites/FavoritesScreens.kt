@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -250,7 +251,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
         ) { showCreate = false; vm.createSetlist(it) }
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)).statusBarsPadding()) {
         MiconHeader(onSettings = onSettings)
         MiconSearchBar(
             query,
