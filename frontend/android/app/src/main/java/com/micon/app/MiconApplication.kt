@@ -59,10 +59,10 @@ class AppContainer(context: Context) {
     /** 로그인 계정별 연습 녹음. 서버 업로드와 Android 백업에 포함하지 않는다. */
     val practiceRecordings = PracticeRecordingStore(context)
 
-    /** 찜. 백엔드 `/users/me/favorites`. [FavoriteRepository.likedIds] 를 곡 목록·찜 탭·세트리스트의 하트가 구독한다. */
+    /** 찜. 백엔드 `/users/me/favorites`. [FavoriteRepository.likedIds] 를 곡 목록·찜 탭·플레이리스트의 하트가 구독한다. */
     val favorites: FavoriteRepository = RemoteFavoriteRepository(backend.api)
 
-    /** 세트리스트. 백엔드 `/setlists`. */
+    /** 플레이리스트. 백엔드 `/setlists`. */
     val setlists: SetlistRepository = RemoteSetlistRepository(backend.api)
 
     /** 설정(원본 녹음 보관)·음성 데이터 삭제. 백엔드 `/users/me/settings`, `/users/me/voice-data-deletions`. */

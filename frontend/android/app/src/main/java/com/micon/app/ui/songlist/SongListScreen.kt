@@ -304,7 +304,7 @@ fun SongListScreen(
     }
 }
 
-/** 연습 곡 선택과 세트리스트 곡 추가가 함께 사용하는 전체 곡 카탈로그 UI. */
+/** 연습 곡 선택과 플레이리스트 곡 추가가 함께 사용하는 전체 곡 카탈로그 UI. */
 @Composable
 fun SongCatalogContent(
     state: SongListViewModel.State,

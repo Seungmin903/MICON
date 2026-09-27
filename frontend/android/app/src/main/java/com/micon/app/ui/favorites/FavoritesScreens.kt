@@ -129,7 +129,7 @@ import kotlinx.coroutines.ensureActive
 import kotlin.math.roundToInt
 
 /**
- * 찜 탭. 데이터: 백엔드 `GET /users/me/favorites`(찜 곡), `GET /setlists`(세트리스트).
+ * 찜 탭. 데이터: 백엔드 `GET /users/me/favorites`(찜 곡), `GET /setlists`(플레이리스트).
  * 비회원은 NavHost 가 로그인 안내를 보여 주므로 여기 오지 않는다.
  */
 class FavoritesViewModel(
@@ -190,14 +190,14 @@ class FavoritesViewModel(
             _state.update { it.copy(busy = true) }
             try {
                 setlists.create(normalized)
-                _state.update { it.copy(setlists = setlists.list(), busy = false, toast = "세트리스트를 만들었어요.") }
+                _state.update { it.copy(setlists = setlists.list(), busy = false, toast = "플레이리스트를 만들었어요.") }
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, toast = describeBackendError(e, "세트리스트를 만들지 못했어요.")) }
+                _state.update { it.copy(busy = false, toast = describeBackendError(e, "플레이리스트를 만들지 못했어요.")) }
             }
         }
     }
 
-    /** 목록에서 스와이프로 선택한 세트리스트 하나를 삭제한다. */
+    /** 목록에서 스와이프로 선택한 플레이리스트 하나를 삭제한다. */
     fun deleteSetlist(setlistId: Long) {
         if (_state.value.busy) return
         viewModelScope.launch {
@@ -208,11 +208,11 @@ class FavoritesViewModel(
                     state.copy(
                         setlists = state.setlists.filterNot { it.id == setlistId },
                         busy = false,
-                        toast = "세트리스트를 삭제했어요.",
+                        toast = "플레이리스트를 삭제했어요.",
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, toast = describeBackendError(e, "세트리스트를 삭제하지 못했어요.")) }
+                _state.update { it.copy(busy = false, toast = describeBackendError(e, "플레이리스트를 삭제하지 못했어요.")) }
             }
         }
     }
@@ -220,9 +220,9 @@ class FavoritesViewModel(
     fun consumeToast() = _state.update { it.copy(toast = null) }
 }
 
-private enum class Tab(val label: String) { FAVORITES("찜"), SETLIST("세트리스트") }
+private enum class Tab(val label: String) { FAVORITES("찜"), SETLIST("플레이리스트") }
 
-/** Figma "노래 찜 목록" / "노래 찜 목록 - 세트리스트" */
+/** Figma "노래 찜 목록" / "노래 찜 목록 - 플레이리스트" */
 @Composable
 fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Unit, onSettings: () -> Unit) {
     val container = rememberAppContainer()
@@ -243,7 +243,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
     if (showCreate) {
         NameDialog(
-            "새 세트리스트",
+            "새 플레이리스트",
             initial = "",
             confirmLabel = "생성",
             unavailableNames = state.setlists.mapTo(mutableSetOf()) { it.name },
@@ -257,7 +257,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
             query,
             { query = it },
             Modifier.padding(horizontal = 20.dp),
-            placeholder = if (tab == Tab.SETLIST) "세트리스트 이름을 검색해 보세요" else "노래나 가수를 검색해 보세요",
+            placeholder = if (tab == Tab.SETLIST) "플레이리스트 이름을 검색해 보세요" else "노래나 가수를 검색해 보세요",
             prototypeStyle = true,
         )
         Spacer(Modifier.height(16.dp))
@@ -294,7 +294,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                     ) {
                         Icon(Icons.Filled.Add, "새 리스트", Modifier.size(32.dp), tint = Purple)
                         Spacer(Modifier.width(12.dp))
-                        Text("새 세트리스트", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                        Text("새 플레이리스트", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
                     }
                     HorizontalDivider(color = Color(0xFFE1DFE8))
                     Spacer(Modifier.height(6.dp))
@@ -318,7 +318,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
                     }
                 }
                 if (visibleSetlists.isEmpty()) item {
-                    Text(if (query.isBlank()) "세트리스트가 없어요. 위에서 새 리스트를 만들어 보세요." else "검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey)
+                    Text(if (query.isBlank()) "플레이리스트가 없어요. 위에서 새 리스트를 만들어 보세요." else "검색 결과가 없습니다.", Modifier.padding(vertical = 24.dp), color = Grey)
                 }
             }
             else -> {
@@ -370,7 +370,7 @@ private fun FavoritesFolderTab(label: String, selected: Boolean, onClick: () -> 
     }
 }
 
-/** 세트리스트 세부. 데이터: `GET /setlists/{id}`. 이름 변경·삭제, 전체 곡 검색·추가, 곡 제거를 지원한다. */
+/** 플레이리스트 세부. 데이터: `GET /setlists/{id}`. 이름 변경·삭제, 전체 곡 검색·추가, 곡 제거를 지원한다. */
 class SetlistViewModel(
     private val setlists: SetlistRepository,
     private val setlistId: Long,
@@ -397,7 +397,7 @@ class SetlistViewModel(
                 val detail = setlists.detail(setlistId)
                 _state.update { it.copy(loading = false, detail = detail) }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = describeBackendError(e, "세트리스트를 불러오지 못했어요.")) }
+                _state.update { it.copy(loading = false, error = describeBackendError(e, "플레이리스트를 불러오지 못했어요.")) }
             }
         }
     }
@@ -500,7 +500,7 @@ internal fun moveSetlistSong(songs: List<SetlistSong>, songId: String, targetSon
     return songs.toMutableList().apply { add(to, removeAt(from)) }.mapIndexed { index, song -> song.copy(position = index) }
 }
 
-/** Figma "노래 찜 목록 - 세트리스트 세부" */
+/** Figma "노래 찜 목록 - 플레이리스트 세부" */
 @Composable
 fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> Unit) {
     val container = rememberAppContainer()
@@ -531,7 +531,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     val listState = rememberLazyListState()
 
     LaunchedEffect(state.toast) { state.toast?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show(); vm.consumeToast() } }
-    LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "세트리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
+    LaunchedEffect(state.deleted) { if (state.deleted) { Toast.makeText(context, "플레이리스트를 삭제했어요.", Toast.LENGTH_SHORT).show(); onBack() } }
     LaunchedEffect(state.editing) {
         // 수정 진입 전에 목록을 보던 위치가 남아 있으면 첫 행의 "곡 검색해서 추가"가
         // 화면 밖으로 숨는다. 수정 모드에서는 항상 추가 행부터 보이게 한다.
@@ -574,7 +574,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     }
     if (showDelete && detail != null) {
         ConfirmDialog(
-            title = "세트리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요.",
+            title = "플레이리스트를 삭제할까요?", text = "'${detail.name}' 리스트가 지워져요.",
             confirmLabel = "삭제", onDismiss = { showDelete = false }, onConfirm = { showDelete = false; vm.delete() },
         )
     }
@@ -595,10 +595,10 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
-        BackHeader("나의 세트리스트", onBack)
+        BackHeader("나의 플레이리스트", onBack)
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
-            detail == null -> RetryBlock(state.error ?: "세트리스트를 찾을 수 없습니다.", vm::load)
+            detail == null -> RetryBlock(state.error ?: "플레이리스트를 찾을 수 없습니다.", vm::load)
             else -> {
                 Surface(color = Color.White) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -615,7 +615,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                     modifier = Modifier.weight(1f, fill = false),
                                 )
                                 IconButton(onClick = { showRename = true }) {
-                                    Icon(Icons.Outlined.Edit, "세트리스트 이름 변경", tint = Purple)
+                                    Icon(Icons.Outlined.Edit, "플레이리스트 이름 변경", tint = Purple)
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
@@ -646,7 +646,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
                                 )
                                 HorizontalDivider(Modifier.padding(horizontal = 12.dp), color = Color(0xFFE1DFE8))
                                 DropdownMenuItem(
-                                    text = { Text("세트리스트 삭제", color = Red, fontWeight = FontWeight.Medium) },
+                                    text = { Text("플레이리스트 삭제", color = Red, fontWeight = FontWeight.Medium) },
                                     leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = Red) },
                                     onClick = { menu = false; showDelete = true },
                                 )
@@ -799,7 +799,7 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
     }
 }
 
-/** 일반 세트리스트 목록에서만 쓰는 명시적 삭제 동작. 편집 화면의 드래그와 충돌하지 않는다. */
+/** 일반 플레이리스트 목록에서만 쓰는 명시적 삭제 동작. 편집 화면의 드래그와 충돌하지 않는다. */
 @Composable
 private fun SetlistSwipeToDeleteRow(
     opened: Boolean,
@@ -926,7 +926,7 @@ private fun ConfirmDialog(title: String, text: String, confirmLabel: String, onD
     )
 }
 
-/** 전체 화면에서 곡을 검색·선택해 세트리스트에 추가한다. */
+/** 전체 화면에서 곡을 검색·선택해 플레이리스트에 추가한다. */
 @Composable
 private fun AddSongScreen(
     state: SongListViewModel.State,

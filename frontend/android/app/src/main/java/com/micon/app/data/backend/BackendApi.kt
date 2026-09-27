@@ -158,7 +158,7 @@ interface BackendApi {
     @POST("users/me/voice-data-deletions")
     suspend fun deleteVoiceData(@Body body: VoiceDataDeletionRequest): Response<ApiResponse<VoiceDataDeletionResultDto>>
 
-    // ---- 찜·세트리스트 (FavoriteController · SetlistController) ----
+    // ---- 찜·플레이리스트 (FavoriteController · SetlistController) ----
 
     @GET("favorites")
     suspend fun favorites(): Response<ApiResponse<FavoriteResponseDto>>
