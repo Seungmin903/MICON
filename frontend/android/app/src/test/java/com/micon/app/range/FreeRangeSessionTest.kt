@@ -49,21 +49,21 @@ class FreeRangeSessionTest {
         feed(session, 4.3, 11.0, sweep(60.0, 57.0, 59.0, 4.3, 7.0, 8.0))
         assertEquals("down", session.view().phase)
         assertEquals(57.0, session.view().extremeMidi!!, .2)
-        feed(session, 11.0, 19.4, sweep(60.0, 57.0, 59.0, 4.3, 7.0, 8.0))
+        feed(session, 11.0, 14.4, sweep(60.0, 57.0, 59.0, 4.3, 7.0, 8.0))
         assertEquals("transition", session.view().phase)
         assertEquals(2, session.view().completed)
 
-        assertTrue(session.advance(19.4))
-        feed(session, 19.4, 34.5, sweep(60.0, 64.0, 62.0, 19.4, 22.1, 23.1))
+        assertTrue(session.advance(14.4))
+        feed(session, 14.4, 29.5, sweep(60.0, 64.0, 62.0, 14.4, 17.1, 18.1))
         assertEquals("done", session.view().phase)
 
-        val result = session.submission(34.6)!!
+        val result = session.submission(29.6)!!
         assertEquals(RangeProtocol.FREE_VERSION, result.protocolVersion)
         assertEquals(listOf("comfort", "down", "up"), result.stages.map { it.kind })
         val down = result.stages[1]
         val up = result.stages[2]
-        assertEquals(FreeRangeSession.MISSION_SECONDS, down.end - down.start, .1)
-        assertEquals(FreeRangeSession.MISSION_SECONDS, up.end - up.start, .1)
+        assertEquals(FreeRangeSession.DOWN_MISSION_SECONDS, down.end - down.start, .1)
+        assertEquals(FreeRangeSession.UP_MISSION_SECONDS, up.end - up.start, .1)
         assertEquals(57.0, down.endpointMidi, .2)
         assertEquals(64.0, up.endpointMidi, .2)
         assertTrue(down.holdStart - down.start >= FreeRangeSession.ENDPOINT_OFFSET_SECONDS)
@@ -74,16 +74,16 @@ class FreeRangeSessionTest {
         val session = FreeRangeSession("late-test")
         toComfort(session)
         assertTrue(session.advance(4.3))
-        // Fifteen seconds of the start note alone: nothing to record yet.
+        // More than ten seconds of the start note alone: nothing to record yet.
         feed(session, 4.3, 21.0, { 60.0 })
         assertEquals("down", session.view().phase)
-        assertTrue(session.view().elapsed > FreeRangeSession.MISSION_SECONDS)
+        assertTrue(session.view().elapsed > FreeRangeSession.DOWN_MISSION_SECONDS)
         // Only now does the voice actually descend.
         feed(session, 21.0, 23.0, { t -> 60.0 - 3.0 * (t - 21.0) / 2.0 })
         feed(session, 23.0, 25.0, { 57.0 })
         assertEquals("transition", session.view().phase)
         val down = checkNotNull(session.checkpoint(25.0)).stages[1]
-        assertTrue(down.end - down.start > FreeRangeSession.MISSION_SECONDS)
+        assertTrue(down.end - down.start > FreeRangeSession.DOWN_MISSION_SECONDS)
         assertTrue(down.end - down.start < FreeRangeSession.MAX_STAGE_SECONDS)
         assertTrue(down.endpointMidi <= 58.0)
     }

@@ -166,8 +166,8 @@ fun HoloScreen(
 // ---------------------------------------------------------------- 1단계: 음역
 
 /**
- * 음역 측정. 재는 일은 develop 의 자유 발성 15초 미션(FreeRangeViewModel)이 그대로 하고,
- * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 15초 → 높은 음 15초.
+ * 음역 측정. 재는 일은 자유 발성 미션(FreeRangeViewModel)이 그대로 하고,
+ * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 10초 → 높은 음 15초.
  */
 @Composable
 private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVersion: Long) {
@@ -285,7 +285,7 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
 
 private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.phase) {
     "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
-    "down", "up" -> (view.elapsed / FreeRangeSession.MISSION_SECONDS).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, 1.0)
     "done" -> 1.0
     else -> 0.0
 }

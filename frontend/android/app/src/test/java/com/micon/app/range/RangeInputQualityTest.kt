@@ -84,4 +84,21 @@ class RangeInputQualityTest {
         file.delete()
         assertFalse(RangeInputQuality().inspect(submission, file, 16000, true).ready)
     }
+
+    @Test fun lowerSweepAcceptsTenSecondsButUpperSweepStillNeedsFifteen() {
+        val stages = listOf(
+            FreeRangeStage("comfort", 0.0, 3.0, 60.0, 60.0, 1.0, 2.6),
+            FreeRangeStage("down", 3.2, 13.2, 60.0, 57.0, 7.0, 7.5),
+            FreeRangeStage("up", 13.4, 28.4, 60.0, 64.0, 20.0, 20.5),
+        )
+        val free = submission.copy(protocolVersion = RangeProtocol.FREE_VERSION, startMidi = 60,
+            durationSeconds = 28.5, attempts = emptyList(), sampling = null, stages = stages)
+        assertNull(RangeInputQuality.metadataProblem(free))
+        assertNotNull(RangeInputQuality.metadataProblem(free.copy(stages = stages.toMutableList().apply {
+            this[1] = this[1].copy(end = 12.8)
+        })))
+        assertNotNull(RangeInputQuality.metadataProblem(free.copy(stages = stages.toMutableList().apply {
+            this[2] = this[2].copy(end = 28.0)
+        })))
+    }
 }
