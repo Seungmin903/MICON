@@ -42,13 +42,15 @@ class VoiceAnalysisUploadValidatorTest {
     }
 
     @Test
-    void acceptsTenSecondLowerSweepButStillRequiresFifteenSecondsForUpperSweep() {
+    void acceptsNewTwentySecondAndLegacyFifteenSecondUpperSweeps() {
         String stages = """
                 [{"kind":"comfort","start":0,"end":3,"startMidi":60,"endpointMidi":60,"holdStart":1,"holdEnd":2.6},
                  {"kind":"down","start":3.2,"end":13.2,"startMidi":60,"endpointMidi":57,"holdStart":7,"holdEnd":7.5},
                  {"kind":"up","start":13.4,"end":28.4,"startMidi":60,"endpointMidi":64,"holdStart":20,"holdEnd":20.5}]
                 """;
         validator.validateRange(file("sample.wav", "audio/wav"), freeRangeRequest(stages));
+        validator.validateRange(file("sample.wav", "audio/wav"),
+                freeRangeRequest(stages.replace("\"end\":28.4", "\"end\":33.4"), 33.5));
         assertThatThrownBy(() -> validator.validateRange(file("sample.wav", "audio/wav"),
                 freeRangeRequest(stages.replace("\"end\":13.2", "\"end\":12.8"))))
                 .isInstanceOf(BusinessException.class);
@@ -58,8 +60,12 @@ class VoiceAnalysisUploadValidatorTest {
     }
 
     private VoiceSessionRequest.RangeAnalysisUpload freeRangeRequest(String stages) {
+        return freeRangeRequest(stages, 28.5);
+    }
+
+    private VoiceSessionRequest.RangeAnalysisUpload freeRangeRequest(String stages, double durationSeconds) {
         return new VoiceSessionRequest.RangeAnalysisUpload("request-1", 1, "measurement-1", LocalDateTime.now(),
-                "guided-range-v8", "basic", null, 60, BigDecimal.valueOf(.001), BigDecimal.valueOf(28.5),
+                "guided-range-v8", "basic", null, 60, BigDecimal.valueOf(.001), BigDecimal.valueOf(durationSeconds),
                 "completed", "endpoint_held", "endpoint_held", null, "v2", null, null,
                 new ObjectMapper().readTree(stages));
     }

@@ -167,7 +167,7 @@ fun HoloScreen(
 
 /**
  * 음역 측정. 재는 일은 자유 발성 미션(FreeRangeViewModel)이 그대로 하고,
- * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 10초 → 높은 음 15초.
+ * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 10초 → 높은 음 20초.
  */
 @Composable
 private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVersion: Long) {

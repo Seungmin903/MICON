@@ -55,9 +55,11 @@ class FreeRangeSessionTest {
 
         assertTrue(session.advance(14.4))
         feed(session, 14.4, 29.5, sweep(60.0, 64.0, 62.0, 14.4, 17.1, 18.1))
+        assertEquals("up", session.view().phase)
+        feed(session, 29.5, 34.5, sweep(60.0, 64.0, 62.0, 14.4, 17.1, 18.1))
         assertEquals("done", session.view().phase)
 
-        val result = session.submission(29.6)!!
+        val result = session.submission(34.6)!!
         assertEquals(RangeProtocol.FREE_VERSION, result.protocolVersion)
         assertEquals(listOf("comfort", "down", "up"), result.stages.map { it.kind })
         val down = result.stages[1]

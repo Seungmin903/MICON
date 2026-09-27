@@ -76,7 +76,9 @@ class RangeInputQuality {
                     // Comfort ends as soon as its note is held; a sweep always runs its fixed mission.
                     val sweep = index > 0
                     val length = stage.end - stage.start
-                    val badLength = if (sweep) length < FreeRangeSession.missionSeconds(stage.kind) - .1 ||
+                    val minimumLength = if (stage.kind == "up") FreeRangeSession.MIN_COMPATIBLE_UP_SECONDS
+                        else FreeRangeSession.DOWN_MISSION_SECONDS
+                    val badLength = if (sweep) length < minimumLength - .1 ||
                         length > FreeRangeSession.MAX_STAGE_SECONDS + .6
                     else length > FreeRangeSession.COMFORT_TIMEOUT_SECONDS + .5
                     val minimumHold = if (sweep) FreeRangeSession.EXTREME_HOLD_SECONDS else FreeRangeSession.HOLD_SECONDS
