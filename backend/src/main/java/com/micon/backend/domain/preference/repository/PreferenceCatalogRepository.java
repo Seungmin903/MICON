@@ -32,7 +32,7 @@ public class PreferenceCatalogRepository {
 		LEFT JOIN artist_portrait p ON p.normalized_name = s.normalized_name
 		""";
 	private static final String SEARCH = """
-		WHERE LOWER(s.name) LIKE :queryPattern ESCAPE '!'
+		LOWER(s.name) LIKE :queryPattern ESCAPE '!'
 		   OR LOWER(p.search_names) LIKE :queryPattern ESCAPE '!'
 		""";
 	private static final RowMapper<Artist> ARTIST = (rs, row) -> new Artist(
@@ -63,8 +63,19 @@ public class PreferenceCatalogRepository {
 		return jdbcTemplate.query(ARTISTS + " WHERE s.singer_id IN (:artistIds) ORDER BY s.singer_id", Map.of("artistIds", artistIds), ARTIST);
 	}
 
+	public List<Artist> findSelectableArtistsByIds(List<Long> artistIds) {
+		if (artistIds.isEmpty()) return List.of();
+		return jdbcTemplate.query(ARTISTS + " WHERE s.singer_id IN (:artistIds) AND " + ACTIVE_ARTIST,
+			Map.of("artistIds", artistIds), ARTIST);
+	}
+
+	private static final String ACTIVE_ARTIST = """
+		EXISTS (SELECT 1 FROM song_singer ss JOIN song song ON song.song_id = ss.song_id
+		        WHERE ss.singer_id = s.singer_id AND song.status = 'ACTIVE')
+		""";
+
 	public List<Artist> findArtists(String query, int size, long offset) {
-		return jdbcTemplate.query(ARTISTS + SEARCH + """
+		return jdbcTemplate.query(ARTISTS + " WHERE " + ACTIVE_ARTIST + " AND (" + SEARCH + ") " + """
 			ORDER BY CASE WHEN COALESCE(NULLIF(p.image_url, ''), NULLIF(s.image_url, '')) IS NULL THEN 1 ELSE 0 END,
 			 (SELECT COUNT(*) FROM song_singer ss JOIN song song ON song.song_id = ss.song_id
 			  WHERE ss.singer_id = s.singer_id AND song.status = 'ACTIVE') DESC,
@@ -77,7 +88,8 @@ public class PreferenceCatalogRepository {
 		Long count = jdbcTemplate.queryForObject("""
 			SELECT COUNT(*) FROM singer s
 			LEFT JOIN artist_portrait p ON p.normalized_name = s.normalized_name
-			""" + SEARCH, searchParameters(query), Long.class);
+			WHERE """ + ACTIVE_ARTIST + " AND (" + SEARCH + ")",
+			searchParameters(query), Long.class);
 		return count == null ? 0 : count;
 	}
 

@@ -39,13 +39,29 @@
       ],
       "title": "Roy Kim",
       "wikidataId": "Q11773473",
-      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg/500px-180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg",
-      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg",
-      "imageAttribution": "dispatchsns",
-      "imageLicense": "CC BY 3.0",
-      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
-      "width": 400,
-      "height": 600
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f8/KCON_2015_Roy_Kim_%28cropped%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:KCON_2015_Roy_Kim_(cropped).jpg",
+      "imageAttribution": "mduangdara",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "width": 1458,
+      "height": 1412
+    },
+    {
+      "name": "김범수",
+      "aliases": [
+        "김범수",
+        "Kim Bum-soo"
+      ],
+      "title": "Kim Bum-soo (singer)",
+      "wikidataId": "Q54350",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/86/KIm_Bum-Soo.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:KIm_Bum-Soo.jpg",
+      "imageAttribution": "여니수니",
+      "imageLicense": "CC BY 2.0 kr",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0/kr/deed.en",
+      "width": 700,
+      "height": 467
     },
     {
       "name": "아이유",
@@ -55,13 +71,13 @@
       ],
       "title": "IU (entertainer)",
       "wikidataId": "Q20145",
-      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/IU_at_Blue_Dragon_Series_Awards_on_18072025_%2810%29.png/500px-IU_at_Blue_Dragon_Series_Awards_on_18072025_%2810%29.png",
-      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:IU_at_Blue_Dragon_Series_Awards_on_18072025_(10).png",
-      "imageAttribution": "티비텐 TV10",
-      "imageLicense": "CC BY 4.0",
-      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
-      "width": 400,
-      "height": 629
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/24/IU_singer.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:IU_singer.jpg",
+      "imageAttribution": "Marie Claire Korea",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 391,
+      "height": 502
     },
     {
       "name": "박효신",
@@ -253,6 +269,7 @@
       "name": "G-DRAGON",
       "aliases": [
         "G-DRAGON",
+        "g dragon",
         "지드래곤"
       ],
       "title": "G-Dragon",
@@ -303,13 +320,13 @@
       ],
       "title": "BOL4",
       "wikidataId": "Q26960605",
-      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Ahn_Ji-young_in_November_2025.png/500px-Ahn_Ji-young_in_November_2025.png",
-      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Ahn_Ji-young_in_November_2025.png",
-      "imageAttribution": "TV10",
-      "imageLicense": "CC BY 3.0",
-      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
-      "width": 400,
-      "height": 566
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/86/180228_Ahn_Ji-young_at_the_Japan_Tokyo_Showcase.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180228_Ahn_Ji-young_at_the_Japan_Tokyo_Showcase.jpg",
+      "imageAttribution": "Seono_",
+      "imageLicense": "CC BY-SA 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "width": 593,
+      "height": 775
     },
     {
       "name": "다비치",
@@ -329,7 +346,8 @@
     {
       "name": "Mrs. GREEN APPLE",
       "aliases": [
-        "Mrs. GREEN APPLE"
+        "Mrs. GREEN APPLE",
+        "Mrs green"
       ],
       "title": "Mrs. Green Apple",
       "wikidataId": "Q22129461",
@@ -428,11 +446,11 @@
       ],
       "title": "Justin Bieber",
       "wikidataId": "Q34086",
-      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_%28cropped_2%29.jpg/500px-P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_%28cropped_2%29.jpg",
-      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:P20260719DT-1213_President_Donald_J._Trump_and_First_Lady_Melania_Trump_attend_the_FIFA_World_Cup_Final_(cropped_2).jpg",
-      "imageAttribution": "Daniel Torok",
-      "imageLicense": "Public domain",
-      "imageLicenseUrl": null,
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Justin_Bieber_in_concert_crop.jpg/500px-Justin_Bieber_in_concert_crop.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Justin_Bieber_in_concert_crop.jpg",
+      "imageAttribution": "Moxy (original photo by Heather Sokol)",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
       "width": 400,
       "height": 647
     },
@@ -544,6 +562,162 @@
       "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
       "width": 400,
       "height": 533
+    },
+    {
+      "name": "수지",
+      "aliases": ["수지", "Bae Suzy"],
+      "title": "Bae Suzy at Incheon Airport on July 18, 2017 (4)",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Bae_Suzy_at_Incheon_Airport_on_July_18%2C_2017_%284%29.jpg/500px-Bae_Suzy_at_Incheon_Airport_on_July_18%2C_2017_%284%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Bae_Suzy_at_Incheon_Airport_on_July_18,_2017_(4).jpg",
+      "imageAttribution": "SHAQ Photo",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 1576,
+      "height": 2222
+    },
+    {
+      "name": "웬디",
+      "aliases": ["웬디", "Wendy", "Red Velvet"],
+      "title": "Red Velvet Wendy 2025-03-20",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Red_Velvet_Wendy_2025-03-20.png/500px-Red_Velvet_Wendy_2025-03-20.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Red_Velvet_Wendy_2025-03-20.png",
+      "imageAttribution": "K-POPIT 케이팝잇 / TV10",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 1382,
+      "height": 1842
+    },
+    {
+      "name": "이은미",
+      "aliases": ["이은미", "Lee Eun-mi"],
+      "title": "Lee Eun-Mi",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Lee_Eun-Mi.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Lee_Eun-Mi.jpg",
+      "imageAttribution": "EXPO 2012 YEOSU KOREA",
+      "imageLicense": "CC BY 2.0 kr",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0/kr/deed.en",
+      "width": 700,
+      "height": 1050
+    },
+    {
+      "name": "카더가든",
+      "aliases": ["카더가든", "Car, the Garden"],
+      "title": "Car, the Garden in 2026",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Car,_the_Garden_in_2026.png",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Car,_the_Garden_in_2026.png",
+      "imageAttribution": "K-POPIT 케이팝잇",
+      "imageLicense": "CC BY 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "width": 706,
+      "height": 941
+    },
+    {
+      "name": "규현",
+      "aliases": ["규현", "Kyuhyun", "조규현"],
+      "title": "Kyuhyun in Bangkok",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/Kyuhyun_in_Bangkok.jpg/330px-Kyuhyun_in_Bangkok.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Kyuhyun_in_Bangkok.jpg",
+      "imageAttribution": "Sry85",
+      "imageLicense": "CC BY-SA 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "width": 514,
+      "height": 1012
+    },
+    {
+      "name": "박완규",
+      "aliases": ["박완규", "Park Wan-kyu"],
+      "title": "Park Wan-Kyu",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Park_Wan-Kyu.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Park_Wan-Kyu.jpg",
+      "imageAttribution": "여니수니",
+      "imageLicense": "CC BY 2.0 kr",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0/kr/deed.en",
+      "width": 467,
+      "height": 700
+    },
+    {
+      "name": "크러쉬",
+      "aliases": ["크러쉬", "Crush", "신효섭"],
+      "title": "Crush Korean singer",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Crush_Korean_singer.jpg/500px-Crush_Korean_singer.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Crush_Korean_singer.jpg",
+      "imageAttribution": "Pabian",
+      "imageLicense": "CC BY-SA 4.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "width": 1000,
+      "height": 666
+    },
+    {
+      "name": "BMK",
+      "aliases": ["BMK", "Big Mama King"],
+      "title": "Big Mama King (BMK)",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Big_Mama_King_%28BMK%29.jpg/500px-Big_Mama_King_%28BMK%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Big_Mama_King_(BMK).jpg",
+      "imageAttribution": "LG Electronics",
+      "imageLicense": "CC BY 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "width": 519,
+      "height": 903
+    },
+    {
+      "name": "대성",
+      "aliases": ["대성", "Daesung", "D-Lite"],
+      "title": "Daesung 2012",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Daesung_2012.jpg/500px-Daesung_2012.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Daesung_2012.jpg",
+      "imageAttribution": "Nicole Voon",
+      "imageLicense": "CC BY 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "width": 1206,
+      "height": 1799
+    },
+    {
+      "name": "동방신기",
+      "aliases": ["동방신기", "TVXQ", "DBSK", "Tohoshinki"],
+      "title": "180320 동방신기 02",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:Redirect/file/180320_%EB%8F%99%EB%B0%A9%EC%8B%A0%EA%B8%B0_02.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:180320_%EB%8F%99%EB%B0%A9%EC%8B%A0%EA%B8%B0_02.jpg",
+      "imageAttribution": "dispatchsns",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 1325,
+      "height": 994
+    },
+    {
+      "name": "Oasis",
+      "aliases": ["Oasis", "오아시스"],
+      "title": "Oasis 2005",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Oasis_2005.jpg/960px-Oasis_2005.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Oasis_2005.jpg",
+      "imageAttribution": "Etsai from Japan",
+      "imageLicense": "CC BY-SA 2.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "width": 1600,
+      "height": 1200
+    },
+    {
+      "name": "Christopher",
+      "aliases": ["Christopher", "크리스토퍼"],
+      "title": "Christopher (sanger)",
+      "imageUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Christopher_%28sanger%29.jpg/960px-Christopher_%28sanger%29.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:Christopher_(sanger).jpg",
+      "imageAttribution": "Kim Matthäi Leland",
+      "imageLicense": "CC BY-SA 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "width": 1200,
+      "height": 800
+    },
+    {
+      "name": "이정현",
+      "aliases": ["이정현", "Lee Jung-hyun"],
+      "title": "제2회 더 서울 어워즈 이정현",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:Redirect/file/%27%EC%A0%9C2%ED%9A%8C_%EB%8D%94_%EC%84%9C%EC%9A%B8_%EC%96%B4%EC%9B%8C%EC%A6%88%27_%EC%9D%B4%EC%A0%95%ED%98%84.jpg",
+      "imageSourceUrl": "https://commons.wikimedia.org/wiki/File:%27%EC%A0%9C2%ED%9A%8C_%EB%8D%94_%EC%84%9C%EC%9A%B8_%EC%96%B4%EC%9B%8C%EC%A6%88%27_%EC%9D%B4%EC%A0%95%ED%98%84.jpg",
+      "imageAttribution": "Korea Dispatch",
+      "imageLicense": "CC BY 3.0",
+      "imageLicenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "width": 396,
+      "height": 401
     }
   ],
   "skipped": [
