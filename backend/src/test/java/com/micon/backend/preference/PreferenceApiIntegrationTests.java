@@ -59,8 +59,8 @@ class PreferenceApiIntegrationTests {
 			""");
 		jdbcTemplate.update("""
 			INSERT INTO SINGER(singer_id, name, normalized_name, image_url)
-			VALUES (301, '아이유', '아이유', 'iu.jpg'),
-			       (302, 'DAY6', 'day6', 'day6.jpg'),
+			VALUES (301, '아이유', '아이유', 'https://cdn.example/iu.jpg'),
+			       (302, 'DAY6', 'day6', 'https://cdn.example/day6.jpg'),
 			       (303, '100%_밴드', '100%_밴드', NULL)
 			""");
 	}
@@ -112,8 +112,8 @@ class PreferenceApiIntegrationTests {
 			.andExpect(jsonPath("$.data.content.length()").value(1))
 			.andExpect(jsonPath("$.data.content[0].artistId").value(302))
 			.andExpect(jsonPath("$.data.content[0].imageUrl").value(org.hamcrest.Matchers.startsWith("https://")))
-			.andExpect(jsonPath("$.data.content[0].imageLicense").value("CC BY 3.0"))
-			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").value(org.hamcrest.Matchers.containsString("commons.wikimedia.org")))
+			.andExpect(jsonPath("$.data.content[0].imageLicense").isEmpty())
+			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").isEmpty())
 			.andExpect(jsonPath("$.data.totalElements").value(1))
 			.andExpect(jsonPath("$.data.totalPages").value(1));
 
@@ -220,6 +220,7 @@ class PreferenceApiIntegrationTests {
 	@Test
 	void hiddenCatalogGenresCannotBeSelectedAndSavedArtistsKeepCredits() throws Exception {
 		jdbcTemplate.update("INSERT INTO genre(genre_id,name,normalized_name,category) VALUES (203,'태교','hidden-test','ETC')");
+		jdbcTemplate.update("UPDATE singer SET image_url=NULL WHERE singer_id=301");
 		save(user, "{\"genreIds\":[203],\"artistIds\":[301],\"onboardingCompleted\":true}")
 			.andExpect(status().isBadRequest());
 		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
