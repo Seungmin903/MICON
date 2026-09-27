@@ -96,7 +96,7 @@ fun AnalysisScreen(
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
             }
         } else {
-            VoiceResultContent(result, showStatus = false, showSummary = false)
+            VoiceResultContent(result, showStatus = false)
             MiconButton("내 목소리 다시 분석하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }

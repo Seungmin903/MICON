@@ -72,7 +72,7 @@ private val Gutter = 48.dp
 
 /**
  * 분석 결과 — 프로토타입 `voiceResult`. 항목: 나의 음역대 · 음역대 지도 · 음역별 안정성 · 내 목소리에 맞는 음악 ·
- * 나와 닮은 목소리(서버 음색 분석이 끝나면) · 요약 태그. 카드는 60ms 간격으로 떠오른다.
+ * 나와 닮은 목소리(서버 음색 분석이 끝나면). 카드는 60ms 간격으로 떠오른다.
  */
 @Composable
 fun VoiceResultScreen(
@@ -115,7 +115,7 @@ fun VoiceResultScreen(
 
 /** 분석 완료 화면과 분석 탭이 같은 결과 UI를 공유한다. */
 @Composable
-fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true, showSummary: Boolean = true) {
+fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true) {
     FadeIn(0) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (showStatus) MiconBadge("측정 완료", tone = MiconChipTone.Success)
@@ -134,7 +134,6 @@ fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true, showSumma
             Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if (showSummary) FadeIn(5) { SummaryTint(result) }
 }
 
 @Composable
@@ -500,18 +499,5 @@ private fun SimilarVoicesCard(r: HoloResult) {
                 Text("${(a.similarity * 100).roundToInt()}%", fontFamily = MiconMonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
-    }
-}
-
-@Composable
-private fun SummaryTint(r: HoloResult) {
-    MiconCard(kind = MiconCardKind.Tinted) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MiconBadge(if (r.octaves >= 2) "넓은 음역" else "또렷한")
-            MiconBadge(if (r.phraseSec >= 5) "긴 호흡" else "부드러운")
-            MiconBadge(if (r.voiceQuality != null) "발성 변화 참고" else "발성 점수 미측정", tone = MiconChipTone.Success)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text("이 조건에 맞는 곡을 추천 탭에서 골라 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }

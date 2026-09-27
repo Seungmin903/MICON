@@ -119,6 +119,16 @@ class SongListViewModel(
         scheduleFirstPage()
     }
 
+    /** Reopen a song picker from the full catalog, not the last search, genre, or page. */
+    fun resetToAllSongs() {
+        searchJob?.cancel()
+        pageJob?.cancel()
+        _state.update { it.copy(query = "", selectedGenreId = null, songs = emptyList(),
+            totalElements = 0, loading = true, page = 0, hasMore = false, loadingMore = false,
+            error = null, moreError = null) }
+        loadFirstPage(forceNetwork = false)
+    }
+
     /** 장르가 바뀌면 첫 페이지부터 다시 요청한다. null은 전체 장르다. */
     fun setGenre(genreId: Long?) {
         if (_state.value.selectedGenreId == genreId) return

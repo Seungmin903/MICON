@@ -331,7 +331,7 @@ fun ResultScreen(
 
 /**
  * 연습 상세 리포트 본문(MR !207 리디자인): 총점 → 최근 연습 점수 변화 → 곡 정보 → 상세 점수·판정 분포 →
- * (서버가 주면) 가사별 음정 판정·음정 곡선 → 한 줄 평가 → 구간 평가.
+ * (서버가 주면) 가사별 음정 판정·음정 곡선 → 구간 평가.
  * onOpenFull 이 있으면 마지막에 "전체 리포트 보기" 링크를 둔다.
  */
 @Composable
@@ -442,17 +442,7 @@ fun ResultDetailCards(
                     SyllableJudgementCard(detail)
                 }
 
-                // 6. 한 줄 평가
-                Column(Modifier.fillMaxWidth().background(Lavender, RoundedCornerShape(16.dp)).padding(18.dp)) {
-                    Text("한 줄 평가", fontSize = 12.sp, color = Purple, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        summaryLines.firstOrNull() ?: "점수가 기록됐어요.",
-                        fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink, lineHeight = 24.sp,
-                    )
-                }
-
-                // 7. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
+                // 6. 구간 평가 — 전부 나열하지 않고 잘한 구간 하나·아쉬운 구간 하나만.
                 //    점수가 매겨진 구간이 없으면(구간 자산이 없는 곡) 카드를 아예 그리지 않는다.
                 val measured = report.sections.filter { it.measured && it.score != null }
                 if (measured.isNotEmpty()) {
