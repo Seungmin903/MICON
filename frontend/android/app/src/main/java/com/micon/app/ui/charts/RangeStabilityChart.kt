@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -26,9 +28,10 @@ import com.micon.app.ui.common.ReportNoteNames
 import com.micon.app.ui.common.sharpNoteText
 import com.micon.app.ui.theme.*
 import kotlin.math.ceil
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** Measured points only; the new acoustic score never bridges unmeasured semitones. */
+/** Measured points only; dashed curves bridge gaps without assigning scores to missing notes. */
 @Composable
 fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (Int) -> Unit,
                         modifier: Modifier = Modifier, overview: Boolean = false,
@@ -43,11 +46,16 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
     val noteName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::full
     val axisName: (Int) -> String = if (overview) ReportNoteNames::note else RangeNoteNames::short
     val label = "음역별 $measure 그래프. 세로축 $measure 0에서 100$unit, 가로축 ${noteName(low)}부터 ${noteName(low + span)}. " +
-        if (overview && scoreLabel == null) "측정한 음 사이를 선으로 연결합니다." else "빈 음은 연결하지 않습니다."
+        when {
+            scoreLabel != null -> "실선은 연속 측정 음 사이, 점선은 미측정 음을 지나는 시각적 연결입니다."
+            overview -> "측정한 음 사이를 선으로 연결합니다."
+            else -> "빈 음은 연결하지 않습니다."
+        }
     Canvas(modifier.fillMaxWidth().height(190.dp).testTag("range-stability-chart")
         .semantics {
             contentDescription = label
-            customActions = if (overview) emptyList() else points.map { point ->
+            customActions = if (overview) emptyList() else
+                (if (scoreLabel != null) points.filter { it.ratio != null } else points).map { point ->
                 val value = point.ratio?.let { "$measure ${(it * 100).roundToInt()}$unit" } ?: "표시할 측정값 없음"
                 CustomAccessibilityAction("${RangeNoteNames.full(point.note.midi)} $value 상세 보기") {
                     onSelect(point.note.midi); true
@@ -58,7 +66,10 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
             detectTapGestures { position ->
                 val left = 44.dp.toPx()
                 val width = (size.width - left - 16.dp.toPx()).coerceAtLeast(1f)
-                onSelect(low + (((position.x - left) / width).coerceIn(0f, 1f) * span).roundToInt())
+                val midi = low + (((position.x - left) / width).coerceIn(0f, 1f) * span).roundToInt()
+                val nearest = if (scoreLabel != null) points.filter { it.ratio != null }
+                    .minByOrNull { abs(it.note.midi - midi) }?.note?.midi else null
+                onSelect(nearest ?: midi)
             }
         })) {
         val left = 44.dp.toPx()
@@ -87,17 +98,30 @@ fun RangeStabilityChart(plot: RangeStabilityPlot, selectedMidi: Int, onSelect: (
             drawText(text, topLeft = Offset((px - text.size.width / 2f).coerceIn(0f, (size.width - text.size.width).coerceAtLeast(0f)), bottom + 12.dp.toPx()))
         }
         drawLine(Grey, Offset(left, top), Offset(left, bottom), 1.dp.toPx())
-        val segments = if (overview && scoreLabel == null) points.filter { it.ratio != null }.zipWithNext()
-            else plot.segments
+        val segments = when {
+            scoreLabel != null -> plot.connectedSegments
+            overview -> points.filter { it.ratio != null }.zipWithNext()
+            else -> plot.segments
+        }
         segments.forEach { (a, b) ->
-            drawLine(Purple, Offset(x(a.note.midi), y(a.ratio!!)), Offset(x(b.note.midi), y(b.ratio!!)), 2.dp.toPx())
+            val x0 = x(a.note.midi)
+            val x1 = x(b.note.midi)
+            val y0 = y(a.ratio!!)
+            val y1 = y(b.ratio!!)
+            if (scoreLabel != null) {
+                val middle = (x0 + x1) / 2f
+                val path = Path().apply { moveTo(x0, y0); cubicTo(middle, y0, middle, y1, x1, y1) }
+                drawPath(path, Purple, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round,
+                    pathEffect = if (b.note.midi - a.note.midi > 1)
+                        PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())) else null))
+            } else drawLine(Purple, Offset(x0, y0), Offset(x1, y1), 2.dp.toPx())
         }
         points.forEach { point ->
             point.ratio?.let { value ->
                 val center = Offset(x(point.note.midi), y(value))
-                val color = if (point.confirmed) Purple else Red
-                drawCircle(GreyLight, 5.dp.toPx(), center)
-                drawCircle(color, 2.8.dp.toPx(), center)
+                val color = if (plot.scoreBased && value == 0f) Red else if (point.confirmed) Purple else Red
+                drawCircle(GreyLight, if (plot.scoreBased && value == 0f) 6.dp.toPx() else 5.dp.toPx(), center)
+                drawCircle(color, if (plot.scoreBased && value == 0f) 4.dp.toPx() else 2.8.dp.toPx(), center)
                 if (!overview && point.note.midi == selectedMidi) drawCircle(color, 7.dp.toPx(), center, style = Stroke(1.5.dp.toPx()))
             }
         }

@@ -49,7 +49,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
 
     @Synchronized fun view() = View(phase, stages.size, currentMidi, runDuration(),
         now - stageStart, message,
-        if (phase in setOf("down", "up")) (MISSION_SECONDS - (now - stageStart)).coerceAtLeast(0.0) else 0.0,
+        if (phase in setOf("down", "up")) (missionSeconds(phase) - (now - stageStart)).coerceAtLeast(0.0) else 0.0,
         if (phase in setOf("down", "up")) bestMidi else null, voicedSeconds)
 
     @Synchronized fun onFrame(frame: RangeFrame): View {
@@ -106,7 +106,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
                     sameRun && direction * (candidate - bestMidi!!) >= 0)) keepRun(candidate)
         }
         val reached = bestMidi?.let { direction * (it - startMidi!!) >= 2.0 } == true
-        val overtime = now - stageStart >= MISSION_SECONDS
+        val overtime = now - stageStart >= missionSeconds(phase)
         message = when {
             overtime && voicedSeconds < MIN_VOICED_SECONDS ->
                 "조금 더 불러 주세요. ${ceil(MIN_VOICED_SECONDS - voicedSeconds).toInt()}초 더 부르면 돼요"
@@ -147,8 +147,16 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     companion object {
         const val HOLD_SECONDS = 1.5
         const val HOLD_TOLERANCE_SEMITONES = 1.5
-        /** A sweep stage runs at least this long; the boundary is whatever it reached by then. */
-        const val MISSION_SECONDS = 15.0
+        /** Recording missions for newly started measurements. */
+        const val DOWN_MISSION_SECONDS = 10.0
+        const val UP_MISSION_SECONDS = 20.0
+        /** Older app recordings with a 15-second upper sweep remain valid for submission. */
+        const val MIN_COMPATIBLE_UP_SECONDS = 15.0
+        fun missionSeconds(phase: String): Double = when (phase) {
+            "down" -> DOWN_MISSION_SECONDS
+            "up" -> UP_MISSION_SECONDS
+            else -> 0.0
+        }
         /** Without a usable segment a sweep keeps listening, but never past this. */
         const val MAX_STAGE_SECONDS = 45.0
         /** A boundary candidate has to be sung steadily for at least this long. */
@@ -199,7 +207,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         if (phase == "comfort") { if (now - stageStart >= COMFORT_TIMEOUT_SECONDS) fail(); return }
         if (phase !in setOf("down", "up")) return
         val elapsed = now - stageStart
-        if (elapsed < MISSION_SECONDS) return
+        if (elapsed < missionSeconds(phase)) return
         if (!usable()) { if (elapsed >= MAX_STAGE_SECONDS) fail(); return }
         complete(minOf(now, stageStart + MAX_STAGE_SECONDS + .4).coerceAtLeast(bestEnd ?: now))
     }

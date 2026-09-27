@@ -8,8 +8,9 @@ from types import SimpleNamespace
 
 import numpy as np
 
-# Each sweep stage is a fixed mission; comfort still ends on a held note.
-MISSION_SECONDS = 15.0
+# Accepted minimums: 10 seconds down and 15 seconds up; newer Android clients record 20 seconds up.
+DOWN_MISSION_SECONDS = 10.0
+UP_MISSION_SECONDS = 15.0
 MAX_STAGE_SECONDS = 45.0
 COMFORT_TIMEOUT_SECONDS = 30.0
 COMFORT_HOLD_SECONDS = 1.5
@@ -35,7 +36,8 @@ def validate_meta(meta: dict, duration: float) -> list[dict]:
             raise ValueError("invalid stage time or pitch") from error
         sweep = index > 0
         length = end - start
-        bad_length = ((not MISSION_SECONDS - .1 <= length <= MAX_STAGE_SECONDS + .6) if sweep
+        mission_seconds = DOWN_MISSION_SECONDS if index == 1 else UP_MISSION_SECONDS
+        bad_length = ((not mission_seconds - .1 <= length <= MAX_STAGE_SECONDS + .6) if sweep
                       else length > COMFORT_TIMEOUT_SECONDS + .5)
         minimum_hold = (SWEEP_HOLD_SECONDS if sweep else COMFORT_HOLD_SECONDS) - .05
         if (not all(math.isfinite(value) for value in

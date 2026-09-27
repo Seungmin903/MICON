@@ -1,6 +1,7 @@
 package com.micon.app.ui.favorites
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -81,7 +83,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -250,7 +251,7 @@ fun FavoritesScreen(onSongClick: (String) -> Unit, onSetlistClick: (Long) -> Uni
         ) { showCreate = false; vm.createSetlist(it) }
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)).statusBarsPadding()) {
         MiconHeader(onSettings = onSettings)
         MiconSearchBar(
             query,
@@ -578,17 +579,19 @@ fun SetlistScreen(setlistId: Long, onBack: () -> Unit, onSongClick: (String) -> 
         )
     }
     if (showAdd) {
-        AddSongDialog(
+        BackHandler(enabled = !state.busy) { showAdd = false }
+        AddSongScreen(
             state = pickerState,
             excludedIds = state.detail?.songs?.map { it.songId }?.toSet().orEmpty(),
             onQueryChange = pickerVm::setQuery,
             onGenreChange = pickerVm::setGenre,
             onRefresh = pickerVm::refresh,
             onLoadMore = pickerVm::loadMore,
-            onDismiss = { showAdd = false },
+            onBack = { showAdd = false },
             busy = state.busy,
             onAddSelected = { songIds -> vm.addSongs(songIds) { showAdd = false } },
         )
+        return
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
@@ -923,70 +926,52 @@ private fun ConfirmDialog(title: String, text: String, confirmLabel: String, onD
     )
 }
 
-/** 전체 곡 카탈로그를 검색해 세트리스트에 없는 곡을 추가한다. */
+/** 전체 화면에서 곡을 검색·선택해 세트리스트에 추가한다. */
 @Composable
-private fun AddSongDialog(
+private fun AddSongScreen(
     state: SongListViewModel.State,
     excludedIds: Set<String>,
     onQueryChange: (String) -> Unit,
     onGenreChange: (Long?) -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
     busy: Boolean,
     onAddSelected: (List<String>) -> Unit,
 ) {
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     LaunchedEffect(excludedIds) { selectedIds = selectedIds - excludedIds }
-    Dialog(
-        onDismissRequest = { if (!busy) onDismiss() },
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth(0.96f)
-                .background(Color.White, RoundedCornerShape(22.dp))
-                .padding(top = 8.dp, bottom = 18.dp),
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+        BackHeader("곡 추가", onBack = { if (!busy) onBack() })
+        Spacer(Modifier.height(8.dp))
+        SongCatalogContent(
+            state = state,
+            onQueryChange = onQueryChange,
+            onGenreChange = onGenreChange,
+            onRefresh = onRefresh,
+            onLoadMore = onLoadMore,
+            onSongClick = {},
+            excludedIds = excludedIds,
+            selectedIds = selectedIds,
+            onSelectionToggle = { songId ->
+                selectedIds = if (songId in selectedIds) selectedIds - songId else selectedIds + songId
+            },
+            searchPlaceholder = "노래나 가수를 검색해 보세요",
+            modifier = Modifier.weight(1f),
+        )
+        Surface(
+            onClick = { if (!busy && selectedIds.isNotEmpty()) onAddSelected(selectedIds.toList()) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp).height(48.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = if (selectedIds.isNotEmpty() && !busy) Purple else GreyLight,
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 28.dp, end = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("곡 추가", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, enabled = !busy) {
-                    Icon(Icons.Filled.Close, contentDescription = "닫기", tint = Grey)
-                }
-            }
-            SongCatalogContent(
-                state = state,
-                onQueryChange = onQueryChange,
-                onGenreChange = onGenreChange,
-                onRefresh = onRefresh,
-                onLoadMore = onLoadMore,
-                onSongClick = {},
-                excludedIds = excludedIds,
-                selectedIds = selectedIds,
-                onSelectionToggle = { songId ->
-                    selectedIds = if (songId in selectedIds) selectedIds - songId else selectedIds + songId
-                },
-                searchPlaceholder = "검색",
-                modifier = Modifier.fillMaxWidth().heightIn(min = 300.dp, max = 500.dp).padding(horizontal = 8.dp),
-            )
-            Spacer(Modifier.height(14.dp))
-            Surface(
-                onClick = { if (!busy && selectedIds.isNotEmpty()) onAddSelected(selectedIds.toList()) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(48.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = if (selectedIds.isNotEmpty() && !busy) Purple else GreyLight,
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (busy) "추가 중…" else "완료 (${selectedIds.size})",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    if (busy) "추가 중…" else "완료 (${selectedIds.size})",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }

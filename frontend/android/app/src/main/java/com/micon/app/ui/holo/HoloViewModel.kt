@@ -54,7 +54,7 @@ class HoloViewModel(
 ) : ViewModel() {
     enum class Phase { IDLE, LOADING, REC, DONE, ERROR }
 
-    /** 1단계 음역(15초 미션) → 2단계 음색(노래 부르기). 두 단계를 한 흐름으로 잇지 않는다. */
+    /** 1단계 음역(저음 10초·고음 20초) → 2단계 음색(노래 부르기). 두 단계를 한 흐름으로 잇지 않는다. */
     enum class Stage { RANGE, TIMBRE }
 
     data class State(
@@ -177,7 +177,7 @@ class HoloViewModel(
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
-    // ---- 곡 선택 ----
+    // Search and pagination belong to SongListViewModel; this state only keeps the chosen song.
     fun pick(song: SongSummary) = _state.update { it.copy(picked = song) }
 
     // ---- 녹음 ----

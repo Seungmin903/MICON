@@ -67,7 +67,7 @@ public class VoiceAnalysisUploadValidator {
         }
     }
 
-    /** Old clients omit this optional display-only result. It never changes AI range input. */
+    /** Old clients omit this optional result; score-bearing clients also derive the persisted comfort range from it. */
     static boolean validVoiceQuality(JsonNode quality, Integer expectedReference) {
         if (!quality.isObject() || !"personal-acoustic-v1".equals(quality.path("version").asText())
                 || !quality.path("referenceMidi").isIntegralNumber()
@@ -88,6 +88,10 @@ public class VoiceAnalysisUploadValidator {
             double upper = point.path("highChange").asDouble();
             double lower = point.path("lowIrregularity").asDouble();
             if (midi <= reference && upper != 0 || midi >= reference && lower != 0) return false;
+            // A pitch tracked for only a short, interrupted attempt has no sustained
+            // acoustic score. It is reported as measured zero, not as an unmeasured note.
+            if (midi != reference && point.path("score").asDouble() == 0
+                    && point.path("holdScore").asDouble() == 0 && upper == 0 && lower == 0) continue;
             double expectedScore = Math.max(0, Math.min(100, 100 - 75 * upper - 75 * lower))
                     * (.65 + .35 * point.path("holdScore").asDouble() / 100);
             if (Math.abs(expectedScore - point.path("score").asDouble()) > .05) return false;
@@ -101,8 +105,9 @@ public class VoiceAnalysisUploadValidator {
                 && value.asDouble() >= 0 && value.asDouble() <= maximum;
     }
 
-    // Each sweep stage is a fixed mission; comfort still ends on a held note.
-    private static final double MISSION_SECONDS = 15;
+    // Accepted minimums: 10 seconds down and 15 seconds up; newer Android clients record 20 seconds up.
+    private static final double DOWN_MISSION_SECONDS = 10;
+    private static final double UP_MISSION_SECONDS = 15;
     private static final double MAX_STAGE_SECONDS = 45;
     private static final double COMFORT_TIMEOUT_SECONDS = 30;
     private static final double COMFORT_HOLD_SECONDS = 1.5;
@@ -125,7 +130,8 @@ public class VoiceAnalysisUploadValidator {
             boolean sweep = index > 0;
             double length = end - start;
             boolean badLength = sweep
-                    ? length < MISSION_SECONDS - .1 || length > MAX_STAGE_SECONDS + .6
+                    ? length < (index == 1 ? DOWN_MISSION_SECONDS : UP_MISSION_SECONDS) - .1
+                            || length > MAX_STAGE_SECONDS + .6
                     : length > COMFORT_TIMEOUT_SECONDS + .5;
             double minimumHold = (sweep ? SWEEP_HOLD_SECONDS : COMFORT_HOLD_SECONDS) - .05;
             if (!Double.isFinite(start) || !Double.isFinite(end) || !Double.isFinite(holdStart) || !Double.isFinite(holdEnd)

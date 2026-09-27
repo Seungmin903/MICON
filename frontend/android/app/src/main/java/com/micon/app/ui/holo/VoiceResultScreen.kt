@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -62,7 +63,7 @@ private val Ser1 = Color(0xFF6C5CE7)
 private val Ser3 = Color(0xFFC2410C)
 
 // 두 음역 카드(음역대 지도 · 내 목소리에 맞는 음악)가 함께 쓰는 규칙. 편한 음역은 어디서나 보라,
-// 전체 음역은 연보라, 안정성 곡선은 편한 구간과 겹쳐 보이지 않게 짙은 잉크.
+// 전체 음역은 연보라, 발성 점수 곡선과 편한 구간은 보라색으로 표시한다.
 private val RangeAll = Color(0xFFC9C1F5)
 private val RangeComfort = Ser1
 private val Ink = Color(0xFF3A3552)
@@ -71,7 +72,7 @@ private val Gutter = 48.dp
 
 /**
  * 분석 결과 — 프로토타입 `voiceResult`. 항목: 나의 음역대 · 음역대 지도 · 음역별 안정성 · 내 목소리에 맞는 음악 ·
- * 나와 닮은 목소리(서버 음색 분석이 끝나면) · 요약 태그. 카드는 60ms 간격으로 떠오른다.
+ * 나와 닮은 목소리(서버 음색 분석이 끝나면). 카드는 60ms 간격으로 떠오른다.
  */
 @Composable
 fun VoiceResultScreen(
@@ -114,11 +115,12 @@ fun VoiceResultScreen(
 
 /** 분석 완료 화면과 분석 탭이 같은 결과 UI를 공유한다. */
 @Composable
-fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true, showSummary: Boolean = true) {
+fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true) {
     FadeIn(0) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (showStatus) MiconBadge("측정 완료", tone = MiconChipTone.Success)
-            Text("편한 음역대를 찾았어요", style = MaterialTheme.typography.titleLarge)
+            Text(if (result.hasComfortRange) "편한 음역대를 찾았어요" else "측정한 음역을 확인했어요",
+                style = MaterialTheme.typography.titleLarge)
         }
     }
     // 두 카드가 같은 자를 쓴다 — 같은 음은 위아래 카드에서 같은 x 에 온다
@@ -132,7 +134,6 @@ fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true, showSumma
             Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if (showSummary) FadeIn(5) { SummaryTint(result) }
 }
 
 @Composable
@@ -157,7 +158,8 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
     MiconCard(kind = MiconCardKind.Outlined) {
         Eyebrow("음역대 지도")
         Spacer(Modifier.height(6.dp))
-        OctaveRangeText(r.comfortLow, r.comfortHigh, size = 26.sp, weight = FontWeight.Bold)
+        if (r.hasComfortRange) OctaveRangeText(r.comfortLow, r.comfortHigh, size = 26.sp, weight = FontWeight.Bold)
+        else Text("80점 이상 구간 없음", fontSize = 23.sp, fontWeight = FontWeight.Bold)
         val oct = r.octaves
         val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
         // "음역 폭" 이라고 못 박아 옥타브 숫자와 헷갈리지 않게 한다.
@@ -175,10 +177,9 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
         Spacer(Modifier.height(14.dp))
         AxisRow(axis)
         Spacer(Modifier.height(6.dp))
-        listOf(
-            Triple("전체", RangeAll, axis.start(r.lowMidi) to axis.end(r.highMidi)),
-            Triple("편한", RangeComfort, axis.start(r.comfortLow) to axis.end(r.comfortHigh)),
-        ).forEachIndexed { i, (label, color, seg) ->
+        (listOf(Triple("전체", RangeAll, axis.start(r.lowMidi) to axis.end(r.highMidi))) +
+            if (r.hasComfortRange) listOf(Triple("편한", RangeComfort, axis.start(r.comfortLow) to axis.end(r.comfortHigh)))
+            else emptyList()).forEachIndexed { i, (label, color, seg) ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.width(Gutter), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(8.dp).background(color, RoundedCornerShape(2.dp)))
@@ -188,6 +189,10 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
                 GrowBar(color, seg.first, seg.second, delayMs = 100 * i, guides = axis.guides)
             }
         }
+        Text(if (r.voiceQuality != null) "발성 유지 점수 80점 이상을 기록한 최저음부터 최고음까지 한 구간으로 표시해요. 중간 음이 모두 80점 이상이라는 뜻은 아니에요."
+            else if (r.notes.isNotEmpty()) "편한 음역은 노래 녹음에서 음높이 흔들림과 유지 시간으로 추정한 구간이에요."
+            else "저장된 음역 정보를 바탕으로 표시한 추정 구간이에요.",
+            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -279,11 +284,8 @@ private fun MatchingMusicCard(r: HoloResult, axis: PitchAxis) {
         }
         else Text("이번 측정에서는 발성 유지 점수를 계산하지 못했어요. 다시 측정하면 확인할 수 있어요.",
             fontSize = 12.sp, color = muted)
-        Text(
-            if (r.voiceQuality != null) "곡선은 편한 시작음과 비교한 발성 유지 점수예요. 높은 음의 배음·주기성 변화와 낮은 음의 끊김을 반영합니다. 가성 확률이나 편안함의 확정 판정은 아니에요."
-            else "보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
-            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp),
-        )
+        if (r.voiceQuality == null) Text("보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
+            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -339,15 +341,17 @@ private class PitchAxis(val low: Int, val high: Int, val whites: List<Int>) {
     }
 }
 
-/** 안정성 꺾은선. x 는 [axis], y 는 안정(위)~부담(아래). 편한 구간은 아래 건반과 같은 보라 틴트 */
+/** 측정 점 사이를 완만한 곡선으로 잇는다. 미측정 반음은 점선을 써서 보간임을 드러낸다. */
 @Composable
 private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
     val best = r.stability.indices.maxByOrNull { r.stability[it] } ?: -1
     Canvas(Modifier.fillMaxWidth().height(100.dp)) {
         fun x(midi: Int) = size.width * axis.fraction(midi)
         fun y(v: Float) = size.height * (0.08f + (1f - v) * 0.84f)
-        val c0 = size.width * axis.start(r.comfortLow)
-        drawRect(RangeComfort.copy(alpha = 0.13f), Offset(c0, 0f), Size(size.width * axis.end(r.comfortHigh) - c0, size.height))
+        if (r.hasComfortRange) {
+            val c0 = size.width * axis.start(r.comfortLow)
+            drawRect(RangeComfort.copy(alpha = 0.13f), Offset(c0, 0f), Size(size.width * axis.end(r.comfortHigh) - c0, size.height))
+        }
         axis.guides.forEach { gx -> drawLine(Color(0xFFE9E5F6), Offset(size.width * gx, 0f), Offset(size.width * gx, size.height), 1.dp.toPx()) }
         listOf(0f, 0.5f, 1f).forEach { v ->
             drawLine(
@@ -356,23 +360,41 @@ private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
             )
         }
         if (r.stability.isEmpty()) return@Canvas
-        val path = Path()
-        r.stability.forEachIndexed { i, v ->
-            val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
-            val cy = y(v)
-            if (i == 0 || (r.voiceQuality != null && r.stabilityMidis.getOrElse(i) { axis.low } -
-                    r.stabilityMidis.getOrElse(i - 1) { axis.low } > 1)) path.moveTo(cx, cy) else {
-                val px = x(r.stabilityMidis.getOrElse(i - 1) { axis.low })
-                val py = y(r.stability[i - 1])
-                path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
+        if (r.voiceQuality != null) {
+            r.stabilityMidis.zip(r.stability).zipWithNext().forEach { (previous, current) ->
+                val px = x(previous.first)
+                val cx = x(current.first)
+                val py = y(previous.second)
+                val cy = y(current.second)
+                val middle = (px + cx) / 2f
+                val path = Path().apply {
+                    moveTo(px, py)
+                    cubicTo(middle, py, middle, cy, cx, cy)
+                }
+                val gap = current.first - previous.first > 1
+                drawPath(path, RangeComfort, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round,
+                    pathEffect = if (gap) PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())) else null))
             }
+        } else {
+            val path = Path()
+            r.stability.forEachIndexed { i, value ->
+                val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
+                val cy = y(value)
+                if (i == 0) path.moveTo(cx, cy) else {
+                    val px = x(r.stabilityMidis.getOrElse(i - 1) { axis.low })
+                    val py = y(r.stability[i - 1])
+                    path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
+                }
+            }
+            drawPath(path, Ink, style = Stroke(2.dp.toPx()))
         }
-        drawPath(path, Ink, style = Stroke(2.dp.toPx()))
         r.stability.forEachIndexed { i, v ->
             val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
             val radius = if (i == best) 6.dp.toPx() else 5.dp.toPx()
+            val color = if (r.voiceQuality != null && v == 0f) Color(0xFFD64A55)
+                else if (r.voiceQuality != null) RangeComfort else Ink
             drawCircle(Color.White, radius, Offset(cx, y(v)))
-            drawCircle(Ink, radius, Offset(cx, y(v)), style = Stroke(2.dp.toPx()))
+            drawCircle(color, radius, Offset(cx, y(v)), style = Stroke(2.dp.toPx()))
         }
     }
 }
@@ -387,7 +409,7 @@ private fun Keyboard(r: HoloResult, axis: PitchAxis) {
         val corner = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
         drawRoundRect(Color(0xFFE7E3F4), Offset.Zero, size, androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
         whites.forEachIndexed { i, m ->
-            val on = m in r.comfortLow..r.comfortHigh
+            val on = r.hasComfortRange && m in r.comfortLow..r.comfortHigh
             drawRoundRect(
                 if (on) Color(0xFFEDE9FF) else Color.White,
                 Offset(i * ww + 1.dp.toPx(), 4.dp.toPx()),
@@ -398,7 +420,7 @@ private fun Keyboard(r: HoloResult, axis: PitchAxis) {
         whites.forEachIndexed { i, m ->
             val sharp = m + 1
             if (((sharp % 12) + 12) % 12 in setOf(1, 3, 6, 8, 10) && i < whites.size - 1) {
-                val on = sharp in r.comfortLow..r.comfortHigh
+                val on = r.hasComfortRange && sharp in r.comfortLow..r.comfortHigh
                 drawRoundRect(
                     if (on) RangeComfort else Ink,
                     Offset((i + 1) * ww - 4.25.dp.toPx(), 4.dp.toPx()),
@@ -408,8 +430,10 @@ private fun Keyboard(r: HoloResult, axis: PitchAxis) {
             }
         }
         // 편한 구간 틴트 — 위 곡선 틴트·음역대 지도 막대와 같은 경계
-        val c0 = size.width * axis.start(r.comfortLow)
-        drawRect(RangeComfort.copy(alpha = 0.13f), Offset(c0, 0f), Size(size.width * axis.end(r.comfortHigh) - c0, size.height))
+        if (r.hasComfortRange) {
+            val c0 = size.width * axis.start(r.comfortLow)
+            drawRect(RangeComfort.copy(alpha = 0.13f), Offset(c0, 0f), Size(size.width * axis.end(r.comfortHigh) - c0, size.height))
+        }
     }
 }
 
@@ -475,18 +499,5 @@ private fun SimilarVoicesCard(r: HoloResult) {
                 Text("${(a.similarity * 100).roundToInt()}%", fontFamily = MiconMonoFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
-    }
-}
-
-@Composable
-private fun SummaryTint(r: HoloResult) {
-    MiconCard(kind = MiconCardKind.Tinted) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MiconBadge(if (r.octaves >= 2) "넓은 음역" else "또렷한")
-            MiconBadge(if (r.phraseSec >= 5) "긴 호흡" else "부드러운")
-            MiconBadge(if (r.voiceQuality != null) "발성 변화 참고" else "발성 점수 미측정", tone = MiconChipTone.Success)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text("이 조건에 맞는 곡을 추천 탭에서 골라 드려요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }

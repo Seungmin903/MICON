@@ -145,4 +145,26 @@ class SongListViewModelTest {
         assertEquals(listOf<Long?>(null, null), songs.genreRequests)
         assertEquals(null, vm.state.value.selectedGenreId)
     }
+
+    @Test fun `reopening picker clears old filters and loads only the first full page`() = runTest {
+        val songs = FakeSongs(120)
+        val vm = SongListViewModel(songs, recommend, preferences); advanceUntilIdle()
+        vm.setQuery("비 오는")
+        vm.setGenre(21)
+        advanceUntilIdle()
+        assertEquals("비 오는", vm.state.value.query)
+        assertEquals(21L, vm.state.value.selectedGenreId)
+
+        val requestsBeforeReopen = songs.requests.size
+        vm.resetToAllSongs()
+        advanceUntilIdle()
+
+        assertEquals("", vm.state.value.query)
+        assertNull(vm.state.value.selectedGenreId)
+        assertEquals(0, vm.state.value.page)
+        assertEquals(50, vm.state.value.songs.size)
+        assertEquals(requestsBeforeReopen + 1, songs.requests.size)
+        assertEquals("" to 0, songs.requests.last())
+        assertNull(songs.genreRequests.last())
+    }
 }

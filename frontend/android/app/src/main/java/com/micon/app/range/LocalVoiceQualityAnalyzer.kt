@@ -23,6 +23,7 @@ object LocalVoiceQualityAnalyzer {
         val comfort = submission.stages.firstOrNull { it.kind == "comfort" } ?: return null
         val held = heldNotes(frames, submission)
         val referenceMidi = comfort.endpointMidi.roundToInt()
+        if (referenceMidi !in held) return null
         val rate = Pcm16MonoWav.sampleRate(wav)
         require(Pcm16MonoWav.duration(wav, rate, true) != null) { "WAV 녹음을 확인할 수 없어요." }
         val floor = max(.001, submission.noiseRms * 3.16)
@@ -30,10 +31,18 @@ object LocalVoiceQualityAnalyzer {
             val referenceFrames = frames.filter { it.t >= comfort.holdStart &&
                 it.t + it.duration <= comfort.holdEnd + .05 && usable(it, floor) }
             val reference = medianEvidence(audio, rate, referenceFrames) ?: return null
-            val points = held.toSortedMap().mapNotNull { (midi, hold) ->
-                val candidates = frames.filter { frame -> usable(frame, floor) &&
-                    RangeProtocol.midi(frame.f0).roundToInt() == midi &&
-                    submission.stages.any { frame.t >= it.start && frame.t < it.end } }
+            val candidatesByMidi = frames.filter { frame -> usable(frame, floor) &&
+                submission.stages.any { frame.t >= it.start && frame.t < it.end } }
+                .groupBy { RangeProtocol.midi(it.f0).roundToInt() }
+            // A short, interrupted voiced attempt is a measured 0, not an unmeasured pitch.
+            // Require several tracked frames so one stray pitch estimate cannot create a score.
+            val attempted = candidatesByMidi.filterValues { noteFrames ->
+                val voiced = noteFrames.filter { RangeEvaluator.voiced(it, floor) }
+                voiced.size >= 3 && voiced.sumOf { it.duration.coerceAtMost(.04) } >= .1
+            }
+            val points = (held.keys + attempted.keys).sorted().mapNotNull { midi ->
+                val hold = held[midi] ?: return@mapNotNull VoiceQualityPoint(midi, 0.0, 0.0, 0.0, 0.0)
+                val candidates = candidatesByMidi[midi].orEmpty()
                 val current = medianEvidence(audio, rate, candidates) ?: return@mapNotNull null
                 val upper = if (midi > referenceMidi) highChange(reference, current) else 0.0
                 val lower = if (midi < referenceMidi) lowIrregularity(reference, current,

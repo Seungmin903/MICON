@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -118,11 +119,37 @@ class SongListViewModel(
         scheduleFirstPage()
     }
 
+    /** Reopen a song picker from the full catalog, not the last search, genre, or page. */
+    fun resetToAllSongs() {
+        searchJob?.cancel()
+        pageJob?.cancel()
+        _state.update { it.copy(query = "", selectedGenreId = null, songs = emptyList(),
+            totalElements = 0, loading = true, page = 0, hasMore = false, loadingMore = false,
+            error = null, moreError = null) }
+        loadFirstPage(forceNetwork = false)
+    }
+
     /** 장르가 바뀌면 첫 페이지부터 다시 요청한다. null은 전체 장르다. */
     fun setGenre(genreId: Long?) {
         if (_state.value.selectedGenreId == genreId) return
-        _state.update { it.copy(selectedGenreId = genreId) }
-        scheduleFirstPage()
+        // 검색어와 달리 장르 선택은 즉시 반영한다. 이전 목록을 0.3초 더 보여 준 뒤
+        // 바꾸면 스크롤을 맨 위로 옮기는 동작과 새 데이터 교체가 겹쳐 끊겨 보인다.
+        searchJob?.cancel()
+        pageJob?.cancel()
+        _state.update {
+            it.copy(
+                selectedGenreId = genreId,
+                songs = emptyList(),
+                totalElements = 0,
+                loading = true,
+                page = 0,
+                hasMore = false,
+                loadingMore = false,
+                error = null,
+                moreError = null,
+            )
+        }
+        loadFirstPage(forceNetwork = false)
     }
 
     /**
@@ -228,7 +255,12 @@ fun SongListScreen(
         }
     })
     val state by vm.state.collectAsStateWithLifecycle()
-    RefreshOnResume { if (!vm.state.value.loading) vm.refresh(forceNetwork = false) }
+    var scrollResetVersion by remember { mutableStateOf(0) }
+    RefreshOnResume {
+        // 하단 탭 전환은 이미 받아 둔 목록을 그대로 사용한다. 재조회까지 하면 목록 교체와
+        // 최상단 이동이 동시에 일어나 화면이 버벅이는 것처럼 보인다.
+        scrollResetVersion++
+    }
     val liked by container.favorites.likedIds.collectAsStateWithLifecycle()
     val loggedIn = TokenManager.isLoggedIn()
     val scope = rememberCoroutineScope()
@@ -246,7 +278,7 @@ fun SongListScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC))) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F5FC)).statusBarsPadding()) {
         if (backTitle != null) {
             BackHeader(backTitle, onBack)
             Spacer(Modifier.height(12.dp))
@@ -266,6 +298,7 @@ fun SongListScreen(
             onSongClick = onSongClick,
             likedIds = liked.takeIf { loggedIn },
             onLike = ::like,
+            resetScrollToken = scrollResetVersion,
             modifier = Modifier.weight(1f),
         )
     }
@@ -287,6 +320,8 @@ fun SongCatalogContent(
     selectedIds: Set<String> = emptySet(),
     onSelectionToggle: ((String) -> Unit)? = null,
     searchPlaceholder: String = "노래나 가수를 검색해 보세요",
+    /** 장르 변경 외에 화면 재진입으로 목록을 맨 위로 되돌릴 때 증가시키는 값. */
+    resetScrollToken: Int = 0,
 ) {
     val visibleSongs = state.songs.filterNot { it.id in excludedIds }
     LaunchedEffect(visibleSongs.size, state.hasMore, state.loading, state.loadingMore, excludedIds) {
@@ -319,8 +354,7 @@ fun SongCatalogContent(
             Text(
                 when {
                     state.loading -> "불러오는 중…"
-                    onSelectionToggle != null -> "총 ${state.totalElements}곡"
-                    else -> "${state.totalElements}곡" + (if (state.songs.size < state.totalElements) " 중 ${visibleSongs.size}곡 표시" else "")
+                    else -> "총 ${state.totalElements}곡"
                 },
                 fontSize = 12.sp, color = Grey, modifier = Modifier.weight(1f),
             )
@@ -332,6 +366,11 @@ fun SongCatalogContent(
             state.loading && state.songs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Purple) }
             else -> {
                 val listState = rememberLazyListState()
+                // 다른 장르와 다른 탭은 별도 목록의 시작점으로 본다. 이전 목록의 중간 위치를
+                // 복원하면 필터가 바뀌었는데 엉뚱한 곡부터 보이는 문제가 생긴다.
+                LaunchedEffect(state.selectedGenreId, resetScrollToken) {
+                    listState.scrollToItem(0)
+                }
                 // 끝에 가까워지면 다음 페이지. 불러오는 중·실패·더 없음이면 기다리지 않는다(실패는 꼬리의 "다시 시도").
                 LoadMoreOnScrollEnd(listState, enabled = state.hasMore && !state.loadingMore && state.moreError == null,
                     itemCount = visibleSongs.size, key = state.page, onLoadMore = onLoadMore)

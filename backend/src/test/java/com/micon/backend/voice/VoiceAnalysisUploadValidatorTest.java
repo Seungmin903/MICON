@@ -4,12 +4,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.micon.backend.common.exception.BusinessException;
 import com.micon.backend.domain.voice.dto.VoiceAnalysisUploadRequest;
+import com.micon.backend.domain.voice.dto.VoiceSessionRequest;
 import com.micon.backend.domain.voice.service.VoiceAnalysisUploadValidator;
 import com.micon.backend.domain.voice.entity.VoiceAnalysisMethod;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
+import tools.jackson.databind.ObjectMapper;
 
 class VoiceAnalysisUploadValidatorTest {
     private final VoiceAnalysisUploadValidator validator = new VoiceAnalysisUploadValidator(262_144_000);
@@ -36,6 +39,35 @@ class VoiceAnalysisUploadValidatorTest {
         assertThatThrownBy(() -> validator.validate(invalid, request(48_000, validSegments())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("RIFF/WAVE");
+    }
+
+    @Test
+    void acceptsNewTwentySecondAndLegacyFifteenSecondUpperSweeps() {
+        String stages = """
+                [{"kind":"comfort","start":0,"end":3,"startMidi":60,"endpointMidi":60,"holdStart":1,"holdEnd":2.6},
+                 {"kind":"down","start":3.2,"end":13.2,"startMidi":60,"endpointMidi":57,"holdStart":7,"holdEnd":7.5},
+                 {"kind":"up","start":13.4,"end":28.4,"startMidi":60,"endpointMidi":64,"holdStart":20,"holdEnd":20.5}]
+                """;
+        validator.validateRange(file("sample.wav", "audio/wav"), freeRangeRequest(stages));
+        validator.validateRange(file("sample.wav", "audio/wav"),
+                freeRangeRequest(stages.replace("\"end\":28.4", "\"end\":33.4"), 33.5));
+        assertThatThrownBy(() -> validator.validateRange(file("sample.wav", "audio/wav"),
+                freeRangeRequest(stages.replace("\"end\":13.2", "\"end\":12.8"))))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> validator.validateRange(file("sample.wav", "audio/wav"),
+                freeRangeRequest(stages.replace("\"end\":28.4", "\"end\":28.0"))))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    private VoiceSessionRequest.RangeAnalysisUpload freeRangeRequest(String stages) {
+        return freeRangeRequest(stages, 28.5);
+    }
+
+    private VoiceSessionRequest.RangeAnalysisUpload freeRangeRequest(String stages, double durationSeconds) {
+        return new VoiceSessionRequest.RangeAnalysisUpload("request-1", 1, "measurement-1", LocalDateTime.now(),
+                "guided-range-v8", "basic", null, 60, BigDecimal.valueOf(.001), BigDecimal.valueOf(durationSeconds),
+                "completed", "endpoint_held", "endpoint_held", null, "v2", null, null,
+                new ObjectMapper().readTree(stages));
     }
 
     private MockMultipartFile file(String name, String contentType) {

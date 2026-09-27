@@ -96,7 +96,7 @@ fun AnalysisScreen(
                 MiconButton("목소리 분석하기", onAnalyze, Modifier.fillMaxWidth())
             }
         } else {
-            VoiceResultContent(result, showStatus = false, showSummary = false)
+            VoiceResultContent(result, showStatus = false)
             MiconButton("내 목소리 다시 분석하기", onMeasureRange, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline)
         }
     }
@@ -106,6 +106,7 @@ fun AnalysisScreen(
 private data class VoiceView(
     val lowMidi: Int, val highMidi: Int, val comfortLow: Int, val comfortHigh: Int,
     val measuredAt: Long, val tags: List<Pair<String, MiconChipTone>>, val artists: List<Triple<String, String?, Int>>,
+    val hasComfortRange: Boolean,
 ) {
     companion object {
         fun from(r: HoloResult) = VoiceView(r.lowMidi, r.highMidi, r.comfortLow, r.comfortHigh, r.measuredAt,
@@ -114,10 +115,12 @@ private data class VoiceView(
                 (if (r.phraseSec >= 5) "긴 호흡" else "부드러운") to MiconChipTone.Neutral,
                 (if (r.stabilityMidis.zip(r.stability).filter { it.first <= 59 }.maxOfOrNull { it.second } ?: 0f >= 0.6f) "중저음 안정" else "음정 안정") to MiconChipTone.Success,
             ),
-            artists = r.artists.map { Triple(it.name, it.imageUrl, (it.similarity * 100).roundToInt()) })
+            artists = r.artists.map { Triple(it.name, it.imageUrl, (it.similarity * 100).roundToInt()) },
+            hasComfortRange = r.hasComfortRange)
         fun from(p: UserStore.VoiceProfile) = VoiceView(p.lowMidi, p.highMidi, p.comfortLow, p.comfortHigh, p.measuredAt,
             tags = p.strengths.take(3).mapIndexed { i, s -> s to if (i == p.strengths.lastIndex) MiconChipTone.Success else MiconChipTone.Neutral },
-            artists = emptyList())
+            artists = emptyList(),
+            hasComfortRange = p.voiceQuality == null || com.micon.app.range.VoiceQualityComfortRange.find(p.voiceQuality, p.lowMidi, p.highMidi) != null)
     }
 }
 
@@ -128,12 +131,13 @@ private fun MyVoiceCard(v: VoiceView, onDetail: () -> Unit) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text("내 목소리 · 편한 음역", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.sp)
-                OctaveRangeText(v.comfortLow, v.comfortHigh, size = 24.sp)
+                if (v.hasComfortRange) OctaveRangeText(v.comfortLow, v.comfortHigh, size = 24.sp)
+                else Text("80점 이상 구간 없음", fontSize = 20.sp)
             }
             Text(SimpleDateFormat("M월 d일", Locale.KOREA).format(Date(v.measuredAt)), fontFamily = MiconMonoFamily, fontSize = 12.sp, color = muted)
         }
         Spacer(Modifier.height(10.dp))
-        RangeBar(v)
+        if (v.hasComfortRange) RangeBar(v)
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { v.tags.forEach { (t, tone) -> MiconBadge(t, tone = tone) } }
     }

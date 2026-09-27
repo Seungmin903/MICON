@@ -48,6 +48,8 @@ class LocalRecommendRepository(private val songs: SongRepository) : RecommendRep
         val notes = runCatching { songs.karaokeNotes(songId) }.getOrNull().orEmpty()
         val reliable = a.taskSupport?.get("pitch_range") !in setOf("fail", "not_analyzed")
         val song = PitchProfile.fromNotes(notes, reliable) ?: PitchProfile.ofStableRange(coreLow, coreHigh)
+        if (profile.voiceQuality != null &&
+            com.micon.app.range.VoiceQualityComfortRange.find(profile.voiceQuality, profile.lowMidi, profile.highMidi) == null) return null
         val user = PitchProfile.ofStableRange(profile.comfortLow, profile.comfortHigh)
         val best = RangeFitCalculator.best(user, song)
         val strain = RangeFitCalculator.strainSectionsBoth(notes, best.keyShift, profile.comfortHigh)

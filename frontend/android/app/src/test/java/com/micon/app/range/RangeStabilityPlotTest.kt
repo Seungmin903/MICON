@@ -12,6 +12,8 @@ class RangeStabilityPlotTest {
         assertNull(plot.points.first { it.note.midi == 61 }.ratio)
         assertEquals("unmeasured", plot.points.first { it.note.midi == 61 }.note.status)
         assertEquals(listOf(62 to 63), plot.segments.map { it.first.note.midi to it.second.note.midi })
+        assertEquals(listOf(60 to 62, 62 to 63),
+            plot.connectedSegments.map { it.first.note.midi to it.second.note.midi })
     }
 
     @Test fun `measured zero differs from missing or uncertain evidence`() {
@@ -20,6 +22,16 @@ class RangeStabilityPlotTest {
         assertEquals(0f, plot.points.first { it.note.midi == 60 }.ratio)
         assertTrue(plot.points.filter { it.note.midi in 61..63 }.all { it.ratio == null })
         assertTrue(plot.segments.isEmpty())
+    }
+
+    @Test fun `acoustic zero is plotted and the unsung semitone is not`() {
+        val quality = VoiceQualityResult(LocalVoiceQualityAnalyzer.VERSION, 60, listOf(
+            VoiceQualityPoint(60, 100.0, 0.0, 0.0, 100.0),
+            VoiceQualityPoint(62, 0.0, 0.0, 0.0, 0.0)))
+        val plot = RangeStabilityPlot.from(quality.graphNotes(), scoreBased = true)
+        assertEquals(0f, plot.points.first { it.note.midi == 62 }.ratio)
+        assertNull(plot.points.first { it.note.midi == 61 }.ratio)
+        assertEquals(listOf(60 to 62), plot.connectedSegments.map { it.first.note.midi to it.second.note.midi })
     }
 
     @Test fun `good latest ratio does not make an inconsistent note confirmed`() {

@@ -202,7 +202,10 @@ private val exitConfirmationRoutes = Routes.withBottomBar + setOf(
 
 /** MiconScreen 으로 옮겨져 시스템 바 여백을 스스로 처리하는 라우트 */
 private val migratedRoutes: Set<String?> = setOf(
+    // 하단 탭은 모두 각 화면이 상태바 여백을 담당한다. 탭마다 담당 위치가 다르면
+    // 전환 순간 NavHost의 높이가 바뀌어 헤더가 위아래로 튄다.
     Routes.HOLO, Routes.VOICE_RESULT, Routes.VOICE_RESULT_VIEW, Routes.REPORT, Routes.RECOMMEND,
+    Routes.PRACTICE, Routes.FAVORITES,
     Routes.SONG, Routes.SONG_MATCH, Routes.EVALUATION, Routes.RESULT,
     Routes.LOGIN, Routes.SIGNUP, Routes.SURVEY, Routes.EDIT_PREFERENCES, Routes.SETTINGS,
     Routes.DEV_RESULT_PREVIEW,

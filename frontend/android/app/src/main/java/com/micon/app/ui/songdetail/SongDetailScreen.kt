@@ -148,12 +148,14 @@ fun SongDetailContent(
         }
         val fit = state.fit
         val song = songRange(detail, fit)
-        val mine = profile?.let { it.comfortLow to it.comfortHigh }
+        val mine = profile?.takeIf { it.voiceQuality == null ||
+            com.micon.app.range.VoiceQualityComfortRange.find(it.voiceQuality, it.lowMidi, it.highMidi) != null }
+            ?.let { it.comfortLow to it.comfortHigh }
         val matchPct = rangeMatchPercent(mine, song, key)
         val verdict = rangeVerdict(mine, song, key, fit?.recommendedKey)
 
         Header(detail, verdict)
-        MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, profile == null)
+        MatchCard(matchPct, mine, song, key, verdict, state.fitLoading, mine == null)
         KeyCard(key, onKey)
         DifficultCard(state, fit)
         val scoreTrend = state.scoreTrend

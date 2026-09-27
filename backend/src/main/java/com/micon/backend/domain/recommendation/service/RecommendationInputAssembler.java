@@ -99,7 +99,7 @@ public class RecommendationInputAssembler {
     private RecommendationInput.VoiceProfile profile(VoiceRangeMeasurement range, String embeddings) {
         BigDecimal low = range == null ? null : range.getStableLowMidi();
         BigDecimal high = range == null ? null : range.getStableHighMidi();
-        if (!validRange(low, high) && range != null) {
+        if (!validRange(low, high) && range != null && range.getVoiceQualityJson() == null) {
             low = range.getFullLowMidi();
             high = range.getFullHighMidi();
         }

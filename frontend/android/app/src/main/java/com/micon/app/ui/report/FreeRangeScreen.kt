@@ -242,7 +242,7 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
 /** Comfort fills as its note is held; a sweep fills as its fixed mission clock runs out. */
 private fun stageProgress(view: FreeRangeSession.View): Double = when (view.phase) {
     "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
-    "down", "up" -> (view.elapsed / FreeRangeSession.MISSION_SECONDS).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, 1.0)
     else -> 0.0
 }
 
@@ -282,8 +282,8 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
             if (view.phase in setOf("down", "up")) {
                 // Past the mission time the stage says what it is still short of, not a countdown.
                 Text(when {
-                    view.elapsed < FreeRangeSession.MISSION_SECONDS ->
-                        "남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.MISSION_SECONDS.toInt())}초"
+                    view.elapsed < FreeRangeSession.missionSeconds(view.phase) ->
+                        "남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.missionSeconds(view.phase).toInt())}초"
                     view.voicedSeconds < FreeRangeSession.MIN_VOICED_SECONDS ->
                         "${ceil(FreeRangeSession.MIN_VOICED_SECONDS - view.voicedSeconds).toInt()}초 더 불러 주세요"
                     else -> "기록할 구간을 기다리는 중…"

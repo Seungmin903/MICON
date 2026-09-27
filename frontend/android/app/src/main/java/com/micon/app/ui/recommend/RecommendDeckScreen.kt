@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -47,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -63,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -109,6 +112,7 @@ import com.micon.app.ui.design.tokens.MiconSpace
 import com.micon.app.ui.design.tokens.miconShadow
 import com.micon.app.ui.rememberAppContainer
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -298,11 +302,12 @@ fun RecommendDeckScreen(
     }
 }
 
-/** 끌리는 중인 카드의 위치(루트 좌표)·들어올린 높이 */
+/** 끌리는 중인 카드의 위치(루트 좌표)·들어올린 높이·카드 선반의 기울기 */
 private data class FloatingCard(
     val item: RecommendedSong,
     val origin: Offset,
     val liftPx: Float,
+    val tilt: Float,
     val thresholdPx: Float,
 )
 
@@ -315,6 +320,9 @@ private fun FloatingDeckCard(f: FloatingCard) {
             .offset { IntOffset(f.origin.x.roundToInt(), (f.origin.y + f.liftPx).roundToInt()) }
             .width(96.dp)
             .graphicsLayer {
+                transformOrigin = TransformOrigin(0.5f, 1f)
+                rotationZ = 14f * f.tilt * (1f - p)
+                translationY = abs(f.tilt) * 14.dp.toPx() * (1f - p)
                 scaleX = 1f - 0.14f * p; scaleY = scaleX
                 alpha = 1f - 0.25f * p
             },
@@ -452,7 +460,7 @@ private fun PickHead(title: String, hint: String) {
     }
 }
 
-/** 가로로 곧게 넘기는 카드 목록. 카드를 위로 끌어 올리면 데크에 올라간다. */
+/** 화면 가운데를 기준으로 펼쳐지는 카드 선반. 카드를 위로 끌어 올리면 데크에 올라간다. */
 @Composable
 private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (RecommendedSong) -> Unit, onFloat: (FloatingCard?) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -464,15 +472,26 @@ private fun CardFan(header: String, songs: List<RecommendedSong>, onLoad: (Recom
             horizontalArrangement = Arrangement.spacedBy(MiconSpace.sm),
         ) {
             items(songs.size, key = { songs[it].song.id }) { i ->
-                DragCard(songs[i], onLoad = { onLoad(songs[i]) }, onFloat = onFloat)
+                val tilt by remember(listState, i) { derivedStateOf { fanTilt(listState, i) } }
+                DragCard(songs[i], tilt = tilt, onLoad = { onLoad(songs[i]) }, onFloat = onFloat)
             }
         }
     }
 }
 
+/** 카드 중심이 화면 중심에서 얼마나 벗어났는지로 양쪽 기울기를 정한다. */
+private fun fanTilt(state: LazyListState, index: Int): Float {
+    val info = state.layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return 0f
+    val center = item.offset + item.size / 2f
+    val mid = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+    val half = info.viewportSize.width / 2f
+    return if (half <= 0f) 0f else ((center - mid) / half).coerceIn(-1f, 1f)
+}
+
 /** 위로 끌리는 카드. 임계(80dp) 를 넘기면 올라가고, 못 넘기면 튕겨 돌아온다 */
 @Composable
-private fun DragCard(item: RecommendedSong, onLoad: () -> Unit, onFloat: (FloatingCard?) -> Unit) {
+private fun DragCard(item: RecommendedSong, tilt: Float, onLoad: () -> Unit, onFloat: (FloatingCard?) -> Unit) {
     val threshold = with(LocalDensity.current) { 80.dp.toPx() }
     val lift = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
@@ -484,7 +503,7 @@ private fun DragCard(item: RecommendedSong, onLoad: () -> Unit, onFloat: (Floati
     // lift 는 **컴포지션에서** 읽어야 값이 바뀔 때 재구성이 걸리고 떠 있는 카드가 손가락을 따라온다.
     val liftValue = lift.value
     if (dragging) {
-        SideEffect { float(FloatingCard(item, origin, liftValue, threshold)) }
+        SideEffect { float(FloatingCard(item, origin, liftValue, tilt, threshold)) }
     }
 
     Box(
@@ -492,6 +511,9 @@ private fun DragCard(item: RecommendedSong, onLoad: () -> Unit, onFloat: (Floati
             .width(96.dp)
             .onGloballyPositioned { origin = it.localToRoot(Offset.Zero) }
             .graphicsLayer {
+                transformOrigin = TransformOrigin(0.5f, 1f)
+                rotationZ = 14f * tilt
+                translationY = abs(tilt) * 14.dp.toPx()
                 alpha = if (dragging) 0f else 1f
             }
             .clickable(onClick = onLoad)

@@ -91,8 +91,10 @@ public class VoiceSessionService {
                 throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE,
                         "이미 다른 세션에 저장된 음역 측정 결과입니다.");
             }
+            var comfort = VoiceQualityComfortRange.find(request.voiceQuality(), request.lowMidi(), request.highMidi());
             VoiceRangeMeasurement measurement = new VoiceRangeMeasurement(session, request.measurementId(), request.protocolVersion(),
-                    request.lowMidi(), request.highMidi(), write(request.noteResults()),
+                    "ON_DEVICE", request.lowMidi(), request.highMidi(),
+                    comfort == null ? null : comfort.low(), comfort == null ? null : comfort.high(), write(request.noteResults()),
                     request.measurementStatus(), request.qualityStatus(), request.measuredAt());
             measurement.setVoiceQualityJson(qualityJson(request));
             ranges.save(measurement);
@@ -113,9 +115,11 @@ public class VoiceSessionService {
         String fingerprint = rangeFingerprint(request);
         if (guest.range == null) {
             guest.rangeMeasurementId = request.measurementId();
+            var comfort = VoiceQualityComfortRange.find(request.voiceQuality(), request.lowMidi(), request.highMidi());
             guest.range = new VoiceSessionResponse.Range(request.lowMidi(), request.highMidi(),
                     request.measurementStatus(), request.qualityStatus(), null,
-                    request.protocolVersion(), null, null, qualityJson(request));
+                    request.protocolVersion(), comfort == null ? null : comfort.low(),
+                    comfort == null ? null : comfort.high(), qualityJson(request));
             guest.rangeStatus = request.measurementStatus();
             guest.rangeFingerprint = fingerprint;
             guest.refreshStatus();
@@ -143,6 +147,12 @@ public class VoiceSessionService {
     private String qualityJson(VoiceSessionRequest.DeviceRangeResult request) {
         return request.voiceQuality() == null || request.voiceQuality().isNull()
                 ? null : request.voiceQuality().toString();
+    }
+
+    private tools.jackson.databind.JsonNode qualityNode(String value) {
+        if (value == null) return null;
+        try { return json.readTree(value); }
+        catch (JacksonException invalid) { throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK); }
     }
 
     private void validateDeviceRange(VoiceSessionRequest.DeviceRangeResult request) {
@@ -252,7 +262,9 @@ public class VoiceSessionService {
             case COMPLETED -> {
                 validateRangeResult(request);
                 job.status = "COMPLETED";
-                job.session.accept(request, job.voiceQualityJson);
+                var quality = qualityNode(job.voiceQualityJson);
+                job.session.accept(request, job.voiceQualityJson,
+                        VoiceQualityComfortRange.find(quality, request.lowMidi(), request.highMidi()));
             }
             case FAILED -> job.fail(request.failureCode(), request.failureReason(), false);
             case INSUFFICIENT_DATA -> job.fail(request.failureCode(), request.failureReason(), true);
@@ -451,11 +463,13 @@ public class VoiceSessionService {
         String rangeMeasurementId, rangeFingerprint;
         VoiceSessionResponse.Range range;
         GuestSession(long id, String token, LocalDateTime expiresAt) { this.id=id; this.token=token; this.expiresAt=expiresAt; }
-        void accept(VoiceAnalysisComponentCallbackRequest r, String voiceQualityJson) {
+        void accept(VoiceAnalysisComponentCallbackRequest r, String voiceQualityJson,
+                VoiceQualityComfortRange.Bounds scored) {
             if (range != null) throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
             range = new VoiceSessionResponse.Range(r.lowMidi(), r.highMidi(), r.measurementStatus(), r.qualityStatus(),
                     r.noteResults() == null ? null : r.noteResults().toString(), r.protocolVersion(),
-                    r.stableLowMidi(), r.stableHighMidi(), voiceQualityJson);
+                    voiceQualityJson == null ? r.stableLowMidi() : scored == null ? null : scored.low(),
+                    voiceQualityJson == null ? r.stableHighMidi() : scored == null ? null : scored.high(), voiceQualityJson);
             rangeStatus=r.measurementStatus(); refreshStatus(); version++;
         }
         VoiceSessionResponse.Session response(boolean includeToken) {
