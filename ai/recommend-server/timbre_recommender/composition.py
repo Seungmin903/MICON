@@ -42,13 +42,8 @@ DEFAULT_MIN_RANGE_SCORE = 0.35
 # 한 가수의 곡을 최대 두 곡만 표시한다. 이는 모델 평가지표가 아닌 제품 구성 정책이다.
 MAX_SONGS_PER_ARTIST = 2
 
-# 언어 게이트. 카탈로그 metadata.languages 는 ISO 639-2. mul/zxx(다국어·가사 없음)는 항상 통과.
+# 카탈로그 언어는 응답 표시용이다. 취향 필터는 DB 장르 태그만 사용한다.
 CATALOG_LANGUAGE = {"kor": "ko", "eng": "en", "jpn": "jp"}
-# Only explicit language choices constrain catalog languages. Musical genres such as pop,
-# dance, ballad, or R&B must never become language gates.
-GENRE_LANGUAGE = {
-    "영어곡": "en", "일본곡": "jp",
-}
 
 _TJ_NUMBER = re.compile(r"(\d+)\s*$")
 _AXES = ("ecapa", "singer_byol")
@@ -69,15 +64,8 @@ def song_id_of(metadata: Mapping[str, Any] | None) -> str | int | None:
     return f"tj-{match.group(1)}" if match else None
 
 
-def allowed_languages(genres: Iterable[str]) -> set[str] | None:
-    """Only explicit language preferences (영어곡/일본곡) limit catalog language."""
-    cleaned = [g.strip() for g in genres if g and g.strip()]
-    selected = {GENRE_LANGUAGE[genre.lower()] for genre in cleaned if genre.lower() in GENRE_LANGUAGE}
-    return selected or None
-
-
 def track_language(metadata: Mapping[str, Any] | None) -> str | None:
-    """ko/en/jp, 알 수 없으면 None(게이트 통과)."""
+    """표시용 ko/en/jp. 알 수 없으면 None."""
     raw = (metadata or {}).get("languages") or (metadata or {}).get("language")
     if isinstance(raw, list):
         raw = raw[0] if raw else None
@@ -148,20 +136,11 @@ def compose_two_axis(
 ) -> dict[str, Any]:
     """`scoring.recommend()` 후보를 두 축 할당으로 뽑고 final_score 순으로 배치한다. 반환: recommendations + algorithm 조각."""
     genres = list(genres)
-    allowed = allowed_languages(genres)
-
     # 1) 앱이 열 수 있는 곡만 (song_id 없는 곡 제외)
     with_song = [item for item in ranked if song_id_of(item.get("metadata"))]
     no_song_count = len(ranked) - len(with_song)
 
-    # 2) 언어 게이트
-    if allowed is None:
-        gated = list(with_song)
-    else:
-        gated = [item for item in with_song if (track_language(item.get("metadata")) in (None, *allowed))]
-    language_excluded = len(with_song) - len(gated)
-
-    # 3) 음역 게이트 (음역 점수가 있을 때만)
+    # 2) 음역 게이트 (음역 점수가 있을 때만)
     if range_enabled:
         def range_ok(item: Mapping[str, Any]) -> bool:
             fit = item.get("range_fit")
@@ -171,10 +150,10 @@ def compose_two_axis(
                 and float(fit.get("score", 0.0)) >= min_range_score
                 and _outside_range_ratio(fit) <= MAX_OUTSIDE_RANGE_RATIO
             )
-        pool = [item for item in gated if range_ok(item)]
+        pool = [item for item in with_song if range_ok(item)]
     else:
-        pool = list(gated)
-    range_excluded = len(gated) - len(pool)
+        pool = list(with_song)
+    range_excluded = len(with_song) - len(pool)
 
     # 4) 축별 순위·백분위
     percentile: dict[str, dict[str, float]] = {item["track_id"]: {} for item in pool}
@@ -272,10 +251,10 @@ def compose_two_axis(
             "unique_artist_count": len(artist_counts),
         },
         "language_gate": {
-            "enabled": allowed is not None,
+            "enabled": False,
             "genres": genres,
-            "allowed": sorted(allowed) if allowed is not None else None,
-            "excluded_count": language_excluded,
+            "allowed": None,
+            "excluded_count": 0,
         },
         "range_filter": {
             "enabled": range_enabled,
@@ -298,14 +277,8 @@ def compose_by_final_score(
 ) -> dict[str, Any]:
     """통과한 후보를 축별 할당 없이 ``final_score`` 순으로 반환한다."""
     genres = list(genres)
-    allowed = allowed_languages(genres)
     with_song = [item for item in ranked if song_id_of(item.get("metadata"))]
     no_song_count = len(ranked) - len(with_song)
-    if allowed is None:
-        gated = list(with_song)
-    else:
-        gated = [item for item in with_song if track_language(item.get("metadata")) in (None, *allowed)]
-    language_excluded = len(with_song) - len(gated)
     if range_enabled:
         def range_ok(item: Mapping[str, Any]) -> bool:
             fit = item.get("range_fit")
@@ -315,10 +288,10 @@ def compose_by_final_score(
                 and float(fit.get("score", 0.0)) >= min_range_score
                 and _outside_range_ratio(fit) <= MAX_OUTSIDE_RANGE_RATIO
             )
-        pool = [item for item in gated if range_ok(item)]
+        pool = [item for item in with_song if range_ok(item)]
     else:
-        pool = list(gated)
-    range_excluded = len(gated) - len(pool)
+        pool = list(with_song)
+    range_excluded = len(with_song) - len(pool)
     ordered = []
     artist_counts: dict[str, int] = {}
     for item in sorted(pool, key=lambda item: (-float(item["final_score"]), item["track_id"])):
@@ -362,10 +335,10 @@ def compose_by_final_score(
             "unique_artist_count": len(artist_counts),
         },
         "language_gate": {
-            "enabled": allowed is not None,
+            "enabled": False,
             "genres": genres,
-            "allowed": sorted(allowed) if allowed is not None else None,
-            "excluded_count": language_excluded,
+            "allowed": None,
+            "excluded_count": 0,
         },
         "range_filter": {
             "enabled": range_enabled,
