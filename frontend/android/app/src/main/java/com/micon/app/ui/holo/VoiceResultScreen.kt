@@ -116,13 +116,7 @@ fun VoiceResultScreen(
 /** 분석 완료 화면과 분석 탭이 같은 결과 UI를 공유한다. */
 @Composable
 fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true) {
-    FadeIn(0) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (showStatus) MiconBadge("측정 완료", tone = MiconChipTone.Success)
-            Text(if (result.hasComfortRange) "편한 음역대를 찾았어요" else "측정한 음역을 확인했어요",
-                style = MaterialTheme.typography.titleLarge)
-        }
-    }
+    if (showStatus) FadeIn(0) { MiconBadge("측정 완료", tone = MiconChipTone.Success) }
     // 두 카드가 같은 자를 쓴다 — 같은 음은 위아래 카드에서 같은 x 에 온다
     val axis = remember(result) { PitchAxis.of(result) }
     FadeIn(1) { RangeMapCard(result, axis) }
@@ -156,19 +150,19 @@ private fun Eyebrow(text: String) =
 private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     MiconCard(kind = MiconCardKind.Outlined) {
-        Eyebrow("음역대 지도")
+        Text("음역대 지도", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        if (r.hasComfortRange) OctaveRangeText(r.comfortLow, r.comfortHigh, size = 26.sp, weight = FontWeight.Bold)
+        if (r.hasComfortRange) OctaveRangeText(r.comfortLow, r.comfortHigh, size = 26.sp, weight = FontWeight.Bold, spacedOctave = true)
         else Text("80점 이상 구간 없음", fontSize = 23.sp, fontWeight = FontWeight.Bold)
         val oct = r.octaves
-        val octText = if (oct % 1.0 < 0.25) "${oct.toInt()}옥타브" else "${oct.toInt()}옥타브 반"
+        val octText = if (oct % 1.0 < 0.25) "${oct.toInt()} 옥타브" else "${oct.toInt()} 옥타브 반"
         // "음역 폭" 이라고 못 박아 옥타브 숫자와 헷갈리지 않게 한다.
         // 두 조각을 따로 두어, 큰 글꼴에서 줄이 넘치면 음이름 가운데가 아니라 조각 사이에서 넘긴다.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 buildAnnotatedString {
                     append("전체 ")
-                    append(karaokeRangeText(r.lowMidi, r.highMidi, 14.sp, weight = FontWeight.SemiBold))
+                    append(karaokeRangeText(r.lowMidi, r.highMidi, 14.sp, weight = FontWeight.SemiBold, spacedOctave = true))
                 },
                 style = MaterialTheme.typography.bodyMedium, color = muted, maxLines = 1, softWrap = false,
             )
@@ -189,10 +183,6 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
                 GrowBar(color, seg.first, seg.second, delayMs = 100 * i, guides = axis.guides)
             }
         }
-        Text(if (r.voiceQuality != null) "발성 유지 점수 80점 이상을 기록한 최저음부터 최고음까지 한 구간으로 표시해요. 중간 음이 모두 80점 이상이라는 뜻은 아니에요."
-            else if (r.notes.isNotEmpty()) "편한 음역은 노래 녹음에서 음높이 흔들림과 유지 시간으로 추정한 구간이에요."
-            else "저장된 음역 정보를 바탕으로 표시한 추정 구간이에요.",
-            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -262,8 +252,6 @@ private fun androidx.compose.foundation.layout.RowScope.GrowBar(color: Color, fr
 private fun MatchingMusicCard(r: HoloResult, axis: PitchAxis) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     MiconCard(kind = MiconCardKind.Outlined) {
-        Eyebrow("내 목소리에 맞는 음악")
-        Spacer(Modifier.height(10.dp))
         if (r.voiceQuality != null) {
             Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
