@@ -215,14 +215,23 @@ public class VoiceAnalysisComponentCallbackService {
         if (ranges.findBySessionId(job.getSession().getId()).isPresent()) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK, "이미 저장된 음역 결과가 있습니다.");
         }
+        var quality = job.getVoiceQualityJson() == null ? null : qualityNode(job.getVoiceQualityJson());
+        var scored = VoiceQualityComfortRange.find(quality, request.lowMidi(), request.highMidi());
         VoiceRangeMeasurement measurement = new VoiceRangeMeasurement(job.getSession(), request.measurementId(), request.protocolVersion(),
-                "SERVER_AI", request.lowMidi(), request.highMidi(), request.stableLowMidi(), request.stableHighMidi(),
+                "SERVER_AI", request.lowMidi(), request.highMidi(),
+                quality == null ? request.stableLowMidi() : scored == null ? null : scored.low(),
+                quality == null ? request.stableHighMidi() : scored == null ? null : scored.high(),
                 write(request.noteResults()), request.measurementStatus(),
                 request.qualityStatus(), request.processedAt());
         measurement.setVoiceQualityJson(job.getVoiceQualityJson());
         ranges.save(measurement);
         job.complete("RANGE", value(request.modelVersion(), request.protocolVersion()), request.processedAt());
         job.getSession().acceptRange(request.measurementStatus());
+    }
+
+    private JsonNode qualityNode(String value) {
+        try { return json.readTree(value); }
+        catch (JacksonException invalid) { throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK); }
     }
 
     private boolean validEnergy(List<Double> embedding) {

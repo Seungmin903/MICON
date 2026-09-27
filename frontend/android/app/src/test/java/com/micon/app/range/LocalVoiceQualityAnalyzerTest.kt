@@ -6,6 +6,7 @@ import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.sin
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,6 +63,39 @@ class LocalVoiceQualityAnalyzerTest {
             assertEquals(57, quality.referenceMidi)
             assertTrue(scores.getValue(55) > 75.0)
             assertTrue(scores.getValue(59) < scores.getValue(57) - 25.0)
+        } finally { wav.delete() }
+    }
+
+    @Test fun interruptedVoicedPitchIsZeroButNeverSungPitchIsMissing() {
+        val rate = 16000
+        val wav = File.createTempFile("voice-attempt-", ".wav")
+        try {
+            val samples = rate * 3
+            val bytes = ByteBuffer.allocate(44 + samples * 2).order(ByteOrder.LITTLE_ENDIAN)
+            bytes.put("RIFF".toByteArray()).putInt(samples * 2 + 36)
+                .put("WAVEfmt ".toByteArray()).putInt(16).putShort(1).putShort(1)
+                .putInt(rate).putInt(rate * 2).putShort(2).putShort(16)
+                .put("data".toByteArray()).putInt(samples * 2)
+            repeat(samples) { sample ->
+                val voice = .25 * sin(2 * PI * 220.0 * sample / rate)
+                bytes.putShort((voice * 32767).toInt().toShort())
+            }
+            wav.writeBytes(bytes.array())
+            val reference = (0 until 30).map { RangeFrame(it / 30.0, 1.0 / 30, 220.0, .95, .25) }
+            val interrupted = (0 until 6).map { RangeFrame(1.1 + it * .13, 1.0 / 30, 196.0, .95, .25) }
+            val frames = reference + interrupted
+            val stages = listOf("comfort", "down", "up").mapIndexed { index, kind ->
+                FreeRangeStage(kind, index.toDouble(), index + 1.0,
+                    if (index == 1) 55.0 else 57.0, if (index == 1) 55.0 else 57.0,
+                    index + .2, index + .8)
+            }
+            val submission = RangeSubmission("interrupted", protocolVersion = RangeProtocol.FREE_VERSION,
+                startMidi = 57, noiseRms = 0.0, durationSeconds = 3.0, stopReason = "completed",
+                lowerBoundaryStatus = "endpoint_held", upperBoundaryStatus = "endpoint_held",
+                attempts = emptyList(), registerEvents = emptyList(), stages = stages)
+            val quality = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission))
+            assertEquals(0.0, quality.points.first { it.midi == 55 }.score, 0.0)
+            assertNull(quality.points.firstOrNull { it.midi == 56 })
         } finally { wav.delete() }
     }
 }

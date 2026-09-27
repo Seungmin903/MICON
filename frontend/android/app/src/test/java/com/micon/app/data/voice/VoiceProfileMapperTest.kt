@@ -20,6 +20,8 @@ class VoiceProfileMapperTest {
             "endpoint_held", "endpoint_held", "available", voiceQuality = quality)
         val profile = requireNotNull(VoiceProfileMapper.fromOnboarding(range, 123L))
         assertEquals(quality, profile.voiceQuality)
+        assertEquals(57, profile.comfortLow)
+        assertEquals(57, profile.comfortHigh)
         val display = VoiceProfileMapper.toDisplayResult(profile)
         assertEquals(listOf(55, 57, 60), display.stabilityMidis)
         assertEquals(listOf(.6f, 1f, .7f), display.stability)

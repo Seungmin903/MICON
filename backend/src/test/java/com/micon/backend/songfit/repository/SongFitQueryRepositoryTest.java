@@ -42,6 +42,20 @@ class SongFitQueryRepositoryTest {
 	}
 
 	@Test
+	void usesScoreBasedComfortForHoloAndDoesNotReplaceMissingComfortWithFullRange() {
+		jdbcTemplate.update("UPDATE VOICE_RANGE_MEASUREMENT SET rule_version = 'holo-v1', voice_quality_json = '{}', stable_low_midi = 58, stable_high_midi = 67 WHERE session_id = 19");
+		assertThat(repository.findUserRange(7L, 20L)).get().satisfies(range -> {
+			assertThat(range.stableLowMidi()).isEqualByComparingTo("58");
+			assertThat(range.stableHighMidi()).isEqualByComparingTo("67");
+		});
+		jdbcTemplate.update("UPDATE VOICE_RANGE_MEASUREMENT SET stable_low_midi = NULL, stable_high_midi = NULL WHERE session_id = 19");
+		assertThat(repository.findUserRange(7L, 20L)).get().satisfies(range -> {
+			assertThat(range.stableLowMidi()).isNull();
+			assertThat(range.stableHighMidi()).isNull();
+		});
+	}
+
+	@Test
 	void readsLatestSongAnalysisRecommendationAndBurdenSections() {
 		SongFitQueryRepository.SongRangeRow songRange = repository.findLatestSongRange("10").orElseThrow();
 		assertThat(songRange.analysisId()).isEqualTo(31L);
@@ -105,7 +119,7 @@ class SongFitQueryRepositoryTest {
 			  measurement_status VARCHAR(30),
 			  rule_version VARCHAR(50),
 			  full_low_midi DECIMAL(6,2), full_high_midi DECIMAL(6,2),
-			  stable_low_midi DECIMAL(6,2), stable_high_midi DECIMAL(6,2)
+			  stable_low_midi DECIMAL(6,2), stable_high_midi DECIMAL(6,2), voice_quality_json JSON
 			)
 			""");
 		jdbcTemplate.execute("""
@@ -142,7 +156,7 @@ class SongFitQueryRepositoryTest {
 		jdbcTemplate.update("INSERT INTO VOICE_ANALYSIS_SESSION VALUES (19, 7, 'SAVED')");
 		jdbcTemplate.update("INSERT INTO USER_VOICE_PROFILE VALUES (20, 7, 19, TIMESTAMP '2026-09-02 10:00:00', 1)");
 		jdbcTemplate.update(
-			"INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 'AVAILABLE', 'guided-range-v8', 40, 80, 55, 75)"
+			"INSERT INTO VOICE_RANGE_MEASUREMENT VALUES (21, 19, 'AVAILABLE', 'guided-range-v8', 40, 80, 55, 75, NULL)"
 		);
 		jdbcTemplate.update("""
 			INSERT INTO SONG_ANALYSIS VALUES

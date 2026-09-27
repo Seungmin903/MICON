@@ -5,6 +5,7 @@ import androidx.core.util.AtomicFile
 import com.micon.app.audio.PitchCapture
 import com.micon.app.core.network.Json
 import com.micon.app.range.RangeProtocol
+import com.micon.app.range.VoiceQualityComfortRange
 import com.micon.app.range.VoiceQualityResult
 import java.io.File
 import kotlin.math.abs
@@ -52,6 +53,8 @@ data class HoloResult(
     val profileSaved: Boolean = false,
 ) {
     val octaves: Double get() = (highMidi - lowMidi) / 12.0
+    val scoredComfortRange: IntRange? get() = voiceQuality?.let { VoiceQualityComfortRange.find(it, lowMidi, highMidi) }
+    val hasComfortRange: Boolean get() = voiceQuality == null || scoredComfortRange != null
 
     /**
      * 1단계에서 제대로 잰 음역으로 갈아 끼운다. 2단계(노래) 녹음으로 계산한 음역은 곡이 쓰는
@@ -65,11 +68,16 @@ data class HoloResult(
             stabilityMidis = if (points.isNotEmpty()) points.map { it.midi } else stabilityMidis,
             voiceQuality = quality,
         )
-        val cl = comfortLow.coerceIn(low, high)
-        val ch = comfortHigh.coerceIn(cl, high)
-        val (fixLow, fixHigh) = if (ch - cl >= 4) cl to ch else {
-            val c = (low + high) / 2
-            (c - (high - low) / 4).coerceAtLeast(low) to (c + (high - low) / 4).coerceAtMost(high)
+        val scored = quality?.let { VoiceQualityComfortRange.find(it, low, high) }
+        val (fixLow, fixHigh) = if (quality != null) {
+            scored?.let { it.first to it.last } ?: (low to high) // no 80-point note: no comfort claim
+        } else {
+            val cl = comfortLow.coerceIn(low, high)
+            val ch = comfortHigh.coerceIn(cl, high)
+            if (ch - cl >= 4) cl to ch else {
+                val c = (low + high) / 2
+                (c - (high - low) / 4).coerceAtLeast(low) to (c + (high - low) / 4).coerceAtMost(high)
+            }
         }
         val span = fixHigh - fixLow
         return copy(

@@ -119,7 +119,8 @@ class VoiceSessionApiIntegrationTest {
                  "measurementStatus":"AVAILABLE","qualityStatus":"VALID",
                  "voiceQuality":{"version":"personal-acoustic-v1","referenceMidi":57,"points":[
                     {"midi":57,"score":100,"highChange":0,"lowIrregularity":0,"holdScore":100},
-                    {"midi":59,"score":62.5,"highChange":0.5,"lowIrregularity":0,"holdScore":100}]}}
+                    {"midi":59,"score":62.5,"highChange":0.5,"lowIrregularity":0,"holdScore":100},
+                    {"midi":60,"score":0,"highChange":0,"lowIrregularity":0,"holdScore":0}]}}
                 """;
 
         mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
@@ -127,7 +128,10 @@ class VoiceSessionApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(range))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.rangeStatus").value("AVAILABLE"))
-                .andExpect(jsonPath("$.data.range.voiceQuality.points[1].score").value(62.5));
+                .andExpect(jsonPath("$.data.range.voiceQuality.points[1].score").value(62.5))
+                .andExpect(jsonPath("$.data.range.voiceQuality.points[2].score").value(0))
+                .andExpect(jsonPath("$.data.range.stableLowMidi").value(57))
+                .andExpect(jsonPath("$.data.range.stableHighMidi").value(57));
 
         mvc.perform(put("/voice-analysis-sessions/{sessionId}/range-result", sessionId)
                         .with(member).contentType(MediaType.APPLICATION_JSON).content(range))

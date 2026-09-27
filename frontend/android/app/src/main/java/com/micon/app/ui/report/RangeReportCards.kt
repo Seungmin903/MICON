@@ -196,7 +196,7 @@ fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
         RangeStabilityChart(plot, selected, { selected = it }, overview = overview,
             scoreLabel = if (quality != null) "개인 기준 발성 유지 점수" else null)
         if (quality != null) {
-            Text("편한 시작음과 비교한 실험용 상대 점수예요. 높은 음은 배음·주기성 변화, 낮은 음은 끊김·불규칙성을 반영합니다. 가성 확률이나 확정된 테시투라는 아니에요.",
+            Text("점은 실제 측정값이고, 빈 음을 지나는 점선은 보기 쉽게 이은 선이에요.",
                 color = Grey, fontSize = 12.sp)
         } else if (LocalDensity.current.fontScale > 1.3f) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { RangeStabilityLegend() }
@@ -217,11 +217,13 @@ fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
 @Composable
 private fun VoiceQualityDetails(point: VoiceQualityPoint?) {
     if (point == null) {
-        Text("이 음은 0.3초 이상 유지한 기록이 없어 점수를 표시하지 않아요.", color = Grey)
+        Text("이 음은 음높이를 확인할 만한 목소리 기록이 없어 점수를 표시하지 않아요.", color = Grey)
         return
     }
     Text(sharpNoteText(RangeNoteNames.full(point.midi), 18.sp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
     Text("개인 기준 발성 유지 ${String.format(Locale.ROOT, "%.0f", point.score)}점 / 100점", color = InkSoft)
+    if (point.score == 0.0 && point.holdScore == 0.0)
+        Text("음높이는 감지했지만 짧게 끊겨 0점으로 기록했어요.", color = Grey, fontSize = 12.sp)
     LinearProgressIndicator(progress = { (point.score / 100.0).toFloat().coerceIn(0f, 1f) },
         modifier = Modifier.fillMaxWidth())
     Text("음 유지 ${String.format(Locale.ROOT, "%.0f", point.holdScore)}점 · " +

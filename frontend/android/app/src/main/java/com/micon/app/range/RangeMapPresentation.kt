@@ -8,8 +8,14 @@ fun RangeReport.continuousRangeMap(): RangeMap {
         ?: lowMidi?.let { lo -> highMidi?.takeIf { it >= lo }?.let { hi -> listOf(lo, hi) } }
     val held = if (protocolVersion == RangeProtocol.FREE_VERSION && stableLowMidi != null && stableHighMidi != null)
         listOf(kotlin.math.floor(stableLowMidi).toInt(), kotlin.math.ceil(stableHighMidi).toInt()) else null
-    val stable = held ?: rangeMap?.stable ?: bounds(notes.filter { it.status in setOf("passed","reconfirmed") }.map { it.midi })
-    val recommended = if (protocolVersion == RangeProtocol.FREE_VERSION) stable
+    val scored = voiceQuality?.takeIf { it.version == LocalVoiceQualityAnalyzer.VERSION }
+    val stable = if (scored != null) {
+        val low = overall?.getOrNull(0)
+        val high = overall?.getOrNull(1)
+        if (low != null && high != null) VoiceQualityComfortRange.find(scored, low, high)
+            ?.let { listOf(it.first, it.last) } else null
+    } else held ?: rangeMap?.stable ?: bounds(notes.filter { it.status in setOf("passed","reconfirmed") }.map { it.midi })
+    val recommended = if (scored != null || protocolVersion == RangeProtocol.FREE_VERSION) stable
         else rangeMap?.recommended ?: stable?.takeIf { it[1]-it[0] >= 4 }?.let { listOf(it[0]+2,it[1]-2) }
     return RangeMap(overall,stable,recommended)
 }
