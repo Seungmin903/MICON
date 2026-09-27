@@ -8,11 +8,13 @@ import numpy as np
 from schemas import Shelf
 from timbre_recommender.shelves import (
     MIN_PROFILE_CONFIDENCE,
+    _artist_absolute_scores,
     build_shelves,
     is_rap,
     score_all_tracks,
     selected_tags,
 )
+from timbre_recommender.scoring import RankerConfig, _absolute_similarity, _centroid, _model_track_score
 
 
 def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",), rap=False, melodic=True, excess=0.0, artist_sim=None, hi_excess=-3, hi_ratio=0.0, outside_ratio=0.03):
@@ -31,6 +33,35 @@ def _row(tid, artist, *, timbre, key=0, cov0=0.98, center0=1.0, genres=("K-Pop",
 
 
 class HelpersTest(unittest.TestCase):
+    def test_batched_artist_scores_match_track_scoring_with_variable_segments(self) -> None:
+        rng = np.random.default_rng(42)
+        tracks = [SimpleNamespace(track_id=str(i)) for i in range(6)]
+        dimensions = {"ecapa": 4, "singer_byol": 7}
+        embeddings = {
+            (track.track_id, key): rng.normal(size=(count, dimension)).astype(np.float32)
+            for track, count in zip(tracks, (2, 3, 2, 1, 4, 3))
+            for key, dimension in dimensions.items()
+        }
+        catalog = SimpleNamespace(embeddings=lambda track, key: embeddings[(track.track_id, key)])
+        query = {key: rng.normal(size=(5, dimension)).astype(np.float32)
+                 for key, dimension in dimensions.items()}
+        centroids = {key: _centroid(matrix) for key, matrix in query.items()}
+        candidates = [(track, {}, {key: _centroid(embeddings[(track.track_id, key)]) for key in query})
+                      for track in tracks]
+        config = RankerConfig()
+
+        batched = _artist_absolute_scores(query, catalog, candidates, config, centroids)
+        for key in query:
+            for index, track in enumerate(tracks):
+                baseline = _model_track_score(
+                    query[key], embeddings[(track.track_id, key)],
+                    centroid_weight=config.centroid_weight, segment_weight=config.segment_weight,
+                    query_centroid=centroids[key], candidate_centroid=candidates[index][2][key],
+                )
+                self.assertAlmostEqual(
+                    batched[key][index], _absolute_similarity(baseline["raw_score"]), places=6,
+                )
+
     def test_backend_preference_labels_exclude_selected_styles_from_discovery(self) -> None:
         self.assertEqual(selected_tags(["알앤비/소울", "락/메탈", "포크/어쿠스틱", "성인가요"]),
                          {"R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
