@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
+
+import numpy as np
 
 from schemas import Shelf
 from timbre_recommender.shelves import (
     MIN_PROFILE_CONFIDENCE,
     build_shelves,
     is_rap,
+    score_all_tracks,
     selected_tags,
 )
 
@@ -30,6 +34,7 @@ class HelpersTest(unittest.TestCase):
     def test_backend_preference_labels_exclude_selected_styles_from_discovery(self) -> None:
         self.assertEqual(selected_tags(["알앤비/소울", "락/메탈", "포크/어쿠스틱", "성인가요"]),
                          {"R&B", "Rock", "Alternative", "Metal", "Folk", "Singer-Songwriter", "Trot"})
+        self.assertEqual(selected_tags(["영어곡", "일본곡"]), {"Pop", "J-Pop"})
 
     def test_rap_and_tags(self) -> None:
         self.assertTrue(is_rap({"genres": ["Hip-Hop", "K-Pop"]}))
@@ -48,9 +53,9 @@ class BuildShelvesTest(unittest.TestCase):
             _row("05", "조광일", timbre=0.35, key=0, center0=1.0, rap=True, melodic=False),   # 랩: A·B 제외, E 허용
             _row("06", "한로로", timbre=0.52, key=1, artist_sim=0.9, genres=("Rock",)),      # C 본인 곡
             _row("07", "윤하", timbre=0.40, key=-1, artist_sim=0.8),                 # C 이웃
-            _row("08", "검정치마", timbre=0.34, key=4, genres=("Soundtrack",)),        # E (취향 밖 장르)
-            _row("09", "페노메코", timbre=0.43, key=4, genres=("Hip-Hop",), rap=True, melodic=False),   # E (랩 허용)
-            _row("10", "폴킴", timbre=0.50, key=5),                                  # |키| 5 → A 제외
+            _row("08", "검정치마", timbre=0.34, key=3, outside_ratio=.06, genres=("Soundtrack",)),  # E (음역 밖)
+            _row("09", "페노메코", timbre=0.43, key=3, outside_ratio=.06, genres=("Hip-Hop",), rap=True, melodic=False),  # E (랩 허용)
+            _row("10", "폴킴", timbre=0.50, key=3, outside_ratio=.06),                # 음역 밖 시간 비율 → A 제외
             _row("11", "태연", timbre=0.45, key=-1, hi_excess=1, hi_ratio=0.08),       # D
         ]
 
@@ -71,7 +76,7 @@ class BuildShelvesTest(unittest.TestCase):
         voice = next(s for s in shelves if s["key"] == "voice")["items"]
         ids = [it["track_id"] for it in voice]
         self.assertEqual(ids[0], "01")                                              # 음색 1위
-        self.assertNotIn("10", ids)                                                 # |키| 5 초과
+        self.assertNotIn("10", ids)                                                 # 음역 밖 시간 비율 초과
         self.assertTrue(all(it["axis"] is None and it["label"] == "최종 점수 순" for it in voice))
         self.assertTrue(all(it["shelf"] == "voice" for it in voice))
 
@@ -87,7 +92,7 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertEqual([item["track_id"] for item in voice], ["20"])
         self.assertNotIn("21", {item["track_id"] for shelf in shelves for item in shelf["items"]})
 
-    def test_very_strong_timbre_and_range_match_can_override_style_demotion(self) -> None:
+    def test_strong_match_does_not_override_unselected_genre(self) -> None:
         rows = [
             _row("20", "Dance artist", timbre=.40, genres=("Dance",)),
             _row("21", "Trot artist", timbre=.90, genres=("Trot",)),
@@ -95,7 +100,8 @@ class BuildShelvesTest(unittest.TestCase):
         shelves = build_shelves(rows, top_k=2, genres=["댄스"], range_enabled=True,
                                 genre_preferences_enabled=True, seed=1)
         voice = next(s for s in shelves if s["key"] == "voice")["items"]
-        self.assertEqual([item["track_id"] for item in voice], ["21", "20"])
+        self.assertEqual([item["track_id"] for item in voice], ["20"])
+        self.assertNotIn("21", {item["track_id"] for shelf in shelves for item in shelf["items"]})
 
     def test_voice_gate_rejects_more_than_five_percent_outside_range(self) -> None:
         rows = [
@@ -107,10 +113,10 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertIn("12", ids)
         self.assertNotIn("13", ids)
 
-    def test_voice_gate_accepts_four_semitones_and_rejects_five(self) -> None:
+    def test_voice_gate_accepts_three_semitones_and_rejects_four(self) -> None:
         rows = [
-            _row("15", "네반음", timbre=.9, key=4),
-            _row("16", "다섯반음", timbre=.99, key=5),
+            _row("15", "세반음", timbre=.9, key=3),
+            _row("16", "네반음", timbre=.99, key=4),
         ]
         shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
         ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
@@ -155,17 +161,50 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertEqual({i["track_id"] for i in da["items"]}, {r["track_id"] for r in self.rows} - others)  # 나머지 전부, 장르 무관
         self.assertIn("폴킴", {i["artist"] for i in da["items"]})                  # 선택 장르(OST)여도 제외하지 않는다
 
-    def test_selected_foreign_languages_are_in_taste_for_every_style(self) -> None:
-        rows = [_row("en", "English artist", timbre=.8, key=4, genres=("Jazz",)),
-                _row("jp", "Japanese artist", timbre=.8, key=4, genres=("Rock",)),
-                _row("ko", "Korean artist", timbre=.8, key=4, genres=("Soundtrack",))]
-        rows[0]["metadata"]["languages"] = "eng"
-        rows[1]["metadata"]["languages"] = "jpn"
-        for choices in (["영어곡", "일본곡", "발라드"], ["팝", "J-POP", "발라드"]):
+    def test_db_genre_selection_through_scoring_and_every_shelf(self) -> None:
+        entries = [
+            ("pop", ("팝",), "kor"),
+            ("pop-rnb", ("팝", "알앤비/소울"), "eng"),
+            ("ballad", ("발라드",), "eng"),
+            ("jpop", ("J-POP",), "kor"),
+            ("k-rnb", ("알앤비/소울",), "kor"),
+        ]
+        tracks = [SimpleNamespace(track_id=tid, title=tid, artist=tid,
+                                  metadata={"song_id": tid, "genres": list(genres), "languages": language})
+                  for tid, genres, language in entries]
+        catalog = SimpleNamespace(tracks=tracks, embeddings=lambda track, key: np.array([[1.0, 0.0]], dtype=np.float32))
+        query = {"ecapa": np.array([[1.0, 0.0]], dtype=np.float32),
+                 "singer_byol": np.array([[1.0, 0.0]], dtype=np.float32)}
+        cases = [
+            (["영어곡"], {"pop", "pop-rnb"}),
+            (["영어곡", "발라드"], {"pop", "pop-rnb", "ballad"}),
+            (["발라드", "일본곡"], {"ballad", "jpop"}),
+            (["발라드"], {"ballad"}),
+            (["R&B/소울"], {"k-rnb"}),
+        ]
+        for choices, expected in cases:
             with self.subTest(choices=choices):
-                shelves = build_shelves(rows, top_k=8, genres=choices, range_enabled=True, seed=1)
-                discovery = next(s for s in shelves if s["key"] == "discovery")
-                self.assertEqual({r["track_id"] for r in discovery["items"]}, {"en", "jp", "ko"})   # 언어·장르로 걸러내지 않는다
+                rows = score_all_tracks(catalog, None, query, query_profile=None, genres=choices)
+                self.assertEqual({row["track_id"] for row in rows}, {tid for tid, _, _ in entries})
+                diagnostics = {}
+                shelves = build_shelves(rows, top_k=8, genres=choices, range_enabled=False,
+                                        genre_preferences_enabled=True, diagnostics=diagnostics, seed=1)
+                self.assertEqual({item["track_id"] for shelf in shelves for item in shelf["items"]}, expected)
+                self.assertEqual(diagnostics["tierCounts"]["excludedKnown"], len(entries) - len(expected))
+
+    def test_discovery_excludes_unselected_known_genres_and_uses_unknown_last(self) -> None:
+        rows = [
+            _row("ballad", "A", timbre=.2, key=5, genres=("발라드",)),
+            _row("other", "B", timbre=.99, key=5, genres=("팝",)),
+            _row("unknown", "C", timbre=.5, key=5, genres=()),
+        ]
+        diagnostics = {}
+        shelves = build_shelves(rows, top_k=8, genres=["발라드"], range_enabled=True,
+                                genre_preferences_enabled=True, diagnostics=diagnostics, seed=1)
+        discovery = next(s for s in shelves if s["key"] == "discovery")
+        self.assertEqual([item["track_id"] for item in discovery["items"]], ["ballad", "unknown"])
+        self.assertEqual(diagnostics["shelfCandidateCounts"]["discovery"], 2)
+        self.assertEqual(diagnostics["shelfReturnedCounts"]["discovery"], 2)
 
 
 if __name__ == "__main__":

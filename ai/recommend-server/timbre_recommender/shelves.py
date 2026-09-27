@@ -12,15 +12,13 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import numpy as np
 
 from .composition import (
     AXIS_LABEL,
     AXIS_NAME,
-    GENRE_LANGUAGE,
-    allowed_languages,
     compose_by_final_score,
     song_id_of,
     track_language,
@@ -29,7 +27,7 @@ from .contracts import MODEL_KEYS, SCORING_VERSION
 from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
 from .scoring import RankerConfig, _absolute_similarity, _model_track_score
 
-SHELVES_VERSION = "shelves-v4-genre-preference-gate"
+SHELVES_VERSION = "shelves-v5-db-genre-preference"
 
 # 사용자 평가 후 조정할 값
 MIN_PROFILE_CONFIDENCE = 0.55          # 곡 음표 신뢰도 하한 (곡예사2 0.47 제외, 정국 0.63 유지)
@@ -38,7 +36,7 @@ ORIGINAL_KEY_MIN_COVERAGE = 0.95       # B
 CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상한(+여유)보다 이만큼 높음
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
 RAP_TAGS = {"Hip-Hop", "Rap", "Hip Hop", "랩/힙합"}   # DB genre 테이블은 한글 라벨을 쓴다
-# 설문 장르 → 카탈로그 스타일 태그. 언어 선택은 composition.py에서 별도로 처리한다.
+# 설문 표시명 → 운영 DB 장르명. 영어곡/일본곡도 다른 선택지와 동일하게 취급한다.
 GENRE_TAGS = {
     "발라드": {"Ballad"}, "댄스": {"Dance"}, "R&B": {"R&B"}, "록": {"Rock", "Alternative"}, "힙합": {"Hip-Hop"},
     "레게": {"Reggae"}, "인디": {"Singer-Songwriter", "Folk", "Alternative"}, "재즈": {"Jazz"}, "포크": {"Folk"}, "트로트": {"Trot"},
@@ -47,20 +45,20 @@ GENRE_TAGS = {
     "댄스/팝": {"Dance"}, "R&B/소울": {"R&B"}, "알앤비/소울": {"R&B"},
     "록/메탈": {"Rock", "Alternative", "Metal"}, "락/메탈": {"Rock", "Alternative", "Metal"},
     "랩/힙합": {"Hip-Hop"}, "포크/어쿠스틱": {"Folk", "Singer-Songwriter"}, "성인가요": {"Trot"},
+    "영어곡": {"Pop"}, "일본곡": {"J-Pop"},
 }
 STYLE_TAGS = set().union(*GENRE_TAGS.values())
+FOREIGN_STYLE_TAGS = {"Pop", "J-Pop"}
 STYLE_ALIASES: dict[str, set[str]] = {}
 for genre, tags in GENRE_TAGS.items():
     for alias in (genre, *tags):
         STYLE_ALIASES.setdefault(alias.strip().casefold(), set()).update(tags)
-VERY_FIT_TIMBRE_MIN = 0.70
-VERY_FIT_RANGE_MIN = 0.90
 SHELF_META = {
     "voice": ("내 목소리와 닮은 곡", "최종 점수 순. 음역은 게이트만(키 ±3, 음역 밖 시간 비율 ≤ 5%). 키는 부르는 방법으로 표시"),
     "original_key": ("키 안 바꾸고 바로 부를 곡", "최적 키 0 · 원키 커버리지 ≥ 0.95. 곡 중심음이 내 중심음에 가까운 순"),
     "favorite_artists": ("선호 가수 좋아하면", "선호 가수 본인 곡 먼저, 이어서 선호 가수 목소리와 닮은 가수의 곡"),
     "challenge": ("고음 한 단계 도전", "원키에서 곡 상한이 내 상한보다 1~3반음 높고 그 구간이 3~20%인 곡. 고음 비율 작은 순 (실험)"),
-    "discovery": ("새로운 발견", "다른 섹션에 뽑히지 않은 나머지 곡을 섞은 것. 앱이 새로고침마다 이 안에서 다시 섞는다"),
+    "discovery": ("새로운 발견", "선택 장르와 장르 미상 곡 중 다른 섹션에 뽑히지 않은 곡. 앱이 새로고침마다 다시 섞는다"),
 }
 
 
@@ -72,29 +70,25 @@ def selected_tags(genres: Iterable[str]) -> set[str]:
     tags: set[str] = set()
     for g in genres:
         cleaned = g.strip()
-        if cleaned.lower() not in GENRE_LANGUAGE:
-            tags |= STYLE_ALIASES.get(cleaned.casefold(), set())
+        tags |= STYLE_ALIASES.get(cleaned.casefold(), set())
     return tags
 
 
 def _genre_tier(row: Mapping[str, Any], selected: set[str], *, enabled: bool) -> int:
-    """Preferred styles first; unknown metadata is neutral; other known styles are gated.
-
-    A strong timbre match plus excellent range fit is allowed to compete with preferred
-    styles. Tier 2 is excluded from recommendation shelves when the preference is active.
-    """
+    """Selected DB genres first, unknown metadata second, other known genres excluded."""
     if not enabled or not selected:
         return 0
     raw_tags = (row.get("metadata") or {}).get("genres") or []
     tags = set().union(*(STYLE_ALIASES.get(str(tag).strip().casefold(), set()) for tag in raw_tags))
+    # A foreign bucket is a deliberate survey choice, even if its song also has an
+    # ambiguous style name such as 알앤비/소울. Do not admit it via a Korean style.
+    foreign = tags & FOREIGN_STYLE_TAGS
+    if foreign and not foreign & selected:
+        return 2
     if tags & selected:
         return 0
     if not tags & STYLE_TAGS:
         return 1
-    fit = row.get("range_fit") or {}
-    if (float(row.get("timbre_score") or 0.0) >= VERY_FIT_TIMBRE_MIN
-            and float(fit.get("score") or 0.0) >= VERY_FIT_RANGE_MIN):
-        return 0
     return 2
 
 
@@ -120,7 +114,6 @@ def score_all_tracks(
 ) -> list[dict[str, Any]]:
     """카탈로그 전 곡에 음색·음역 지표를 붙인 행 목록. 섹션들이 이 표 하나를 나눠 쓴다."""
     config = config or RankerConfig()
-    allowed = allowed_languages(genres)
     user = _validated_profile(query_profile, label="query") if query_profile else None
     user_hi = (user["coreHighMidi"] + COMFORT_PADDING_SEMITONES) if user else None
     weights = MODEL_KEYS and {"ecapa": config.base_ecapa_weight, "singer_byol": 1.0 - config.base_ecapa_weight}
@@ -130,9 +123,6 @@ def score_all_tracks(
         meta = track.metadata or {}
         song_id = song_id_of(meta)
         if not song_id:
-            continue
-        lang = track_language(meta)
-        if allowed is not None and lang is not None and lang not in allowed:
             continue
         models = _timbre_scores(query, catalog, track, config)
         timbre = float(sum(weights[k] * models[k]["absolute_score"] for k in MODEL_KEYS))
@@ -193,22 +183,28 @@ def build_shelves(
     range_enabled: bool,
     include_challenge: bool = False,
     seed: int | None = None,
+    diagnostics: MutableMapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     genres = list(genres)
     all_rows = list(rows)
     preferred_tags = selected_tags(genres)
     def genre_tier(row: Mapping[str, Any]) -> int:
         return _genre_tier(row, preferred_tags, enabled=genre_preferences_enabled)
+    tier_counts = {
+        "selected": sum(genre_tier(row) == 0 for row in all_rows),
+        "neutral": sum(genre_tier(row) == 1 for row in all_rows),
+        "excludedKnown": sum(genre_tier(row) == 2 for row in all_rows),
+    }
     if genre_preferences_enabled and preferred_tags:
-        # Do not fill the visible list with weak matches from a known, unselected style.
-        # Missing/unknown genre metadata remains eligible, and very strong voice+range
-        # matches are handled as tier 0 by _genre_tier.
         rows = [row for row in all_rows if genre_tier(row) < 2]
     artists = {a.strip() for a in preferred_artists if a and a.strip()}
     used: set[str] = set()
     shelves: list[dict[str, Any]] = []
+    candidate_counts: dict[str, int] = {}
+    returned_counts: dict[str, int] = {}
 
     def emit(key: str, picked: list[tuple[Mapping[str, Any], dict[str, Any], str | None, str | None]], extra: dict[str, Any] | None = None):
+        candidate_counts.setdefault(key, len(picked))
         items = []
         for row, metrics, axis, label in picked:
             if row["track_id"] in used or len(items) >= top_k:
@@ -217,6 +213,7 @@ def build_shelves(
             items.append(_item(row, len(items) + 1, key, metrics, axis, label))
         title, metric = SHELF_META[key]
         shelves.append({"key": key, "title": title, "metric": metric, "items": items, **(extra or {})})
+        returned_counts[key] = len(items)
 
     def singable(r):   # 음역 조건이 있는 섹션의 공통 게이트
         fit = r.get("range_fit")
@@ -226,6 +223,7 @@ def build_shelves(
 
     # A. 내 목소리: 최종 점수 순. 게이트: 부를 수 있고 |키| ≤ 3, 랩 제외
     pool_a = [r for r in rows if not r["is_rap"] and (not range_enabled or (singable(r) and abs(int(r["range_fit"]["keyShift"])) <= VOICE_MAX_KEY_SHIFT))]
+    candidate_counts["voice"] = len(pool_a)
     ranked_pool_a = [dict(row, final_score=(2 - genre_tier(row)) + float(row["final_score"]) * 0.001) for row in pool_a]
     composed = compose_by_final_score(ranked_pool_a, top_k=top_k, genres=(), range_enabled=range_enabled, scoring_version=SCORING_VERSION)
     by_id = {r["track_id"]: r for r in pool_a}
@@ -256,9 +254,23 @@ def build_shelves(
         emit("challenge", [(r, {"high_excess0": r["high_excess0"], "high_ratio0": r["high_ratio0"], "coverage0": r["coverage0"]}, None, None) for r in pool_d],
              {"experimental": True})
 
-    # E. 새로운 발견: 다른 섹션에 뽑히지 않은 나머지 전부. 장르·음색·음역 조건을 두지 않는다 — 장르 메타데이터가 없어도 채워진다.
-    #    서버는 하루 단위 시드로 한 번 섞어 top_k 까지 넉넉히 주고, 앱이 새로고침마다 이 후보 안에서 다시 섞는다.
-    pool_e = [r for r in all_rows if r["track_id"] not in used]
-    random.Random(seed).shuffle(pool_e)
+    # E. 새로운 발견도 알려진 비선호 장르는 제외한다. 선택 장르의 남은 곡을
+    #    먼저 섞고, 장르 미상 곡은 뒤 채움으로만 쓴다.
+    remaining = [r for r in rows if r["track_id"] not in used]
+    pool_e = [r for r in remaining if genre_tier(r) == 0]
+    neutral_e = [r for r in remaining if genre_tier(r) == 1]
+    rng = random.Random(seed)
+    rng.shuffle(pool_e)
+    rng.shuffle(neutral_e)
+    pool_e.extend(neutral_e)
     emit("discovery", [(r, {"timbre_score": r["timbre_score"]}, None, None) for r in pool_e], {"seed": seed})
+    if diagnostics is not None:
+        diagnostics.update({
+            "genrePolicy": "db-tags-v1",
+            "genrePreferencesEnabled": bool(genre_preferences_enabled and preferred_tags),
+            "selectedTags": sorted(preferred_tags),
+            "tierCounts": tier_counts,
+            "shelfCandidateCounts": candidate_counts,
+            "shelfReturnedCounts": returned_counts,
+        })
     return shelves
