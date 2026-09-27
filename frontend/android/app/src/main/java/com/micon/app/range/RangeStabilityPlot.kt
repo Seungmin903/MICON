@@ -1,6 +1,6 @@
 package com.micon.app.range
 
-/** Versioned measured values only; missing and uncertain notes break the line. */
+/** Versioned measured values only; missing notes have no score, even when a dashed display link crosses them. */
 data class RangeStabilityPoint(val note: RangeNote, val ratio: Float?) {
     val confirmed: Boolean get() = note.status in setOf("passed", "reconfirmed")
 }
@@ -11,6 +11,10 @@ data class RangeStabilityPlot(val points: List<RangeStabilityPoint>, val scoreBa
         points.zipWithNext().filter { (a, b) ->
             b.note.midi == a.note.midi + 1 && a.ratio != null && b.ratio != null
         }
+
+    /** Display-only links. A gap is connected visually, never filled with fabricated note scores. */
+    val connectedSegments: List<Pair<RangeStabilityPoint, RangeStabilityPoint>> get() =
+        points.filter { it.ratio != null }.zipWithNext()
 
     companion object {
         fun from(notes: List<RangeNote>, showAll: Boolean = false, scoreBased: Boolean = false): RangeStabilityPlot {

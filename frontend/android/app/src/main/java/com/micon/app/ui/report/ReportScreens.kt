@@ -229,12 +229,13 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
         MiconCard(Modifier.testTag("range-map-card")) {
             CardTitle("음역대 지도")
             Spacer(Modifier.height(10.dp))
+            val hasComfortRange = p.voiceQuality == null ||
+                com.micon.app.range.VoiceQualityComfortRange.find(p.voiceQuality, p.lowMidi, p.highMidi) != null
             RangeMapChart(
-                rows = listOf(
-                    RangeRow("전체 음역", p.lowMidi, p.highMidi, PurpleMid, fadeTail = true),
-                    RangeRow("안정 음역", p.comfortLow, p.comfortHigh, GreenBar),
-                    RangeRow("추천 음역", p.recommendLow, p.recommendHigh, Orange),
-                ),
+                rows = listOf(RangeRow("전체 음역", p.lowMidi, p.highMidi, PurpleMid, fadeTail = true)) +
+                    if (hasComfortRange) listOf(
+                        RangeRow("안정 음역", p.comfortLow, p.comfortHigh, GreenBar),
+                        RangeRow("추천 음역", p.recommendLow, p.recommendHigh, Orange)) else emptyList(),
                 axisLow = p.lowMidi, axisHigh = p.highMidi,
                 ticks = (if (LocalDensity.current.fontScale > 1.3f) listOf(p.lowMidi, p.highMidi)
                     else listOf(p.lowMidi, (p.lowMidi + p.highMidi) / 2, p.highMidi)).distinct(),
@@ -242,10 +243,11 @@ internal fun PreviousAnalysisReportCards(p: UserStore.VoiceProfile) {
                 labelOf = ReportNoteNames::note,
             )
             Spacer(Modifier.height(6.dp))
-            PianoRangeChart(p.comfortLow, p.comfortHigh, modifier = Modifier.testTag("report-piano"),
+            if (hasComfortRange) PianoRangeChart(p.comfortLow, p.comfortHigh, modifier = Modifier.testTag("report-piano"),
                 lowMidi = 36, highMidi = 84, showOctaves = true,
                 caption = "안정 음역 ${ReportNoteNames.range(p.comfortLow, p.comfortHigh)}",
                 labelOf = ReportNoteNames::note)
+            else Text("발성 유지 점수 80점 이상인 음이 없어 편한 음역을 표시하지 않아요.")
         }
 
     }

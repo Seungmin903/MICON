@@ -24,6 +24,19 @@ class HoloResultQualityTest {
         assertEquals(quality, updated.voiceQuality)
         assertEquals(48, updated.lowMidi)
         assertEquals(72, updated.highMidi)
+        assertEquals(57, updated.comfortLow)
+        assertEquals(57, updated.comfortHigh)
+        assertEquals(57..57, updated.scoredComfortRange)
+    }
+
+    @Test fun measuredZeroIsKeptAndNo80PointDoesNotClaimComfort() {
+        val quality = VoiceQualityResult("personal-acoustic-v1", 57, listOf(
+            VoiceQualityPoint(55, 0.0, 0.0, 0.0, 0.0),
+            VoiceQualityPoint(57, 75.0, 0.0, 0.0, 28.57)))
+        val updated = result().withMeasuredRange(48, 72, quality)
+        assertEquals(listOf(0f, .75f), updated.stability)
+        assertNull(updated.scoredComfortRange)
+        assertEquals(false, updated.hasComfortRange)
     }
 
     @Test fun olderRangeKeepsLegacyGraph() {
