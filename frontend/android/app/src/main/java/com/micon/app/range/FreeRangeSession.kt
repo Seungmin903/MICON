@@ -147,9 +147,11 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
     companion object {
         const val HOLD_SECONDS = 1.5
         const val HOLD_TOLERANCE_SEMITONES = 1.5
-        /** The lower sweep is shorter; the upper sweep keeps its existing duration. */
+        /** Recording missions for newly started measurements. */
         const val DOWN_MISSION_SECONDS = 10.0
-        const val UP_MISSION_SECONDS = 15.0
+        const val UP_MISSION_SECONDS = 20.0
+        /** Older app recordings with a 15-second upper sweep remain valid for submission. */
+        const val MIN_COMPATIBLE_UP_SECONDS = 15.0
         fun missionSeconds(phase: String): Double = when (phase) {
             "down" -> DOWN_MISSION_SECONDS
             "up" -> UP_MISSION_SECONDS

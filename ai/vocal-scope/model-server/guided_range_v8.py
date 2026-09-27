@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-# New recordings use ten seconds for down and fifteen for up; older 15-second down sweeps remain valid.
+# Accepted minimums: 10 seconds down and 15 seconds up; newer Android clients record 20 seconds up.
 DOWN_MISSION_SECONDS = 10.0
 UP_MISSION_SECONDS = 15.0
 MAX_STAGE_SECONDS = 45.0

@@ -105,7 +105,7 @@ public class VoiceAnalysisUploadValidator {
                 && value.asDouble() >= 0 && value.asDouble() <= maximum;
     }
 
-    // New recordings use ten seconds for down and fifteen for up; older 15-second down sweeps remain valid.
+    // Accepted minimums: 10 seconds down and 15 seconds up; newer Android clients record 20 seconds up.
     private static final double DOWN_MISSION_SECONDS = 10;
     private static final double UP_MISSION_SECONDS = 15;
     private static final double MAX_STAGE_SECONDS = 45;
