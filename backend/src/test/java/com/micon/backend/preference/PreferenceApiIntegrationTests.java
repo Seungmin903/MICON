@@ -26,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class PreferenceApiIntegrationTests {
 
+	private static final String FIRST_SONG_ID = "00000000-0000-0000-0000-000000000401";
+	private static final String SECOND_SONG_ID = "00000000-0000-0000-0000-000000000402";
+
 	@Autowired MockMvc mockMvc;
 	@Autowired UserRepository userRepository;
 	@Autowired PasswordEncoder passwordEncoder;
@@ -63,11 +66,11 @@ class PreferenceApiIntegrationTests {
 			       (302, 'DAY6', 'day6', 'https://cdn.example/day6.jpg'),
 			       (303, '100%_밴드', '100%_밴드', NULL)
 			""");
-		jdbcTemplate.update("INSERT INTO song(title, status) VALUES ('테스트 곡', 'ACTIVE')");
-		Long firstSongId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-		jdbcTemplate.update("INSERT INTO song(title, status) VALUES ('테스트 곡 2', 'ACTIVE')");
-		Long secondSongId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-		jdbcTemplate.update("INSERT INTO song_singer(song_id, singer_id) VALUES (?, 301), (?, 302)", firstSongId, secondSongId);
+		jdbcTemplate.update("""
+			INSERT INTO song(song_id, title, status)
+			VALUES (?, '테스트 곡', 'ACTIVE'), (?, '테스트 곡 2', 'ACTIVE')
+			""", FIRST_SONG_ID, SECOND_SONG_ID);
+		jdbcTemplate.update("INSERT INTO song_singer(song_id, singer_id) VALUES (?, 301), (?, 302)", FIRST_SONG_ID, SECOND_SONG_ID);
 	}
 
 	@Test
@@ -197,9 +200,12 @@ class PreferenceApiIntegrationTests {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.genreIds").isEmpty())
 			.andExpect(jsonPath("$.data.onboardingCompleted").value(false));
-		mockMvc.perform(get("/artists").param("query", "%").with(jwtFor(user)))
+		mockMvc.perform(get("/artists").with(jwtFor(user)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.totalElements").value(2));
+		mockMvc.perform(get("/artists").param("query", "%").with(jwtFor(user)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalElements").value(0));
 		mockMvc.perform(get("/artists").param("size", "101").with(jwtFor(user)))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
@@ -228,7 +234,7 @@ class PreferenceApiIntegrationTests {
 		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
 			.andExpect(status().isOk());
 		jdbcTemplate.update("UPDATE song SET status='INACTIVE' WHERE song_id = ?",
-			jdbcTemplate.queryForObject("SELECT song_id FROM song_singer WHERE singer_id=301", Long.class));
+			jdbcTemplate.queryForObject("SELECT song_id FROM song_singer WHERE singer_id=301", String.class));
 
 		mockMvc.perform(get("/artists").param("query", "아이유").with(jwtFor(user)))
 			.andExpect(status().isOk())
@@ -248,7 +254,8 @@ class PreferenceApiIntegrationTests {
 			.andExpect(status().isBadRequest());
 		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.artists[0].imageLicense").value("CC BY 4.0"));
+			.andExpect(jsonPath("$.data.artists[0].imageSourceUrl").value("https://commons.wikimedia.org/wiki/File:IU_singer.jpg"))
+			.andExpect(jsonPath("$.data.artists[0].imageLicense").value("CC BY 3.0"));
 		mockMvc.perform(get("/users/me/preferences").with(jwtFor(user)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.artists[0].imageAttribution").isNotEmpty());
