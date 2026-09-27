@@ -183,6 +183,7 @@ def build_result(
     genre_preferences_enabled: bool = True,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
+    profile_started = time.perf_counter()
     range_enabled = bool(pitch_profile and pitch_profile.get("reliable", False))
     fallback = None
     if pitch_profile is None:
@@ -191,10 +192,14 @@ def build_result(
         fallback = ",".join(pitch_profile.get("qualityReasons") or ["unreliable_pitch_profile"])
     fav = [t for t in catalog.tracks if t.artist in set(preferred_artists)]
     artist_query = {k: np.vstack([catalog.embeddings(t, k) for t in fav]) for k in ("ecapa", "singer_byol")} if fav else None
+    setup_ms = (time.perf_counter() - profile_started) * 1000
+    phase_started = time.perf_counter()
     rows = score_all_tracks(
         catalog, ranges, query, query_profile=pitch_profile if range_enabled else None, mode=mode, genres=genres, artist_query=artist_query,
         config=VOICE_RANKER_CONFIG,
     )
+    score_all_ms = (time.perf_counter() - phase_started) * 1000
+    phase_started = time.perf_counter()
     rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
     if seed is None:
         seed = int(time.strftime("%Y%m%d"))          # 새로운 발견: 하루 단위로 섞임
@@ -202,6 +207,8 @@ def build_result(
     shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists,
                             genre_preferences_enabled=genre_preferences_enabled, range_enabled=range_enabled,
                             seed=seed, diagnostics=composition)
+    shelves_ms = (time.perf_counter() - phase_started) * 1000
+    phase_started = time.perf_counter()
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
         "algorithm": {
@@ -227,7 +234,18 @@ def build_result(
         ],
     }
     artists = ArtistCatalog.load(catalog)
-    return RecommendResult.model_validate(public_response(result, artists, catalog)).model_dump()
+    artists_ms = (time.perf_counter() - phase_started) * 1000
+    phase_started = time.perf_counter()
+    response = RecommendResult.model_validate(public_response(result, artists, catalog)).model_dump()
+    response_ms = (time.perf_counter() - phase_started) * 1000
+    log.info(
+        "event=recommendation_build_profile tracks=%d rows=%d preferred_artist_matches=%d "
+        "setup_ms=%.2f score_all_ms=%.2f shelves_ms=%.2f artists_ms=%.2f "
+        "response_ms=%.2f total_ms=%.2f",
+        len(catalog.tracks), len(rows), len(fav), setup_ms, score_all_ms, shelves_ms,
+        artists_ms, response_ms, (time.perf_counter() - profile_started) * 1000,
+    )
+    return response
 
 
 # ── BE JSON 입력 ─────────────────────────────────────────────────────────────

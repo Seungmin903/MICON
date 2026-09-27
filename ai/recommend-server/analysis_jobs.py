@@ -641,12 +641,15 @@ def _timbre_callbacks(job, audio, prefix, config):
     embedding_audio = audio
     preprocessing_version = "raw-clean-v1"
     timings["separationMs"] = 0.0
+    timings["separationPrepareMs"] = 0.0
+    separation_info: dict[str, Any] = {}
     if detection["requiresSeparation"]:
         root = ANALYSIS_DIR / job["jobId"]
         separation_input = root / "separation-input.wav"
         stage = time.perf_counter()
         try:
             _prepare_separation_input(audio, separation_input)
+            timings["separationPrepareMs"] = round((time.perf_counter() - stage) * 1000, 1)
             vocals, _, separation_info = separate(
                 separation_input, root / "vocal-separation", _separator_device(config.get("device", "auto")),
                 backend="melband", allow_fallback=False,
@@ -683,11 +686,17 @@ def _timbre_callbacks(job, audio, prefix, config):
     log.info(
         "event=voice_analysis_ai_profile build_sha=%s ai_job_id=%s device=%s segments=%s "
         "mr_detection_ms=%s separation_ms=%s runtime_acquire_ms=%s segmentation_ms=%s "
-        "ecapa_ms=%s singer_byol_ms=%s artifact_write_ms=%s total_ms=%s",
+        "ecapa_ms=%s singer_byol_ms=%s artifact_write_ms=%s total_ms=%s "
+        "separation_prepare_ms=%s separation_input_seconds=%s model_load_ms=%s "
+        "model_to_device_ms=%s demix_ms=%s model_to_cpu_ms=%s output_write_ms=%s",
         build_sha(), job["jobId"], runtime.device, timings.get("segmentCount"),
         timings.get("mrDetectionMs"), timings.get("separationMs"), timings.get("runtimeAcquireMs"),
         timings.get("segmentationMs"), timings.get("ecapaMs"), timings.get("singerByolMs"),
         timings.get("artifactWriteMs"), timings.get("totalMs"),
+        timings.get("separationPrepareMs"), separation_info.get("inputSeconds"),
+        separation_info.get("modelLoadMs"), separation_info.get("modelToDeviceMs"),
+        separation_info.get("demixMs"), separation_info.get("modelToCpuMs"),
+        separation_info.get("outputWriteMs"),
     )
     return callbacks
 

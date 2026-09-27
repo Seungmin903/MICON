@@ -111,27 +111,43 @@ def _separate_melband_unlocked(input_wav: Path, output_dir: Path, device: str) -
     import torch
     from mel_band_roformer import demix_track
 
+    stage = time.perf_counter()
     model, config = _load_melband()
+    model_load_ms = round((time.perf_counter() - stage) * 1000, 1)
+    stage = time.perf_counter()
     mix, sample_rate = sf.read(input_wav, dtype="float32", always_2d=True)  # (samples, channels)
     if sample_rate != int(config.model.sample_rate):
         raise RuntimeError(f"분리 입력은 {config.model.sample_rate} Hz여야 합니다 (현재 {sample_rate} Hz).")
     if mix.shape[1] == 1:
         mix = np.repeat(mix, 2, axis=1)
     mixture = torch.from_numpy(mix.T.copy())  # (2, samples)
+    audio_read_ms = round((time.perf_counter() - stage) * 1000, 1)
 
     target = torch.device("cuda" if device == "cuda" and torch.cuda.is_available() else "cpu")
     chunk_size = int(config.inference.chunk_size)
     original_chunk = chunk_size
     retries = 0
+    demix_ms = 0.0
+    model_to_device_ms = 0.0
+    model_to_cpu_ms = 0.0
     try:
+        stage = time.perf_counter()
         model.to(target)
+        if target.type == "cuda":
+            torch.cuda.synchronize()
+        model_to_device_ms = round((time.perf_counter() - stage) * 1000, 1)
         while True:
+            stage = time.perf_counter()
             try:
                 config.inference.chunk_size = chunk_size
                 with contextlib.redirect_stdout(io.StringIO()):  # progress spam → silence
                     sources, _ = demix_track(config, model, mixture.clone(), target)
+                if target.type == "cuda":
+                    torch.cuda.synchronize()
+                demix_ms += (time.perf_counter() - stage) * 1000
                 break
             except torch.cuda.OutOfMemoryError:
+                demix_ms += (time.perf_counter() - stage) * 1000
                 torch.cuda.empty_cache()
                 if chunk_size // 2 < MELBAND_MIN_CHUNK:
                     raise
@@ -139,10 +155,13 @@ def _separate_melband_unlocked(input_wav: Path, output_dir: Path, device: str) -
                 retries += 1
     finally:
         config.inference.chunk_size = original_chunk
+        stage = time.perf_counter()
         model.to("cpu")
         if target.type == "cuda":
             torch.cuda.empty_cache()
+        model_to_cpu_ms = round((time.perf_counter() - stage) * 1000, 1)
 
+    stage = time.perf_counter()
     vocals = np.asarray(sources["vocals"], dtype=np.float32)  # (2, samples)
     vocals = vocals[:, : mix.shape[0]]
     if vocals.shape[1] < mix.shape[0]:
@@ -155,7 +174,19 @@ def _separate_melband_unlocked(input_wav: Path, output_dir: Path, device: str) -
     instrumental_path = track_dir / "no_vocals.wav"
     _write_pcm16(vocals_path, vocals, sample_rate)
     _write_pcm16(instrumental_path, instrumental, sample_rate)
-    info = {"chunkSeconds": round(chunk_size / sample_rate, 2), "oomRetries": retries, "device": target.type}
+    output_write_ms = round((time.perf_counter() - stage) * 1000, 1)
+    info = {
+        "inputSeconds": round(mix.shape[0] / sample_rate, 2),
+        "chunkSeconds": round(chunk_size / sample_rate, 2),
+        "oomRetries": retries,
+        "device": target.type,
+        "modelLoadMs": model_load_ms,
+        "audioReadMs": audio_read_ms,
+        "modelToDeviceMs": model_to_device_ms,
+        "demixMs": round(demix_ms, 1),
+        "modelToCpuMs": model_to_cpu_ms,
+        "outputWriteMs": output_write_ms,
+    }
     return vocals_path, instrumental_path, info
 
 
