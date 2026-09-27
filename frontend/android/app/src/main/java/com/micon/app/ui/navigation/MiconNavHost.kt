@@ -223,8 +223,8 @@ internal fun NavHostController.openBottomTab(route: String) {
         return
     }
     if (route == Routes.FAVORITES) {
-        // 곡·세트리스트 상세에서 시스템 뒤로가기를 하면 기존 FavoritesScreen 인스턴스로
-        // 돌아가므로 마지막 탭(세트리스트)을 그대로 유지한다. 반면 하단 '찜' 탭을 새로
+        // 곡·플레이리스트 상세에서 시스템 뒤로가기를 하면 기존 FavoritesScreen 인스턴스로
+        // 돌아가므로 마지막 탭(플레이리스트)을 그대로 유지한다. 반면 하단 '찜' 탭을 새로
         // 선택한 경우는 진입점이므로 저장된 탭 선택을 복원하지 않고 기본 '찜' 탭을 연다.
         navigate(route) {
             popUpTo(graph.id) { saveState = true }

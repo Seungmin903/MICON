@@ -63,20 +63,27 @@ fun karaokeRangeText(
     fontFamily: FontFamily? = null,
     separator: String = " ~ ",
     short: Boolean = false,
+    spacedOctave: Boolean = false,
 ): AnnotatedString = buildAnnotatedString {
-    appendKaraoke(lowMidi, size, weight, octaveWeight, fontFamily, short)
+    appendKaraoke(lowMidi, size, weight, octaveWeight, fontFamily, short, spacedOctave)
     withStyle(SpanStyle(fontSize = size * OCTAVE_SCALE, fontWeight = octaveWeight, fontFamily = fontFamily)) { append(separator) }
-    appendKaraoke(highMidi, size, weight, octaveWeight, fontFamily, short)
+    appendKaraoke(highMidi, size, weight, octaveWeight, fontFamily, short, spacedOctave)
 }
 
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendKaraoke(
     midi: Int, size: TextUnit, weight: FontWeight, octaveWeight: FontWeight, fontFamily: FontFamily?, short: Boolean,
+    spacedOctave: Boolean = false,
 ) {
     val (octave, syllable) = karaokeParts(midi, short)
     if (octave.isNotEmpty()) {
-        withStyle(SpanStyle(fontSize = size * OCTAVE_SCALE, fontWeight = octaveWeight, fontFamily = fontFamily)) { append(octave) }
+        withStyle(SpanStyle(fontSize = size * OCTAVE_SCALE, fontWeight = octaveWeight, fontFamily = fontFamily)) {
+            append(if (spacedOctave) octave.replace("옥타브", " 옥타브") else octave)
+        }
     }
-    withStyle(SpanStyle(fontSize = size, fontWeight = weight, fontFamily = fontFamily)) { append(syllable) }
+    withStyle(SpanStyle(fontSize = size, fontWeight = weight, fontFamily = fontFamily)) {
+        if (spacedOctave && octave.isNotEmpty()) append(" ")
+        append(syllable)
+    }
 }
 
 /** 한 음. "2옥타브 도" — 옥타브 부분 작게, 음절 크게. */
@@ -116,12 +123,18 @@ fun OctaveRangeText(
     fontFamily: FontFamily? = null,
     separator: String = " ~ ",
     textAlign: TextAlign? = null,
+    spacedOctave: Boolean = false,
 ) {
     val notation by NoteNames.notation.collectAsStateWithLifecycle()
     val spoken = if (notation == NoteNames.Notation.LETTERS) NoteNames.scientificRange(lowMidi, highMidi)
-    else "${KaraokeNames.korean(lowMidi)}부터 ${KaraokeNames.korean(highMidi)}까지"
+    else {
+        val low = KaraokeNames.korean(lowMidi)
+        val high = KaraokeNames.korean(highMidi)
+        if (spacedOctave) "${low.replace("옥타브", " 옥타브")}부터 ${high.replace("옥타브", " 옥타브")}까지"
+        else "${low}부터 ${high}까지"
+    }
     Text(
-        karaokeRangeText(lowMidi, highMidi, size, weight, octaveWeight, fontFamily, separator),
+        karaokeRangeText(lowMidi, highMidi, size, weight, octaveWeight, fontFamily, separator, spacedOctave = spacedOctave),
         modifier = modifier.semantics { contentDescription = spoken },
         lineHeight = size * 1.25f,
         color = color,

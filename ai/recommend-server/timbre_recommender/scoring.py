@@ -79,9 +79,11 @@ def _model_track_score(
     *,
     centroid_weight: float,
     segment_weight: float,
+    query_centroid: np.ndarray | None = None,
+    candidate_centroid: np.ndarray | None = None,
 ) -> dict[str, float]:
-    query_centroid = _centroid(query)
-    candidate_centroid = _centroid(candidate)
+    query_centroid = _centroid(query) if query_centroid is None else query_centroid
+    candidate_centroid = _centroid(candidate) if candidate_centroid is None else candidate_centroid
     centroid_similarity = float(query_centroid @ candidate_centroid)
     similarities = query @ candidate.T
     query_best = np.max(similarities, axis=1)

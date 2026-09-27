@@ -1,7 +1,7 @@
 package com.micon.app.data.backend.dto
 
 /*
- * 백엔드 찜·세트리스트 계약 (backend/src/main/java/com/micon/backend/favorite/api, setlist/api).
+ * 백엔드 찜·플레이리스트 계약 (backend/src/main/java/com/micon/backend/favorite/api, setlist/api).
  * 필드명은 서버 record 그대로. LocalDateTime 은 ISO 문자열("2026-09-13T21:00:00")로 온다.
  */
 

@@ -11,7 +11,10 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 import random
+import logging
+import time
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 
 import numpy as np
@@ -25,9 +28,10 @@ from .composition import (
 )
 from .contracts import MODEL_KEYS, SCORING_VERSION
 from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
-from .scoring import RankerConfig, _absolute_similarity, _model_track_score
+from .scoring import RankerConfig, _absolute_similarity, _centroid, _model_track_score
 
 SHELVES_VERSION = "shelves-v5-db-genre-preference"
+log = logging.getLogger("uvicorn.error")
 
 # 사용자 평가 후 조정할 값
 MIN_PROFILE_CONFIDENCE = 0.55          # 곡 음표 신뢰도 하한 (곡예사2 0.47 제외, 정국 0.63 유지)
@@ -92,13 +96,58 @@ def _genre_tier(row: Mapping[str, Any], selected: set[str], *, enabled: bool) ->
     return 2
 
 
-def _timbre_scores(query: Mapping[str, np.ndarray], catalog, track, config: RankerConfig) -> dict[str, dict[str, float]]:
+def _timbre_scores(
+    query: Mapping[str, np.ndarray], catalog, track, config: RankerConfig,
+    query_centroids: Mapping[str, np.ndarray],
+    candidate_centroids: dict[str, np.ndarray] | None = None,
+) -> tuple[dict[str, dict[str, float]], dict[str, np.ndarray]]:
     out = {}
+    centroids = {} if candidate_centroids is None else candidate_centroids
     for key in MODEL_KEYS:
-        score = _model_track_score(query[key], catalog.embeddings(track, key), centroid_weight=config.centroid_weight, segment_weight=config.segment_weight)
+        candidate = catalog.embeddings(track, key)
+        if key not in centroids:
+            centroids[key] = _centroid(candidate)
+        score = _model_track_score(
+            query[key], candidate, centroid_weight=config.centroid_weight,
+            segment_weight=config.segment_weight, query_centroid=query_centroids[key],
+            candidate_centroid=centroids[key],
+        )
         score["absolute_score"] = _absolute_similarity(score["raw_score"])
         out[key] = score
-    return out
+    return out, centroids
+
+
+def _artist_absolute_scores(
+    artist_query: Mapping[str, np.ndarray], catalog,
+    candidates: list[tuple[Any, dict[str, Any], dict[str, np.ndarray]]],
+    config: RankerConfig, query_centroids: Mapping[str, np.ndarray],
+) -> dict[str, list[float]]:
+    """Score favorite artists in bounded batches without changing the per-track reductions."""
+    scores: dict[str, list[float]] = {key: [0.0] * len(candidates) for key in MODEL_KEYS}
+    for key in MODEL_KEYS:
+        query = artist_query[key]
+        groups: dict[int, list[tuple[int, np.ndarray, np.ndarray]]] = defaultdict(list)
+        for index, (track, _, centroids) in enumerate(candidates):
+            embedding = catalog.embeddings(track, key)
+            groups[len(embedding)].append((index, embedding, centroids[key]))
+        for segment_count, group in groups.items():
+            # Cap the largest temporary similarity matrix at roughly 16 MiB.
+            batch_size = max(1, min(128, 4_000_000 // max(1, len(query) * segment_count)))
+            for offset in range(0, len(group), batch_size):
+                batch = group[offset : offset + batch_size]
+                embeddings = np.concatenate([item[1] for item in batch], axis=0)
+                similarities = (query @ embeddings.T).reshape(len(query), len(batch), segment_count)
+                query_coverage = np.median(np.max(similarities, axis=2), axis=0)
+                candidate_coverage = np.median(np.max(similarities, axis=0), axis=1)
+                for position, (index, _, candidate_centroid) in enumerate(batch):
+                    centroid_similarity = float(query_centroids[key] @ candidate_centroid)
+                    segment_coverage = 0.5 * (
+                        float(query_coverage[position]) + float(candidate_coverage[position])
+                    )
+                    raw_score = (config.centroid_weight * centroid_similarity
+                                 + config.segment_weight * segment_coverage)
+                    scores[key][index] = _absolute_similarity(raw_score)
+    return scores
 
 
 def score_all_tracks(
@@ -119,13 +168,22 @@ def score_all_tracks(
     weights = MODEL_KEYS and {"ecapa": config.base_ecapa_weight, "singer_byol": 1.0 - config.base_ecapa_weight}
     fw = MODE_WEIGHTS.get(mode, MODE_WEIGHTS["timbre"])
     rows = []
+    started = time.perf_counter()
+    query_centroids = {key: _centroid(query[key]) for key in MODEL_KEYS}
+    artist_centroids = {key: _centroid(artist_query[key]) for key in MODEL_KEYS} if artist_query is not None else None
+    timbre_seconds = artist_seconds = range_seconds = 0.0
+    considered = range_scored = 0
+    artist_candidates: list[tuple[Any, dict[str, Any], dict[str, np.ndarray]]] = []
     for track in catalog.tracks:
         meta = track.metadata or {}
         song_id = song_id_of(meta)
         if not song_id:
             continue
-        models = _timbre_scores(query, catalog, track, config)
+        considered += 1
+        phase_started = time.perf_counter()
+        models, candidate_centroids = _timbre_scores(query, catalog, track, config, query_centroids)
         timbre = float(sum(weights[k] * models[k]["absolute_score"] for k in MODEL_KEYS))
+        timbre_seconds += time.perf_counter() - phase_started
         row: dict[str, Any] = {
             "track_id": track.track_id, "song_id": song_id, "title": track.title, "artist": track.artist, "metadata": meta,
             "models": models, "timbre_score": timbre, "is_rap": is_rap(meta),
@@ -133,10 +191,11 @@ def score_all_tracks(
             "coverage0": None, "center0": None, "high_excess0": None, "high_ratio0": None,
         }
         if artist_query is not None:
-            am = _timbre_scores(artist_query, catalog, track, config)
-            row["artist_similarity"] = float(sum(weights[k] * am[k]["absolute_score"] for k in MODEL_KEYS))
+            artist_candidates.append((track, row, candidate_centroids))
         cand = ranges.profiles.get(track.track_id) if ranges is not None else None
         if user is not None and cand is not None:
+            phase_started = time.perf_counter()
+            range_scored += 1
             conf = float(cand.get("confidence", 1.0))
             row["melodic"] = bool(cand.get("reliable", True)) and conf >= MIN_PROFILE_CONFIDENCE and not row["is_rap"]
             best = score_range_fit(user, cand)
@@ -149,7 +208,26 @@ def score_all_tracks(
             hist = np.asarray(cand["histogram"], dtype=float)
             midi = np.arange(len(hist)) + int(cand.get("histogramMidiMin", 36))
             row["high_ratio0"] = float(hist[midi > user_hi].sum())
+            range_seconds += time.perf_counter() - phase_started
         rows.append(row)
+    if artist_query is not None:
+        phase_started = time.perf_counter()
+        artist_scores = _artist_absolute_scores(artist_query, catalog, artist_candidates, config, artist_centroids)
+        for index, (_, row, _) in enumerate(artist_candidates):
+            row["artist_similarity"] = float(sum(
+                weights[key] * artist_scores[key][index] for key in MODEL_KEYS
+            ))
+        artist_seconds = time.perf_counter() - phase_started
+    total_seconds = time.perf_counter() - started
+    log.info(
+        "event=recommendation_all_tracks_profile tracks=%d considered=%d range_scored=%d "
+        "artist_query_enabled=%d timbre_ms=%.2f artist_ms=%.2f range_ms=%.2f "
+        "other_ms=%.2f total_ms=%.2f",
+        len(catalog.tracks), considered, range_scored, int(artist_query is not None),
+        timbre_seconds * 1000, artist_seconds * 1000, range_seconds * 1000,
+        (total_seconds - timbre_seconds - artist_seconds - range_seconds) * 1000,
+        total_seconds * 1000,
+    )
     return rows
 
 
