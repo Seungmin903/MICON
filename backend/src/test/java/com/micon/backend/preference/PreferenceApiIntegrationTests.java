@@ -111,9 +111,9 @@ class PreferenceApiIntegrationTests {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.content.length()").value(1))
 			.andExpect(jsonPath("$.data.content[0].artistId").value(302))
-			.andExpect(jsonPath("$.data.content[0].imageUrl").value(org.hamcrest.Matchers.startsWith("https://")))
-			.andExpect(jsonPath("$.data.content[0].imageLicense").isEmpty())
-			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").isEmpty())
+			.andExpect(jsonPath("$.data.content[0].imageUrl").value(org.hamcrest.Matchers.containsString("180628_Day6")))
+			.andExpect(jsonPath("$.data.content[0].imageLicense").value("CC BY 3.0"))
+			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").value(org.hamcrest.Matchers.containsString("commons.wikimedia.org/wiki/File:180628_Day6.jpg")))
 			.andExpect(jsonPath("$.data.totalElements").value(1))
 			.andExpect(jsonPath("$.data.totalPages").value(1));
 

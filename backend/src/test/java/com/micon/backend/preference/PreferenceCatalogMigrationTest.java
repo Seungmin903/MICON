@@ -25,19 +25,32 @@ class PreferenceCatalogMigrationTest {
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='etc-jpop'", String.class)).isEqualTo("J-POP");
     }
 
-    @Test @Transactional void singerImageTakesPriorityOverRateLimitedPortraitOverride() {
-        jdbc.update("INSERT INTO singer (singer_id, name, normalized_name, image_url) VALUES (90001, 'IU', 'iu', 'https://cdn.example/iu.jpg')");
+    @Test @Transactional void curatedPortraitOverridesLegacyImageForRoyKimAndIU() {
+        jdbc.update("INSERT INTO singer (singer_id, name, normalized_name, image_url) VALUES (90001, 'IU', 'iu', 'https://cdn.example/wrong-person.jpg')");
+        jdbc.update("INSERT INTO singer (singer_id, name, normalized_name, image_url) VALUES (90002, 'Roy Kim', 'roy kim', 'https://cdn.example/old-portrait.jpg')");
 
-        var artist = catalog.findArtistsByIds(java.util.List.of(90001L)).get(0);
+        var iu = catalog.findArtistsByIds(java.util.List.of(90001L)).get(0);
+        assertThat(iu.name()).isEqualTo("아이유");
+        assertThat(iu.imageUrl()).contains("IU_at_Blue_Dragon_Series_Awards");
+        assertThat(iu.imageSourceUrl()).contains("commons.wikimedia.org/wiki/File:IU_at_Blue_Dragon");
+        assertThat(iu.imageAttribution()).isEqualTo("티비텐 TV10");
+        assertThat(iu.imageLicense()).isEqualTo("CC BY 4.0");
 
-        assertThat(artist.imageUrl()).isEqualTo("https://cdn.example/iu.jpg");
+        var royKim = catalog.findArtistsByIds(java.util.List.of(90002L)).get(0);
+        assertThat(royKim.name()).isEqualTo("로이킴");
+        assertThat(royKim.imageUrl()).contains("180531_%EB%A1%9C%EC%9D%B4%ED%82%B4.jpg");
+        assertThat(royKim.imageAttribution()).isEqualTo("dispatchsns");
+        assertThat(royKim.imageLicense()).isEqualTo("CC BY 3.0");
+    }
+
+    @Test @Transactional void legacyImageRemainsFallbackWhenArtistHasNoCuratedPortrait() {
+        jdbc.update("INSERT INTO singer (singer_id, name, normalized_name, image_url) VALUES (90003, 'Uncatalogued Singer', 'uncatalogued-test-singer', 'https://cdn.example/legacy.jpg')");
+
+        var artist = catalog.findArtistsByIds(java.util.List.of(90003L)).get(0);
+
+        assertThat(artist.imageUrl()).isEqualTo("https://cdn.example/legacy.jpg");
         assertThat(artist.imageSourceUrl()).isNull();
         assertThat(artist.imageAttribution()).isNull();
         assertThat(artist.imageLicense()).isNull();
-
-        jdbc.update("UPDATE singer SET image_url=NULL WHERE singer_id=90001");
-        var portraitFallback = catalog.findArtistsByIds(java.util.List.of(90001L)).get(0);
-        assertThat(portraitFallback.imageUrl()).contains("wikimedia.org");
-        assertThat(portraitFallback.imageSourceUrl()).contains("commons.wikimedia.org");
     }
 }
