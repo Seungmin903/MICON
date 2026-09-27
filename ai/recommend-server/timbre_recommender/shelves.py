@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 import random
 import logging
 import time
@@ -116,6 +117,39 @@ def _timbre_scores(
     return out, centroids
 
 
+def _artist_absolute_scores(
+    artist_query: Mapping[str, np.ndarray], catalog,
+    candidates: list[tuple[Any, dict[str, Any], dict[str, np.ndarray]]],
+    config: RankerConfig, query_centroids: Mapping[str, np.ndarray],
+) -> dict[str, list[float]]:
+    """Score favorite artists in bounded batches without changing the per-track reductions."""
+    scores: dict[str, list[float]] = {key: [0.0] * len(candidates) for key in MODEL_KEYS}
+    for key in MODEL_KEYS:
+        query = artist_query[key]
+        groups: dict[int, list[tuple[int, np.ndarray, np.ndarray]]] = defaultdict(list)
+        for index, (track, _, centroids) in enumerate(candidates):
+            embedding = catalog.embeddings(track, key)
+            groups[len(embedding)].append((index, embedding, centroids[key]))
+        for segment_count, group in groups.items():
+            # Cap the largest temporary similarity matrix at roughly 16 MiB.
+            batch_size = max(1, min(128, 4_000_000 // max(1, len(query) * segment_count)))
+            for offset in range(0, len(group), batch_size):
+                batch = group[offset : offset + batch_size]
+                embeddings = np.concatenate([item[1] for item in batch], axis=0)
+                similarities = (query @ embeddings.T).reshape(len(query), len(batch), segment_count)
+                query_coverage = np.median(np.max(similarities, axis=2), axis=0)
+                candidate_coverage = np.median(np.max(similarities, axis=0), axis=1)
+                for position, (index, _, candidate_centroid) in enumerate(batch):
+                    centroid_similarity = float(query_centroids[key] @ candidate_centroid)
+                    segment_coverage = 0.5 * (
+                        float(query_coverage[position]) + float(candidate_coverage[position])
+                    )
+                    raw_score = (config.centroid_weight * centroid_similarity
+                                 + config.segment_weight * segment_coverage)
+                    scores[key][index] = _absolute_similarity(raw_score)
+    return scores
+
+
 def score_all_tracks(
     catalog,
     ranges,
@@ -139,6 +173,7 @@ def score_all_tracks(
     artist_centroids = {key: _centroid(artist_query[key]) for key in MODEL_KEYS} if artist_query is not None else None
     timbre_seconds = artist_seconds = range_seconds = 0.0
     considered = range_scored = 0
+    artist_candidates: list[tuple[Any, dict[str, Any], dict[str, np.ndarray]]] = []
     for track in catalog.tracks:
         meta = track.metadata or {}
         song_id = song_id_of(meta)
@@ -156,10 +191,7 @@ def score_all_tracks(
             "coverage0": None, "center0": None, "high_excess0": None, "high_ratio0": None,
         }
         if artist_query is not None:
-            phase_started = time.perf_counter()
-            am, _ = _timbre_scores(artist_query, catalog, track, config, artist_centroids, candidate_centroids)
-            row["artist_similarity"] = float(sum(weights[k] * am[k]["absolute_score"] for k in MODEL_KEYS))
-            artist_seconds += time.perf_counter() - phase_started
+            artist_candidates.append((track, row, candidate_centroids))
         cand = ranges.profiles.get(track.track_id) if ranges is not None else None
         if user is not None and cand is not None:
             phase_started = time.perf_counter()
@@ -178,6 +210,14 @@ def score_all_tracks(
             row["high_ratio0"] = float(hist[midi > user_hi].sum())
             range_seconds += time.perf_counter() - phase_started
         rows.append(row)
+    if artist_query is not None:
+        phase_started = time.perf_counter()
+        artist_scores = _artist_absolute_scores(artist_query, catalog, artist_candidates, config, artist_centroids)
+        for index, (_, row, _) in enumerate(artist_candidates):
+            row["artist_similarity"] = float(sum(
+                weights[key] * artist_scores[key][index] for key in MODEL_KEYS
+            ))
+        artist_seconds = time.perf_counter() - phase_started
     total_seconds = time.perf_counter() - started
     log.info(
         "event=recommendation_all_tracks_profile tracks=%d considered=%d range_scored=%d "
