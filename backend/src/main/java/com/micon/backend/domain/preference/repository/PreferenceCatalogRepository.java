@@ -88,7 +88,8 @@ public class PreferenceCatalogRepository {
 		Long count = jdbcTemplate.queryForObject("""
 			SELECT COUNT(*) FROM singer s
 			LEFT JOIN artist_portrait p ON p.normalized_name = s.normalized_name
-			WHERE """ + ACTIVE_ARTIST + " AND (" + SEARCH + ")",
+			WHERE
+			""" + ACTIVE_ARTIST + " AND (" + SEARCH + ")",
 			searchParameters(query), Long.class);
 		return count == null ? 0 : count;
 	}
