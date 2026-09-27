@@ -25,7 +25,7 @@ object Routes {
     const val REPORT = "report"
     const val PRACTICE = "practice"          // = 노래 연습 - 곡 선택
     const val EVALUATION = "evaluation"      // = 노래 연습 분석 (목록 + 아코디언 상세)
-    const val FAVORITES = "favorites"        // = 노래 찜 목록 / 세트리스트
+    const val FAVORITES = "favorites"        // = 노래 찜 목록 / 플레이리스트
 
     // 하위 화면
     const val SONG_MATCH = "match/{songId}"          // song-match-detail
@@ -36,7 +36,7 @@ object Routes {
     const val SONG = "song/{songId}?source={source}" // 공통 곡 상세. 기존 song/{id} 주소도 호환
     const val PRACTICE_RUN = "practice/{songId}?selectedKey={selectedKey}"
     const val RESULT = "result/{practiceId}"         // 노래 연습 분석 상세 (전체 화면, 백엔드 practiceId)
-    const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 세트리스트 세부 (하단 탭 보임)
+    const val SETLIST = "setlist/{setlistId}"        // 노래 찜 목록 - 플레이리스트 세부 (하단 탭 보임)
     const val SETTINGS = "settings"
     const val DEV_SEED_PROFILE = "dev/seed-profile"  // 개발용
     const val DEV_CATALOG = "dev/catalog"            // 개발용 — 디자인 카탈로그

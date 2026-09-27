@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * 사용자 쪽 데이터의 **임시 인메모리 저장소**(음성 프로필·닉네임·온보딩 선호·마지막 녹음).
- * 찜·세트리스트·연습 기록은 백엔드 Repository(`FavoriteRepository`·`SetlistRepository`·`PracticeRepository`)로 옮겼다.
+ * 찜·플레이리스트·연습 기록은 백엔드 Repository(`FavoriteRepository`·`SetlistRepository`·`PracticeRepository`)로 옮겼다.
  * 음성 프로필은 서버 분석 결과(`VoiceReportViewModel`)가 덮어쓴다. 남은 항목도 서버로 옮기면 이 객체는 삭제한다.
  */
 object UserStore {

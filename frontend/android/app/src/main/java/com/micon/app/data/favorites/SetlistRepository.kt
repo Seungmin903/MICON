@@ -9,7 +9,7 @@ import com.micon.app.data.backend.dto.SetlistSummaryDto
 import com.micon.app.data.backend.unwrapData
 import com.micon.app.data.backend.unwrapNullable
 
-/** 세트리스트 요약(`SetlistResponse.Summary`). */
+/** 플레이리스트 요약(`SetlistResponse.Summary`). */
 data class Setlist(
     val id: Long,
     val name: String,
@@ -19,13 +19,13 @@ data class Setlist(
     val updatedAt: String?,
 )
 
-/** 세트리스트 곡(`SetlistResponse.SongItem`). [position] 은 서버 순서(0부터). */
+/** 플레이리스트 곡(`SetlistResponse.SongItem`). [position] 은 서버 순서(0부터). */
 data class SetlistSong(val songId: String, val title: String, val artist: String, val imageUrl: String?, val durationMs: Long?, val position: Int)
 
 data class SetlistDetail(val id: Long, val name: String, val songs: List<SetlistSong>, val createdAt: String?, val updatedAt: String?)
 
 /**
- * 세트리스트. 백엔드 `SetlistController`(`/setlists`)만 본다.
+ * 플레이리스트. 백엔드 `SetlistController`(`/setlists`)만 본다.
  *
  * 서버 규칙: 이름 1~100자(공백 제거), 곡 추가는 전체 곡 카탈로그에서 가능하며 남의 리스트는 404 SETLIST_NOT_FOUND.
  * 순서 변경은 정렬된 전체 곡 ID와 상세의 updatedAt 을 함께 보내 동시 수정 충돌을 검증한다.
