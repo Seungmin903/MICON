@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micon.app.data.holo.HoloResult
+import com.micon.app.range.VoiceQualityResult
 import com.micon.app.ui.design.atoms.CompactDisc
 import com.micon.app.ui.design.atoms.MiconBadge
 import com.micon.app.ui.design.atoms.MiconButton
@@ -62,12 +63,12 @@ import kotlin.math.roundToInt
 private val Ser1 = Color(0xFF6C5CE7)
 private val Ser3 = Color(0xFFC2410C)
 
-// 두 음역 카드(음역대 지도 · 내 목소리에 맞는 음악)가 함께 쓰는 규칙. 편한 음역은 어디서나 보라,
+// 음역 지도와 발성 유지 점수가 함께 쓰는 규칙. 편한 음역은 어디서나 보라,
 // 전체 음역은 연보라, 발성 점수 곡선과 편한 구간은 보라색으로 표시한다.
 private val RangeAll = Color(0xFFC9C1F5)
 private val RangeComfort = Ser1
 private val Ink = Color(0xFF3A3552)
-/** 두 카드 그림 왼쪽 라벨 칸. 같은 폭이라 그림의 x 시작점이 같다 */
+/** 두 그림 왼쪽 라벨 칸. 같은 폭이라 그림의 x 시작점이 같다 */
 private val Gutter = 48.dp
 
 /**
@@ -117,12 +118,11 @@ fun VoiceResultScreen(
 @Composable
 fun VoiceResultContent(result: HoloResult, showStatus: Boolean = true) {
     if (showStatus) FadeIn(0) { MiconBadge("측정 완료", tone = MiconChipTone.Success) }
-    // 두 카드가 같은 자를 쓴다 — 같은 음은 위아래 카드에서 같은 x 에 온다
+    // 한 카드 안의 두 그림이 같은 자를 쓴다 — 같은 음은 위아래에서 같은 x 에 온다
     val axis = remember(result) { PitchAxis.of(result) }
     FadeIn(1) { RangeMapCard(result, axis) }
-    FadeIn(2) { MatchingMusicCard(result, axis) }
-    if (result.artists.isNotEmpty()) FadeIn(4) { SimilarVoicesCard(result) }
-    else if (result.timbreSubmitted) FadeIn(4) {
+    if (result.artists.isNotEmpty()) FadeIn(2) { SimilarVoicesCard(result) }
+    else if (result.timbreSubmitted) FadeIn(2) {
         MiconCard(kind = MiconCardKind.Outlined) {
             Text("나와 닮은 목소리", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text("음색을 분석하는 중이에요. 잠시 뒤 분석 탭에서 확인할 수 있어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -143,7 +143,7 @@ private fun Eyebrow(text: String) =
 
 /**
  * 음역대 지도. 카드 머리에 편한 음역을 크게(화면 제목·분석 탭 카드와 같은 값), 전체 음역은 보조 줄로.
- * 그 아래 [PitchAxis] 자 위에 전체·편한 음역 막대를 겹친다 — 아래 '내 목소리에 맞는 음악' 카드와 같은 자다.
+ * 그 아래 [PitchAxis] 자 위에 전체·편한 음역 막대와 발성 유지 점수를 함께 놓는다.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -183,10 +183,14 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
                 GrowBar(color, seg.first, seg.second, delayMs = 100 * i, guides = axis.guides)
             }
         }
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+        Spacer(Modifier.height(18.dp))
+        StabilitySection(r, axis)
     }
 }
 
-/** 두 카드가 그림 위에 똑같이 두는 눈금 행. 왼쪽 [Gutter] 만큼 비워 그림과 x 를 맞춘다 */
+/** 두 그림 위에 똑같이 두는 눈금 행. 왼쪽 [Gutter] 만큼 비워 그림과 x 를 맞춘다 */
 @Composable
 private fun AxisRow(axis: PitchAxis) {
     Row(Modifier.fillMaxWidth()) {
@@ -244,41 +248,38 @@ private fun androidx.compose.foundation.layout.RowScope.GrowBar(color: Color, fr
 }
 
 /**
- * 안정성 꺾은선 + 건반을 **한 가로축(MIDI)** 위에 위아래로 붙인 카드.
+ * 발성 유지 점수 곡선 + 건반을 **한 가로축(MIDI)** 위에 위아래로 붙인 섹션.
  * 예전에는 꺾은선이 샘플 순서, 건반이 흰건반 15개라 같은 음이 서로 다른 x 에 있었다.
  * 이제 [PitchAxis] 하나가 두 그림의 x 를 모두 정한다 — 점 바로 아래에 그 음의 건반이 온다.
  */
 @Composable
-private fun MatchingMusicCard(r: HoloResult, axis: PitchAxis) {
+private fun StabilitySection(r: HoloResult, axis: PitchAxis) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    MiconCard(kind = MiconCardKind.Outlined) {
-        if (r.voiceQuality != null) {
-            Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-        }
-        // 편한 음역 값은 위 카드 머리에 있다 — 여기선 같은 자 위의 그림만
-        AxisRow(axis)
+    if (r.voiceQuality != null) {
+        Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        if (r.voiceQuality != null) Row(Modifier.fillMaxWidth()) {
-            // 좌측 눈금 라벨. [Gutter] 폭이라 위 카드 막대·아래 건반과 가로가 어긋나지 않는다
-            Column(Modifier.width(Gutter).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                listOf("100", "50", "0").forEach { Text(it, fontSize = 12.sp, color = muted) }
-            }
-            Column(Modifier.weight(1f)) {
-                StabilityLine(r, axis)
-                Spacer(Modifier.height(6.dp))
-                Keyboard(r, axis)
-            }
-        }
-        else Text("이번 측정에서는 발성 유지 점수를 계산하지 못했어요. 다시 측정하면 확인할 수 있어요.",
-            fontSize = 12.sp, color = muted)
-        if (r.voiceQuality == null) Text("보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
-            fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
     }
+    AxisRow(axis)
+    Spacer(Modifier.height(6.dp))
+    if (r.voiceQuality != null) Row(Modifier.fillMaxWidth()) {
+        // 좌측 눈금 라벨. [Gutter] 폭이라 위 막대·아래 건반과 가로가 어긋나지 않는다
+        Column(Modifier.width(Gutter).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            listOf("100", "50", "0").forEach { Text(it, fontSize = 12.sp, color = muted) }
+        }
+        Column(Modifier.weight(1f)) {
+            StabilityLine(r, axis)
+            Spacer(Modifier.height(6.dp))
+            Keyboard(r, axis)
+        }
+    }
+    else Text("이번 측정에서는 발성 유지 점수를 계산하지 못했어요. 다시 측정하면 확인할 수 있어요.",
+        fontSize = 12.sp, color = muted)
+    if (r.voiceQuality == null) Text("보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
+        fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
 }
 
 /**
- * 분석 결과 두 카드(음역대 지도 · 내 목소리에 맞는 음악)가 공유하는 가로축. 흰건반 목록을 좌표로 삼는다 —
+ * 음역 지도와 발성 유지 점수가 공유하는 가로축. 흰건반 목록을 좌표로 삼는다 —
  * 실제 피아노와 같은 간격이라 건반 위 어디에 음이 있는지 눈으로 읽힌다.
  * 범위는 전체 음역·편한 음역·안정성 측정음을 모두 담고 양옆에 흰건반 하나씩 여유를 둔다.
  */
@@ -329,10 +330,32 @@ private class PitchAxis(val low: Int, val high: Int, val whites: List<Int>) {
     }
 }
 
+/**
+ * 0.3초를 유지하지 못해 기록된 0점은 중간에서만 숨긴다. 양끝의 짧은 시도와
+ * 충분히 유지했지만 발성 품질 때문에 받은 실제 0점은 그대로 보여 준다.
+ * 원본 점수는 저장·전송에 그대로 남고, 숨긴 음을 건너뛰는 선은 점선으로 그린다.
+ */
+internal fun visibleStabilityPoints(
+    midis: List<Int>, scores: List<Float>, quality: VoiceQualityResult?,
+): List<Pair<Int, Float>> {
+    val values = midis.zip(scores)
+    if (quality == null || quality.points.isEmpty()) return values
+    val firstMidi = quality.points.minOf { it.midi }
+    val lastMidi = quality.points.maxOf { it.midi }
+    val measured = quality.points.associateBy { it.midi }
+    return values.filter { (midi, _) ->
+        val point = measured[midi]
+        point == null || midi == firstMidi || midi == lastMidi || point.score != 0.0 || point.holdScore > 0.0
+    }
+}
+
 /** 측정 점 사이를 완만한 곡선으로 잇는다. 미측정 반음은 점선을 써서 보간임을 드러낸다. */
 @Composable
 private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
-    val best = r.stability.indices.maxByOrNull { r.stability[it] } ?: -1
+    val points = remember(r.stabilityMidis, r.stability, r.voiceQuality) {
+        visibleStabilityPoints(r.stabilityMidis, r.stability, r.voiceQuality)
+    }
+    val bestMidi = points.maxByOrNull { it.second }?.first
     Canvas(Modifier.fillMaxWidth().height(100.dp)) {
         fun x(midi: Int) = size.width * axis.fraction(midi)
         fun y(v: Float) = size.height * (0.08f + (1f - v) * 0.84f)
@@ -347,9 +370,9 @@ private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
             )
         }
-        if (r.stability.isEmpty()) return@Canvas
+        if (points.isEmpty()) return@Canvas
         if (r.voiceQuality != null) {
-            r.stabilityMidis.zip(r.stability).zipWithNext().forEach { (previous, current) ->
+            points.zipWithNext().forEach { (previous, current) ->
                 val px = x(previous.first)
                 val cx = x(current.first)
                 val py = y(previous.second)
@@ -365,20 +388,20 @@ private fun StabilityLine(r: HoloResult, axis: PitchAxis) {
             }
         } else {
             val path = Path()
-            r.stability.forEachIndexed { i, value ->
-                val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
+            points.forEachIndexed { i, (midi, value) ->
+                val cx = x(midi)
                 val cy = y(value)
                 if (i == 0) path.moveTo(cx, cy) else {
-                    val px = x(r.stabilityMidis.getOrElse(i - 1) { axis.low })
-                    val py = y(r.stability[i - 1])
+                    val px = x(points[i - 1].first)
+                    val py = y(points[i - 1].second)
                     path.cubicTo(px + (cx - px) / 2, py, px + (cx - px) / 2, cy, cx, cy)
                 }
             }
             drawPath(path, Ink, style = Stroke(2.dp.toPx()))
         }
-        r.stability.forEachIndexed { i, v ->
-            val cx = x(r.stabilityMidis.getOrElse(i) { axis.low })
-            val radius = if (i == best) 6.dp.toPx() else 5.dp.toPx()
+        points.forEach { (midi, v) ->
+            val cx = x(midi)
+            val radius = if (midi == bestMidi) 6.dp.toPx() else 5.dp.toPx()
             val color = if (r.voiceQuality != null && v == 0f) Color(0xFFD64A55)
                 else if (r.voiceQuality != null) RangeComfort else Ink
             drawCircle(Color.White, radius, Offset(cx, y(v)))
