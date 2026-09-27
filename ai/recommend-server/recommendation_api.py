@@ -28,7 +28,6 @@ from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
 from schemas import RecommendResult
 from timbre_recommender.catalog import CatalogIndex
-from timbre_recommender.composition import allowed_languages
 from timbre_recommender.contracts import SCORING_VERSION
 from timbre_recommender.embedding import embed_vocal_audio
 from timbre_recommender.shelves import SHELVES_VERSION, build_shelves, score_all_tracks
@@ -181,7 +180,7 @@ def build_result(
     preferred_artists: tuple[str, ...] = (),
     excluded_track_ids: tuple[str, ...] = (),
     seed: int | None = None,
-    genre_preferences_enabled: bool = False,
+    genre_preferences_enabled: bool = True,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
     range_enabled = bool(pitch_profile and pitch_profile.get("reliable", False))
@@ -199,9 +198,10 @@ def build_result(
     rows = [r for r in rows if r["track_id"] not in set(excluded_track_ids)]
     if seed is None:
         seed = int(time.strftime("%Y%m%d"))          # 새로운 발견: 하루 단위로 섞임
+    composition: dict[str, Any] = {}
     shelves = build_shelves(rows, top_k=top_k, genres=genres, preferred_artists=preferred_artists,
-                            genre_preferences_enabled=genre_preferences_enabled, range_enabled=range_enabled, seed=seed)
-    allowed = allowed_languages(genres)
+                            genre_preferences_enabled=genre_preferences_enabled, range_enabled=range_enabled,
+                            seed=seed, diagnostics=composition)
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
         "algorithm": {
@@ -211,7 +211,8 @@ def build_result(
             "applied_mode": mode if range_enabled else "timbre_only",
             "range_enabled": range_enabled,
             "range_fallback_reason": fallback,
-            "language_gate": {"enabled": allowed is not None, "genres": list(genres), "allowed": sorted(allowed) if allowed else None},
+            "language_gate": {"enabled": False, "genres": list(genres), "allowed": None, "excluded_count": 0},
+            "composition": composition,
             "preferred_artists": list(preferred_artists),
             "catalog_scored": len(rows),
         },

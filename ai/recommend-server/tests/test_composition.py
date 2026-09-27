@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from schemas import Job, RangeFit, Recommendation
 import timbre_recommender.composition as composition
 from timbre_recommender.composition import (
-    allowed_languages,
     compose_by_final_score,
     compose_two_axis,
     song_id_of,
@@ -48,16 +47,10 @@ class SongIdAndLanguageTest(unittest.TestCase):
         self.assertIsNone(song_id_of({}))
         self.assertIsNone(song_id_of(None))
 
-    def test_language_mapping(self) -> None:
+    def test_language_mapping_is_display_only(self) -> None:
         self.assertEqual(track_language({"languages": "kor"}), "ko")
         self.assertEqual(track_language({"languages": "jpn"}), "jp")
         self.assertIsNone(track_language({"languages": "mul"}))
-        self.assertIsNone(allowed_languages([]))
-        self.assertIsNone(allowed_languages(["팝"]))
-        self.assertIsNone(allowed_languages(["발라드", "팝"]))
-        self.assertEqual(allowed_languages(["영어곡"]), {"en"})
-        self.assertEqual(allowed_languages(["일본곡"]), {"jp"})
-        self.assertEqual(allowed_languages(["발라드", "일본곡", "영어곡"]), {"jp", "en"})
 
 
 class ComposeTest(unittest.TestCase):
@@ -175,26 +168,28 @@ class ComposeTest(unittest.TestCase):
             for v in r["axis_scores"].values():
                 self.assertTrue(0.0 <= v <= 1.0)
 
-    def test_language_gate_and_song_id_filter(self) -> None:
+    def test_language_is_not_a_gate_but_song_id_is(self) -> None:
         ranked = self.ranked + [_item("J", 0.99, 0.99, lang="jpn"), _item("N", 0.99, 0.99, tj=None)]
         out = compose_two_axis(ranked, top_k=5, genres=["영어곡"], range_enabled=True, scoring_version="s")
         ids = {r["track_id"] for r in out["recommendations"]}
-        self.assertNotIn("J", ids)
+        self.assertIn("J", ids)
         self.assertNotIn("N", ids)
-        self.assertEqual(out["language_gate"]["allowed"], ["en"])
-        self.assertEqual(out["language_gate"]["excluded_count"], 7)
+        self.assertFalse(out["language_gate"]["enabled"])
+        self.assertIsNone(out["language_gate"]["allowed"])
+        self.assertEqual(out["language_gate"]["excluded_count"], 0)
         self.assertEqual(out["catalog_filter"]["excluded_without_song_id"], 1)
 
-    def test_foreign_choices_include_every_style_in_the_language(self) -> None:
+    def test_composer_leaves_genre_selection_to_shelves(self) -> None:
         ranked = [_item("j-rock", .9, .9, lang="jpn"), _item("j-ost", .8, .8, lang="jpn"),
                   _item("e-jazz", .9, .9, lang="eng"), _item("e-rap", .8, .8, lang="eng"),
                   _item("k-ballad", .9, .9, lang="kor")]
         for item, style in zip(ranked, ["Rock", "Soundtrack", "Jazz", "Hip-Hop", "Ballad"]):
             item["metadata"]["genres"] = [style]
-        for choice, expected in [("일본곡", {"j-rock", "j-ost"}), ("영어곡", {"e-jazz", "e-rap"})]:
+        for choice in ("일본곡", "영어곡"):
             with self.subTest(choice=choice):
                 result = compose_two_axis(ranked, top_k=5, genres=[choice], range_enabled=False, scoring_version="s")
-                self.assertEqual({r["track_id"] for r in result["recommendations"]}, expected)
+                self.assertEqual({r["track_id"] for r in result["recommendations"]}, {item["track_id"] for item in ranked})
+                self.assertFalse(result["language_gate"]["enabled"])
 
     def test_range_filter_drops_low_scores_only_when_enabled(self) -> None:
         ranked = self.ranked + [_item("L", 0.99, 0.99, range_score=0.1)]
