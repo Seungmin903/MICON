@@ -54,7 +54,7 @@ class HoloViewModel(
 ) : ViewModel() {
     enum class Phase { IDLE, LOADING, REC, DONE, ERROR }
 
-    /** 1단계 음역(15초 미션) → 2단계 음색(노래 부르기). 두 단계를 한 흐름으로 잇지 않는다. */
+    /** 1단계 음역(저음 10초·고음 15초) → 2단계 음색(노래 부르기). 두 단계를 한 흐름으로 잇지 않는다. */
     enum class Stage { RANGE, TIMBRE }
 
     data class State(

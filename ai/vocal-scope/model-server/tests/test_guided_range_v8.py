@@ -84,6 +84,18 @@ class FreeRangeVerificationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_meta(meta, 33.5)
 
+    def test_ten_second_down_sweep_is_verified_while_up_stays_fifteen_seconds(self):
+        self.meta["stages"][1]["end"] = 13.2
+        self.frames[1] = [frame for frame in self.frames[1] if frame["t"] < 13.2]
+        result = evaluate_stages(self.meta, self.frames, 33.5)
+        self.assertEqual(57, result["stableLowMidi"])
+        self.assertEqual(64, result["stableHighMidi"])
+
+        too_short_up = metadata()
+        too_short_up["stages"][2]["end"] = 32.0
+        with self.assertRaises(ValueError):
+            validate_meta(too_short_up, 33.5)
+
     def test_a_sweep_may_run_past_the_mission_time_up_to_the_cap(self):
         allowed = metadata()
         allowed["stages"][1]["end"] = 25
