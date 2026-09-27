@@ -79,7 +79,7 @@ public class PreferenceService {
 			throw invalid("관심 장르와 아티스트를 각각 1개 이상 선택해 주세요.");
 		}
 		if (catalogRepository.findSelectableGenresByIds(request.genreIds()).size() != request.genreIds().size()
-			|| catalogRepository.findArtistsByIds(request.artistIds()).size() != request.artistIds().size()) {
+			|| catalogRepository.findSelectableArtistsByIds(request.artistIds()).size() != request.artistIds().size()) {
 			throw invalid("존재하지 않는 장르 또는 아티스트입니다.");
 		}
 

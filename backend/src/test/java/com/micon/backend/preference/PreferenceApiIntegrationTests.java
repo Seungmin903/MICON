@@ -63,6 +63,11 @@ class PreferenceApiIntegrationTests {
 			       (302, 'DAY6', 'day6', 'https://cdn.example/day6.jpg'),
 			       (303, '100%_밴드', '100%_밴드', NULL)
 			""");
+		jdbcTemplate.update("INSERT INTO song(title, status) VALUES ('테스트 곡', 'ACTIVE')");
+		Long firstSongId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		jdbcTemplate.update("INSERT INTO song(title, status) VALUES ('테스트 곡 2', 'ACTIVE')");
+		Long secondSongId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		jdbcTemplate.update("INSERT INTO song_singer(song_id, singer_id) VALUES (?, 301), (?, 302)", firstSongId, secondSongId);
 	}
 
 	@Test
@@ -194,7 +199,7 @@ class PreferenceApiIntegrationTests {
 			.andExpect(jsonPath("$.data.onboardingCompleted").value(false));
 		mockMvc.perform(get("/artists").param("query", "%").with(jwtFor(user)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.content[0].artistId").value(303));
+			.andExpect(jsonPath("$.data.totalElements").value(2));
 		mockMvc.perform(get("/artists").param("size", "101").with(jwtFor(user)))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
@@ -211,10 +216,28 @@ class PreferenceApiIntegrationTests {
 			.andExpect(jsonPath("$.data.content[0].name").value("데이식스"));
 		mockMvc.perform(get("/artists").param("query", "100%_").with(jwtFor(user)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.content[0].artistId").value(303))
-			.andExpect(jsonPath("$.data.content[0].imageUrl").isEmpty());
+			.andExpect(jsonPath("$.data.content").isEmpty())
+			.andExpect(jsonPath("$.data.totalElements").value(0));
 		save(user, "{\"genreIds\":[201],\"artistIds\":[303],\"onboardingCompleted\":true}")
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+	}
+
+	@Test
+	void removesArtistsWithoutActiveSongsFromChoicesButKeepsExistingPreferencesReadable() throws Exception {
+		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
 			.andExpect(status().isOk());
+		jdbcTemplate.update("UPDATE song SET status='INACTIVE' WHERE song_id = ?",
+			jdbcTemplate.queryForObject("SELECT song_id FROM song_singer WHERE singer_id=301", Long.class));
+
+		mockMvc.perform(get("/artists").param("query", "아이유").with(jwtFor(user)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.content").isEmpty())
+			.andExpect(jsonPath("$.data.totalElements").value(0));
+		mockMvc.perform(get("/users/me/preferences").with(jwtFor(user)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.artistIds[0]").value(301))
+			.andExpect(jsonPath("$.data.artists[0].artistId").value(301));
 	}
 
 	@Test
