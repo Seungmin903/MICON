@@ -177,33 +177,8 @@ class HoloViewModel(
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
     }
 
-    // ---- 검색 ----
-    fun onQuery(q: String) {
-        _state.update { it.copy(query = q, picked = null) }
-        searchJob?.cancel()
-        if (q.isBlank()) { _state.update { it.copy(suggestions = emptyList(), searching = false) }; return }
-        searchJob = viewModelScope.launch {
-            delay(250)
-            _state.update { it.copy(searching = true) }
-            val items = runCatching { songs.search(q.trim(), 0, 6).items }.getOrDefault(emptyList())
-            _state.update { it.copy(suggestions = items, searching = false) }
-        }
-    }
-
-    fun pick(song: SongSummary) {
-        searchJob?.cancel()
-        _state.update { it.copy(picked = song, query = "${song.title} · ${song.artist}", suggestions = emptyList()) }
-    }
-
-    /** 선택한 곡은 유지하되, '곡 바꾸기' 목록은 이전 곡명 검색 결과가 아닌 전체 목록에서 시작한다. */
-    fun openSongPicker() {
-        searchJob?.cancel()
-        _state.update { it.copy(query = "", suggestions = emptyList(), searching = false) }
-        loadCatalog()
-        retryCatalogMore()
-    }
-
-    fun clearSuggestions() = _state.update { it.copy(suggestions = emptyList()) }
+    // Search and pagination belong to SongListViewModel; this state only keeps the chosen song.
+    fun pick(song: SongSummary) = _state.update { it.copy(picked = song) }
 
     // ---- 녹음 ----
     fun start() {
