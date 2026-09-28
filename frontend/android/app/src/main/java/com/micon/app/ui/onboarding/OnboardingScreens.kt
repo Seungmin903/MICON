@@ -288,8 +288,11 @@ fun SignupScreen(onBack: () -> Unit, onDone: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
+    // 동의 체크는 회전에는 살아남되 화면을 떠나면 사라진다. 서버에는 아직 동의 이력을 보내지 않는다(docs/PRIVACY_CONSENT.md 9절).
+    var accepted by rememberAcceptedTerms()
     val pwOk = isValidPassword(password)
     val confirmOk = confirm.isEmpty() || confirm == password
+    val consentOk = PrivacyConsentTerms.requiredAccepted(PrivacyConsentTerms.signup, accepted)
     val done by rememberUpdatedState(onDone)
     BackHandler(enabled = state.submitting) { }
     LaunchedEffect(state.authenticated) {
@@ -318,12 +321,15 @@ fun SignupScreen(onBack: () -> Unit, onDone: () -> Unit) {
         AuthTextField(confirm, { if (!state.submitting) confirm = it }, "비밀번호 확인",
             modifier = Modifier.testTag("auth_password_confirm"), isPassword = true,
             helper = if (!confirmOk) "비밀번호가 일치하지 않습니다." else null, helperColor = Red)
+        Spacer(Modifier.height(16.dp))
+        ConsentChecklist(PrivacyConsentTerms.signup, accepted, onAcceptedChange = { accepted = it },
+            modifier = Modifier.testTag("consent_list"), enabled = !state.submitting)
         AuthMessage(state.error)
         Spacer(Modifier.height(20.dp))
         AuthPrimaryButton(if (state.submitting) "가입 중…" else "회원가입",
-            onClick = { model.submit(email, password, signup = true) },
+            onClick = { if (consentOk) model.submit(email, password, signup = true) },
             modifier = Modifier.fillMaxWidth().testTag("auth_submit"),
-            enabled = !state.submitting && email.isNotBlank() && pwOk && confirm == password)
+            enabled = !state.submitting && email.isNotBlank() && pwOk && confirm == password && consentOk)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Text("로그인으로 돌아가기", fontSize = 13.5.sp, color = Grey,
                 modifier = Modifier.clickable(enabled = !state.submitting, onClick = onBack).padding(14.dp))
