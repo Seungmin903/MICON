@@ -119,9 +119,9 @@ class PreferenceApiIntegrationTests {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.content.length()").value(1))
 			.andExpect(jsonPath("$.data.content[0].artistId").value(302))
-			.andExpect(jsonPath("$.data.content[0].imageUrl").value(org.hamcrest.Matchers.containsString("180628_Day6")))
-			.andExpect(jsonPath("$.data.content[0].imageLicense").value("CC BY 3.0"))
-			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").value(org.hamcrest.Matchers.containsString("commons.wikimedia.org/wiki/File:180628_Day6.jpg")))
+			.andExpect(jsonPath("$.data.content[0].imageUrl").value("https://image.bugsm.co.kr/artist/images/1200/802457/80245739.jpg"))
+			.andExpect(jsonPath("$.data.content[0].imageLicense").value("UNVERIFIED"))
+			.andExpect(jsonPath("$.data.content[0].imageSourceUrl").value("https://music.bugs.co.kr/artist/80245739"))
 			.andExpect(jsonPath("$.data.totalElements").value(1))
 			.andExpect(jsonPath("$.data.totalPages").value(1));
 
@@ -254,8 +254,8 @@ class PreferenceApiIntegrationTests {
 			.andExpect(status().isBadRequest());
 		save(user, "{\"genreIds\":[201],\"artistIds\":[301],\"onboardingCompleted\":true}")
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.artists[0].imageSourceUrl").value("https://commons.wikimedia.org/wiki/File:IU_singer.jpg"))
-			.andExpect(jsonPath("$.data.artists[0].imageLicense").value("CC BY 3.0"));
+			.andExpect(jsonPath("$.data.artists[0].imageSourceUrl").value("https://music.bugs.co.kr/artist/80049126"))
+			.andExpect(jsonPath("$.data.artists[0].imageLicense").value("UNVERIFIED"));
 		mockMvc.perform(get("/users/me/preferences").with(jwtFor(user)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.artists[0].imageAttribution").isNotEmpty());
