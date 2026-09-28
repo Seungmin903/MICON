@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/songs", "/songs/*").permitAll()
                         // 장르 목록은 계정과 무관한 카탈로그라 곡 목록처럼 비로그인도 받는다(온보딩·연습 탭 장르 칩)
                         .requestMatchers(HttpMethod.GET, "/genres").permitAll()
+						.requestMatchers(HttpMethod.GET, "/artist-portraits/min-kyung-hoon.jpg").permitAll()
 					.requestMatchers(HttpMethod.GET, "/songs/*/practice-assets", "/songs/*/practice-guide",
 						"/songs/*/mr").permitAll()
                         .requestMatchers(HttpMethod.POST, "/callbacks/voice-analyses",

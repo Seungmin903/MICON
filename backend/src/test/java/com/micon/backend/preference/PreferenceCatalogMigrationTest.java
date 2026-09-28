@@ -5,14 +5,36 @@ import com.micon.backend.domain.preference.dto.PreferenceResponse.Genre;
 import com.micon.backend.domain.preference.repository.PreferenceCatalogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:preference-catalog;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE")
+@AutoConfigureMockMvc
 class PreferenceCatalogMigrationTest {
     @Autowired PreferenceCatalogRepository catalog;
     @Autowired JdbcTemplate jdbc;
+    @Autowired MockMvc mockMvc;
+
+    @Test void hostedMinKyungHoonPortraitIsPackagedAsJpeg() throws Exception {
+        var resource = new ClassPathResource("static/artist-portraits/min-kyung-hoon.jpg");
+        assertThat(resource.exists()).isTrue();
+        try (var input = resource.getInputStream()) {
+            assertThat(input.readNBytes(2)).containsExactly((byte) 0xFF, (byte) 0xD8);
+        }
+    }
+
+    @Test void hostedMinKyungHoonPortraitIsPublicAndServedAsJpeg() throws Exception {
+        mockMvc.perform(get("/artist-portraits/min-kyung-hoon.jpg"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType("image/jpeg"));
+    }
 
     @Test void freshDatabaseOffersTenUniqueOrderedChoicesWithoutSeedingFakeSingers() {
         var genres = catalog.findGenres();
@@ -80,7 +102,7 @@ class PreferenceCatalogMigrationTest {
         var minKyungHoon = catalog.findArtistsByIds(java.util.List.of(90007L)).get(0);
 
         assertThat(minKyungHoon.name()).isEqualTo("민경훈");
-        assertThat(minKyungHoon.imageUrl()).isEqualTo("https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Min_Kyung-Hoon.jpg/500px-Min_Kyung-Hoon.jpg");
+        assertThat(minKyungHoon.imageUrl()).isEqualTo("https://j15b110.p.ssafy.io/api/v1/artist-portraits/min-kyung-hoon.jpg");
         assertThat(minKyungHoon.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:Min_Kyung-Hoon.jpg");
         assertThat(minKyungHoon.imageAttribution()).isEqualTo("Korea.net / Korean Culture and Information Service (Photographer: Jeon Han)");
         assertThat(minKyungHoon.imageLicense()).isEqualTo("CC BY-SA 2.0");
