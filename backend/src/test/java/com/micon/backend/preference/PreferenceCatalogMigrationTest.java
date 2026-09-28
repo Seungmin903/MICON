@@ -19,7 +19,7 @@ class PreferenceCatalogMigrationTest {
         assertThat(genres).extracting(Genre::name).containsExactly(
             "발라드", "댄스", "R&B/소울", "록/메탈", "힙합", "포크/어쿠스틱", "OST", "영어곡", "일본곡", "트로트");
         assertThat(genres).extracting(Genre::code).doesNotHaveDuplicates();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM artist_portrait", Integer.class)).isEqualTo(82);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM artist_portrait", Integer.class)).isEqualTo(87);
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='kpop-adult'", String.class)).isEqualTo("성인가요");
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='global-pop'", String.class)).isEqualTo("팝");
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='etc-jpop'", String.class)).isEqualTo("J-POP");
@@ -31,17 +31,17 @@ class PreferenceCatalogMigrationTest {
 
         var iu = catalog.findArtistsByIds(java.util.List.of(90001L)).get(0);
         assertThat(iu.name()).isEqualTo("아이유");
-        assertThat(iu.imageUrl()).isEqualTo("https://upload.wikimedia.org/wikipedia/commons/2/24/IU_singer.jpg");
-        assertThat(iu.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:IU_singer.jpg");
-        assertThat(iu.imageAttribution()).isEqualTo("Marie Claire Korea");
-        assertThat(iu.imageLicense()).isEqualTo("CC BY 3.0");
+        assertThat(iu.imageUrl()).isEqualTo("https://image.bugsm.co.kr/artist/images/1200/800491/80049126.jpg");
+        assertThat(iu.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/80049126");
+        assertThat(iu.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
+        assertThat(iu.imageLicense()).isEqualTo("UNVERIFIED");
 
         var royKim = catalog.findArtistsByIds(java.util.List.of(90002L)).get(0);
         assertThat(royKim.name()).isEqualTo("로이킴");
-        assertThat(royKim.imageUrl()).isEqualTo("https://upload.wikimedia.org/wikipedia/commons/f/f8/KCON_2015_Roy_Kim_%28cropped%29.jpg");
-        assertThat(royKim.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:KCON_2015_Roy_Kim_(cropped).jpg");
-        assertThat(royKim.imageAttribution()).isEqualTo("mduangdara");
-        assertThat(royKim.imageLicense()).isEqualTo("CC BY-SA 2.0");
+        assertThat(royKim.imageUrl()).isEqualTo("https://image.bugsm.co.kr/artist/images/1200/801377/80137715.jpg");
+        assertThat(royKim.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/80137715");
+        assertThat(royKim.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
+        assertThat(royKim.imageLicense()).isEqualTo("UNVERIFIED");
     }
 
     @Test @Transactional void replacesIncorrectJustinBieberPortraitWithVerifiedArtistImage() {
@@ -49,10 +49,10 @@ class PreferenceCatalogMigrationTest {
 
         var justinBieber = catalog.findArtistsByIds(java.util.List.of(90006L)).get(0);
 
-        assertThat(justinBieber.imageUrl()).isEqualTo("https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Justin_Bieber_in_concert_crop.jpg/500px-Justin_Bieber_in_concert_crop.jpg");
-        assertThat(justinBieber.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:Justin_Bieber_in_concert_crop.jpg");
-        assertThat(justinBieber.imageAttribution()).isEqualTo("Moxy (original photo by Heather Sokol)");
-        assertThat(justinBieber.imageLicense()).isEqualTo("CC BY-SA 2.0");
+        assertThat(justinBieber.imageUrl()).isEqualTo("https://image.bugsm.co.kr/artist/images/1200/800577/80057730.jpg");
+        assertThat(justinBieber.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/80057730");
+        assertThat(justinBieber.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
+        assertThat(justinBieber.imageLicense()).isEqualTo("UNVERIFIED");
     }
 
     @Test @Transactional void verifiedKimBumSooAndBol4PortraitsOverrideLegacyImages() {
@@ -61,17 +61,17 @@ class PreferenceCatalogMigrationTest {
 
         var kim = catalog.findArtistsByIds(java.util.List.of(90004L)).get(0);
         assertThat(kim.name()).isEqualTo("김범수");
-        assertThat(kim.imageUrl()).isEqualTo("https://upload.wikimedia.org/wikipedia/commons/8/86/KIm_Bum-Soo.jpg");
-        assertThat(kim.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:KIm_Bum-Soo.jpg");
-        assertThat(kim.imageAttribution()).isEqualTo("여니수니");
-        assertThat(kim.imageLicense()).isEqualTo("CC BY 2.0 kr");
+        assertThat(kim.imageUrl()).isEqualTo("https://image.bugsm.co.kr/artist/images/1200/68/6886.jpg");
+        assertThat(kim.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/6886");
+        assertThat(kim.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
+        assertThat(kim.imageLicense()).isEqualTo("UNVERIFIED");
 
         var bol4 = catalog.findArtistsByIds(java.util.List.of(90005L)).get(0);
         assertThat(bol4.name()).isEqualTo("볼빨간사춘기");
-        assertThat(bol4.imageUrl()).isEqualTo("https://upload.wikimedia.org/wikipedia/commons/8/86/180228_Ahn_Ji-young_at_the_Japan_Tokyo_Showcase.jpg");
-        assertThat(bol4.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:180228_Ahn_Ji-young_at_the_Japan_Tokyo_Showcase.jpg");
-        assertThat(bol4.imageAttribution()).isEqualTo("Seono_");
-        assertThat(bol4.imageLicense()).isEqualTo("CC BY-SA 4.0");
+        assertThat(bol4.imageUrl()).isEqualTo("https://image.bugsm.co.kr/artist/images/1200/802106/80210668.jpg");
+        assertThat(bol4.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/80210668");
+        assertThat(bol4.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
+        assertThat(bol4.imageLicense()).isEqualTo("UNVERIFIED");
     }
 
     @Test @Transactional void legacyImageRemainsFallbackWhenArtistHasNoCuratedPortrait() {
