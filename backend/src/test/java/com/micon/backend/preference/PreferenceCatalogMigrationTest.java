@@ -19,7 +19,7 @@ class PreferenceCatalogMigrationTest {
         assertThat(genres).extracting(Genre::name).containsExactly(
             "발라드", "댄스", "R&B/소울", "록/메탈", "힙합", "포크/어쿠스틱", "OST", "영어곡", "일본곡", "트로트");
         assertThat(genres).extracting(Genre::code).doesNotHaveDuplicates();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM artist_portrait", Integer.class)).isEqualTo(87);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM artist_portrait", Integer.class)).isEqualTo(89);
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='kpop-adult'", String.class)).isEqualTo("성인가요");
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='global-pop'", String.class)).isEqualTo("팝");
         assertThat(jdbc.queryForObject("SELECT name FROM genre WHERE normalized_name='etc-jpop'", String.class)).isEqualTo("J-POP");
@@ -72,6 +72,18 @@ class PreferenceCatalogMigrationTest {
         assertThat(bol4.imageSourceUrl()).isEqualTo("https://music.bugs.co.kr/artist/80210668");
         assertThat(bol4.imageAttribution()).isEqualTo("Bugs artist page; photo author not specified");
         assertThat(bol4.imageLicense()).isEqualTo("UNVERIFIED");
+    }
+
+    @Test @Transactional void verifiedMinKyungHoonPortraitOverridesLegacyImage() {
+        jdbc.update("INSERT INTO singer (singer_id, name, normalized_name, image_url) VALUES (90007, '민경훈', '민경훈', 'https://cdn.example/old-portrait.jpg')");
+
+        var minKyungHoon = catalog.findArtistsByIds(java.util.List.of(90007L)).get(0);
+
+        assertThat(minKyungHoon.name()).isEqualTo("민경훈");
+        assertThat(minKyungHoon.imageUrl()).isEqualTo("https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Min_Kyung-Hoon.jpg/500px-Min_Kyung-Hoon.jpg");
+        assertThat(minKyungHoon.imageSourceUrl()).isEqualTo("https://commons.wikimedia.org/wiki/File:Min_Kyung-Hoon.jpg");
+        assertThat(minKyungHoon.imageAttribution()).isEqualTo("Korea.net / Korean Culture and Information Service (Photographer: Jeon Han)");
+        assertThat(minKyungHoon.imageLicense()).isEqualTo("CC BY-SA 2.0");
     }
 
     @Test @Transactional void legacyImageRemainsFallbackWhenArtistHasNoCuratedPortrait() {
