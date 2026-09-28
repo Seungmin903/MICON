@@ -58,6 +58,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.micon.app.core.auth.TokenManager
+import com.micon.app.ui.onboarding.GuestConsentDialog
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -159,8 +162,21 @@ fun HoloScreen(
         onDispose { lifecycle.removeObserver(observer) }
     }
     LightStatusBarIcons()
-    if (state.stage == HoloViewModel.Stage.RANGE) RangeStage(vm, onSkip, state.rangeRestartVersion)
-    else TimbreStage(vm, onResult, onSkip)
+    // 비회원은 동의를 저장할 계정이 없으므로 홀로 화면에 들어올 때마다 첫 측정 전에 다시 받는다.
+    // 회원은 가입 때 받았다. 동의 여부는 이 화면 컴포지션에만 남아 화면을 떠나면 사라진다.
+    var guestConsented by rememberSaveable { mutableStateOf(false) }
+    var pendingAfterConsent by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val gate: ((() -> Unit) -> Unit) = { action ->
+        if (TokenManager.isLoggedIn() || guestConsented) action() else pendingAfterConsent = action
+    }
+    if (state.stage == HoloViewModel.Stage.RANGE) RangeStage(vm, onSkip, state.rangeRestartVersion, gate)
+    else TimbreStage(vm, onResult, onSkip, gate)
+    pendingAfterConsent?.let { action ->
+        GuestConsentDialog(
+            onAgree = { guestConsented = true; pendingAfterConsent = null; action() },
+            onDismiss = { pendingAfterConsent = null },
+        )
+    }
 }
 
 // ---------------------------------------------------------------- 1단계: 음역
@@ -170,7 +186,7 @@ fun HoloScreen(
  * 이 화면은 홀로 디자인으로 감싸기만 한다. 편한 음 → 낮은 음 10초 → 높은 음 20초.
  */
 @Composable
-private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVersion: Long) {
+private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVersion: Long, gate: (() -> Unit) -> Unit) {
     val context = LocalContext.current
     val repository = remember { RangeRepository(context.applicationContext) }
     val rangeVm: FreeRangeViewModel = viewModel(key = "holo-range", factory = viewModelFactory {
@@ -195,7 +211,8 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
     }
     val rs by rangeVm.state.collectAsStateWithLifecycle()
     val view = rs.view
-    val start = rememberMicrophoneAccess(onAllowed = rangeVm::start, onDenied = { })
+    val requestMic = rememberMicrophoneAccess(onAllowed = rangeVm::start, onDenied = { })
+    val start = { gate(requestMic) }
     val preview = remember(rs.savedId) { rs.savedId?.let { repository.pending()?.submission?.onboardingPreview() } }
 
     val done = view.phase == "done"
@@ -294,7 +311,7 @@ private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.ph
 
 /** 노래로 음색을 본다. 간주는 건너뛰므로 실제로 부르는 시간만 쌓인다. */
 @Composable
-private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> Unit)?) {
+private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> Unit)?, gate: (() -> Unit) -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val rec = state.phase == HoloViewModel.Phase.REC || state.phase == HoloViewModel.Phase.LOADING
     val counting = state.phase == HoloViewModel.Phase.LOADING && state.countdown > 0
@@ -302,7 +319,8 @@ private fun TimbreStage(vm: HoloViewModel, onResult: () -> Unit, onSkip: (() -> 
     LaunchedEffect(state.phase) { if (state.phase == HoloViewModel.Phase.DONE) flood = true }
     // 녹음 준비·카운트다운·녹음 중 뒤로가기는 곡 고르기로. 음역부터 다시 재지 않는다.
     BackHandler(enabled = rec) { vm.cancelTimbre() }
-    val requestMic = rememberMicrophoneAccess(onAllowed = vm::start, onDenied = { })
+    val requestMicPermission = rememberMicrophoneAccess(onAllowed = vm::start, onDenied = { })
+    val requestMic = { gate(requestMicPermission) }
     var pickerOpen by remember { mutableStateOf(false) }
     var confirmSkip by remember { mutableStateOf(false) }
     // 연습 탭과 같은 곡 카탈로그. 2단계에 들어오자마자 만들어 첫 목록·장르를 미리 받아 둔다.

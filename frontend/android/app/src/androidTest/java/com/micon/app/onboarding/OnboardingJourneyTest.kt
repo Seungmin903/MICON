@@ -56,6 +56,8 @@ class OnboardingJourneyTest {
         input("auth_password", password)
         input("auth_password_confirm", password)
         Espresso.closeSoftKeyboard()
+        compose.onNodeWithTag("auth_submit").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("consent_all").performScrollTo().performClick()
         compose.onNodeWithTag("auth_submit").performScrollTo().performClick()
 
         awaitTag("genre-20")
