@@ -10,7 +10,8 @@ public final class VoiceQualityComfortRange {
 
     public static Bounds find(JsonNode quality, BigDecimal low, BigDecimal high) {
         if (quality == null || quality.isNull() || low == null || high == null
-                || !"personal-acoustic-v1".equals(quality.path("version").asText())) return null;
+                || !("personal-acoustic-v1".equals(quality.path("version").asText())
+                    || "personal-acoustic-v2".equals(quality.path("version").asText()))) return null;
         Integer minimum = null, maximum = null;
         for (JsonNode point : quality.path("points")) {
             int midi = point.path("midi").asInt();

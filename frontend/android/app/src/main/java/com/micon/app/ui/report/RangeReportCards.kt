@@ -179,7 +179,7 @@ private fun noteIntervals(notes: List<Int>): List<IntRange> {
 
 @Composable
 fun RangeStabilityCard(report: RangeReport, overview: Boolean = false) {
-    val quality = report.voiceQuality?.takeIf { it.version == LocalVoiceQualityAnalyzer.VERSION && it.points.isNotEmpty() }
+    val quality = report.voiceQuality?.takeIf { LocalVoiceQualityAnalyzer.supports(it.version) && it.points.isNotEmpty() }
     val plottedNotes = quality?.graphNotes() ?: report.notes
     var selected by remember(report) { mutableStateOf(quality?.referenceMidi ?: report.lowMidi ?: report.notes.firstOrNull { it.status != "unmeasured" }?.midi ?: 60) }
     val relative = quality != null || report.protocolVersion in setOf("guided-range-v4", "guided-range-v5", "guided-range-v6", "guided-range-v7")
@@ -227,7 +227,8 @@ private fun VoiceQualityDetails(point: VoiceQualityPoint?) {
     LinearProgressIndicator(progress = { (point.score / 100.0).toFloat().coerceIn(0f, 1f) },
         modifier = Modifier.fillMaxWidth())
     Text("음 유지 ${String.format(Locale.ROOT, "%.0f", point.holdScore)}점 · " +
-        "고음 변화 지표 ${String.format(Locale.ROOT, "%.2f", point.highChange)} · " +
+        (point.registerChange?.let { "발성 변화 지표 ${String.format(Locale.ROOT, "%.2f", it)} · " }
+            ?: "고음 변화 지표 ${String.format(Locale.ROOT, "%.2f", point.highChange)} · ") +
         "저음 불규칙 지표 ${String.format(Locale.ROOT, "%.2f", point.lowIrregularity)} (각 0~1)",
         color = Grey, fontSize = 12.sp)
 }

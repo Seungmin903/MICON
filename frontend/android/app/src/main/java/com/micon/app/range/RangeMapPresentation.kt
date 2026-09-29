@@ -8,7 +8,7 @@ fun RangeReport.continuousRangeMap(): RangeMap {
         ?: lowMidi?.let { lo -> highMidi?.takeIf { it >= lo }?.let { hi -> listOf(lo, hi) } }
     val held = if (protocolVersion == RangeProtocol.FREE_VERSION && stableLowMidi != null && stableHighMidi != null)
         listOf(kotlin.math.floor(stableLowMidi).toInt(), kotlin.math.ceil(stableHighMidi).toInt()) else null
-    val scored = voiceQuality?.takeIf { it.version == LocalVoiceQualityAnalyzer.VERSION }
+    val scored = voiceQuality?.takeIf { LocalVoiceQualityAnalyzer.supports(it.version) }
     val stable = if (scored != null) {
         val low = overall?.getOrNull(0)
         val high = overall?.getOrNull(1)

@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.micon.app.BuildConfig
 import com.micon.app.audio.PitchCapture
 import com.micon.app.audio.Pcm16MonoWav
 import com.micon.app.range.FreeRangeSession
@@ -204,7 +205,8 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
                 val submission = if (onboarding) {
                     val quality = withContext(Dispatchers.IO) {
                         runCatching { LocalVoiceQualityAnalyzer.analyze(wav,
-                            synchronized(qualityFrames) { qualityFrames.toList() }, original) }.getOrNull()
+                            synchronized(qualityFrames) { qualityFrames.toList() }, original,
+                            continuousScore = BuildConfig.EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY) }.getOrNull()
                     }
                     original.copy(voiceQuality = quality)
                 } else original

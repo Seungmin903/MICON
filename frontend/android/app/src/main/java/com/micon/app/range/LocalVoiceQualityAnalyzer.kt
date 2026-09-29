@@ -12,13 +12,17 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** On-device acoustic comparison against the user's first held note. No model or network call. */
+/** Experimental acoustic register-maintenance score; not a physiological register classifier. */
 object LocalVoiceQualityAnalyzer {
-    const val VERSION = "personal-acoustic-v1"
+    const val VERSION = "personal-acoustic-v2"
+    const val LEGACY_VERSION = "personal-acoustic-v1"
+    fun supports(version: String) = version == VERSION || version == LEGACY_VERSION
     internal data class Evidence(val richnessDb: Double, val h1H2Db: Double,
-        val periodicity: Double, val doublePeriodAdvantage: Double)
+        val periodicity: Double, val doublePeriodAdvantage: Double, val h2H4Db: Double = Double.NaN)
 
-    fun analyze(wav: File, frames: List<RangeFrame>, submission: RangeSubmission): VoiceQualityResult? {
+    // v2 is opt-in until independent recordings and device onboarding validate reference sensitivity.
+    fun analyze(wav: File, frames: List<RangeFrame>, submission: RangeSubmission,
+        continuousScore: Boolean = false): VoiceQualityResult? {
         require(submission.protocolVersion == RangeProtocol.FREE_VERSION)
         val comfort = submission.stages.firstOrNull { it.kind == "comfort" } ?: return null
         val held = heldNotes(frames, submission)
@@ -41,17 +45,20 @@ object LocalVoiceQualityAnalyzer {
                 voiced.size >= 3 && voiced.sumOf { it.duration.coerceAtMost(.04) } >= .1
             }
             val points = (held.keys + attempted.keys).sorted().mapNotNull { midi ->
-                val hold = held[midi] ?: return@mapNotNull VoiceQualityPoint(midi, 0.0, 0.0, 0.0, 0.0)
+                val hold = held[midi] ?: return@mapNotNull VoiceQualityPoint(midi, 0.0, 0.0, 0.0, 0.0,
+                    if (continuousScore) 0.0 else null)
                 val candidates = candidatesByMidi[midi].orEmpty()
                 val current = medianEvidence(audio, rate, candidates) ?: return@mapNotNull null
                 val upper = if (midi > referenceMidi) highChange(reference, current) else 0.0
                 val lower = if (midi < referenceMidi) lowIrregularity(reference, current,
                     pitchWobble(candidates), untrackedActiveRatio(frames, submission, midi, floor)) else 0.0
-                val score = ((100.0 - 75.0 * upper - 75.0 * lower).coerceIn(0.0, 100.0) *
-                    (.65 + .35 * hold / 100.0)).coerceIn(0.0, 100.0)
-                VoiceQualityPoint(midi, score, upper, lower, hold)
+                // Register evidence applies at/below the reference too. A thin reference is not automatically 100.
+                val register = if (continuousScore) registerChange(reference, current) else null
+                val qualityScore = if (register != null) score(register, lower, hold) else
+                    (100.0 - 75.0 * upper - 75.0 * lower).coerceIn(0.0, 100.0) * (.65 + .35 * hold / 100.0)
+                VoiceQualityPoint(midi, qualityScore, upper, lower, hold, register)
             }
-            return VoiceQualityResult(VERSION, referenceMidi, points)
+            return VoiceQualityResult(if (continuousScore) VERSION else LEGACY_VERSION, referenceMidi, points)
                 .takeIf { result -> result.points.any { it.midi == referenceMidi } }
         }
     }
@@ -91,7 +98,7 @@ object LocalVoiceQualityAnalyzer {
 
     private fun usable(frame: RangeFrame, floor: Double) = frame.t.isFinite() &&
         frame.duration.isFinite() && frame.duration > 0 && frame.f0.isFinite() && frame.f0 > 0 &&
-        frame.rms >= floor && frame.clippedRatio <= .01 &&
+        RangeEvaluator.voiced(frame, floor) && frame.clippedRatio <= .01 &&
         RangeProtocol.midi(frame.f0) in RangeProtocol.MIN_MIDI.toDouble()..RangeProtocol.MAX_MIDI.toDouble()
 
     private fun medianEvidence(audio: RandomAccessFile, rate: Int, frames: List<RangeFrame>): Evidence? {
@@ -115,14 +122,16 @@ object LocalVoiceQualityAnalyzer {
         }
         if (rows.size < 3) return null
         return Evidence(median(rows.map { it.richnessDb }), median(rows.map { it.h1H2Db }),
-            median(rows.map { it.periodicity }), median(rows.map { it.doublePeriodAdvantage }))
+            median(rows.map { it.periodicity }), median(rows.map { it.doublePeriodAdvantage }),
+            median(rows.map { it.h2H4Db }))
     }
 
     /** These are uncorrected acoustic proxies, not measured glottal closed quotient. */
     internal fun evidence(input: DoubleArray, rate: Int, f0: Double): Evidence? {
-        if (input.size < 256 || f0 !in 65.0..1200.0) return null
+        if (input.size < 256 || rate <= 0 || f0 !in 65.0..1200.0 || input.any { !it.isFinite() }) return null
         val mean = input.average()
         val samples = DoubleArray(input.size) { input[it] - mean }
+        if (samples.sumOf { it * it } <= 1e-12) return null // Silence is missing evidence, not a perfect score.
         val period = (rate / f0).roundToInt()
         if (period < 2 || 2 * period >= samples.size / 2) return null
         val one = correlation(samples, period)
@@ -134,8 +143,9 @@ object LocalVoiceQualityAnalyzer {
         val high = sqrt(amplitudes.drop(2).sumOf { it * it })
         val richness = 20.0 * ln((high + 1e-8) / (low + 1e-8)) / ln(10.0)
         val h1h2 = 20.0 * ln((amplitudes[0] + 1e-8) / (amplitudes[1] + 1e-8)) / ln(10.0)
+        val h2h4 = 20.0 * ln((amplitudes[1] + 1e-8) / (amplitudes[3] + 1e-8)) / ln(10.0)
         return Evidence(richness, h1h2, one.coerceIn(0.0, 1.0),
-            (two - one).coerceIn(0.0, 1.0))
+            (two - one).coerceIn(0.0, 1.0), h2h4)
     }
 
     private fun amplitude(windowed: DoubleArray, rate: Int, frequency: Double): Double {
@@ -171,6 +181,28 @@ object LocalVoiceQualityAnalyzer {
         val periodicity = ((reference.periodicity - observed.periodicity - .05) / .35).coerceIn(0.0, 1.0)
         return .5 * richness + .3 * dominance + .2 * periodicity
     }
+
+    /** Continuous change of two level-independent spectral ratios, not a class or posterior.
+     * Thresholds are exploratory acoustic proxies. Vowels/formants can still change both ratios.
+     * Periodicity alone is deliberately not falsetto evidence: falsetto can be highly periodic.
+     */
+    internal fun registerChange(reference: Evidence, observed: Evidence): Double {
+        if (!reference.h2H4Db.isFinite() || !observed.h2H4Db.isFinite()) return 0.0
+        val richnessLoss = ((reference.richnessDb - observed.richnessDb - 2.0) / 12.0).coerceIn(0.0, 1.0)
+        val harmonicLoss = ((observed.h2H4Db - reference.h2H4Db - 2.0) / 14.0).coerceIn(0.0, 1.0)
+        // Soft evidence fusion: one changing ratio contributes partially; agreement contributes more.
+        // No modal/falsetto decision boundary, filename label, or snapping to fixed target scores.
+        val relative = .5 * (.6 * richnessLoss + .4 * harmonicLoss) +
+            .5 * sqrt(richnessLoss * harmonicLoss)
+        // Conservative absolute guard also works if the comfort note itself was sung thinly.
+        val thinRichness = ((-2.0 - observed.richnessDb) / 5.0).coerceIn(0.0, 1.0)
+        val thinHarmonics = ((observed.h2H4Db - 4.0) / 6.0).coerceIn(0.0, 1.0)
+        return max(relative, sqrt(thinRichness * thinHarmonics))
+    }
+
+    internal fun score(register: Double, lowIrregularity: Double, hold: Double): Double =
+        (100.0 - 70.0 * register - 75.0 * lowIrregularity).coerceIn(0.0, 100.0) *
+            (.65 + .35 * hold.coerceIn(0.0, 100.0) / 100.0)
 
     internal fun lowIrregularity(reference: Evidence, observed: Evidence, wobble: Double,
         untracked: Double = 0.0): Double {
