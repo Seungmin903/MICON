@@ -114,11 +114,45 @@ class ArtistCatalogTests(unittest.TestCase):
         jid = "00000000-0000-4000-8000-000000000001"
         with mock.patch.dict(recommendation_api.JOBS, {jid: {"id": jid,
              "preferred_artists": ["NAME_A"], "result": {"recommendations": [{"track_id": "a", "artist": "NAME_A"}]}}}), \
-             mock.patch.object(recommendation_api, "_configuration_status", return_value=({"index_dir": str(self.root)}, [])), \
-             mock.patch.object(recommendation_api.CatalogIndex, "load", return_value=self.catalog):
+             mock.patch.object(recommendation_api, "JOBS_DIR", self.root / "jobs"), \
+             mock.patch.object(recommendation_api, "_load_config", return_value={"index_dir": str(self.root)}), \
+             mock.patch.object(recommendation_api.CatalogIndex, "load", return_value=self.catalog) as load:
+            self.assertEqual(recommendation_api.repair_recommendation_artist_ids(), 1)
             body = recommendation_api.get_recommendation(jid)
+            self.assertEqual(recommendation_api.get_recommendation(jid), body)
+            load.assert_called_once_with(str(self.root), verify_hashes=True)
         self.assertEqual(body["result"]["recommendations"][0]["artist"], "NAME_A")
         self.assertEqual(body["result"]["recommendations"][0]["artist_ids"], [10])
+
+    def test_polling_preserves_persisted_nested_ids_without_a_catalog(self):
+        value = {"payload": {"artist_ids": [999]}, "callbackBody": {"private": True},
+                 "result": {"recommendations": [{"track_id": "a", "artist_ids": [10, 20]}],
+                            "shelves": [{"items": [{"track_id": "a", "artist_ids": [10]}]}]}}
+        before = deepcopy(value)
+        projected = public_response(value)
+        self.assertEqual(projected["result"]["recommendations"][0]["artist_ids"], [10, 20])
+        self.assertEqual(projected["result"]["shelves"][0]["items"][0]["artist_ids"], [10])
+        self.assertNotIn("payload", projected)
+        self.assertNotIn("callbackBody", projected)
+        projected["result"]["recommendations"][0]["artist_ids"].append(30)
+        self.assertEqual(value, before)
+
+    def test_projection_never_coerces_invalid_ids_and_can_repair_exact_identity(self):
+        for ids in (None, [], [True], [False], [0], [-1], ["10"], [10.0], [2**63], [10, "20"], "10"):
+            with self.subTest(ids=ids):
+                row = {"track_id": "a", "artist_ids": ids}
+                self.assertEqual(public_response(row)["artist_ids"], [])
+                self.assertEqual(public_response(row, self.mapping, self.catalog)["artist_ids"], [10])
+
+    def test_known_historical_ids_are_not_rewritten_by_a_new_catalog(self):
+        row = {"track_id": "a", "song_id": "a", "artist_ids": [77]}
+        self.assertEqual(public_response(row, self.mapping, self.catalog)["artist_ids"], [77])
+        self.assertEqual(public_response({"track_id": "unknown", "artist_ids": [2**63 - 1]})["artist_ids"], [2**63 - 1])
+        preferred = {"preferred_artists": ["NAME_A"], "preferred_artist_ids": [77]}
+        self.assertEqual(public_response(preferred, self.mapping, self.catalog)["preferred_artist_ids"], [77])
+        for fields in ({"preferred_artist_ids": [True], "preferred_artists": ["NAME_A"]},
+                       {"preferred_artists": ["NAME_A"], "preferred_artist_ids": [True]}):
+            self.assertEqual(public_response(fields, self.mapping, self.catalog)["preferred_artist_ids"], [10])
 
     def test_historical_ids_use_exact_db_song_id_without_guessing(self):
         body = public_response([
