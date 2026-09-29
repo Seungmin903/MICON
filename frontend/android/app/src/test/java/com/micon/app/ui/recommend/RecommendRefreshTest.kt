@@ -23,9 +23,13 @@ class RecommendRefreshTest {
     }
     private class Recs : RecommendRepository {
         var calls = 0
+        var requestedLimit = 0
         var fetch: suspend (Int) -> RecommendShelves = { result("new") }
         override suspend fun fit(songId: String): SongFit? = null
-        override suspend fun shelves(limit: Int, reshuffle: Int) = fetch(++calls)
+        override suspend fun shelves(limit: Int, reshuffle: Int): RecommendShelves {
+            requestedLimit = limit
+            return fetch(++calls)
+        }
     }
     private fun vm(recs: Recs) = RecommendViewModel(Songs,recs).also { models.put("test",it) }
     @Test fun profileChangeDropsAnOldLateResponse() = runTest(dispatcher) {
@@ -43,6 +47,7 @@ class RecommendRefreshTest {
         val recs=Recs().apply { fetch={ n -> if (n < 2) RecommendShelves(true, emptyList(), "추천 생성 중", generating = true) else result("n$n") } }
         val vm=vm(recs); runCurrent(); vm.onVisible(); runCurrent()
         assertEquals(1,recs.calls)
+        assertEquals(15,recs.requestedLimit)
         assertTrue(vm.state.value.generating)
         assertTrue(vm.state.value.shelves.isEmpty())
         advanceTimeBy(2_000); runCurrent()

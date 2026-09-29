@@ -156,28 +156,60 @@
           "type": "number"
         },
         "coverage": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Coverage",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage"
         },
         "centerScore": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Centerscore",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Centerscore"
         },
         "spanFit": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Spanfit",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spanfit"
         },
         "softFit": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Softfit",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Softfit"
         },
         "keyShift": {
           "maximum": 3,
@@ -201,10 +233,6 @@
       "required": [
         "scoringVersion",
         "score",
-        "coverage",
-        "centerScore",
-        "spanFit",
-        "softFit",
         "keyShift",
         "songCoreLowMidi",
         "songCoreHighMidi",
@@ -468,7 +496,7 @@
     },
     "Shelf": {
       "additionalProperties": true,
-      "description": "추천 섹션 하나. 섹션 간 같은 곡은 없다.",
+      "description": "추천 선반 하나. 선반 안 곡은 중복하지 않고 선반 간에는 재사용할 수 있다.",
       "properties": {
         "key": {
           "enum": [

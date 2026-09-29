@@ -95,15 +95,17 @@ JSON 추천의 동시 실행·대기 한도는 8788 Uvicorn 프로세스별로 �
 
 값 범위와 등급: `final_score`·`range_fit.score` 는 0~1. 표시 등급 경계(FE): ≥0.90 찰떡궁합 · ≥0.75 잘 맞아요 · 그 밖 도전해 보세요. **가창 난이도는 서버가 제공하지 않는다** — 필드 자체가 없으며 FE 가 표시하지 않거나 자체 규칙을 쓴다. 추천 사유는 `label`(음색, voice 섹션만) 하나이고 음역 사유 문장은 FE 규칙이 만든다.
 
-**응답의 중심은 `result.shelves[]`** (`shelves-v1`, `timbre_recommender/shelves.py`). 섹션마다 1차 지표가 다르고 한 곡은 한 섹션에만 나온다(우선순위 순). `result.recommendations[]` 는 첫 섹션 items 복사본(호환용).
+**응답의 중심은 `result.shelves[]`** (`shelves-v6-stability-soft-score`, `timbre_recommender/shelves.py`). 선반마다 기준이 다르고 같은 곡이 서로 다른 선반에 나올 수 있다. 선반 안 곡 중복은 금지하며 가수당 최대 3곡이다. AI/BE 후보는 선반별 최대 50곡, Android 화면은 최대 15곡을 표시한다. `result.recommendations[]` 는 첫 선반 items 복사본(호환용).
+
+음성 유사곡의 최종 가중치는 ECAPA 70%, Singer-BYOL 15%, 측정 발성 점수 최대 15%다. BE가 `voiceProfile.voiceQuality`의 `personal-acoustic-v1` 또는 `personal-acoustic-v2` 원본 음별 점수를 전달한다. 곡의 지속시간 가중 음정 분포에 측정 점수를 대응하고 ±3키 중 적합한 키를 고른다. 측정되지 않은 음은 0점으로 채우거나 그래프 연결선으로 보간하지 않는다. 발성 기여 비중은 `0.15 × measuredCoverage × catalogConfidence`이며, 나머지는 음색 두 모델의 70:15 비율로 재정규화한다. 사용자 발성 점수 또는 믿을 수 있는 곡 음정 분포가 없으면 음색만 사용한다. 추천 전용 점수 버전은 `voice-stability-70-15-15-v1`이며 닮은 가수 검색·모델 임베딩 계약 버전과 독립적이다.
 
 | key | 제목 | 1차 지표 | 음역 조건 | 랩 |
 |---|---|---|---|---|
-| `voice` | 내 목소리와 닮은 곡 | 음색 두 축 할당 → final_score | 키 ±3 안에서 부담 0 | 제외 |
+| `voice` | 내 목소리와 닮은 곡 | ECAPA 70% + Singer-BYOL 15% + 발성 최대 15% | 음역 탈락 필터 없음 | 제외 |
 | `original_key` | 키 안 바꾸고 바로 부를 곡 | 곡 중심음 ↔ 내 중심음 근접 | 최적 키 0, 원키 커버리지 ≥ 0.95 | 제외 |
 | `favorite_artists` | 선호 가수 좋아하면 | 본인 곡 → 가수 임베딩 유사도 | 부담 0 | 제외 |
 | `challenge` (실험, 기본 꺼짐) | 고음 한 단계 도전 | 상한 위 시간 비율 작은 순 | 원키 상한 초과 1~3반음, 그 비율 3~20% | 제외 |
-| `discovery` | 새로운 발견 | 선택 장르와 장르 미상 곡 중 다른 섹션에 뽑히지 않은 곡. 서버는 일자 시드로 한 번, 앱은 새로고침마다 다시 섞음 | 없음 | 허용 |
+| `discovery` | 새로운 발견 | 선택 장르·장르 미상 곡 중 다른 선반에 없는 곡 우선, 부족하면 재사용. 서버는 일자 시드로 한 번, 앱은 후보 안에서 다시 섞음 | 없음 | 허용 |
 
 곡 프로파일 음표 신뢰도 < 0.55 인 곡(랩·불안정 추출)은 음역 조건이 있는 섹션에서 제외한다. 각 item 의 `shelf` 가 소속 섹션, `metrics` 가 그 섹션의 표시 지표다.
 `metadata.artist_gender` 는 성별 필터용 자리이며 아직 데이터가 없다(null).
@@ -115,9 +117,9 @@ JSON 추천의 동시 실행·대기 한도는 8788 Uvicorn 프로세스별로 �
 | `position` | 목록 위치 1~. **`final_score` 내림차순**이라 앞일수록 적합. 화면의 "적합할수록 크게" 규칙과 같은 뜻. 클라이언트 재정렬 금지 |
 | `song_id` | BE JSON 추천에서는 숫자 DB song_id. 활성 카탈로그 짝표로 변환하며 TJ 번호로 추측하지 않는다. 로컬 데모는 문자열 ID도 허용 |
 | `shelf`, `metrics` | 소속 섹션 key 와 그 섹션의 표시 지표(`coverage0`·`center0`·`artist_similarity`·`high_ratio0`·`genre` …) |
-| `axis`, `label` | `voice` 섹션은 `final-score-v1`로 축별 할당 없이 최종 점수 순으로 뽑는다. 따라서 `axis`는 null이고 `label`은 `최종 점수 순`이다. 다른 섹션도 `axis`는 null이다. |
+| `axis`, `label` | `axis`는 null. 음성 선반 `label`에는 측정 발성 점수·추천 키 또는 발성 자료 부족 사유가 표시된다. |
 | `axis_scores`, `axis_rank`, `confidence` | 축별 0~1 백분위·순위, 해당 축 query 구간 일치율. 로그·진단용, 표시 금지, 순서에 쓰지 않음 |
-| `range_fit`, `recommended_key` | 음역 적합도 상세와 추천 키(`-6..+5`반음). 둘은 함께 null이거나 같은 키여야 한다 |
+| `range_fit`, `recommended_key` | 음역/발성 적합도 상세와 추천 키(`-3..+3`반음). 둘은 함께 null이거나 같은 키여야 한다. `measured-stability-v1`의 `score`는 측정된 음의 발성 점수이며 `measuredCoverage`는 측정 데이터가 덮는 곡 시간 비율이다. 안정 음역 경계가 없으면 `coverage`, `centerScore`, `spanFit`, `softFit`은 null일 수 있다. |
 | `final_score` | 최종 점수. 클라이언트 계산 금지 |
 | `scoring_version`, `composition_version` | 이벤트 로그에 함께 기록 |
 

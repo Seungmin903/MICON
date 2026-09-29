@@ -10,6 +10,6 @@ import java.util.Optional;
 
 public interface RecommendationSongRepository extends JpaRepository<RecommendationSong, RecommendationSongId> {
     List<RecommendationSong> findByRecommendationIdOrderByOverallRank(Long recommendationId);
-    Optional<RecommendationSong> findByRecommendationIdAndIdSongId(Long recommendationId, String songId);
+    Optional<RecommendationSong> findFirstByRecommendationIdAndIdSongIdOrderByOverallRank(Long recommendationId, String songId);
     void deleteByRecommendationId(Long recommendationId);
 }

@@ -39,8 +39,8 @@ AXIS_LABEL = {
 # 음역 게이트: 음역 점수가 이 값 아래(또는 곡 프로파일 unreliable)면 할당에서 제외. 사용자 평가 후 조정.
 DEFAULT_MIN_RANGE_SCORE = 0.35
 # 모델이 같은 가수를 여러 곡 높게 평가해도, 최종 '내 목소리' 추천에서는
-# 한 가수의 곡을 최대 두 곡만 표시한다. 이는 모델 평가지표가 아닌 제품 구성 정책이다.
-MAX_SONGS_PER_ARTIST = 2
+# 한 가수의 곡을 최대 세 곡만 표시한다. 이는 모델 평가지표가 아닌 제품 구성 정책이다.
+MAX_SONGS_PER_ARTIST = 3
 
 # 카탈로그 언어는 응답 표시용이다. 취향 필터는 DB 장르 태그만 사용한다.
 CATALOG_LANGUAGE = {"kor": "ko", "eng": "en", "jpn": "jp"}

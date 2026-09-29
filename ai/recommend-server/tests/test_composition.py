@@ -100,11 +100,11 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(out["composition"]["selection"], "final_score")
         self.assertEqual(out["composition"]["order"], "final_score desc")
         self.assertEqual(out["composition"]["candidate_count"], 5)
-        self.assertEqual(out["composition"]["max_songs_per_artist"], 2)
+        self.assertEqual(out["composition"]["max_songs_per_artist"], 3)
         for recommendation in recs:
             Recommendation.model_validate(recommendation)
 
-    def test_final_recommendations_cap_each_artist_at_two_songs(self) -> None:
+    def test_final_recommendations_cap_each_artist_at_three_songs(self) -> None:
         ranked = [
             _item("A", .99, .70, artist="same"),
             _item("B", .98, .69, artist="same"),
@@ -114,9 +114,9 @@ class ComposeTest(unittest.TestCase):
         ]
         out = compose_by_final_score(ranked, top_k=5, range_enabled=True, scoring_version="s")
         artists = [item["artist"] for item in out["recommendations"]]
-        self.assertEqual(artists.count("same"), 2)
-        self.assertTrue(all(artists.count(artist) <= 2 for artist in set(artists)))
-        self.assertEqual(out["composition"]["max_songs_per_artist"], 2)
+        self.assertEqual(artists.count("same"), 3)
+        self.assertTrue(all(artists.count(artist) <= 3 for artist in set(artists)))
+        self.assertEqual(out["composition"]["max_songs_per_artist"], 3)
 
     def test_response_schema_rejects_unplayable_positive_six_key(self) -> None:
         fit = dict(self.ranked[0]["range_fit"])

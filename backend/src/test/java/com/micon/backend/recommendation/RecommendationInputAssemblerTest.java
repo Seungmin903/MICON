@@ -55,6 +55,8 @@ class RecommendationInputAssemblerTest {
         when(session.getId()).thenReturn(20L); when(session.getSongId()).thenReturn("30");
         when(range.getStableLowMidi()).thenReturn(new BigDecimal("52.5"));
         when(range.getStableHighMidi()).thenReturn(new BigDecimal("67.5"));
+        String quality = "{\"version\":\"personal-acoustic-v1\",\"referenceMidi\":60,\"points\":[{\"midi\":60,\"score\":75}]}";
+        when(range.getVoiceQualityJson()).thenReturn(quality);
         when(profiles.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(profile));
         when(ranges.findBySessionId(20L)).thenReturn(Optional.of(range));
         when(models.findBySessionIdAndModelKey(20L, "ECAPA")).thenReturn(Optional.of(ecapa));
@@ -71,6 +73,7 @@ class RecommendationInputAssemblerTest {
         assertThat(embedding.get("SINGER_BYOL").get("embedding").size()).isEqualTo(1000);
         assertThat(embedding.get("SINGER_BYOL").get("segmentInfo").get("embeddings").size()).isEqualTo(1);
         assertThat(input.voiceProfile().embeddingRef()).isNull();
+        assertThat(input.voiceProfile().voiceQuality()).isEqualTo(quality);
     }
 
     @Test void rejectsMissingProfile() {

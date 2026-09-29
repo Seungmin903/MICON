@@ -90,7 +90,7 @@ public class SongFitQueryRepository {
 			  AND r.status = 'COMPLETED'
 			  AND rs.song_id = :songId
 			  AND r.generated_at >= uvp.updated_at
-			ORDER BY r.generated_at DESC, r.recommendation_id DESC
+			ORDER BY r.generated_at DESC, r.recommendation_id DESC, rs.overall_rank ASC
 			LIMIT 1
 			""";
 		return jdbcTemplate.query(

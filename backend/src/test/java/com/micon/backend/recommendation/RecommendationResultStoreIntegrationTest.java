@@ -91,8 +91,8 @@ class RecommendationResultStoreIntegrationTest {
                 "job-invalid", RecommendationResultGateway.Status.COMPLETE, 100, "done",
                 new RecommendationResultGateway.Result(
                         new RecommendationResultGateway.Algorithm("score-v2", "shelves-v1"), List.of(
-                                new RecommendationResultGateway.Shelf("voice", "음색", null, List.of(item)),
-                                new RecommendationResultGateway.Shelf("range", "음역", null, List.of(item)))), null));
+                                new RecommendationResultGateway.Shelf("voice", "음색", null, List.of(
+                                        item, item(2, songId, null, null, null))))), null));
 
         entityManager.flush();
         assertThat(outcome).isEqualTo(RecommendationResultStore.Outcome.FAILED);
@@ -101,6 +101,26 @@ class RecommendationResultStoreIntegrationTest {
         assertThat(recommendation.getFailureReason()).contains("duplicate songId");
         assertThat(shelves.findByRecommendationIdOrderByOrder(recommendation.getId())).isEmpty();
         assertThat(songs.findByRecommendationIdOrderByOverallRank(recommendation.getId())).isEmpty();
+    }
+
+    @Test
+    void storesSameSongInDifferentShelvesAndReadsFirstOccurrence() {
+        Recommendation recommendation = recommendation("result-reused@micon.com", "job-reused");
+        String songId = insertCatalogSong("두 기준에 맞는 곡");
+        var result = new RecommendationResultGateway.Result(
+                new RecommendationResultGateway.Algorithm("voice-stability-70-15-15-v1", "shelves-v6-stability-soft-score"),
+                List.of(new RecommendationResultGateway.Shelf("voice", "음색", null, List.of(item(1, songId, null, null, null))),
+                        new RecommendationResultGateway.Shelf("original_key", "원키", null, List.of(item(1, songId, null, null, null)))));
+        assertThat(store.apply("job-reused", new RecommendationResultGateway.Job("job-reused",
+                RecommendationResultGateway.Status.COMPLETE, 100, "done", result, null)))
+                .isEqualTo(RecommendationResultStore.Outcome.COMPLETED);
+        entityManager.flush();
+        entityManager.clear();
+        var rows = songs.findByRecommendationIdOrderByOverallRank(recommendation.getId());
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).getId()).isNotEqualTo(rows.get(1).getId());
+        assertThat(songs.findFirstByRecommendationIdAndIdSongIdOrderByOverallRank(recommendation.getId(), songId)
+                .orElseThrow().getOverallRank()).isEqualTo((short) 1);
     }
 
     @Test

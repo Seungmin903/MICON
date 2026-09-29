@@ -138,7 +138,8 @@ class SongFitQueryRepositoryTest {
 			CREATE TABLE RECOMMENDATION_SONG (
 			  recommendation_id BIGINT, song_id VARCHAR(64), recommended_key SMALLINT,
 			  final_score DECIMAL(8,6), timbre_score DECIMAL(8,6),
-			  range_fit JSON, metrics JSON, reason_text VARCHAR(1000), axis VARCHAR(30), label VARCHAR(200)
+			  range_fit JSON, metrics JSON, reason_text VARCHAR(1000), axis VARCHAR(30), label VARCHAR(200),
+			  overall_rank SMALLINT NOT NULL DEFAULT 1
 			)
 			""");
 		jdbcTemplate.execute("""

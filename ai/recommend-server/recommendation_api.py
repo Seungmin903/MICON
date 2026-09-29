@@ -28,7 +28,7 @@ from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
 from schemas import RecommendResult
 from timbre_recommender.catalog import CatalogIndex
-from timbre_recommender.contracts import SCORING_VERSION
+from timbre_recommender.stability_scoring import ECAPA_WEIGHT, TIMBRE_WEIGHT, RECOMMENDATION_SCORING_VERSION
 from timbre_recommender.embedding import embed_vocal_audio
 from timbre_recommender.shelves import SHELVES_VERSION, build_shelves, score_all_tracks
 from timbre_recommender.pitch_range import RANGE_CATALOG_FILENAME, RangeCatalog
@@ -44,9 +44,10 @@ MAX_BYTES = 250 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
 CANDIDATE_POOL = 400  # compose 전에 후보 전체를 받는다. 최종 개수는 topK 가 정한다.
 MAX_TOP_K = 50        # 섹션당 최대 곡 수. BE 가 필터(성별·언어)용으로 넉넉히 저장할 수 있게 20 → 50 (2026-09-09)
-# 음색 추천 정책: ECAPA 80%, Singer-BYOL 20%; 곡 전체 평균과 구간 매칭은 동등하게 본다.
+# 최종 추천: ECAPA 70%, Singer-BYOL 15%, 측정 발성 점수 최대 15%.
+# 발성 자료가 부족하면 두 음색 모델의 70:15 비율을 유지하며 재정규화한다.
 # song_fit 등 별도 API의 기본 점수 정책은 이 변경에 포함하지 않는다.
-VOICE_RANKER_CONFIG = RankerConfig(base_ecapa_weight=.80, centroid_weight=.50, segment_weight=.50)
+VOICE_RANKER_CONFIG = RankerConfig(base_ecapa_weight=ECAPA_WEIGHT / TIMBRE_WEIGHT, centroid_weight=.50, segment_weight=.50)
 LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
@@ -181,6 +182,7 @@ def build_result(
     excluded_track_ids: tuple[str, ...] = (),
     seed: int | None = None,
     genre_preferences_enabled: bool = True,
+    voice_quality: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
     profile_started = time.perf_counter()
@@ -196,7 +198,7 @@ def build_result(
     phase_started = time.perf_counter()
     rows = score_all_tracks(
         catalog, ranges, query, query_profile=pitch_profile if range_enabled else None, mode=mode, genres=genres, artist_query=artist_query,
-        config=VOICE_RANKER_CONFIG,
+        config=VOICE_RANKER_CONFIG, voice_quality=voice_quality,
     )
     score_all_ms = (time.perf_counter() - phase_started) * 1000
     phase_started = time.perf_counter()
@@ -212,10 +214,10 @@ def build_result(
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
         "algorithm": {
-            "scoring_version": SCORING_VERSION,
+            "scoring_version": RECOMMENDATION_SCORING_VERSION,
             "shelves_version": SHELVES_VERSION,
             "requested_mode": mode,
-            "applied_mode": mode if range_enabled else "timbre_only",
+            "applied_mode": "stability_soft_score" if any(r.get("stability_fit") for r in rows) else "timbre_only",
             "range_enabled": range_enabled,
             "range_fallback_reason": fallback,
             "language_gate": {"enabled": False, "genres": list(genres), "allowed": None, "excluded_count": 0},
@@ -427,6 +429,7 @@ def _json_process(
             excluded_track_ids=_excluded_tracks(payload.get("sourceSongId"), catalog),
             seed=payload.get("seed"),
             genre_preferences_enabled=True,
+            voice_quality=payload["voiceProfile"].get("voiceQuality") if isinstance(payload.get("voiceProfile"), Mapping) else None,
         )
         timings["scoringMs"] = round((time.perf_counter() - scoring_started) * 1000, 2)
         mapping_started = time.perf_counter()
@@ -443,8 +446,8 @@ def _json_process(
             if failure is None and result is not None:
                 save_ms = _update(
                     job_id, status="complete", progress=100, result=result,
-                    message="음색과 음역 추천이 완료되었습니다." if result["algorithm"]["range_enabled"]
-                            else "음역 신뢰도가 낮아 음색 추천으로 완료했습니다.",
+                    message="음색과 발성 점수 추천이 완료되었습니다." if result["algorithm"].get("applied_mode") == "stability_soft_score"
+                            else "발성 점수 자료가 부족해 음색 중심으로 추천했습니다.",
                     completedAt=completed_at, timing=timings,
                 )
                 timings["resultSaveMs"] = save_ms

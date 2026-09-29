@@ -1,9 +1,9 @@
-"""추천 섹션(shelf) 구성 — `shelves-v1`.
+"""추천 섹션 구성: 음성 유사곡은 발성 점수를 순위에 사용하고 선반 간 곡 중복을 허용한다.
 
 사용자는 섹션을 바꿀 때 **다른 기준의 다른 곡**을 기대한다(2026-09-08 검토). 그래서
 - 섹션마다 1차 정렬 지표가 서로 다르고(음색 / 중심음 근접 / 가수 임베딩 / 고음 비율 / 무작위),
-- 음역은 순서가 아니라 조건(게이트)으로만 쓰며,
-- 한 곡은 우선순위(A→B→C→D→E)에 따라 한 섹션에만 나온다.
+- 내 목소리 선반은 음역으로 탈락시키지 않고 측정 발성 점수를 반영하며,
+- 선반 안 중복은 금지하고 선반마다 동일 가수 최대 3곡을 허용한다.
 
 랩(Hip-Hop 태그)은 음정을 유지하지 않아 음역 지표가 무의미 → 새로운 발견에만 허용.
 곡 프로파일 신뢰도(음표 confidence) 하한 0.55 미만은 음역 조건이 있는 섹션에서 제외(랩·불안정 추출 방지).
@@ -20,22 +20,22 @@ from typing import Any, Iterable, Mapping, MutableMapping, Sequence
 import numpy as np
 
 from .composition import (
-    AXIS_LABEL,
-    AXIS_NAME,
-    compose_by_final_score,
+    MAX_SONGS_PER_ARTIST,
+    _artist_key,
     song_id_of,
     track_language,
 )
-from .contracts import MODEL_KEYS, SCORING_VERSION
-from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, MODE_WEIGHTS, _score_at_shift, _validated_profile, score_range_fit
+from .contracts import MODEL_KEYS
+from .pitch_range import COMFORT_PADDING_SEMITONES, MAX_OUTSIDE_RANGE_RATIO, _score_at_shift, _validated_profile, score_range_fit
 from .scoring import RankerConfig, _absolute_similarity, _centroid, _model_track_score
+from .stability_scoring import (ECAPA_WEIGHT, TIMBRE_WEIGHT, RECOMMENDATION_SCORING_VERSION,
+                               StabilityCurve, best_stability_fit, blend_stability)
 
-SHELVES_VERSION = "shelves-v5-db-genre-preference"
+SHELVES_VERSION = "shelves-v6-stability-soft-score"
 log = logging.getLogger("uvicorn.error")
 
 # 사용자 평가 후 조정할 값
 MIN_PROFILE_CONFIDENCE = 0.55          # 곡 음표 신뢰도 하한 (곡예사2 0.47 제외, 정국 0.63 유지)
-VOICE_MAX_KEY_SHIFT = 3                # A: 실제 연습에서 지원하는 키 폭 안이면 "부를 수 있는 곡"
 ORIGINAL_KEY_MIN_COVERAGE = 0.95       # B
 CHALLENGE_HIGH_EXCESS = (1, 3)         # D: 원키에서 곡 상한이 내 상한(+여유)보다 이만큼 높음
 CHALLENGE_HIGH_RATIO = (0.03, 0.20)    # D: 내 상한 위에 머무는 시간 비율 (너무 잠깐/너무 오래 제외)
@@ -58,11 +58,11 @@ for genre, tags in GENRE_TAGS.items():
     for alias in (genre, *tags):
         STYLE_ALIASES.setdefault(alias.strip().casefold(), set()).update(tags)
 SHELF_META = {
-    "voice": ("내 목소리와 닮은 곡", "최종 점수 순. 음역은 게이트만(키 ±3, 음역 밖 시간 비율 ≤ 5%). 키는 부르는 방법으로 표시"),
+    "voice": ("내 목소리와 닮은 곡", "내 음색과 닮은 정도에 음역별 발성 유지 점수를 함께 반영했어요"),
     "original_key": ("키 안 바꾸고 바로 부를 곡", "최적 키 0 · 원키 커버리지 ≥ 0.95. 곡 중심음이 내 중심음에 가까운 순"),
     "favorite_artists": ("선호 가수 좋아하면", "선호 가수 본인 곡 먼저, 이어서 선호 가수 목소리와 닮은 가수의 곡"),
     "challenge": ("고음 한 단계 도전", "원키에서 곡 상한이 내 상한보다 1~3반음 높고 그 구간이 3~20%인 곡. 고음 비율 작은 순 (실험)"),
-    "discovery": ("새로운 발견", "선택 장르와 장르 미상 곡 중 다른 섹션에 뽑히지 않은 곡. 앱이 새로고침마다 다시 섞는다"),
+    "discovery": ("새로운 발견", "선택 장르와 장르 미상 곡 중 다른 선반에 없는 곡을 우선. 앱이 새로고침마다 다시 섞는다"),
 }
 
 
@@ -160,13 +160,14 @@ def score_all_tracks(
     genres: Iterable[str] = (),
     artist_query: Mapping[str, np.ndarray] | None = None,
     config: RankerConfig | None = None,
+    voice_quality: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """카탈로그 전 곡에 음색·음역 지표를 붙인 행 목록. 섹션들이 이 표 하나를 나눠 쓴다."""
-    config = config or RankerConfig()
+    config = config or RankerConfig(base_ecapa_weight=ECAPA_WEIGHT / TIMBRE_WEIGHT, centroid_weight=.50, segment_weight=.50)
+    curve = StabilityCurve.from_payload(voice_quality)
     user = _validated_profile(query_profile, label="query") if query_profile else None
     user_hi = (user["coreHighMidi"] + COMFORT_PADDING_SEMITONES) if user else None
     weights = MODEL_KEYS and {"ecapa": config.base_ecapa_weight, "singer_byol": 1.0 - config.base_ecapa_weight}
-    fw = MODE_WEIGHTS.get(mode, MODE_WEIGHTS["timbre"])
     rows = []
     started = time.perf_counter()
     query_centroids = {key: _centroid(query[key]) for key in MODEL_KEYS}
@@ -201,7 +202,6 @@ def score_all_tracks(
             best = score_range_fit(user, cand)
             at0 = _score_at_shift(user, cand, 0)
             row["range_fit"] = best
-            row["final_score"] = float(fw["timbre"] * timbre + fw["range"] * best["score"])
             row["coverage0"] = float(at0["coverage"])
             row["center0"] = float(at0["centerScore"])
             row["high_excess0"] = int(cand["coreHighMidi"]) - user_hi
@@ -209,6 +209,10 @@ def score_all_tracks(
             midi = np.arange(len(hist)) + int(cand.get("histogramMidiMin", 36))
             row["high_ratio0"] = float(hist[midi > user_hi].sum())
             range_seconds += time.perf_counter() - phase_started
+        phase_started = time.perf_counter()
+        row["stability_fit"] = best_stability_fit(curve, cand, user)
+        row["final_score"], row["effective_weights"] = blend_stability(timbre, row["stability_fit"])
+        range_seconds += time.perf_counter() - phase_started
         rows.append(row)
     if artist_query is not None:
         phase_started = time.perf_counter()
@@ -232,7 +236,9 @@ def score_all_tracks(
 
 
 def _item(row: Mapping[str, Any], position: int, shelf: str, metrics: dict[str, Any], axis: str | None = None, label: str | None = None) -> dict[str, Any]:
-    fit = row.get("range_fit")
+    fit = (row.get("stability_fit") or row.get("range_fit")) if shelf == "voice" else row.get("range_fit")
+    if fit is not None and (not fit.get("catalogProfileReliable", True) or not -3 <= int(fit["keyShift"]) <= 3):
+        fit = None
     meta = row["metadata"]
     return {
         "position": position, "shelf": shelf,
@@ -247,7 +253,7 @@ def _item(row: Mapping[str, Any], position: int, shelf: str, metrics: dict[str, 
         "range_fit": fit, "recommended_key": int(fit["keyShift"]) if fit else None,
         "final_score": round(float(row["final_score"]), 6),
         "metrics": {k: (round(v, 4) if isinstance(v, float) else v) for k, v in metrics.items()},
-        "scoring_version": SCORING_VERSION, "composition_version": SHELVES_VERSION,
+        "scoring_version": RECOMMENDATION_SCORING_VERSION, "composition_version": SHELVES_VERSION,
     }
 
 
@@ -284,9 +290,15 @@ def build_shelves(
     def emit(key: str, picked: list[tuple[Mapping[str, Any], dict[str, Any], str | None, str | None]], extra: dict[str, Any] | None = None):
         candidate_counts.setdefault(key, len(picked))
         items = []
+        seen_song_ids: set[str] = set()
+        artist_counts: dict[str, int] = {}
         for row, metrics, axis, label in picked:
-            if row["track_id"] in used or len(items) >= top_k:
+            artist = _artist_key(row)
+            if (row["song_id"] in seen_song_ids or len(items) >= top_k
+                    or artist_counts.get(artist, 0) >= MAX_SONGS_PER_ARTIST):
                 continue
+            seen_song_ids.add(row["song_id"])
+            artist_counts[artist] = artist_counts.get(artist, 0) + 1
             used.add(row["track_id"])
             items.append(_item(row, len(items) + 1, key, metrics, axis, label))
         title, metric = SHELF_META[key]
@@ -299,14 +311,14 @@ def build_shelves(
         return (range_enabled and r["melodic"] and fit is not None
                 and outside_ratio <= MAX_OUTSIDE_RANGE_RATIO)
 
-    # A. 내 목소리: 최종 점수 순. 게이트: 부를 수 있고 |키| ≤ 3, 랩 제외
-    pool_a = [r for r in rows if not r["is_rap"] and (not range_enabled or (singable(r) and abs(int(r["range_fit"]["keyShift"])) <= VOICE_MAX_KEY_SHIFT))]
+    # A. 내 목소리: 발성 점수는 순위에만 사용한다. 음역/곡 프로파일 누락도 탈락 사유가 아니다.
+    pool_a = [r for r in rows if not r["is_rap"]]
     candidate_counts["voice"] = len(pool_a)
-    ranked_pool_a = [dict(row, final_score=(2 - genre_tier(row)) + float(row["final_score"]) * 0.001) for row in pool_a]
-    composed = compose_by_final_score(ranked_pool_a, top_k=top_k, genres=(), range_enabled=range_enabled, scoring_version=SCORING_VERSION)
-    by_id = {r["track_id"]: r for r in pool_a}
-    emit("voice", [(by_id[it["track_id"]], {}, it["axis"], it["label"]) for it in composed["recommendations"]],
-         {"composition": composed["composition"]})
+    pool_a.sort(key=lambda r: (genre_tier(r), -float(r["final_score"]), r["track_id"]))
+    emit("voice", [(r, {"stability": r.get("stability_fit"), "effectiveWeights": r.get("effective_weights")},
+                    None, _voice_label(r)) for r in pool_a],
+         {"composition": {"selection": "final_score", "candidate_count": len(pool_a),
+                          "max_songs_per_artist": MAX_SONGS_PER_ARTIST, "range_filter_enabled": False}})
 
     # B. 키 안 바꾸고: 최적 키 0 · 원키 커버리지 ≥ 0.95 → 중심음 근접 순 (음색 미사용)
     pool_b = [r for r in rows if singable(r) and int(r["range_fit"]["keyShift"]) == 0 and r["coverage0"] >= ORIGINAL_KEY_MIN_COVERAGE]
@@ -334,13 +346,13 @@ def build_shelves(
 
     # E. 새로운 발견도 알려진 비선호 장르는 제외한다. 선택 장르의 남은 곡을
     #    먼저 섞고, 장르 미상 곡은 뒤 채움으로만 쓴다.
-    remaining = [r for r in rows if r["track_id"] not in used]
-    pool_e = [r for r in remaining if genre_tier(r) == 0]
-    neutral_e = [r for r in remaining if genre_tier(r) == 1]
+    # 같은 곡이 앞 선반을 모두 채웠어도 발견 선반이 비지 않도록 남은 곡 우선, 중복 곡 보충.
+    groups = [[r for r in rows if genre_tier(r) == tier and (r["track_id"] in used) == reused]
+              for tier in (0, 1) for reused in (False, True)]
     rng = random.Random(seed)
-    rng.shuffle(pool_e)
-    rng.shuffle(neutral_e)
-    pool_e.extend(neutral_e)
+    for group in groups:
+        rng.shuffle(group)
+    pool_e = [r for group in groups for r in group]
     emit("discovery", [(r, {"timbre_score": r["timbre_score"]}, None, None) for r in pool_e], {"seed": seed})
     if diagnostics is not None:
         diagnostics.update({
@@ -350,5 +362,18 @@ def build_shelves(
             "tierCounts": tier_counts,
             "shelfCandidateCounts": candidate_counts,
             "shelfReturnedCounts": returned_counts,
+            "maxSongsPerArtist": MAX_SONGS_PER_ARTIST,
+            "crossShelfDuplicatesAllowed": True,
+            "voiceRangeFilterEnabled": False,
         })
     return shelves
+
+
+def _voice_label(row: Mapping[str, Any]) -> str:
+    fit = row.get("stability_fit")
+    if fit is None:
+        return "음색 유사도 순 · 발성 점수 데이터 부족"
+    shift = int(fit["keyShift"])
+    key = "원키" if shift == 0 else f"{shift:+d}키"
+    qualifier = "발성 유지" if fit["confidence"] >= .75 else "측정된 음의 발성 유지"
+    return f"{qualifier} {float(fit['score']) * 100:.0f}점 · {key} 추천"
