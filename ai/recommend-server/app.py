@@ -13,7 +13,7 @@ from fastapi import Depends, FastAPI
 
 import analysis_jobs
 import catalog_link
-from recommendation_api import router as recommendation_router
+from recommendation_api import repair_recommendation_artist_ids, router as recommendation_router
 from runtime_info import build_sha
 from service_auth import require_service_token
 from song_fit_api import router as song_fit_router, restore_artist_jobs
@@ -23,6 +23,7 @@ from song_fit_api import router as song_fit_router, restore_artist_jobs
 async def lifespan(_: FastAPI):
     analysis_jobs.restore_jobs()
     restore_artist_jobs()
+    repair_recommendation_artist_ids()
     catalog_link.refresh()          # 앱 song_id 짝표. 실패해도 기동은 계속된다(상태는 /recommendations/status)
     analysis_jobs.preload_timbre_runtime()
     stop = analysis_jobs.start_sweeper()

@@ -23,7 +23,7 @@ import soundfile as sf
 
 import catalog_link
 import catalog_cache
-from artist_catalog import ArtistCatalog, public_response
+from artist_catalog import ArtistCatalog, enrich_artist_ids, public_response, valid_artist_ids
 from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
 from schemas import RecommendResult
@@ -125,12 +125,13 @@ def _configuration_status() -> tuple[dict[str, Any], list[str]]:
     return config, missing
 
 
-def _save_job(job_id: str) -> None:
+def _save_job(job_id: str, *, job: dict[str, Any] | None = None) -> None:
     job_dir = JOBS_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     temporary = job_dir / ".job.json.tmp"
     temporary.write_text(
-        json.dumps(JOBS[job_id], ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(JOBS[job_id] if job is None else job, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )
     _replace_with_retry(temporary, job_dir / "job.json")
 
@@ -141,6 +142,64 @@ def _update(job_id: str, **values: Any) -> float:
         JOBS[job_id].update(values)
         _save_job(job_id)
     return round((time.perf_counter() - started) * 1000, 2)
+
+
+def _needs_artist_id_repair(value: Any) -> bool:
+    if isinstance(value, list):
+        return any(_needs_artist_id_repair(item) for item in value)
+    if not isinstance(value, Mapping):
+        return False
+    if isinstance(value.get("track_id"), str) and not valid_artist_ids(value.get("artist_ids")):
+        return True
+    return any(_needs_artist_id_repair(item) for key, item in value.items()
+               if key not in {"payload", "callbackBody"})
+
+
+def repair_recommendation_artist_ids() -> int:
+    """Enrich restored results once at startup, never on the status-polling path.
+
+    Load one verified index/singer snapshot only if a restored result needs IDs.
+    Save atomically before publishing the repaired result in memory. Neither
+    inference nor backend calls are needed; unavailable snapshots are nonfatal.
+    """
+    with LOCK:
+        candidates = [job_id for job_id, job in JOBS.items()
+                      if isinstance(job_id, str) and
+                      re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", job_id, re.IGNORECASE) and
+                      _needs_artist_id_repair(job.get("result"))]
+    if not candidates:
+        return 0
+    try:
+        index_dir = _load_config().get("index_dir")
+        if not isinstance(index_dir, str) or not index_dir:
+            raise ValueError("Recommendation index is not configured")
+        catalog = CatalogIndex.load(index_dir, verify_hashes=True)
+        artists = ArtistCatalog.load(catalog)
+    except Exception as error:
+        log.warning("event=recommendation_artist_ids_repair_unavailable error_type=%s", type(error).__name__)
+        return 0
+    repaired_count = 0
+    for job_id in candidates:
+        with LOCK:
+            current = JOBS.get(job_id)
+            if not current or not _needs_artist_id_repair(current.get("result")):
+                continue
+            result = enrich_artist_ids(current["result"], artists, catalog)
+            if result == current["result"]:
+                continue
+            # Preserve private request/callback state and timing/status/score fields.
+            # Only the public recommendation result is migrated.
+            repaired = dict(current, result=result)
+            try:
+                _save_job(job_id, job=repaired)
+            except Exception as error:
+                log.warning("event=recommendation_artist_ids_repair_save_failed job_id=%s error_type=%s",
+                            job_id, type(error).__name__)
+                continue
+            JOBS[job_id] = repaired
+            repaired_count += 1
+    log.info("event=recommendation_artist_ids_repaired jobs=%d", repaired_count)
+    return repaired_count
 
 
 def _convert_to_wav(source: Path, target: Path) -> None:
@@ -832,6 +891,6 @@ def get_recommendation(job_id: str) -> dict[str, Any]:
 
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
-    # 상태 폴링은 수백 ms마다 실행될 수 있다. 작업을 만들 때 이미 곡 ID를 확정했으므로
-    # 여기서 카탈로그·가수 스냅샷을 매번 다시 읽지 않는다.
+    # 가수 ID는 결과 생성 또는 서버 시작 시 과거 작업 보강에서 확정한다.
+    # 수백 ms마다 실행되는 상태 폴링은 카탈로그·가수 스냅샷을 다시 읽지 않는다.
     return public_response(job)
