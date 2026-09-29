@@ -111,7 +111,7 @@ data class VoiceQualityResult(val version: String, val referenceMidi: Int,
 }
 
 data class VoiceQualityPoint(val midi: Int, val score: Double, val highChange: Double,
-    val lowIrregularity: Double, val holdScore: Double)
+    val lowIrregularity: Double, val holdScore: Double, val registerChange: Double? = null)
 
 data class RangeMap(val overall: List<Int>? = null, val stable: List<Int>? = null,
                     val recommended: List<Int>? = null)

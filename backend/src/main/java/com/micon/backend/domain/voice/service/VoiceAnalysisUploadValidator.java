@@ -69,7 +69,9 @@ public class VoiceAnalysisUploadValidator {
 
     /** Old clients omit this optional result; score-bearing clients also derive the persisted comfort range from it. */
     static boolean validVoiceQuality(JsonNode quality, Integer expectedReference) {
-        if (!quality.isObject() || !"personal-acoustic-v1".equals(quality.path("version").asText())
+        String version = quality.path("version").asText();
+        boolean v2 = "personal-acoustic-v2".equals(version);
+        if (!quality.isObject() || !(v2 || "personal-acoustic-v1".equals(version))
                 || !quality.path("referenceMidi").isIntegralNumber()
                 || !quality.path("points").isArray()
                 || quality.path("points").isEmpty() || quality.path("points").size() > 49) return false;
@@ -87,12 +89,14 @@ public class VoiceAnalysisUploadValidator {
                     || !bounded(point, "highChange", 1) || !bounded(point, "lowIrregularity", 1)) return false;
             double upper = point.path("highChange").asDouble();
             double lower = point.path("lowIrregularity").asDouble();
+            if (v2 && !bounded(point, "registerChange", 1)) return false;
+            double register = v2 ? point.path("registerChange").asDouble() : 0;
             if (midi <= reference && upper != 0 || midi >= reference && lower != 0) return false;
             // A pitch tracked for only a short, interrupted attempt has no sustained
             // acoustic score. It is reported as measured zero, not as an unmeasured note.
             if (midi != reference && point.path("score").asDouble() == 0
-                    && point.path("holdScore").asDouble() == 0 && upper == 0 && lower == 0) continue;
-            double expectedScore = Math.max(0, Math.min(100, 100 - 75 * upper - 75 * lower))
+                    && point.path("holdScore").asDouble() == 0 && upper == 0 && lower == 0 && register == 0) continue;
+            double expectedScore = Math.max(0, Math.min(100, 100 - (v2 ? 70 * register : 75 * upper) - 75 * lower))
                     * (.65 + .35 * point.path("holdScore").asDouble() / 100);
             if (Math.abs(expectedScore - point.path("score").asDouble()) > .05) return false;
         }

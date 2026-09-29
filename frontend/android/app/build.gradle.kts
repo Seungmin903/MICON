@@ -113,6 +113,9 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "HTTP_LOGGING", "true")
+            // Exploratory one-speaker calibration must not silently replace release scoring.
+            buildConfigField("boolean", "EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY",
+                localSetting("EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY", "false").toBoolean().toString())
             buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", localSetting("GUIDED_RANGE_STANDALONE", "false").toBoolean().toString())
             buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"$rangePreviewBaseUrl\"")
             // Diagnostic capture is opt-in; never arm it in a normal test build.
@@ -122,6 +125,7 @@ android {
         }
         release {
             buildConfigField("boolean", "HTTP_LOGGING", "false")
+            buildConfigField("boolean", "EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY", "false")
             buildConfigField("boolean", "GUIDED_RANGE_STANDALONE", "false")
             buildConfigField("String", "RANGE_PREVIEW_BASE_URL", "\"\"")
             buildConfigField("String", "GUIDED_RANGE_DIAGNOSTIC_TOKEN", "\"\"")
