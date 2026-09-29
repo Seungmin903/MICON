@@ -100,17 +100,18 @@ class BackendRecommendRepositoryTest {
     @Test fun `completed recommendation maps shelves in server order and fills songs from the catalog`() = runBlocking {
         currentProfile()
         server.enqueue(ok("""{"profileId":9,"sourceSessionId":3,"profileVersion":1,"recommendationId":5,"status":"COMPLETED","progress":100,"scoringVersion":"two-axis-v1","compositionVersion":"quota-v1","shelves":[
-            {"key":"discovery","title":"새로운 발견","metric":"안 듣던 장르","order":3,"items":[{"songId":3,"overallRank":9,"position":0,"finalScore":61.5,"reasonText":"가볼 만한 장르"}]},
+            {"key":"discovery","title":"새로운 발견","metric":"안 듣던 장르","order":3,"items":[{"songId":7,"overallRank":9,"position":0,"finalScore":61.5,"reasonText":"가볼 만한 장르"}]},
             {"key":"challenge","title":"고음 도전","metric":null,"order":2,"items":[{"songId":1,"overallRank":4,"position":0}]},
             {"key":"voice","title":"내 음색에 딱인 곡","metric":"ECAPA 상위","order":0,"items":[
                 {"songId":7,"overallRank":1,"position":0,"axis":"ECAPA","label":"목소리 물성이 가까운 가수","recommendedKey":-2,"finalScore":0.91,"timbreScore":88.0},
                 {"songId":99,"overallRank":2,"position":1,"finalScore":0.8},
                 {"songId":1,"overallRank":3,"position":2,"finalScore":0.7,"reasonText":"중심음이 가까워요"}]}]}"""))
-        val result = repo.shelves(limit = 10)
+        val result = repo.shelves(limit = 2)
         assertEquals("/api/v1/users/me/voice-profile", server.takeRequest().path)
         assertEquals("/api/v1/recommendations/latest", server.takeRequest().path)
         assertTrue(result.personalized); assertNull(result.note)
         assertEquals(listOf(ShelfKeys.VOICE, ShelfKeys.DISCOVERY), result.shelves.map { it.key })   // challenge 제외, order 순
+        assertEquals("7", result.shelves[1].items.single().song.id) // 선반 간 중복은 유지
         val voiceShelf = result.shelves[0]
         assertEquals(listOf("7", "1"), voiceShelf.items.map { it.song.id })                             // 카탈로그에 없는 99 는 빠짐
         val first = voiceShelf.items[0]

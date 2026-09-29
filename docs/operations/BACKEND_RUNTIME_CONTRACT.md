@@ -53,6 +53,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_RECOMMENDATION_SERVICE_TOKEN | AI_SERVICE_TOKEN 값 | 추천 AI 서비스 인증용 비밀값. 별도 값이 없으면 공통 AI 서비스 토큰을 사용하며 추적 파일에 기록하지 않음 |
 | AI_RECOMMENDATION_CONNECT_TIMEOUT | 3s | 추천 AI 연결 제한 시간인 양의 Spring Duration |
 | AI_RECOMMENDATION_READ_TIMEOUT | 10s | 추천 작업 접수·상태 조회 응답 제한 시간인 양의 Spring Duration |
+| AI_RECOMMENDATION_REQUIRED_SHELVES_VERSION | 빈 값 | 빈 값이면 기존 완료 추천을 숨기지 않음. BE와 AI의 동일 선반 정책 반영을 확인한 뒤 `shelves-v6-stability-soft-score`로 설정하면 구형 완료/빈 latest를 404로 돌려 새 추천을 요청하게 함. 기존 결과 삭제나 생성 중 작업의 강제 종료는 하지 않음 |
 | AI_RECOMMENDATION_POLLING_ENABLED | false | true/false. 추천 작업 상태를 주기적으로 조회할지 명시적으로 선택 |
 | AI_RECOMMENDATION_POLL_INTERVAL | 1500ms | 추천 작업별 상태 조회가 끝난 뒤 다음 폴링까지 기다리는 양의 Spring Duration |
 | AI_RECOMMENDATION_POLL_INITIAL_DELAY | 5s | 애플리케이션 시작 후 첫 추천 폴링까지 기다리는 음수가 아닌 Spring Duration |

@@ -62,6 +62,12 @@ class HttpRecommendationJobGatewayTest {
         assertThat(body.get("preferredArtists").get(0).asText()).isEqualTo("아이유");
         assertThat(body.get("userEmbedding").get("ecapa").get(0).asDouble()).isEqualTo(0.1);
         assertThat(body.get("voiceProfile").get("pitchHistogram").get("52").asDouble()).isEqualTo(0.4);
+        assertThat(body.get("voiceProfile").get("voiceQuality").get("points").get(0).get("score").asInt())
+                .isEqualTo(30);
+        assertThat(body.get("voiceProfile").get("voiceQuality").get("version").asText())
+                .isEqualTo("personal-acoustic-v2");
+        assertThat(body.get("voiceProfile").get("voiceQuality").get("points").get(0).get("registerChange").asDouble())
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -130,7 +136,8 @@ class HttpRecommendationJobGatewayTest {
                         null, null, null, "{\"bins\":[]}", null, "맑은 음색",
                         "{\"bright\":0.8}", null,
                         "{\"ecapa\":[0.1],\"singerByol\":[0.2]}", "embeddings/user-1.json",
-                        null, null, null, "{\"52\":0.4}"),
+                        null, null, null, "{\"52\":0.4}",
+                        "{\"version\":\"personal-acoustic-v2\",\"referenceMidi\":60,\"points\":[{\"midi\":60,\"score\":30,\"registerChange\":1,\"highChange\":0,\"lowIrregularity\":0,\"holdScore\":100}]}"),
                 List.of("발라드", "록"),
                 List.of("아이유"));
     }

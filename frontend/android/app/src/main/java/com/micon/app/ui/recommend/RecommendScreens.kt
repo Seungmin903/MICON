@@ -80,6 +80,7 @@ import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.RecommendEvent
 import com.micon.app.data.RecommendEventLog
 import com.micon.app.data.RecommendRepository
+import com.micon.app.data.RecommendationDisplayPolicy
 import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
@@ -241,7 +242,7 @@ class RecommendViewModel(private val songs: SongRepository, private val recommen
                 if (regenerate) recommend.regenerate()
                 // Only poll while this screen is visible; the next visit can resume polling.
                 repeat(60) {
-                    val r = recommend.shelves(limit = 30, reshuffle = reshuffle)
+                    val r = recommend.shelves(limit = RecommendationDisplayPolicy.SONGS_PER_SHELF, reshuffle = reshuffle)
                     currentCoroutineContext().ensureActive()
                     if (request != generation || revision != UserStore.voiceDataRevision.value) return@launch
                     _state.value = _state.value.copy(shelves = r.shelves, personalized = r.personalized, note = r.note,

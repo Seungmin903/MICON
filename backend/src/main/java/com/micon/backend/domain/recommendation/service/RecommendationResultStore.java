@@ -151,14 +151,16 @@ public class RecommendationResultStore {
                 throw invalid("shelf contains more than 50 songs: " + shelf.key());
             }
             Set<Integer> positions = new HashSet<>();
+            Set<String> shelfSongIds = new HashSet<>();
             for (RecommendationResultGateway.Item item : items) {
                 validateItem(item, shelf.key());
                 if (!positions.add(item.position())) {
                     throw invalid("duplicate position in shelf " + shelf.key() + ": " + item.position());
                 }
-                if (!songIds.add(item.songId())) {
-                    throw invalid("duplicate songId across shelves: " + item.songId());
+                if (!shelfSongIds.add(item.songId())) {
+                    throw invalid("duplicate songId within shelf " + shelf.key() + ": " + item.songId());
                 }
+                songIds.add(item.songId());
             }
             List<RecommendationResultGateway.Item> sorted = items.stream()
                     .sorted(java.util.Comparator.comparingInt(RecommendationResultGateway.Item::position)).toList();

@@ -3,7 +3,7 @@
 `docs/response-schema.json`(JSON Schema)과 `docs/sample-response.json` 은 `scripts/make_sample_response.py` 가 여기서 만든다.
 필드를 바꾸면 그 스크립트를 다시 돌려 두 문서를 갱신한다.
 
-응답의 중심은 `result.shelves[]` — 섹션(shelf)마다 기준이 다르고 곡이 겹치지 않는다(shelves-v1).
+응답의 중심은 `result.shelves[]` — 같은 선반 안 중복은 금지하고 선반 간 중복은 허용한다.
 `result.recommendations[]` 는 첫 섹션(내 목소리)의 items 복사본으로, 이전 클라이언트 호환용.
 """
 
@@ -32,10 +32,10 @@ class RangeFit(BaseModel):
 
     scoringVersion: str
     score: float = Field(ge=0, le=1)
-    coverage: float = Field(ge=0, le=1)
-    centerScore: float = Field(ge=0, le=1)
-    spanFit: float = Field(ge=0, le=1)
-    softFit: float = Field(ge=0, le=1)
+    coverage: float | None = Field(default=None, ge=0, le=1)
+    centerScore: float | None = Field(default=None, ge=0, le=1)
+    spanFit: float | None = Field(default=None, ge=0, le=1)
+    softFit: float | None = Field(default=None, ge=0, le=1)
     keyShift: int = Field(ge=KEY_SHIFT_MIN, le=KEY_SHIFT_MAX)
     songCoreLowMidi: int
     songCoreHighMidi: int
@@ -92,7 +92,7 @@ class Recommendation(BaseModel):
 
 
 class Shelf(BaseModel):
-    """추천 섹션 하나. 섹션 간 같은 곡은 없다."""
+    """추천 선반 하나. 선반 안 곡은 중복하지 않고 선반 간에는 재사용할 수 있다."""
 
     model_config = ConfigDict(extra="allow")
 
