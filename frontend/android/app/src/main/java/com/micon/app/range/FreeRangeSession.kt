@@ -2,7 +2,6 @@ package com.micon.app.range
 
 import java.util.UUID
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -72,6 +71,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         if (!valid) {
             // A short dropout is tolerated by the run's own gap check; only the deadline ends a stage.
             currentMidi = null
+            if (phase in setOf("down", "up") && now - stageStart >= missionSeconds(phase)) updateSweepMessage()
             deadline()
             return view()
         }
@@ -105,16 +105,7 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
             if (candidate != null && (bestMidi == null || direction * (candidate - bestMidi!!) > 0 ||
                     sameRun && direction * (candidate - bestMidi!!) >= 0)) keepRun(candidate)
         }
-        val reached = bestMidi?.let { direction * (it - startMidi!!) >= 2.0 } == true
-        val overtime = now - stageStart >= missionSeconds(phase)
-        message = when {
-            overtime && voicedSeconds < MIN_VOICED_SECONDS ->
-                "조금 더 불러 주세요. ${ceil(MIN_VOICED_SECONDS - voicedSeconds).toInt()}초 더 부르면 돼요"
-            overtime && !usable() ->
-                "아직 기록할 구간을 못 찾았어요. 조금 더 ${if (direction < 0) "낮게" else "높게"} 이어서 불러 주세요"
-            reached -> "좋아요. 더 ${if (direction < 0) "낮은" else "높은"} 음까지 가 볼 수 있어요"
-            else -> "편안한 음에서 천천히 ${if (direction < 0) "내려" else "올려"} 주세요"
-        }
+        updateSweepMessage()
         deadline()
         return view()
     }
@@ -220,6 +211,22 @@ class FreeRangeSession(val id: String = UUID.randomUUID().toString()) {
         val heldFrom = bestStart ?: return false
         return voicedSeconds >= MIN_VOICED_SECONDS && direction * (endpoint - origin) >= 2.0 &&
             heldFrom - stageStart >= ENDPOINT_OFFSET_SECONDS
+    }
+
+    private fun updateSweepMessage() {
+        val direction = if (phase == "down") -1 else 1
+        val reached = bestMidi?.let { origin ->
+            startMidi?.let { direction * (origin - it) >= 2.0 }
+        } == true
+        val overtime = now - stageStart >= missionSeconds(phase)
+        message = when {
+            overtime && voicedSeconds < MIN_VOICED_SECONDS ->
+                "목소리가 충분히 인식되지 않았어요. 편안한 크기로 이어서 불러 주세요"
+            overtime && !usable() ->
+                "더 ${if (direction < 0) "낮게" else "높게"} 부른 뒤 그 음을 잠시 유지해 주세요"
+            reached -> "좋아요. 더 ${if (direction < 0) "낮은" else "높은"} 음까지 가 볼 수 있어요"
+            else -> "편안한 음에서 천천히 ${if (direction < 0) "내려" else "올려"} 주세요"
+        }
     }
 
     private fun startRun(midi: Double, start: Double, end: Double) {

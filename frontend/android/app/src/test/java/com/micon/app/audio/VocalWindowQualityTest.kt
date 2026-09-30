@@ -9,19 +9,20 @@ import java.io.RandomAccessFile
 class VocalWindowQualityTest {
     @get:Rule val files = TemporaryFolder()
 
-    @Test fun completedWindowsAreCachedAndFiveAreRequiredAtBothNativeRates() {
+    @Test fun completedWindowsAreCachedAndFourAreRequiredAtBothNativeRates() {
         for (rate in listOf(44100, 48000)) {
             val file = files.newFile("$rate.wav")
             val checker = VocalWindowQuality()
             writeQualityWav(file, rate, 4.0)
             assertEquals(1, checker.inspect(file, rate).usableWindows)
             assertFalse(checker.inspect(file, rate).ready)
+            writeQualityWav(file, rate, 8.0)
+            assertEquals(3, checker.inspect(file, rate).usableWindows)
+            assertFalse(checker.inspect(file, rate).ready)
             writeQualityWav(file, rate, 10.0)
-            assertEquals(4, checker.inspect(file, rate).usableWindows)
-            writeQualityWav(file, rate, 12.0)
             val ready = checker.inspect(file, rate, true)
             assertTrue(ready.ready)
-            assertEquals(5, ready.usableWindows)
+            assertEquals(4, ready.usableWindows)
             assertEquals(ready, checker.inspect(file, rate, true))
             writeQualityWav(file, rate, 4.0, amplitude = 0.0)
             assertEquals(0, checker.inspect(file, rate).usableWindows)
@@ -40,9 +41,9 @@ class VocalWindowQualityTest {
 
     @Test fun incompleteWindowsAndMalformedFinalFilesAreRejected() {
         val file = files.newFile("final.wav")
-        writeQualityWav(file, 44100, 11.99)
+        writeQualityWav(file, 44100, 9.99)
         assertFalse(VocalWindowQuality().inspect(file, 44100, true).ready)
-        writeQualityWav(file, 44100, 12.0)
+        writeQualityWav(file, 44100, 10.0)
         RandomAccessFile(file, "rw").use { it.seek(22); it.write(byteArrayOf(2, 0)) }
         assertTrue(VocalWindowQuality().inspect(file, 44100, true).fileProblem)
         assertTrue(VocalWindowQuality().inspect(file, 16000, true).fileProblem)

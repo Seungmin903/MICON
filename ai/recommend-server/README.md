@@ -69,7 +69,7 @@ ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로
 ```
 
 `embedding` 은 1×D 평균, `segmentInfo.embeddings` 는 구간별 벡터다. 구간별 벡터가 없으면 추천 점수의 70%가 빠진다.
-상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(쓸 만한 4초 구간 5개 미만). 한 전송 회차에서 5xx·연결 오류를 3회 재시도한다. 미수신 콜백은 디스크에 남아 서버 재시작 후에도 최대 60초 간격으로 재전송하며 원음 강제 만료 시 함께 삭제한다.
+상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(사용자 음색 분석에서 쓸 만한 4초 구간 4개 미만; 카탈로그 임베딩은 5개 기준 유지). 한 전송 회차에서 5xx·연결 오류를 3회 재시도한다. 미수신 콜백은 디스크에 남아 서버 재시작 후에도 최대 60초 간격으로 재전송하며 원음 강제 만료 시 함께 삭제한다.
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
 
 환경변수: `AI_SERVICE_TOKEN`(컨테이너에서는 secret 파일에서 필수 로드; 로컬에서 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_BASE_URL`(카탈로그 조회) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·

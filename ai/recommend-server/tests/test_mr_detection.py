@@ -91,12 +91,36 @@ class MrDetectionTest(unittest.TestCase):
         metadata = {
             "models": {"ecapa": {"checkpoint_sha256": "ecapa"}, "singer_byol": {"checkpoint_sha256": "byol"}},
             "segments": [{"start_seconds": float(index), "active_frame_fraction": 0.7, "clipped_fraction": 0.0}
-                         for index in range(4)],
+                         for index in range(3)],
             "window_seconds": 4.0,
         }
         with self.assertRaisesRegex(ValueError, "segment count"):
             analysis_jobs.build_callbacks(
-                job, np.ones((4, 192)), np.ones((4, 1000)), metadata)
+                job, np.ones((3, 192)), np.ones((3, 1000)), metadata)
+
+    def test_user_analysis_callback_accepts_four_chunks_for_both_guides(self) -> None:
+        job = {
+            "jobId": "job_" + "0" * 32,
+            "requestId": "request",
+            "meta": {"analysisType": "TIMBRE", "attemptNo": 1,
+                     "recordingMetadata": {"guideVersion": "holo-v1"}},
+            "files": {"file": {"durationSeconds": 10.0}},
+            "components": {"ECAPA": {}, "SINGER_BYOL": {}},
+        }
+        metadata = {
+            "models": {"ecapa": {"checkpoint_sha256": "ecapa"},
+                       "singer_byol": {"checkpoint_sha256": "byol"}},
+            "segments": [{"start_seconds": float(index * 2), "active_frame_fraction": 0.7,
+                          "clipped_fraction": 0.0} for index in range(4)],
+            "window_seconds": 4.0,
+        }
+        for guide_version in ("holo-v1", "v4"):
+            with self.subTest(guide_version=guide_version):
+                job["meta"]["recordingMetadata"]["guideVersion"] = guide_version
+                callbacks = analysis_jobs.build_callbacks(
+                    job, np.ones((4, 192)), np.ones((4, 1000)), metadata)
+                self.assertEqual(callbacks["ECAPA"]["segmentInfo"]["validChunkCount"], 4)
+                self.assertEqual(callbacks["SINGER_BYOL"]["segmentInfo"]["validChunkCount"], 4)
 
     def test_strict_user_separation_never_uses_legacy_fallback(self) -> None:
         with (mock.patch.object(separation, "_separate_melband", side_effect=RuntimeError("broken")),
@@ -104,6 +128,23 @@ class MrDetectionTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Mel-Band 보컬 분리 실패"):
                 separation.separate(Path("input.wav"), Path(self.tmp.name), "cpu", allow_fallback=False)
         fallback.assert_not_called()
+
+    def test_user_analysis_requests_four_windows_from_embedding_pipeline(self) -> None:
+        job = {"jobId": "job_" + "1" * 32,
+               "meta": {"analysisType": "TIMBRE", "recordingMetadata": {"guideVersion": "v4"}}}
+        config = {"ecapa_checkpoint": "ecapa.ckpt", "singer_repo": "singer-repo",
+                  "singer_checkpoint_root": "singer-root", "device": "cpu"}
+        with (
+            mock.patch.object(analysis_jobs, "_limit_torch_threads"),
+            mock.patch.object(analysis_jobs, "detect_mr_suspected", return_value={"requiresSeparation": False}),
+            mock.patch.object(analysis_jobs, "_update"),
+            mock.patch.object(analysis_jobs, "get_timbre_runtime", return_value=mock.Mock(device="cpu")),
+            mock.patch.object(analysis_jobs, "embed_vocal_audio", return_value={}) as embed_call,
+            mock.patch.object(analysis_jobs.np, "load", side_effect=[np.ones((4, 192)), np.ones((4, 1000))]),
+            mock.patch.object(analysis_jobs, "build_callbacks", return_value={"ok": True}),
+        ):
+            analysis_jobs._timbre_callbacks(job, Path("recording.wav"), Path("query"), config)
+        self.assertEqual(embed_call.call_args.kwargs["min_segments"], 4)
 
     def test_timbre_separation_failure_keeps_raw_embedding_path(self) -> None:
         job = {"jobId": "job_" + "1" * 32}
@@ -133,6 +174,7 @@ class MrDetectionTest(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         separate_call.assert_called_once()
         self.assertEqual(update_call.call_count, 2)
+        self.assertEqual(embed_call.call_args.kwargs["min_segments"], 4)
         recorded = update_call.call_args_list[0].kwargs["mrDetection"]
         self.assertEqual(recorded["separation"]["status"], "FAILED")
         self.assertEqual(recorded["embeddingInput"], "raw-recording")

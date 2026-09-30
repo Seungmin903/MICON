@@ -422,7 +422,7 @@ public class VoiceSessionService {
                 || embedding.stream().anyMatch(value -> value == null || !Double.isFinite(value))
                 || !Double.isFinite(energy) || energy < 1e-12
                 || validChunkCount == null || !validChunkCount.isIntegralNumber()
-                || validChunkCount.asInt() < 5) {
+                || validChunkCount.asInt() < 4) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK);
         }
     }

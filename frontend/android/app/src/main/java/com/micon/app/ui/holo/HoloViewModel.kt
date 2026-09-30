@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
 import com.micon.app.audio.PitchCapture
+import com.micon.app.audio.VocalWindowQuality
 import com.micon.app.core.auth.TokenManager
 import com.micon.app.data.SongRepository
 import com.micon.app.data.SongSummary
@@ -116,6 +117,8 @@ class HoloViewModel(
     private var dataVersion: String? = null
     private var tick: Job? = null
     private var startJob: Job? = null
+    private var earlyFinishCheck: Job? = null
+    private var earlyFinishNotice: Job? = null
     private var submitJob: Job? = null
     private var saveJob: Job? = null
     private var session: HoloAnalysisClient.Session? = null
@@ -172,6 +175,7 @@ class HoloViewModel(
 
     fun backToRange() {
         cancelPendingSubmission()
+        cancelEarlyFinishFeedback()
         startJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }
@@ -284,12 +288,55 @@ class HoloViewModel(
         return listOf(s.lines.getOrNull(i - 1)?.text ?: "", s.lines.getOrNull(i)?.text ?: "", s.lines.getOrNull(i + 1)?.text ?: "") to 1
     }
 
-    /** "결과 바로 보기" — 4초 넘게 불렀으면 그 분량으로 분석 */
-    fun finishEarly() { if (_state.value.phase == Phase.REC) finish() }
+    /** Keep recording when the local result or the AI's four usable vocal windows are not ready. */
+    fun finishEarly() {
+        val before = _state.value
+        if (before.phase != Phase.REC || earlyFinishCheck?.isActive == true) return
+        val file = wav ?: return
+        val owner = currentOwner()
+        val version = before.rangeRestartVersion
+        earlyFinishCheck = viewModelScope.launch {
+            val captured = synchronized(frames) { frames.toList() }
+            val localUsable = withContext(Dispatchers.Default) {
+                HoloRangeAnalyzer.analyze(captured, before.picked?.id, before.picked?.title, before.picked?.artist)
+                    ?.let { result ->
+                        if (before.measuredLow != null && before.measuredHigh != null)
+                            result.withMeasuredRange(before.measuredLow, before.measuredHigh, before.measuredVoiceQuality)
+                        else result
+                    }?.usable == true
+            }
+            val quality = if (before.picked == null) null else withContext(Dispatchers.IO) {
+                runCatching { VocalWindowQuality().inspect(file, capture.recordingRate) }
+                    .getOrNull()
+            }
+            if (_state.value.phase != Phase.REC || owner != currentOwner() ||
+                _state.value.rangeRestartVersion != version || wav != file) return@launch
+            val issue = HoloEarlyFinishGate.issue(localUsable, before.picked != null, quality)
+            if (issue != null) showEarlyFinishIssue(issue)
+            else finish()
+        }
+    }
+
+    private fun showEarlyFinishIssue(issue: String) {
+        earlyFinishNotice?.cancel()
+        _state.update { if (it.phase == Phase.REC) it.copy(error = issue) else it }
+        earlyFinishNotice = viewModelScope.launch {
+            delay(3_000)
+            _state.update { if (it.phase == Phase.REC && it.error == issue) it.copy(error = null) else it }
+        }
+    }
+
+    private fun cancelEarlyFinishFeedback() {
+        earlyFinishCheck?.cancel()
+        earlyFinishNotice?.cancel()
+        earlyFinishCheck = null
+        earlyFinishNotice = null
+    }
 
     private fun finish() {
         val owner = currentOwner()
         tick?.cancel()
+        earlyFinishNotice?.cancel()
         player.pause()
         val file = capture.stop() ?: wav
         val snapshot = synchronized(frames) { frames.toList() }
@@ -307,7 +354,7 @@ class HoloViewModel(
         if (owner != currentOwner()) { file?.delete(); return }
         cancelPendingSubmission()
         resultOwner = owner
-        _state.update { it.copy(phase = Phase.DONE, result = result, saving = false, saved = false,
+        _state.update { it.copy(phase = Phase.DONE, error = null, result = result, saving = false, saved = false,
             saveAllowed = false, analysisFinished = false, saveError = null) }
         applyProfile(result)
         runCatching { writeResultIfCurrent(owner, result) }
@@ -407,6 +454,7 @@ class HoloViewModel(
         val current = _state.value
         if (current.stage != Stage.TIMBRE || current.phase == Phase.DONE) return
         cancelPendingSubmission()
+        cancelEarlyFinishFeedback()
         startJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         wav?.delete()
@@ -420,6 +468,7 @@ class HoloViewModel(
 
     fun reset() {
         cancelPendingSubmission()
+        cancelEarlyFinishFeedback()
         startJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         wav?.delete()
@@ -438,6 +487,7 @@ class HoloViewModel(
     }
 
     override fun onCleared() {
+        cancelEarlyFinishFeedback()
         startJob?.cancel()
         tick?.cancel()
         if (capture.isRunning) capture.stop()

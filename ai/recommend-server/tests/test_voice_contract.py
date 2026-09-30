@@ -186,6 +186,39 @@ class VoiceContractTest(unittest.TestCase):
         persisted = json.loads((job_dir / "callback.ECAPA.json").read_text(encoding="utf-8"))
         self.assertEqual(persisted["segmentInfo"]["validChunkCount"], 5)
 
+    def test_persisted_four_chunk_user_callback_is_upgraded_before_delivery(self):
+        metadata = {**meta(), "recordingMetadata": {"guideVersion": "v4"}}
+        reply, _ = jobs.ingest({"file": wav()}, metadata)
+        identifier = reply["jobId"]
+        job = jobs.JOBS[identifier]
+        job_dir = Path(self.tmp.name) / identifier
+        payload = {
+            "requestId": job["requestId"], "jobId": identifier, "component": "ECAPA",
+            "status": "COMPLETED",
+            "segmentInfo": {"segmentCount": 4, "embeddings": [[1.0] * 192 for _ in range(4)]},
+        }
+        callback = job_dir / "callback.ECAPA.json"
+        callback.write_text(json.dumps(payload), encoding="utf-8")
+        components = dict(job["components"])
+        components["ECAPA"] = {"status": "COMPLETED", "accepted": False}
+        components["SINGER_BYOL"] = {"status": "COMPLETED", "accepted": True}
+        jobs._update(identifier, status="CALLBACK_PENDING", componentStatus="COMPLETED",
+                     components=components)
+
+        with mock.patch.object(jobs, "post_callback", return_value={
+                "accepted": True, "http": 200, "attempts": 1}) as send:
+            jobs.deliver_callbacks(identifier)
+
+        self.assertEqual(send.call_args.args[0]["segmentInfo"]["validChunkCount"], 4)
+        persisted = json.loads(callback.read_text(encoding="utf-8"))
+        self.assertEqual(persisted["segmentInfo"]["validChunkCount"], 4)
+
+    def test_pre_contract_three_chunks_remain_invalid_for_user_recordings(self):
+        payload = {"component": "ECAPA", "status": "COMPLETED",
+                   "segmentInfo": {"segmentCount": 3, "embeddings": [[1.0] * 192 for _ in range(3)]}}
+        self.assertFalse(jobs._upgrade_callback_payload(payload))
+        self.assertNotIn("validChunkCount", payload["segmentInfo"])
+
     def test_timbre_runtime_is_loaded_once_for_matching_configuration(self):
         config = {
             "ecapa_checkpoint": "ecapa.ckpt",
