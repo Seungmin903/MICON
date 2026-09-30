@@ -23,9 +23,14 @@ data class VoiceTimbreMetaRequest(
     val startPositionType: String, val selectedStartMs: Int, val actualStartMs: Int,
     val instrumentalVersion: String, val lyricsVersion: String, val segments: List<VoiceSegmentDto>,
 )
+data class VoiceStreamBeginRequest(val sampleRate: Int)
+data class VoiceStreamStateDto(val streamId: String, val sessionId: Long, val sampleRate: Int,
+    val nextIndex: Int, val receivedBytes: Long, val completed: Boolean)
+data class VoiceStreamCompleteRequest(val pcmSha256: String, val meta: VoiceTimbreMetaRequest)
 data class VoiceSegmentDto(val recordingStartMs: Int, val recordingEndMs: Int, val songStartMs: Int, val songEndMs: Int)
 data class VoiceJobDto(
     val analysisId: Long?, val sessionId: Long?, val status: String,
+    val requestId: String? = null,
     val failureCode: String? = null, val failureReason: String? = null,
     val reuploadRequired: Boolean = false, val components: List<VoiceComponentDto> = emptyList(),
 )
