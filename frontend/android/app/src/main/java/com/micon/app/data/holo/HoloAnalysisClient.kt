@@ -7,8 +7,12 @@ import com.micon.app.data.backend.dto.DeviceRangeResultRequest
 import com.micon.app.data.backend.dto.VoiceProfileSaveRequest
 import com.micon.app.data.backend.dto.VoiceSegmentDto
 import com.micon.app.data.backend.dto.VoiceTimbreMetaRequest
+import com.micon.app.data.backend.dto.VoiceJobDto
+import com.micon.app.data.backend.dto.VoiceStreamBeginRequest
+import com.micon.app.data.backend.dto.VoiceStreamCompleteRequest
 import com.micon.app.core.network.Json
 import com.micon.app.data.onboarding.VoiceSessionAccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -16,6 +20,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 import java.io.File
+import java.io.RandomAccessFile
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -30,6 +36,7 @@ import java.util.UUID
  */
 class HoloAnalysisClient(private val api: BackendApi) {
     class Session(val id: Long, val access: VoiceSessionAccess)
+    data class StreamUpload(val session: Session, val requestId: String, val pcmSha256: String)
 
     suspend fun createSession(ownerId: Long?): Session {
         val created = api.createVoiceSession(VoiceSessionAccess(ownerId)).data()
@@ -51,20 +58,106 @@ class HoloAnalysisClient(private val api: BackendApi) {
 
     /** 곡을 부른 녹음(PCM16 모노 WAV)을 음색 분석으로 올린다. 반환값은 분석 id */
     suspend fun submitTimbre(session: Session, wav: File, songId: String, sampleRate: Int, durationMs: Int,
-        songStartMs: Int, dataVersion: String?, recordedAt: Long): Long? {
-        val meta = VoiceTimbreMetaRequest(
-            requestId = UUID.randomUUID().toString(), songId = songId, guideVersion = "holo-v1",
+        songStartMs: Int, dataVersion: String?, recordedAt: Long,
+        requestId: String = UUID.randomUUID().toString()): Long? {
+        val meta = timbreMeta(requestId, songId, sampleRate, durationMs,
+            songStartMs, dataVersion, recordedAt)
+        val body = Json.moshi.adapter(VoiceTimbreMetaRequest::class.java).toJson(meta)
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val part = MultipartBody.Part.createFormData("file", wav.name, wav.asRequestBody("audio/wav".toMediaType()))
+        return api.submitTimbre(session.id, part, body, session.access).data().analysisId
+    }
+
+    private fun timbreMeta(requestId: String, songId: String, sampleRate: Int, durationMs: Int,
+        songStartMs: Int, dataVersion: String?, recordedAt: Long): VoiceTimbreMetaRequest = VoiceTimbreMetaRequest(
+            requestId = requestId, songId = songId, guideVersion = "holo-v1",
             recordedAt = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(Instant.ofEpochMilli(recordedAt).atOffset(ZoneOffset.UTC).toLocalDateTime()),
             durationMs = durationMs, sampleRate = sampleRate, startPositionType = "BEGINNING",
             selectedStartMs = songStartMs, actualStartMs = songStartMs,
             instrumentalVersion = dataVersion ?: "v1", lyricsVersion = dataVersion ?: "v1",
             segments = listOf(VoiceSegmentDto(0, durationMs, songStartMs, songStartMs + durationMs)),
         )
-        val body = Json.moshi.adapter(VoiceTimbreMetaRequest::class.java).toJson(meta)
-            .toRequestBody("application/json; charset=utf-8".toMediaType())
-        val part = MultipartBody.Part.createFormData("file", wav.name, wav.asRequestBody("audio/wav".toMediaType()))
-        return api.submitTimbre(session.id, part, body, session.access).data().analysisId
+
+    /** Upload each non-overlapping 2 s PCM chunk while capture keeps writing its single local WAV. */
+    suspend fun uploadDuringRecording(session: Session, wav: File, rate: Int,
+        requestId: String, finished: () -> Boolean): StreamUpload? {
+        val chunkBytes = rate * 4
+        var started = false
+        var index = 0
+        var needStatus = true
+        var failures = 0
+        while (true) {
+            try {
+                if (!started) {
+                    val begin = api.beginTimbreStream(session.id, requestId, VoiceStreamBeginRequest(rate), session.access)
+                    if (begin.code() in setOf(404, 405, 501, 503)) return null
+                    begin.data()
+                    started = true
+                }
+                if (needStatus) {
+                    index = api.timbreStreamStatus(session.id, requestId, session.access).data().nextIndex
+                    needStatus = false
+                }
+                val available = (wav.length() - 44).coerceAtLeast(0).toInt()
+                val offset = index * chunkBytes
+                val done = finished()
+                val count = when {
+                    available - offset >= chunkBytes -> chunkBytes
+                    done && available > offset -> (available - offset) and -2
+                    else -> 0
+                }
+                if (count > 0) {
+                    val pcm = ByteArray(count)
+                    RandomAccessFile(wav, "r").use { input ->
+                        input.seek(44L + offset)
+                        input.readFully(pcm)
+                    }
+                    index = api.sendTimbreChunk(session.id, requestId, index,
+                        pcm.toRequestBody("application/octet-stream".toMediaType()), session.access).data().nextIndex
+                    failures = 0
+                    continue
+                }
+                if (done) {
+                    val digest = MessageDigest.getInstance("SHA-256")
+                    wav.inputStream().buffered().use { input ->
+                        val header = ByteArray(44)
+                        var headerRead = 0
+                        while (headerRead < header.size) {
+                            val n = input.read(header, headerRead, header.size - headerRead)
+                            if (n < 0) throw IllegalStateException("녹음 파일이 완성되지 않았어요.")
+                            headerRead += n
+                        }
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val n = input.read(buffer)
+                            if (n < 0) break
+                            digest.update(buffer, 0, n)
+                        }
+                    }
+                    return StreamUpload(session, requestId,
+                        digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) })
+                }
+                delay(250)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                needStatus = true
+                if (finished() && ++failures >= 8) return null
+                delay((failures.coerceAtLeast(1) * 500L).coerceAtMost(3_000L))
+            }
+        }
     }
+
+    suspend fun completeTimbreStream(upload: StreamUpload, songId: String, sampleRate: Int,
+        durationMs: Int, songStartMs: Int, dataVersion: String?, recordedAt: Long): Long? {
+        val meta = timbreMeta(upload.requestId, songId, sampleRate, durationMs,
+            songStartMs, dataVersion, recordedAt)
+        val request = VoiceStreamCompleteRequest(upload.pcmSha256, meta)
+        return api.completeTimbreStream(upload.session.id, upload.requestId, request,
+            upload.session.access).data().analysisId
+    }
+
+    suspend fun timbreJob(session: Session): VoiceJobDto =
+        api.timbreStatus(session.id, session.access).data()
 
     class Poll(val artists: List<HoloArtist>, val saveAllowed: Boolean, val version: Long, val done: Boolean)
 

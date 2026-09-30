@@ -459,6 +459,7 @@ def embed_vocal_audio(
     force: bool = False,
     runtime: VocalEmbeddingRuntime | None = None,
     timings: dict[str, Any] | None = None,
+    cached_embeddings: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
 ) -> dict[str, Any]:
     """Extract both model matrices and a provenance sidecar from vocal audio."""
 
@@ -506,7 +507,23 @@ def embed_vocal_audio(
             requested_device=device,
             batch_size=batch_size,
         )
-    ecapa, byol = runtime.embed_windows(windows, timings=timings)
+    if cached_embeddings:
+        ecapa = np.empty((len(windows), MODEL_CONTRACTS["ecapa"].dimension), dtype=np.float32)
+        byol = np.empty((len(windows), MODEL_CONTRACTS["singer_byol"].dimension), dtype=np.float32)
+        missing: list[int] = []
+        for index, window in enumerate(windows):
+            cached = cached_embeddings.get(hashlib.sha256(window.tobytes()).hexdigest())
+            if cached is None:
+                missing.append(index)
+            else:
+                ecapa[index], byol[index] = cached
+        if missing:
+            fresh_ecapa, fresh_byol = runtime.embed_windows(windows[missing], timings=timings)
+            ecapa[missing], byol[missing] = fresh_ecapa, fresh_byol
+        if timings is not None:
+            timings["precomputedSegments"] = len(windows) - len(missing)
+    else:
+        ecapa, byol = runtime.embed_windows(windows, timings=timings)
 
     write_started = time.perf_counter()
     _atomic_save_npy(destinations["ecapa"], ecapa)

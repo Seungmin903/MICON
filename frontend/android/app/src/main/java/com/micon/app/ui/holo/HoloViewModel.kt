@@ -16,6 +16,9 @@ import com.micon.app.data.holo.HoloAnalysisClient
 import com.micon.app.data.holo.HoloRangeAnalyzer
 import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
+import com.micon.app.data.holo.HoloPendingUpload
+import com.micon.app.data.holo.HoloPendingUploadStore
+import com.micon.app.data.onboarding.VoiceSessionAccess
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.backend.dto.toLiveNotes
 import com.micon.app.range.RangeRepository
@@ -27,8 +30,10 @@ import com.micon.app.scoring.SectionMap
 import com.micon.app.scoring.SongSections
 import com.micon.app.ui.design.molecules.NoteNames
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -92,6 +97,7 @@ class HoloViewModel(
         /** 서버 음색 분석이 끝났는가(성공·실패 무관) */
         val analysisFinished: Boolean = false,
         val saveError: String? = null,
+        val submissionRetryable: Boolean = false,
     ) {
         val progress: Float get() = (sungSec / SING_SECONDS).toFloat().coerceIn(0f, 1f)
         val globeScale: Float get() = if (phase == Phase.REC) 0.8f + Math.pow(progress.toDouble(), 1.08).toFloat() * 1.2f else 1f
@@ -101,6 +107,7 @@ class HoloViewModel(
     val state = _state.asStateFlow()
 
     private val store = HoloResultStore(appContext)
+    private val pendingStore = HoloPendingUploadStore(appContext)
     private val resultStoreLock = Any()
     private val client = HoloAnalysisClient(api)
     private val player = InstrumentalPlayer(appContext, mediaHttp)
@@ -120,6 +127,10 @@ class HoloViewModel(
     private var earlyFinishCheck: Job? = null
     private var earlyFinishNotice: Job? = null
     private var submitJob: Job? = null
+    private var streamUploadJob: Deferred<HoloAnalysisClient.StreamUpload?>? = null
+    @Volatile private var precreatedSession: HoloAnalysisClient.Session? = null
+    private var streamRequestId: String? = null
+    private var fallbackRequestId: String? = null
     private var saveJob: Job? = null
     private var session: HoloAnalysisClient.Session? = null
     private var pollVersion: Long = 0
@@ -137,12 +148,50 @@ class HoloViewModel(
         synchronized(resultStoreLock) { store.clear(null) }
         _state.update { it.copy(hasPrevious = store.read(ownerId) != null || UserStore.profile.value != null) }
         player.onError = { msg -> _state.update { it.copy(error = msg) } }
+        ownerId?.let(::recoverPending)
     }
 
     fun currentResult(): HoloResult? = _state.value.result?.takeIf { resultOwner == currentOwner() }
-    fun previousResult(): HoloResult? = store.read(ownerId)
+    fun previousResult(): HoloResult? {
+        if (resultOwner == null) ownerId?.let(::recoverPending)
+        return store.read(ownerId)
+    }
     private fun writeResultIfCurrent(owner: OwnerKey, result: HoloResult) = synchronized(resultStoreLock) {
         if (owner == currentOwner()) store.write(owner.userId, result)
+    }
+
+    private fun recoverPending(userId: Long) {
+        val pending = pendingStore.read(userId) ?: return
+        val result = store.read(userId)
+        val validName = Regex("rec-[0-9a-fA-F-]{36}\\.wav").matches(pending.fileName)
+        val file = File(File(appContext.noBackupFilesDir, "holo"), pending.fileName)
+        if (!validName || !file.isFile || result == null || result.profileSaved
+                || result.measuredAt != pending.resultMeasuredAt || result.songId == null) {
+            if (validName) file.delete()
+            pendingStore.clear(userId)
+            return
+        }
+        val owner = currentOwner()
+        if (owner.userId != userId || resultOwner == owner || submitJob?.isActive == true) return
+        val picked = SongSummary(result.songId, result.songTitle ?: "", result.songArtist ?: "", null, null)
+        wav = file
+        songStartSec = pending.songStartMs / 1000.0
+        dataVersion = pending.dataVersion
+        streamRequestId = pending.streamId
+        fallbackRequestId = pending.fallbackRequestId
+        resultOwner = owner
+        _state.update { it.copy(stage = Stage.TIMBRE, phase = Phase.DONE, picked = picked,
+            result = result, saveError = null, analysisFinished = false) }
+        pending.sessionId?.let { sessionId ->
+            val s = HoloAnalysisClient.Session(sessionId, VoiceSessionAccess(userId))
+            precreatedSession = s
+            streamUploadJob = viewModelScope.async(Dispatchers.IO) {
+                client.uploadDuringRecording(s, file, pending.sampleRate, pending.streamId) { true }
+            }
+        }
+        submitJob = viewModelScope.launch(Dispatchers.IO) {
+            submit(owner, result, file, picked, pending.durationMs / 1000.0, pending.sampleRate)
+        }
     }
 
     /** 1단계 음역 측정이 끝났다. 잰 값을 안고 2단계(음색)로 넘어간다 */
@@ -187,6 +236,11 @@ class HoloViewModel(
     // ---- 녹음 ----
     fun start() {
         if (_state.value.phase != Phase.IDLE && _state.value.phase != Phase.ERROR) return
+        ownerId?.let { pendingStore.clear(it) }
+        wav?.takeIf { it.isFile }?.delete()
+        streamUploadJob?.cancel(); streamUploadJob = null; precreatedSession = null
+        streamRequestId = UUID.randomUUID().toString()
+        fallbackRequestId = UUID.randomUUID().toString()
         val picked = _state.value.picked
         val startVersion = _state.value.rangeRestartVersion
         startJob?.cancel()
@@ -200,7 +254,7 @@ class HoloViewModel(
                 if (picked != null) countdown(startVersion)
                 currentCoroutineContext().ensureActive()
                 if (_state.value.rangeRestartVersion != startVersion || _state.value.stage != Stage.TIMBRE) return@launch
-                val file = File(File(appContext.filesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
+                val file = File(File(appContext.noBackupFilesDir, "holo").apply { mkdirs() }, "rec-${UUID.randomUUID()}.wav")
                 wav = file
                 sungAccum = 0.0
                 lastTickPos = -1.0
@@ -212,6 +266,19 @@ class HoloViewModel(
                     }
                 }) { f ->
                     if (_state.value.rangeRestartVersion == startVersion) synchronized(frames) { frames.add(f) }
+                }
+                if (picked != null) {
+                    val owner = currentOwner()
+                    streamUploadJob = viewModelScope.async(Dispatchers.IO) {
+                        try {
+                            val s = client.createSession(owner.userId)
+                            if (owner != currentOwner()) return@async null
+                            precreatedSession = s
+                            client.uploadDuringRecording(s, file, capture.recordingRate,
+                                streamRequestId ?: return@async null) { !capture.isRunning }
+                        } catch (e: CancellationException) { throw e }
+                        catch (_: Exception) { null } // Keep the existing complete-WAV fallback.
+                    }
                 }
                 if (picked != null) { player.seekTo(songStartSec); player.play() }
                 val (l0, i0) = lyricsAt(if (picked != null) songStartSec else 0.0)
@@ -348,32 +415,74 @@ class HoloViewModel(
             ?.let { r -> if (low != null && high != null) r.withMeasuredRange(low, high, voiceQuality) else r }
         if (result == null || !result.usable) {
             _state.update { it.copy(phase = Phase.ERROR, error = "목소리가 충분히 잡히지 않았어요. 조금 더 크게, 4초 이상 불러 주세요.") }
+            streamUploadJob?.cancel(); streamUploadJob = null; precreatedSession = null
+            owner.userId?.let { pendingStore.clear(it) }
             file?.delete()
             return
         }
         if (owner != currentOwner()) { file?.delete(); return }
-        cancelPendingSubmission()
+        cancelPendingSubmission(preserveStream = true)
         resultOwner = owner
         _state.update { it.copy(phase = Phase.DONE, error = null, result = result, saving = false, saved = false,
-            saveAllowed = false, analysisFinished = false, saveError = null) }
+            saveAllowed = false, analysisFinished = false, saveError = null, submissionRetryable = false) }
         applyProfile(result)
         runCatching { writeResultIfCurrent(owner, result) }
         val recordedSec = capture.capturedSeconds
-        submitJob = viewModelScope.launch(Dispatchers.IO) { submit(owner, result, file, picked, recordedSec) }
+        if (owner.userId != null && picked != null && file != null) {
+            runCatching { pendingStore.write(HoloPendingUpload(owner.userId, file.name, result.measuredAt,
+                streamRequestId ?: UUID.randomUUID().toString(), fallbackRequestId ?: UUID.randomUUID().toString(),
+                precreatedSession?.id, capture.recordingRate, (recordedSec * 1000).toInt(),
+                (songStartSec * 1000).toInt(), dataVersion)) }
+        }
+        submitJob = viewModelScope.launch(Dispatchers.IO) {
+            submit(owner, result, file, picked, recordedSec, capture.recordingRate)
+        }
     }
 
-    private suspend fun submit(owner: OwnerKey, result: HoloResult, file: File?, picked: SongSummary?, recordedSec: Double) {
+    private suspend fun submit(owner: OwnerKey, result: HoloResult, file: File?, picked: SongSummary?,
+                               recordedSec: Double, sampleRate: Int) {
         try {
             if (owner != currentOwner()) return
-            val s = client.createSession(owner.userId)
+            val known = (session ?: precreatedSession)?.let { existing ->
+                runCatching { client.timbreJob(existing) }.getOrNull()
+            }
+            val alreadyAccepted = known?.requestId != null &&
+                known.requestId in listOfNotNull(streamRequestId, fallbackRequestId) &&
+                known?.status in setOf("QUEUED", "RUNNING", "COMPLETED", "FAILED", "INSUFFICIENT_DATA")
+            val stream = if (alreadyAccepted) {
+                streamUploadJob?.cancel(); null
+            } else streamUploadJob?.await()
+            val s = stream?.session ?: session ?: precreatedSession ?: client.createSession(owner.userId)
+            owner.userId?.let { userId ->
+                pendingStore.read(userId)?.takeIf { it.resultMeasuredAt == result.measuredAt }
+                    ?.let { pendingStore.write(it.copy(sessionId = s.id)) }
+            }
             if (owner != currentOwner() || _state.value.result?.measuredAt != result.measuredAt) return
             session = s
-            client.submitRange(s, result)
+            if (!alreadyAccepted) client.submitRange(s, result)
             if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
             _state.update { it.copy(result = it.result?.copy(sessionId = s.id)) }
             if (picked != null && file != null && file.isFile && recordedSec >= 4.0) {
-                client.submitTimbre(s, file, picked.id, capture.recordingRate, (recordedSec * 1000).toInt(),
-                    (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
+                if (alreadyAccepted) {
+                    // A previous complete request succeeded but its response was lost.
+                } else if (stream == null) {
+                    client.submitTimbre(s, file, picked.id, sampleRate, (recordedSec * 1000).toInt(),
+                        (songStartSec * 1000).toInt(), dataVersion, result.measuredAt,
+                        fallbackRequestId ?: UUID.randomUUID().toString())
+                } else {
+                    var accepted = false
+                    var last: Exception? = null
+                    for (attempt in 1..5) {
+                        try {
+                            client.completeTimbreStream(stream, picked.id, sampleRate,
+                                (recordedSec * 1000).toInt(), (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
+                            accepted = true
+                            break
+                        } catch (e: CancellationException) { throw e }
+                        catch (e: Exception) { last = e; delay(1_000L * attempt) }
+                    }
+                    if (!accepted) throw last ?: IllegalStateException("음색 분석 접수에 실패했어요.")
+                }
                 if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
                 _state.update { it.copy(result = it.result?.copy(timbreSubmitted = true)) }
                 client.poll(s) { p ->
@@ -390,12 +499,13 @@ class HoloViewModel(
                     }
                 }
                 _state.update { if (owner == currentOwner() && it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
-                    saveError = if (!saveAllowed && !it.saved) "음색 분석이 끝나지 않아 저장할 수 없어요. 다시 측정해 주세요." else it.saveError) else it }
+                    saveError = if (!saveAllowed && !it.saved) "음색 분석이 끝나지 않아 저장할 수 없어요. 다시 측정해 주세요." else it.saveError,
+                    submissionRetryable = false) else it }
             } else if (owner == currentOwner()) _state.update { it.copy(analysisFinished = true) }
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) {
             _state.update { if (owner == currentOwner() && it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
-                saveError = "서버에 연결할 수 없어 저장하지 못했어요.") else it }
+                saveError = "서버에 연결할 수 없어 저장하지 못했어요.", submissionRetryable = true) else it }
         }
     }
 
@@ -411,6 +521,21 @@ class HoloViewModel(
     }
 
     /** 분석 완료 시 자동 호출한다. 버튼에서는 완료 후 이동하거나 저장 실패를 재시도한다. */
+    fun retrySubmission() {
+        val owner = currentOwner()
+        val current = _state.value
+        val result = current.result ?: return
+        val file = wav ?: return
+        if (resultOwner != owner || !file.isFile || submitJob?.isActive == true || current.saveAllowed) return
+        val pending = owner.userId?.let(pendingStore::read)
+        _state.update { it.copy(saveError = null, analysisFinished = false, submissionRetryable = false) }
+        submitJob = viewModelScope.launch(Dispatchers.IO) {
+            submit(owner, result, file, current.picked,
+                pending?.durationMs?.div(1000.0) ?: capture.capturedSeconds,
+                pending?.sampleRate ?: capture.recordingRate)
+        }
+    }
+
     fun save(onDone: () -> Unit = {}) {
         val owner = currentOwner()
         if (resultOwner != owner || owner.userId == null) return
@@ -429,6 +554,8 @@ class HoloViewModel(
                     result = it.result?.copy(profileSaved = true)) }
                 _state.value.result?.let { r -> withContext(Dispatchers.IO) { runCatching { writeResultIfCurrent(owner, r) } } }
                 if (owner == currentOwner()) {
+                    owner.userId?.let { pendingStore.clear(it) }
+                    wav?.delete(); wav = null
                     UserStore.profile.value?.let { UserStore.setProfile(it.copy(measuredAt = System.currentTimeMillis())) }
                     onDone()
                 }
@@ -439,8 +566,13 @@ class HoloViewModel(
         }
     }
 
-    private fun cancelPendingSubmission() {
+    private fun cancelPendingSubmission(preserveStream: Boolean = false) {
         submitJob?.cancel(); saveJob?.cancel()
+        if (!preserveStream) {
+            streamUploadJob?.cancel(); streamUploadJob = null; precreatedSession = null
+            streamRequestId = null
+            fallbackRequestId = null
+        }
         session = null; pollVersion = 0; saveAllowed = false; autoSaveAttemptedFor = null
     }
 
@@ -467,12 +599,14 @@ class HoloViewModel(
     }
 
     fun reset() {
+        val discardedOwner = resultOwner?.userId ?: ownerId
         cancelPendingSubmission()
         cancelEarlyFinishFeedback()
         startJob?.cancel()
         tick?.cancel(); if (capture.isRunning) capture.stop(); player.pause()
         wav?.delete()
         wav = null
+        discardedOwner?.let { pendingStore.clear(it) }
         resultOwner = null
         synchronized(frames) { frames.clear() }
         _state.update { State(hasPrevious = it.hasPrevious, rangeRestartVersion = it.rangeRestartVersion + 1) }

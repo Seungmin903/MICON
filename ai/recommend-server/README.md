@@ -52,6 +52,11 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 | `POST /voice-analysis-jobs` (202) | BE 전용. multipart `file` WAV 하나 + `meta` JSON(`requestId`, `analysisType`, `components` 필수) | `{jobId, status: QUEUED, audioExpiresAt, duplicate}`. 같은 `requestId`: 같은 음원 → 기존 jobId, 다른 음원 409, 원음 만료 410 |
 | `POST /voice-analysis-jobs/{jobId}/cancel` | — | `{jobId, status}`. 원음 삭제 |
 | `GET /voice-analysis-jobs/{jobId}` | — | 진단용 job.json (임베딩 값 제외) |
+| `POST /voice-analysis-streams/{requestId}` | BE 전용. `{sessionId, sampleRate}` | 스트림 시작·중복 시작은 같은 상태 반환 |
+| `PUT /voice-analysis-streams/{requestId}/chunks/{index}?sessionId=…` | 순서대로 2초 이하 PCM16 모노 원음 | 디스크에 저장한 뒤 `nextIndex` ACK. 같은 순번·같은 내용은 멱등, 다른 내용은 409 |
+| `GET /voice-analysis-streams/{requestId}?sessionId=…` | — | 연결 전환 후 수신된 `nextIndex` 확인 |
+| `POST /voice-analysis-streams/{requestId}/inspect` | `{sessionId, pcmSha256}` | 원음 전체 해시·길이 검증. BE가 작업 메타데이터를 생성할 때 사용 |
+| `POST /voice-analysis-streams/{requestId}/complete` (202) | `{pcmSha256, meta}` | 기존 WAV 작업으로 확정하고 동일한 콜백 계약 사용 |
 
 `meta.analysisId`와 `meta.sessionId`는 0이 아닌 정수다. BE 회원 ID는 양수, 비회원 임시 ID는 음수다. `attemptNo`는 양의 정수이며 `requestId`는 UUID다.
 
@@ -71,6 +76,10 @@ ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로
 `embedding` 은 1×D 평균, `segmentInfo.embeddings` 는 구간별 벡터다. 구간별 벡터가 없으면 추천 점수의 70%가 빠진다.
 상태는 `COMPLETED` · `FAILED` · `INSUFFICIENT_DATA`(사용자 음색 분석에서 쓸 만한 4초 구간 4개 미만; 카탈로그 임베딩은 5개 기준 유지). 한 전송 회차에서 5xx·연결 오류를 3회 재시도한다. 미수신 콜백은 디스크에 남아 서버 재시작 후에도 최대 60초 간격으로 재전송하며 원음 강제 만료 시 함께 삭제한다.
 원음은 `workspace/analysis/{jobId}/` 에 두고 모든 콜백이 2xx 된 시각 + 1시간 또는 접수 + 24시간 중 먼저 오는 때 지운다.
+
+온보딩 스트림의 2초 청크는 전송 단위이며, 모델 입력은 기존과 동일한 4초 창·2초 간격이다. 녹음 중 원본 창의 ECAPA/Singer-BYOL 임베딩을 추측성으로 계산해 두고, 녹음 종료 후 전체 파일로 MR 여부와 창 선택을 다시 판정한다. 원음·체크포인트 해시가 일치하는 창만 재사용하고, MR 분리가 필요하거나 일치하지 않는 창은 기존 경로로 계산한다. 미완료 스트림은 1시간 후 정리된다. 앱 → BE → AI의 세 구성요소가 모두 새 버전이어야 스트리밍이 동작하므로 **AI, BE, Android 순서**로 배포한다. 기존 전체 WAV 업로드 API는 그대로 유지한다.
+
+BE의 `AI_VOICE_ANALYSIS_STREAM_ENABLED=false`로 새 경로만 중단하면 앱은 기존 전체 WAV 업로드로 돌아간다. 이 설정은 기존 음성 분석 API를 중단하지 않는다.
 
 환경변수: `AI_SERVICE_TOKEN`(컨테이너에서는 secret 파일에서 필수 로드; 로컬에서 설정 시 `/health` 외 전 라우트 Bearer 필수) · `MICON_BE_BASE_URL`(카탈로그 조회) · `MICON_BE_CALLBACK_URL`(음성 분석 접수에 필수) ·
 `RECOMMEND_CONCURRENCY=1`(음성 임베딩 추론) · `RECOMMEND_JSON_CONCURRENCY=1`(JSON 추천 계산 동시 실행, 기본 1) ·

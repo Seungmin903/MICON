@@ -677,11 +677,15 @@ def _timbre_callbacks(job, audio, prefix, config):
     stage = time.perf_counter()
     runtime = get_timbre_runtime(config)
     timings["runtimeAcquireMs"] = round((time.perf_counter() - stage) * 1000, 1)
+    cached_embeddings = None
+    if not detection["requiresSeparation"] and job["meta"].get("streamId"):
+        from stream_jobs import load_precomputed
+        cached_embeddings = load_precomputed(job["meta"]["streamId"], runtime)
     metadata = embed_vocal_audio(
         embedding_audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
         singer_checkpoint_root=config["singer_checkpoint_root"], device=config.get("device", "auto"),
         batch_size=8, max_segments=12, min_segments=MIN_USER_TIMBRE_SEGMENTS,
-        force=True, runtime=runtime, timings=timings,
+        force=True, runtime=runtime, timings=timings, cached_embeddings=cached_embeddings,
     )
     callbacks = build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
                                 np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata,
@@ -693,13 +697,13 @@ def _timbre_callbacks(job, audio, prefix, config):
     log.info(
         "event=voice_analysis_ai_profile build_sha=%s ai_job_id=%s device=%s segments=%s "
         "mr_detection_ms=%s separation_ms=%s runtime_acquire_ms=%s segmentation_ms=%s "
-        "ecapa_ms=%s singer_byol_ms=%s artifact_write_ms=%s total_ms=%s "
+        "ecapa_ms=%s singer_byol_ms=%s artifact_write_ms=%s total_ms=%s precomputed_segments=%s "
         "separation_prepare_ms=%s separation_input_seconds=%s model_load_ms=%s "
         "model_to_device_ms=%s demix_ms=%s model_to_cpu_ms=%s output_write_ms=%s",
         build_sha(), job["jobId"], runtime.device, timings.get("segmentCount"),
         timings.get("mrDetectionMs"), timings.get("separationMs"), timings.get("runtimeAcquireMs"),
         timings.get("segmentationMs"), timings.get("ecapaMs"), timings.get("singerByolMs"),
-        timings.get("artifactWriteMs"), timings.get("totalMs"),
+        timings.get("artifactWriteMs"), timings.get("totalMs"), timings.get("precomputedSegments", 0),
         timings.get("separationPrepareMs"), separation_info.get("inputSeconds"),
         separation_info.get("modelLoadMs"), separation_info.get("modelToDeviceMs"),
         separation_info.get("demixMs"), separation_info.get("modelToCpuMs"),
@@ -814,6 +818,8 @@ def _delete_audio(job_id: str) -> None:
 def sweep(now: datetime | None = None) -> list[str]:
     """만료된 원음을 지운다. 삭제 시각 = min(soft, hard). 지운 jobId 목록을 돌려준다."""
     now = now or _now()
+    from stream_jobs import purge_stale
+    purge_stale()
     deleted = []
     for job in list(JOBS.values()):
         if job.get("audioDeleted") or job["status"] == "RUNNING":

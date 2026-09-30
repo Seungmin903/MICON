@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 
 import analysis_jobs
+import stream_jobs
 import catalog_link
 from recommendation_api import repair_recommendation_artist_ids, router as recommendation_router
 from runtime_info import build_sha
@@ -22,6 +23,7 @@ from song_fit_api import router as song_fit_router, restore_artist_jobs
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     analysis_jobs.restore_jobs()
+    stream_jobs.purge_stale()
     restore_artist_jobs()
     repair_recommendation_artist_ids()
     catalog_link.refresh()          # 앱 song_id 짝표. 실패해도 기동은 계속된다(상태는 /recommendations/status)
@@ -36,6 +38,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="MICON Recommend Server", version="0.2.0", lifespan=lifespan)
 app.include_router(recommendation_router, dependencies=[Depends(require_service_token)])
 app.include_router(analysis_jobs.router, dependencies=[Depends(require_service_token)])
+app.include_router(stream_jobs.router, dependencies=[Depends(require_service_token)])
 app.include_router(song_fit_router, dependencies=[Depends(require_service_token)])
 
 

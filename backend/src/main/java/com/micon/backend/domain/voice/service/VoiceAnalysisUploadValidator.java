@@ -36,6 +36,19 @@ public class VoiceAnalysisUploadValidator {
         validateTimeline(request);
     }
 
+    public void validateStream(VoiceAnalysisUploadRequest request, long pcmBytes, int sampleRate, int durationMs) {
+        if (request.method() != VoiceAnalysisMethod.SONG
+                || pcmBytes <= 0 || pcmBytes + 44 > maxFileBytes || pcmBytes % 2 != 0
+                || !Set.of(44100, 48000).contains(sampleRate)
+                || durationMs > 120_000
+                || request.sampleRate() != sampleRate
+                || Math.abs(request.durationMs() - durationMs) > 100) {
+            throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
+                    "청크 녹음의 길이와 샘플레이트가 메타데이터와 일치해야 합니다.");
+        }
+        validateTimeline(request);
+    }
+
     public void validateRange(MultipartFile file, VoiceSessionRequest.RangeAnalysisUpload request) {
         validateFile(file);
         String mediaType = file.getContentType();

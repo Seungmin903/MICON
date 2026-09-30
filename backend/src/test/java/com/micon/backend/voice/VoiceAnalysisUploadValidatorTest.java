@@ -25,6 +25,18 @@ class VoiceAnalysisUploadValidatorTest {
     }
 
     @Test
+    void streamRequiresMatchingPcmLengthRateAndTimeline() {
+        var request = request(48_000, validSegments());
+        validator.validateStream(request, 48_000L * 2 * 30, 48_000, 30_000);
+        assertThatThrownBy(() -> validator.validateStream(request, 48_000L * 2 * 30, 44_100, 30_000))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> validator.validateStream(request, 48_000L * 2 * 30 - 1, 48_000, 30_000))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> validator.validateStream(request, 48_000L * 2 * 30, 48_000, 29_000))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void rejectsFormatsOutsideTheWavContract() {
         assertThatThrownBy(() -> validator.validate(file("sample.opus", "audio/ogg"),
                 request(48_000, validSegments())))

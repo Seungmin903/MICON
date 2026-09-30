@@ -72,6 +72,20 @@ public class VoiceSessionService {
         return guestByToken(guestToken).response(true);
     }
 
+    @Transactional(readOnly = true)
+    public void requireAccessible(Long userId, String guestToken, long sessionId) {
+        if (userId == null) {
+            guest(sessionId, guestToken);
+        } else {
+            VoiceAnalysisSession session = sessions.findByIdAndUserId(sessionId, userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_SESSION_NOT_FOUND));
+            if (session.isExpired() || "CANCELED".equals(session.getStatus())
+                    || "SAVED".equals(session.getStatus())) {
+                throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_STATE);
+            }
+        }
+    }
+
     @Transactional
     public VoiceSessionResponse.Session saveDeviceRange(Long userId, String guestToken, long sessionId,
             VoiceSessionRequest.DeviceRangeResult request) {
