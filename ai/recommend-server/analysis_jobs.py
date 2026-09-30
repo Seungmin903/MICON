@@ -229,13 +229,16 @@ def _ingest(files: dict[str, bytes], meta: dict[str, Any]) -> tuple[dict[str, An
     request_id = str(meta.get("requestId") or "").strip()
     try:
         uuid.UUID(request_id)
-        if any(type(meta.get(k)) is not int or meta[k] < 1 for k in ("analysisId", "sessionId", "attemptNo")):
+        # BE uses negative IDs for guest sessions and jobs, positive IDs for members.
+        if any(type(meta.get(k)) is not int or meta[k] == 0 for k in ("analysisId", "sessionId")):
+            raise ValueError()
+        if type(meta.get("attemptNo")) is not int or meta["attemptNo"] < 1:
             raise ValueError()
         expected_contract = "v2" if meta.get("analysisType") == "RANGE" and meta.get("protocolVersion") == "guided-range-v8" else "v1"
         if meta.get("contractVersion") != expected_contract:
             raise ValueError()
     except (ValueError, TypeError):
-        raise HTTPException(422, "requestId UUID, 양수 analysisId/sessionId/attemptNo, 올바른 contractVersion이 필요합니다.")
+        raise HTTPException(422, "requestId UUID, 0이 아닌 정수 analysisId/sessionId, 양수 attemptNo, 올바른 contractVersion이 필요합니다.")
     components = _components(meta)
     if set(files) != {"file"} or not files["file"] or len(files["file"]) > MAX_BYTES:
         raise HTTPException(422, "64MB 이하 file WAV 파트 하나가 필요합니다.")
