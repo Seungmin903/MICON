@@ -90,12 +90,15 @@ class BuildShelvesTest(unittest.TestCase):
             _row("11", "태연", timbre=0.45, key=-1, hi_excess=1, hi_ratio=0.08),       # D
         ]
 
-    def test_shelves_are_disjoint_and_rap_only_in_discovery(self) -> None:
+    def test_shelves_allow_overlap_and_rap_only_in_discovery(self) -> None:
         shelves = build_shelves(self.rows, top_k=8, genres=["R&B", "발라드"], preferred_artists=["한로로"], range_enabled=True, include_challenge=True, seed=1)
         by_key = {s["key"]: s for s in shelves}
         self.assertEqual([s["key"] for s in shelves], ["voice", "original_key", "favorite_artists", "challenge", "discovery"])
         all_ids = [it["track_id"] for s in shelves for it in s["items"]]
-        self.assertEqual(len(all_ids), len(set(all_ids)))                           # 섹션 간 중복 없음
+        self.assertGreater(len(all_ids), len(set(all_ids)))
+        for shelf in shelves:
+            ids = [item["song_id"] for item in shelf["items"]]
+            self.assertEqual(len(ids), len(set(ids)))
         for key in ("voice", "original_key", "favorite_artists", "challenge"):
             self.assertFalse(any(it["artist"] in ("조광일", "페노메코") for it in by_key[key]["items"]), key)
         self.assertIn("페노메코", {it["artist"] for it in by_key["discovery"]["items"]})
@@ -107,8 +110,8 @@ class BuildShelvesTest(unittest.TestCase):
         voice = next(s for s in shelves if s["key"] == "voice")["items"]
         ids = [it["track_id"] for it in voice]
         self.assertEqual(ids[0], "01")                                              # 음색 1위
-        self.assertNotIn("10", ids)                                                 # 음역 밖 시간 비율 초과
-        self.assertTrue(all(it["axis"] is None and it["label"] == "최종 점수 순" for it in voice))
+        self.assertIn("10", ids)                                                    # 음역 밖 구간도 점수로만 반영
+        self.assertTrue(all(it["axis"] is None for it in voice))
         self.assertTrue(all(it["shelf"] == "voice" for it in voice))
 
     def test_selected_styles_rank_before_other_known_styles(self) -> None:
@@ -134,7 +137,7 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertEqual([item["track_id"] for item in voice], ["20"])
         self.assertNotIn("21", {item["track_id"] for shelf in shelves for item in shelf["items"]})
 
-    def test_voice_gate_rejects_more_than_five_percent_outside_range(self) -> None:
+    def test_voice_does_not_filter_outside_range(self) -> None:
         rows = [
             _row("12", "통과", timbre=.9, outside_ratio=.05),
             _row("13", "제외", timbre=.99, outside_ratio=.051),
@@ -142,9 +145,9 @@ class BuildShelvesTest(unittest.TestCase):
         shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
         ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
         self.assertIn("12", ids)
-        self.assertNotIn("13", ids)
+        self.assertIn("13", ids)
 
-    def test_voice_gate_accepts_three_semitones_and_rejects_four(self) -> None:
+    def test_bad_key_metadata_does_not_remove_voice_candidate(self) -> None:
         rows = [
             _row("15", "세반음", timbre=.9, key=3),
             _row("16", "네반음", timbre=.99, key=4),
@@ -152,7 +155,9 @@ class BuildShelvesTest(unittest.TestCase):
         shelves = build_shelves(rows, top_k=8, range_enabled=True, seed=1)
         ids = {item["track_id"] for item in next(s for s in shelves if s["key"] == "voice")["items"]}
         self.assertIn("15", ids)
-        self.assertNotIn("16", ids)
+        self.assertIn("16", ids)
+        invalid = next(item for shelf in shelves if shelf["key"] == "voice" for item in shelf["items"] if item["track_id"] == "16")
+        self.assertIsNone(invalid["recommended_key"])
 
     def test_voice_gate_does_not_reject_a_small_core_excess_when_time_ratio_passes(self) -> None:
         rows = [_row("14", "통과", timbre=.9, excess=1.0, outside_ratio=.03)]
@@ -161,7 +166,7 @@ class BuildShelvesTest(unittest.TestCase):
         self.assertIn("14", ids)
 
     def test_original_key_sorted_by_center_not_timbre(self) -> None:
-        # 합성 행이 11개뿐이라 top_k 를 작게: A 가 우선순위로 다 가져가면 B 가 비는 것이 정상 동작이다
+        # 음성 선반과 원키 선반은 같은 곡을 각각의 기준으로 고를 수 있다.
         shelves = build_shelves(self.rows, top_k=2, range_enabled=True, seed=1)
         b = next(s for s in shelves if s["key"] == "original_key")["items"]
         self.assertEqual([it["track_id"] for it in b][:2], ["04", "03"])           # 중심음 1.0 동률 → 커버리지 0.99(04) 가 0.98(03) 보다 먼저
@@ -189,8 +194,20 @@ class BuildShelvesTest(unittest.TestCase):
         da = next(s for s in a if s["key"] == "discovery"); db = next(s for s in b if s["key"] == "discovery")
         self.assertEqual([i["track_id"] for i in da["items"]], [i["track_id"] for i in db["items"]])   # 같은 시드 → 같은 순서
         others = {i["track_id"] for s in a if s["key"] != "discovery" for i in s["items"]}
-        self.assertEqual({i["track_id"] for i in da["items"]}, {r["track_id"] for r in self.rows} - others)  # 나머지 전부, 장르 무관
-        self.assertIn("폴킴", {i["artist"] for i in da["items"]})                  # 선택 장르(OST)여도 제외하지 않는다
+        fresh = {r["track_id"] for r in self.rows} - others
+        self.assertEqual({i["track_id"] for i in da["items"][:len(fresh)]}, fresh)
+        self.assertEqual(len(da["items"]), 8)
+
+    def test_every_shelf_caps_each_artist_at_three(self) -> None:
+        rows = [_row(str(index), f"Artist {index // 5}", timbre=1 - index * .01, artist_sim=.8)
+                for index in range(30)]
+        shelves = build_shelves(rows, top_k=15, range_enabled=True, preferred_artists=["Artist 0"], seed=1)
+        for shelf in shelves:
+            counts = {}
+            for item in shelf["items"]:
+                counts[item["artist"]] = counts.get(item["artist"], 0) + 1
+            self.assertEqual(len(shelf["items"]), 15)
+            self.assertTrue(all(count <= 3 for count in counts.values()))
 
     def test_db_genre_selection_through_scoring_and_every_shelf(self) -> None:
         entries = [

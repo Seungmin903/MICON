@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
+import numpy as np
 from fastapi import HTTPException
 
 import recommendation_api
@@ -14,9 +15,39 @@ import recommendation_api
 class RecommendationApiTestCase(unittest.TestCase):
     def test_voice_recommendation_uses_the_approved_score_weights(self) -> None:
         config = recommendation_api.VOICE_RANKER_CONFIG
-        self.assertEqual(config.base_ecapa_weight, .80)
+        self.assertAlmostEqual(config.base_ecapa_weight, .70 / .85)
         self.assertEqual(config.centroid_weight, .50)
         self.assertEqual(config.segment_weight, .50)
+
+    def test_measured_quality_blends_model_scores_in_the_public_response(self) -> None:
+        query = {}
+        vectors = {}
+        for key, dimension, cosine in (("ecapa", 192, .8), ("singer_byol", 1000, .4)):
+            query[key] = np.zeros((1, dimension), dtype=np.float32)
+            query[key][0, 0] = 1
+            vectors[key] = np.zeros((1, dimension), dtype=np.float32)
+            vectors[key][0, :2] = [cosine, np.sqrt(1 - cosine ** 2)]
+        track = SimpleNamespace(track_id="track", title="Synthetic Song", artist="Synthetic Artist",
+                                metadata={"song_id": "song-1"})
+        catalog = SimpleNamespace(tracks=[track], embeddings=lambda track, key: vectors[key])
+        histogram = [0.0] * 60
+        histogram[60 - 36] = 1
+        ranges = SimpleNamespace(profiles={"track": {"histogram": histogram, "coreLowMidi": 60,
+                                                   "coreHighMidi": 60, "medianMidi": 60,
+                                                   "reliable": True, "confidence": 1}})
+        mapping = SimpleNamespace(by_track={"track": 1},
+                                  preferred_ids=lambda names, catalog: [])
+        with mock.patch.object(recommendation_api.ArtistCatalog, "load", return_value=mapping):
+            result = recommendation_api.build_result(catalog, ranges, query=query, pitch_profile=None,
+                    pitch_error=None, mode="timbre", top_k=15,
+                    voice_quality={"version": "personal-acoustic-v1", "points": [{"midi": 60, "score": 60}]})
+        item = result["shelves"][0]["items"][0]
+        self.assertAlmostEqual(item["final_score"], .70 * .8 + .15 * .4 + .15 * .6, places=6)
+        self.assertEqual(item["recommended_key"], 0)
+        self.assertEqual(item["metrics"]["stability"]["measuredCoverage"], 1)
+        self.assertEqual(result["algorithm"]["applied_mode"], "stability_soft_score")
+        self.assertFalse(result["algorithm"]["range_enabled"])
+        self.assertEqual(result["algorithm"]["scoring_version"], "voice-stability-70-15-15-v1")
 
     def test_operational_readiness_requires_backend_catalog_mapping(self) -> None:
         catalog = SimpleNamespace(tracks=[])

@@ -49,7 +49,8 @@ class RecommendationRuntimeTest(unittest.TestCase):
         }
         recommendations._save_job(identifier)
         self.assertTrue(recommendations._reserve_json_recommendation())
-        result = {"algorithm": {"range_enabled": False}, "recommendations": []}
+        result = {"algorithm": {"range_enabled": False, "applied_mode": "stability_soft_score"}, "recommendations": []}
+        quality = {"version": "personal-acoustic-v1", "points": [{"midi": 60, "score": 75}]}
         catalog_times = {
             "catalogCacheHit": False, "catalogCacheLockWaitMs": 0.1,
             "catalogFingerprintMs": 0.2, "catalogIndexLoadMs": 11.0,
@@ -59,15 +60,16 @@ class RecommendationRuntimeTest(unittest.TestCase):
         with (mock.patch.object(recommendations, "_configuration_status", return_value=({"index_dir": "index"}, [])),
               mock.patch.object(recommendations.catalog_cache, "load_catalogs", return_value=(object(), object(), catalog_times)),
               mock.patch.object(recommendations, "_excluded_tracks", return_value=()),
-              mock.patch.object(recommendations, "build_result", return_value=result),
+              mock.patch.object(recommendations, "build_result", return_value=result) as build,
               mock.patch.object(catalog_link, "apply", side_effect=lambda value: value)):
             recommendations._json_process(identifier, {
                 "userEmbedding": embeddings(), "mode": "timbre", "topK": 10,
-                "profileId": 1,
+                "profileId": 1, "voiceProfile": {"voiceQuality": quality},
             }, time.perf_counter() - 0.01)
 
         job = recommendations.JOBS[identifier]
         self.assertEqual(job["status"], "complete")
+        self.assertEqual(build.call_args.kwargs["voice_quality"], quality)
         self.assertIsNotNone(job["acceptedAt"])
         self.assertIsNotNone(job["startedAt"])
         self.assertIsNotNone(job["completedAt"])

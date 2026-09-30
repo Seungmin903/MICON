@@ -26,3 +26,7 @@ RELEASE_VERSION_NAME=
 # PC model preview: explicit debug-only entry; production login remains the default.
 GUIDED_RANGE_STANDALONE=false
 RANGE_PREVIEW_BASE_URL=http://127.0.0.1:8789/
+
+# Experimental continuous acoustic score: debug-only, off by default and always off in release.
+# Deploy BE/AI v2 compatibility before sending opt-in debug results to a test account.
+EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY=false

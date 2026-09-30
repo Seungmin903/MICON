@@ -25,6 +25,7 @@ public class RecommendationSong {
     @JoinColumn(name = "recommendation_id", nullable = false)
     private Recommendation recommendation;
 
+    @MapsId("shelfId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "recommendation_shelf_id", nullable = false)
     private RecommendationShelf shelf;
@@ -66,7 +67,7 @@ public class RecommendationSong {
         if (shelfPosition < 1 || shelfPosition > 50) {
             throw new IllegalArgumentException("shelfPosition must be between 1 and 50");
         }
-        this.id = new RecommendationSongId(recommendation.getId(), songId);
+        this.id = new RecommendationSongId(recommendation.getId(), shelf.getId(), songId);
         this.recommendation = recommendation;
         this.shelf = shelf;
         this.overallRank = (short) overallRank;

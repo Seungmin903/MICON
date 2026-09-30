@@ -22,7 +22,7 @@ from recommendation_api import build_result  # noqa: E402
 from schemas import Job  # noqa: E402
 from artist_catalog import ArtistCatalog  # noqa: E402
 from timbre_recommender.catalog import CatalogIndex  # noqa: E402
-from timbre_recommender.pitch_range import RangeCatalog  # noqa: E402
+from timbre_recommender.pitch_range import MIDI_MIN, RangeCatalog  # noqa: E402
 
 INDEX_DIR = ROOT / "recommender-assets" / "catalog-index"
 DOCS = ROOT / "docs"
@@ -34,9 +34,16 @@ def main() -> None:
     parser.add_argument("--index-dir", type=Path, default=INDEX_DIR)
     parser.add_argument("--top-k", type=int, default=8)
     parser.add_argument("--mode", default="timbre", choices=["timbre", "range"])
+    parser.add_argument("--quality-score", type=float, default=None, help="합성 발성 점수 0~100 (실제 측정이 아님)")
+    parser.add_argument("--schema-only", action="store_true", help="카탈로그 없이 응답 스키마만 갱신")
     parser.add_argument("--genre", action="append", default=None, help="온보딩 선호 장르 (반복 가능)")
     parser.add_argument("--artist", action="append", default=None, help="온보딩 선호 가수 (반복 가능)")
     args = parser.parse_args()
+    if args.schema_only:
+        DOCS.mkdir(exist_ok=True)
+        (DOCS / "response-schema.json").write_text(json.dumps(Job.model_json_schema(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print("-> docs/response-schema.json (schema only; samples unchanged)")
+        return
     genres = tuple(args.genre) if args.genre is not None else ("R&B", "발라드")
     artists = tuple(args.artist) if args.artist is not None else ("이하이", "한로로")
 
@@ -44,17 +51,26 @@ def main() -> None:
     ranges = RangeCatalog.load(args.index_dir, expected_track_ids={t.track_id for t in catalog.tracks}, verify_hashes=True)
     preferred_ids = ArtistCatalog.load(catalog).preferred_ids(artists, catalog)
     query_track = next((t for t in catalog.tracks if (t.metadata or {}).get("tj_id") == args.query_tj), catalog.tracks[0])
+    quality = None
+    if args.quality_score is not None:
+        if not 0 <= args.quality_score <= 100:
+            parser.error("--quality-score must be between 0 and 100")
+        profile = ranges.profiles[query_track.track_id]
+        quality = {"version": "personal-acoustic-v1", "referenceMidi": int(profile["medianMidi"]),
+                   "points": [{"midi": index + MIDI_MIN, "score": args.quality_score}
+                              for index, weight in enumerate(profile["histogram"]) if weight > 0]}
 
     result = build_result(
         catalog, ranges,
         query={key: np.asarray(catalog.embeddings(query_track, key)) for key in ("ecapa", "singer_byol")},
         pitch_profile=ranges.profiles[query_track.track_id], pitch_error=None, mode=args.mode, top_k=args.top_k,
         genres=genres, preferred_artists=artists, excluded_track_ids=(query_track.track_id,), seed=20260908,
+        voice_quality=quality,
     )
     job = Job(
         id="00000000-0000-4000-8000-000000000000", status="complete", progress=100, message="음색과 음역 추천이 완료되었습니다.",
         mode=args.mode, genres=list(genres), preferred_artists=list(artists), preferred_artist_ids=preferred_ids, result=result,
-        sample_note=f"합성 샘플: 카탈로그 곡 {query_track.track_id}({query_track.title} / {query_track.artist})의 임베딩·음역 프로파일을 사용자 입력으로 사용",
+        sample_note=f"합성 샘플: 카탈로그 곡 {query_track.track_id}({query_track.title} / {query_track.artist})의 임베딩·음역 프로파일을 사용자 입력으로 사용. 합성 발성 점수={args.quality_score}",
     )
     DOCS.mkdir(exist_ok=True)
     (DOCS / "sample-response.json").write_text(json.dumps(job.model_dump(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -74,7 +90,7 @@ def main() -> None:
             ),
             sample_note="결측 샘플: 음역 프로파일 없음 → range_fit·recommended_key 는 null, algorithm.range_fallback_reason 에 사유, original_key 섹션 비어 있음",
         ),
-        # 경계: topK=1, 선호 가수 없음(favorite_artists 비거나 없음), 장르 팝 → 언어 게이트 en 만
+        # 경계: topK=1, 선호 가수 없음, 선택한 DB 장르 팝만 사용(언어 필터 없음)
         "sample-response-boundary.json": Job(
             id="00000000-0000-4000-8000-000000000002", status="complete", progress=100, message="음색과 음역 추천이 완료되었습니다.",
             mode=args.mode, genres=["팝"], preferred_artists=[], preferred_artist_ids=[],
@@ -82,7 +98,7 @@ def main() -> None:
                 catalog, ranges, query=query_emb, pitch_profile=ranges.profiles[query_track.track_id], pitch_error=None,
                 mode=args.mode, top_k=1, genres=("팝",), preferred_artists=(), excluded_track_ids=(query_track.track_id,), seed=20260908,
             ),
-            sample_note="경계 샘플: topK=1 · 선호 가수 없음 · 장르 팝(언어 게이트 en). 섹션은 비거나 1곡",
+            sample_note="경계 샘플: topK=1 · 선호 가수 없음 · DB 장르 팝. 섹션은 비거나 1곡",
         ),
         # 실패: result 없음, error 에 사유. 진행률 100
         "sample-response-failed.json": Job(

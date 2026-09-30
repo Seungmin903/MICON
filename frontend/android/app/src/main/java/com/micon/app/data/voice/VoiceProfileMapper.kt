@@ -98,7 +98,7 @@ object VoiceProfileMapper {
         val stable = (held + range.stableIntervals.filter { it.size == 2 && it[0] <= it[1] }.map { it[0]..it[1] })
             .ifEmpty { runs(range.notes.filter { it.status in CONFIRMED }.map { it.midi }) }
             .maxByOrNull { it.last - it.first }
-        val quality = range.voiceQuality?.takeIf { it.version == com.micon.app.range.LocalVoiceQualityAnalyzer.VERSION }
+        val quality = range.voiceQuality?.takeIf { com.micon.app.range.LocalVoiceQualityAnalyzer.supports(it.version) }
         val scored = quality?.let { VoiceQualityComfortRange.find(it, low, high) }
         val comfortLow = (if (quality != null) scored?.first else stable?.first)?.coerceIn(low, high) ?: low
         val comfortHigh = (if (quality != null) scored?.last else stable?.last)?.coerceIn(comfortLow, high) ?: high

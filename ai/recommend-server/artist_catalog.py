@@ -5,6 +5,7 @@ clients that show recommended songs and artists. Names never determine IDs.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 import hashlib
 import json
@@ -21,6 +22,13 @@ def _positive_id(value: Any) -> int:
     if type(value) is not int or not 1 <= value <= 9223372036854775807:
         raise ValueError("Canonical artist ID must be a positive BIGINT")
     return value
+
+
+def valid_artist_ids(value: Any) -> bool:
+    """A nonempty, persisted canonical-ID list; never coerce names, strings or bools."""
+    return isinstance(value, list) and bool(value) and all(
+        type(item) is int and 1 <= item <= 9223372036854775807 for item in value
+    )
 
 
 def _batch(catalog: CatalogIndex) -> str:
@@ -114,29 +122,51 @@ def public_response(value: Any, mapping: ArtistCatalog | None = None, catalog: C
 
     Full request payloads and callback bodies are not public job state.
     Computation paths require a validated mapping; historical GETs can still
-    expose their existing song IDs when the snapshot is temporarily unavailable.
+    expose their existing artist IDs when the snapshot is temporarily unavailable.
     """
+    return _project_response(value, mapping, catalog, public=True)
+
+
+def enrich_artist_ids(value: Any, mapping: ArtistCatalog, catalog: CatalogIndex) -> Any:
+    """Repair persisted result metadata without deleting private/unknown fields."""
+    return _project_response(value, mapping, catalog, public=False)
+
+
+def _project_response(value: Any, mapping: ArtistCatalog | None, catalog: CatalogIndex | None,
+                      *, public: bool) -> Any:
     if isinstance(value, list):
-        return [public_response(item, mapping, catalog) for item in value]
+        return [_project_response(item, mapping, catalog, public=public) for item in value]
     if not isinstance(value, Mapping):
         return value
     result = {}
     for key, item in value.items():
-        normalized = key.replace("_", "").lower()
         if key in {"payload", "callbackBody"}:
+            if not public:
+                result[key] = deepcopy(item)
             continue
-        result[key] = public_response(item, mapping, catalog)
-        if normalized == "preferredartists" and mapping is not None and catalog is not None:
-            result["preferred_artist_ids"] = mapping.preferred_ids(item, catalog)
+        result[key] = _project_response(item, mapping, catalog, public=public)
+    if mapping is not None and catalog is not None:
+        for key, item in value.items():
+            if key.replace("_", "").lower() == "preferredartists":
+                stored_preferred = value.get("preferred_artist_ids")
+                result["preferred_artist_ids"] = (list(stored_preferred) if valid_artist_ids(stored_preferred)
+                                                  else mapping.preferred_ids(item, catalog))
     track_id = value.get("track_id")
     if isinstance(track_id, str):
-        artist_id = mapping.by_track.get(track_id) if mapping is not None else None
-        if artist_id is None and mapping is not None and isinstance(value.get("song_id"), str):
-            # Historical track IDs can differ, but an exact canonical DB song
-            # ID is safe. Never match titles, names, TJ numbers or numeric IDs.
-            by_song = {mapping.song_ids[tid]: aid for tid, aid in mapping.by_track.items()}
-            artist_id = by_song.get(value["song_id"])
-        result["artist_ids"] = [artist_id] if artist_id is not None else []
+        # A job is a historical snapshot. Preserve its validated ID list, including
+        # when polling has deliberately omitted the catalog to avoid repeated I/O.
+        # Only missing/invalid lists may be enriched from exact catalog identity.
+        stored_ids = value.get("artist_ids")
+        if valid_artist_ids(stored_ids):
+            result["artist_ids"] = list(stored_ids)
+        else:
+            artist_id = mapping.by_track.get(track_id) if mapping is not None else None
+            if artist_id is None and mapping is not None and isinstance(value.get("song_id"), str):
+                # Historical track IDs can differ, but an exact canonical DB song
+                # ID is safe. Never match titles, names, TJ numbers or numeric IDs.
+                by_song = {mapping.song_ids[tid]: aid for tid, aid in mapping.by_track.items()}
+                artist_id = by_song.get(value["song_id"])
+            result["artist_ids"] = [artist_id] if artist_id is not None else []
         if catalog is not None and not isinstance(value.get("artist"), str):
             # Repair records saved during the withdrawn ID-only transition using
             # exact track/song identity, without changing scores, titles or keys.

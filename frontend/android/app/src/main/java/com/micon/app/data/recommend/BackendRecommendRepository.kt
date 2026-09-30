@@ -2,6 +2,7 @@ package com.micon.app.data.recommend
 
 import com.micon.app.data.RangeFit
 import com.micon.app.data.RecommendRepository
+import com.micon.app.data.RecommendationDisplayPolicy
 import com.micon.app.data.RecommendShelf
 import com.micon.app.data.RecommendShelves
 import com.micon.app.data.RecommendedSong
@@ -84,7 +85,10 @@ class BackendRecommendRepository(
      * 없으면(분석 전) 빈 목록 — 이때는 서버가 준 이유가 더 정확하므로 그것을 우선 보인다.
      */
     private suspend fun fallback(limit: Int, reshuffle: Int, reason: String?): RecommendShelves {
-        val shelves = local.shelves(limit, reshuffle)
+        val localResult = local.shelves(limit, reshuffle)
+        val shelves = localResult.copy(shelves = localResult.shelves.map { shelf ->
+            shelf.copy(items = RecommendationDisplayPolicy.select(shelf.items, limit))
+        })
         return when {
             reason == null -> shelves
             shelves.shelves.isEmpty() -> shelves.copy(note = reason)
@@ -176,11 +180,11 @@ class BackendRecommendRepository(
             .map { shelf ->
                 val ordered = shelf.items.sortedBy { it.position }
                 val visible = if (shelf.key == ShelfKeys.DISCOVERY && reshuffle > 0) ordered.shuffled(Random(reshuffle)) else ordered
-                val items = visible.take(limit).mapNotNull { dto ->
+                val items = RecommendationDisplayPolicy.select(visible.mapNotNull { dto ->
                     val song = songsById[dto.songId] ?: return@mapNotNull null
                     val fit = dto.toSongFit(shelf.key, rec)
                     RecommendedSong(rank = if (dto.overallRank > 0) dto.overallRank else dto.position + 1, song = song, fit = fit, reasons = fit.reasons)
-                }
+                }, limit)
                 RecommendShelf(shelf.key, shelf.title, shelf.metric, items)
             }
             .filter { it.items.isNotEmpty() || it.key == ShelfKeys.DISCOVERY }

@@ -23,12 +23,12 @@ import soundfile as sf
 
 import catalog_link
 import catalog_cache
-from artist_catalog import ArtistCatalog, public_response
+from artist_catalog import ArtistCatalog, enrich_artist_ids, public_response, valid_artist_ids
 from pitch_engine import extract_vocal_melody
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION, summarize_pitch_profile
 from schemas import RecommendResult
 from timbre_recommender.catalog import CatalogIndex
-from timbre_recommender.contracts import SCORING_VERSION
+from timbre_recommender.stability_scoring import ECAPA_WEIGHT, TIMBRE_WEIGHT, RECOMMENDATION_SCORING_VERSION
 from timbre_recommender.embedding import embed_vocal_audio
 from timbre_recommender.shelves import SHELVES_VERSION, build_shelves, score_all_tracks
 from timbre_recommender.pitch_range import RANGE_CATALOG_FILENAME, RangeCatalog
@@ -44,9 +44,10 @@ MAX_BYTES = 250 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
 CANDIDATE_POOL = 400  # compose 전에 후보 전체를 받는다. 최종 개수는 topK 가 정한다.
 MAX_TOP_K = 50        # 섹션당 최대 곡 수. BE 가 필터(성별·언어)용으로 넉넉히 저장할 수 있게 20 → 50 (2026-09-09)
-# 음색 추천 정책: ECAPA 80%, Singer-BYOL 20%; 곡 전체 평균과 구간 매칭은 동등하게 본다.
+# 최종 추천: ECAPA 70%, Singer-BYOL 15%, 측정 발성 점수 최대 15%.
+# 발성 자료가 부족하면 두 음색 모델의 70:15 비율을 유지하며 재정규화한다.
 # song_fit 등 별도 API의 기본 점수 정책은 이 변경에 포함하지 않는다.
-VOICE_RANKER_CONFIG = RankerConfig(base_ecapa_weight=.80, centroid_weight=.50, segment_weight=.50)
+VOICE_RANKER_CONFIG = RankerConfig(base_ecapa_weight=ECAPA_WEIGHT / TIMBRE_WEIGHT, centroid_weight=.50, segment_weight=.50)
 LOCK = threading.Lock()
 INFERENCE_LOCK = threading.Lock()
 JOBS: dict[str, dict[str, Any]] = {}
@@ -124,12 +125,13 @@ def _configuration_status() -> tuple[dict[str, Any], list[str]]:
     return config, missing
 
 
-def _save_job(job_id: str) -> None:
+def _save_job(job_id: str, *, job: dict[str, Any] | None = None) -> None:
     job_dir = JOBS_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     temporary = job_dir / ".job.json.tmp"
     temporary.write_text(
-        json.dumps(JOBS[job_id], ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(JOBS[job_id] if job is None else job, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )
     _replace_with_retry(temporary, job_dir / "job.json")
 
@@ -140,6 +142,64 @@ def _update(job_id: str, **values: Any) -> float:
         JOBS[job_id].update(values)
         _save_job(job_id)
     return round((time.perf_counter() - started) * 1000, 2)
+
+
+def _needs_artist_id_repair(value: Any) -> bool:
+    if isinstance(value, list):
+        return any(_needs_artist_id_repair(item) for item in value)
+    if not isinstance(value, Mapping):
+        return False
+    if isinstance(value.get("track_id"), str) and not valid_artist_ids(value.get("artist_ids")):
+        return True
+    return any(_needs_artist_id_repair(item) for key, item in value.items()
+               if key not in {"payload", "callbackBody"})
+
+
+def repair_recommendation_artist_ids() -> int:
+    """Enrich restored results once at startup, never on the status-polling path.
+
+    Load one verified index/singer snapshot only if a restored result needs IDs.
+    Save atomically before publishing the repaired result in memory. Neither
+    inference nor backend calls are needed; unavailable snapshots are nonfatal.
+    """
+    with LOCK:
+        candidates = [job_id for job_id, job in JOBS.items()
+                      if isinstance(job_id, str) and
+                      re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", job_id, re.IGNORECASE) and
+                      _needs_artist_id_repair(job.get("result"))]
+    if not candidates:
+        return 0
+    try:
+        index_dir = _load_config().get("index_dir")
+        if not isinstance(index_dir, str) or not index_dir:
+            raise ValueError("Recommendation index is not configured")
+        catalog = CatalogIndex.load(index_dir, verify_hashes=True)
+        artists = ArtistCatalog.load(catalog)
+    except Exception as error:
+        log.warning("event=recommendation_artist_ids_repair_unavailable error_type=%s", type(error).__name__)
+        return 0
+    repaired_count = 0
+    for job_id in candidates:
+        with LOCK:
+            current = JOBS.get(job_id)
+            if not current or not _needs_artist_id_repair(current.get("result")):
+                continue
+            result = enrich_artist_ids(current["result"], artists, catalog)
+            if result == current["result"]:
+                continue
+            # Preserve private request/callback state and timing/status/score fields.
+            # Only the public recommendation result is migrated.
+            repaired = dict(current, result=result)
+            try:
+                _save_job(job_id, job=repaired)
+            except Exception as error:
+                log.warning("event=recommendation_artist_ids_repair_save_failed job_id=%s error_type=%s",
+                            job_id, type(error).__name__)
+                continue
+            JOBS[job_id] = repaired
+            repaired_count += 1
+    log.info("event=recommendation_artist_ids_repaired jobs=%d", repaired_count)
+    return repaired_count
 
 
 def _convert_to_wav(source: Path, target: Path) -> None:
@@ -181,6 +241,7 @@ def build_result(
     excluded_track_ids: tuple[str, ...] = (),
     seed: int | None = None,
     genre_preferences_enabled: bool = True,
+    voice_quality: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """임베딩·프로파일 → 섹션(shelves) 응답. API 와 샘플 스크립트가 같이 쓴다. 스키마 검증까지 끝낸 dict 를 돌려준다."""
     profile_started = time.perf_counter()
@@ -196,7 +257,7 @@ def build_result(
     phase_started = time.perf_counter()
     rows = score_all_tracks(
         catalog, ranges, query, query_profile=pitch_profile if range_enabled else None, mode=mode, genres=genres, artist_query=artist_query,
-        config=VOICE_RANKER_CONFIG,
+        config=VOICE_RANKER_CONFIG, voice_quality=voice_quality,
     )
     score_all_ms = (time.perf_counter() - phase_started) * 1000
     phase_started = time.perf_counter()
@@ -212,10 +273,10 @@ def build_result(
     public_profile = {k: v for k, v in (pitch_profile or {}).items() if k not in {"histogram", "sourceSha256"}} or None
     result = {
         "algorithm": {
-            "scoring_version": SCORING_VERSION,
+            "scoring_version": RECOMMENDATION_SCORING_VERSION,
             "shelves_version": SHELVES_VERSION,
             "requested_mode": mode,
-            "applied_mode": mode if range_enabled else "timbre_only",
+            "applied_mode": "stability_soft_score" if any(r.get("stability_fit") for r in rows) else "timbre_only",
             "range_enabled": range_enabled,
             "range_fallback_reason": fallback,
             "language_gate": {"enabled": False, "genres": list(genres), "allowed": None, "excluded_count": 0},
@@ -427,6 +488,7 @@ def _json_process(
             excluded_track_ids=_excluded_tracks(payload.get("sourceSongId"), catalog),
             seed=payload.get("seed"),
             genre_preferences_enabled=True,
+            voice_quality=payload["voiceProfile"].get("voiceQuality") if isinstance(payload.get("voiceProfile"), Mapping) else None,
         )
         timings["scoringMs"] = round((time.perf_counter() - scoring_started) * 1000, 2)
         mapping_started = time.perf_counter()
@@ -443,8 +505,8 @@ def _json_process(
             if failure is None and result is not None:
                 save_ms = _update(
                     job_id, status="complete", progress=100, result=result,
-                    message="음색과 음역 추천이 완료되었습니다." if result["algorithm"]["range_enabled"]
-                            else "음역 신뢰도가 낮아 음색 추천으로 완료했습니다.",
+                    message="음색과 발성 점수 추천이 완료되었습니다." if result["algorithm"].get("applied_mode") == "stability_soft_score"
+                            else "발성 점수 자료가 부족해 음색 중심으로 추천했습니다.",
                     completedAt=completed_at, timing=timings,
                 )
                 timings["resultSaveMs"] = save_ms
@@ -829,6 +891,6 @@ def get_recommendation(job_id: str) -> dict[str, Any]:
 
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
-    # 상태 폴링은 수백 ms마다 실행될 수 있다. 작업을 만들 때 이미 곡 ID를 확정했으므로
-    # 여기서 카탈로그·가수 스냅샷을 매번 다시 읽지 않는다.
+    # 가수 ID는 결과 생성 또는 서버 시작 시 과거 작업 보강에서 확정한다.
+    # 수백 ms마다 실행되는 상태 폴링은 카탈로그·가수 스냅샷을 다시 읽지 않는다.
     return public_response(job)

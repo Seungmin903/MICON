@@ -52,7 +52,7 @@ Content-Type: application/json
 
 이 점수는 첫 유지음에 대한 개인별 음향 비교다. 높은 음의 배음/주기성 변화와 낮은 음의
 끊김/불규칙성을 반영하지만 가성 확률, 의학적 음성 평가, 확정된 테시투라가 아니다.
-기기 계산식은 `clamp(100 - 75×highChange - 75×lowIrregularity, 0, 100)
+v1 기기 계산식은 `clamp(100 - 75×highChange - 75×lowIrregularity, 0, 100)
 × (0.65 + 0.35×holdScore/100)`이다. `highChange`는 기준음 대비 고차 배음 비율,
 H1/H2 상승 및 주기성의 감소를, `lowIrregularity`는 주기성 저하, 두 배 주기 우세,
 음정 흔들림과 발성 중 추적 끊김을 합친 0~1 지표다. 성대 폐쇄율은 마이크 파형만으로
@@ -60,12 +60,41 @@ H1/H2 상승 및 주기성의 감소를, `lowIrregularity`는 주기성 저하, 
 기존 AI 음역 판정·추천 입력과 임계값은 이 변경으로 바뀌지 않는다. Android는 점수가
 없으면 이전 점수 그래프를 대신 표시하지 않고 미측정 안내를 보여준다.
 
+### 연속 발성 점수 v2
+
+실험용 Debug 앱에서 `EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY=true`를 명시한 경우만
+`personal-acoustic-v2`를 보낸다. 기본 Debug와 Release는 아직 v1을 생성한다.
+BE와 Android는 기존 v1도 계속 읽으며,
+기존 저장 점수를 새 계산식으로 임의 변환하지 않는다. v2의 각 점에는 추가로
+`registerChange`(0~1 연속 음향 변화량)가 필수다. 이는 진성/가성 클래스나 가성 확률이 아니다.
+
+```json
+{"version":"personal-acoustic-v2","referenceMidi":57,"points":[
+  {"midi":57,"score":100,"registerChange":0,"highChange":0,"lowIrregularity":0,"holdScore":100},
+  {"midi":59,"score":65,"registerChange":0.5,"highChange":0.4,"lowIrregularity":0,"holdScore":100},
+  {"midi":60,"score":30,"registerChange":1,"highChange":0.5,"lowIrregularity":0,"holdScore":100}
+]}
+```
+
+v2 점수식은 `clamp(100 - 70×registerChange - 75×lowIrregularity, 0, 100)
+× (0.65 + 0.35×holdScore/100)`이다. `highChange`는 이전 진단값으로 유지하지만
+v2 점수식에 다시 더하지 않는다. `registerChange`는 기준음·그 이하에도 적용된다.
+배음 풍부함과 H2/H4의 변화량을 연속적으로 결합하고, 기준음 자체가 얇게 발성된 경우에도
+무조건 100점이 되는 것을 막는다. 소리 크기나 F0 높이 자체로 점수를 낮추지 않는다.
+가성 쪽 음향 특성의 30점과 진성 쪽 특성의 100점은 기준점이며 중간 점수는 자연스럽게 존재한다.
+유지 실패나 저음 불규칙성이 추가되면 30점보다 낮을 수 있다. 미측정 음은 보간하지 않는다.
+
+한 화자의 7개 AAC 녹음에 맞춘 탐색적 계산식이며 화자·모음·기기 일반화가 검증된 학습 모델은 아니다.
+같은 중간 발성 녹음도 기준음에 따라 42~74점으로 달라져 일반 배포 활성화를 보류했다.
+BE(v1/v2 검증)와 AI 추천(v1/v2 점수 수용)을 먼저 배포한 뒤 지정 계정에서 실험 APK를 검증해야 한다.
+상세 검증·한계는 [연속 발성 점수 인계](voice-quality-continuous-v2-handoff.md)를 참고한다.
+
 개선 방향은 서로 다른 휴대폰과 화자에서 같은 음을 진성·가성·불안정 저음으로 반복 녹음해
 점수 분포와 오탐을 검증하고 가중치·구간을 조정하는 것이다. 이 검증 전에는 임의의
 점수 임계값으로 테시투라를 확정하거나 추천 키를 바꾸지 않는다.
 
 백엔드의 `V39__store_on_device_voice_quality.sql`을 먼저 배포한 뒤 새 앱을 배포한다.
-AI 서버는 이 부가 필드를 받지 않으므로 변경·재배포가 필요하지 않다.
+음역 분석 콜백과는 별개로, 추천 API에는 이 점수가 전달되므로 추천 AI의 v1/v2 수용도 먼저 반영한다.
 
 ## 통합 결과 조회
 

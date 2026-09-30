@@ -111,7 +111,8 @@ public class RecommendationInputAssembler {
                 null,
                 null, null, null, embeddings,
                 null,
-                null, null, null, null);
+                null, null, null, null,
+                range == null ? null : range.getVoiceQualityJson());
     }
 
     private boolean validRange(BigDecimal low, BigDecimal high) {

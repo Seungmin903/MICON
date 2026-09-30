@@ -10,6 +10,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VoiceQualityComfortRangeTest {
     private final ObjectMapper json = new ObjectMapper();
 
+    @Test void v2ContinuousScoresUseTheSameComfortRule() {
+        var quality = json.readTree("""
+            {"version":"personal-acoustic-v2","referenceMidi":60,"points":[
+              {"midi":58,"score":85},{"midi":60,"score":65},{"midi":62,"score":30}]}
+            """);
+        assertThat(VoiceQualityComfortRange.find(quality, BigDecimal.valueOf(58), BigDecimal.valueOf(62)))
+                .isEqualTo(new VoiceQualityComfortRange.Bounds(BigDecimal.valueOf(58), BigDecimal.valueOf(58)));
+    }
+
     @Test void usesMinimumAndMaximumMeasuredPitchesAtOrAbove80() {
         var quality = json.readTree("""
             {"version":"personal-acoustic-v1","referenceMidi":60,"points":[

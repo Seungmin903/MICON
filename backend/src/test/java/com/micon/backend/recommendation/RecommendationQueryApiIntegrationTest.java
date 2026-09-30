@@ -43,6 +43,25 @@ class RecommendationQueryApiIntegrationTest {
     @Autowired UserVoiceProfileRepository profiles;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper json;
+    @Autowired com.micon.backend.domain.recommendation.service.RecommendationQueryService queryService;
+
+    @Test
+    void requiredPolicyRegeneratesOldLatestWithoutHidingHistoryOrRunningJobs() throws Exception {
+        User user = user("query-policy@micon.com");
+        Recommendation old = recommendation(user, "policy-old-job");
+        complete(old, song("기존 추천"));
+        org.springframework.test.util.ReflectionTestUtils.setField(queryService, "requiredShelvesVersion",
+                "shelves-v6-stability-soft-score");
+        try {
+            mockMvc.perform(get("/recommendations/latest").with(auth(user))).andExpect(status().isNotFound());
+            mockMvc.perform(get("/recommendations/{id}", old.getId()).with(auth(user))).andExpect(status().isOk());
+            Recommendation running = recommendation(user, "policy-new-job");
+            mockMvc.perform(get("/recommendations/latest").with(auth(user)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.recommendationId").value(running.getId()));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(queryService, "requiredShelvesVersion", "");
+        }
+    }
 
     @Test
     void returnsOwnedRecommendationInShelfAndPositionOrder() throws Exception {

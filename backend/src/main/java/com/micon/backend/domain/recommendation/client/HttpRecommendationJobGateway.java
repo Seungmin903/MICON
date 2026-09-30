@@ -59,7 +59,8 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
                         profile.stableLowMidi(), profile.stableHighMidi(), profile.medianMidi(),
                         json(profile.pitchDistribution()), profile.rangeConfidence(), profile.timbreLabel(),
                         json(profile.timbreVector()), profile.timbreConfidence(), profile.observedCoreLowMidi(),
-                        profile.observedCoreHighMidi(), profile.observedMedianMidi(), json(profile.pitchHistogram())),
+                        profile.observedCoreHighMidi(), profile.observedMedianMidi(), json(profile.pitchHistogram()),
+                        json(profile.voiceQuality())),
                 requiredJson(profile.userEmbedding(), "userEmbedding"), profile.embeddingRef());
     }
 
@@ -108,7 +109,7 @@ public class HttpRecommendationJobGateway implements RecommendationJobGateway {
             JsonNode pitchDistribution, BigDecimal rangeConfidence, String timbreLabel,
             JsonNode timbreVector, BigDecimal timbreConfidence,
             BigDecimal observedCoreLowMidi, BigDecimal observedCoreHighMidi,
-            BigDecimal observedMedianMidi, JsonNode pitchHistogram
+            BigDecimal observedMedianMidi, JsonNode pitchHistogram, JsonNode voiceQuality
     ) {}
 
     private record AiJobResponse(String id, String status) {}

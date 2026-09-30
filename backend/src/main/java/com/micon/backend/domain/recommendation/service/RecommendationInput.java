@@ -41,7 +41,17 @@ public record RecommendationInput(
             BigDecimal observedCoreLowMidi,
             BigDecimal observedCoreHighMidi,
             BigDecimal observedMedianMidi,
-            String pitchHistogram
+            String pitchHistogram,
+            String voiceQuality
     ) {
+        public VoiceProfile(BigDecimal stableLowMidi, BigDecimal stableHighMidi, BigDecimal medianMidi,
+                            String pitchDistribution, BigDecimal rangeConfidence, String timbreLabel,
+                            String timbreVector, BigDecimal timbreConfidence, String userEmbedding,
+                            String embeddingRef, BigDecimal observedCoreLowMidi, BigDecimal observedCoreHighMidi,
+                            BigDecimal observedMedianMidi, String pitchHistogram) {
+            this(stableLowMidi, stableHighMidi, medianMidi, pitchDistribution, rangeConfidence, timbreLabel,
+                    timbreVector, timbreConfidence, userEmbedding, embeddingRef, observedCoreLowMidi,
+                    observedCoreHighMidi, observedMedianMidi, pitchHistogram, null);
+        }
     }
 }

@@ -10,10 +10,12 @@ import com.micon.backend.domain.recommendation.dto.RecommendationResponse;
 import com.micon.backend.domain.recommendation.entity.Recommendation;
 import com.micon.backend.domain.recommendation.entity.RecommendationShelf;
 import com.micon.backend.domain.recommendation.entity.RecommendationSong;
+import com.micon.backend.domain.recommendation.entity.RecommendationStatus;
 import com.micon.backend.domain.preference.repository.UserPreferenceRepository;
 import com.micon.backend.domain.song.dto.SongResponse;
 import com.micon.backend.domain.song.repository.SongQueryRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -31,6 +33,10 @@ public class RecommendationQueryService {
     private final ObjectMapper objectMapper;
     private final UserPreferenceRepository preferences;
     private final SongQueryRepository songQueries;
+
+    // Enable after the AI rollout. Old results remain available by ID while latest regenerates them.
+    @Value("${ai.recommendation.required-shelves-version:}")
+    private String requiredShelvesVersion = "";
 
     public RecommendationQueryService(RecommendationRepository recommendations,
                                       RecommendationShelfRepository shelves,
@@ -58,6 +64,12 @@ public class RecommendationQueryService {
         Recommendation recommendation = recommendations.findCurrentByUserId(userId,
                         org.springframework.data.domain.PageRequest.of(0, 1)).stream().findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
+        if (!requiredShelvesVersion.isBlank()
+                && (recommendation.getStatus() == RecommendationStatus.COMPLETED
+                    || recommendation.getStatus() == RecommendationStatus.EMPTY)
+                && !requiredShelvesVersion.equals(recommendation.getAlgorithmVersion())) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND);
+        }
         return response(recommendation);
     }
 
@@ -66,7 +78,7 @@ public class RecommendationQueryService {
         recommendations.findByIdAndUserId(recommendationId, userId)
                 .filter(Recommendation::isForCurrentProfile)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_NOT_FOUND));
-        return songs.findByRecommendationIdAndIdSongId(recommendationId, songId)
+        return songs.findFirstByRecommendationIdAndIdSongIdOrderByOverallRank(recommendationId, songId)
                 .map(this::song)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECOMMENDATION_SONG_NOT_FOUND));
     }

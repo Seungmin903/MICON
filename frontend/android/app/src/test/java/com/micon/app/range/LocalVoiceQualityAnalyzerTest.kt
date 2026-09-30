@@ -11,6 +11,51 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalVoiceQualityAnalyzerTest {
+    @Test fun silenceAndNonFiniteAudioNeverBecomePerfectScores() {
+        assertNull(LocalVoiceQualityAnalyzer.evidence(DoubleArray(2880), 16000, 220.0))
+        assertNull(LocalVoiceQualityAnalyzer.evidence(DoubleArray(2880) { Double.NaN }, 16000, 220.0))
+    }
+
+    @Test fun periodicFalsettoIsNotAutomaticallyGoodOrAReferenceHundred() {
+        val modal = LocalVoiceQualityAnalyzer.Evidence(8.0, 3.0, .9, 0.0, -6.0)
+        val thin = LocalVoiceQualityAnalyzer.Evidence(-8.0, 0.0, .99, 0.0, 16.0)
+        assertEquals(1.0, LocalVoiceQualityAnalyzer.registerChange(modal, thin), 1e-9)
+        assertEquals(1.0, LocalVoiceQualityAnalyzer.registerChange(thin, thin), 1e-9)
+        assertEquals(30.0, LocalVoiceQualityAnalyzer.score(1.0, 0.0, 100.0), 1e-9)
+        assertEquals(100.0, LocalVoiceQualityAnalyzer.score(0.0, 0.0, 100.0), 1e-9)
+    }
+
+    @Test fun oneSpectralIndicatorContributesSoftlyButCannotForceTheFullThirtyAnchor() {
+        val reference = LocalVoiceQualityAnalyzer.Evidence(8.0, 3.0, .9, 0.0, -6.0)
+        val fewerHarmonics = reference.copy(richnessDb = -8.0)
+        val differentFormant = reference.copy(h2H4Db = 16.0)
+        assertTrue(LocalVoiceQualityAnalyzer.registerChange(reference, fewerHarmonics) in 0.0..0.4)
+        assertTrue(LocalVoiceQualityAnalyzer.registerChange(reference, differentFormant) in 0.0..0.4)
+    }
+
+    @Test fun gradualAcousticChangeProducesDistinctNaturalMiddleScores() {
+        val reference = LocalVoiceQualityAnalyzer.Evidence(8.0, 3.0, .95, 0.0, -6.0)
+        val scores = (0..10).map { step ->
+            val blend = step / 10.0
+            val observed = reference.copy(richnessDb = 8.0 - 16 * blend, h2H4Db = -6.0 + 22 * blend)
+            LocalVoiceQualityAnalyzer.score(LocalVoiceQualityAnalyzer.registerChange(reference, observed), 0.0, 100.0)
+        }
+        assertEquals(100.0, scores.first(), 1e-9)
+        assertEquals(30.0, scores.last(), 1e-9)
+        assertTrue(scores.zipWithNext().all { (a, b) -> a >= b })
+        assertTrue(scores.count { it > 30 && it < 100 } >= 6)
+        assertTrue(scores.distinct().size >= 8)
+    }
+
+    @Test fun lowerOrSamePitchCanStillCarryRegisterEvidenceAndLegacyVersionsRemainReadable() {
+        val reference = LocalVoiceQualityAnalyzer.Evidence(8.0, 3.0, .9, 0.0, -6.0)
+        val partial = LocalVoiceQualityAnalyzer.Evidence(-2.0, 5.0, .9, 0.0, 0.0)
+        val score = LocalVoiceQualityAnalyzer.score(LocalVoiceQualityAnalyzer.registerChange(reference, partial), 0.0, 100.0)
+        assertTrue(score in 30.0..95.0)
+        assertTrue(LocalVoiceQualityAnalyzer.supports("personal-acoustic-v1"))
+        assertTrue(LocalVoiceQualityAnalyzer.supports("personal-acoustic-v2"))
+    }
+
     @Test fun highNotePenalizesHarmonicAndPeriodicityLoss() {
         val reference = LocalVoiceQualityAnalyzer.Evidence(-5.0, 2.0, .96, 0.0)
         val clear = LocalVoiceQualityAnalyzer.Evidence(-6.0, 3.0, .93, 0.0)
@@ -58,7 +103,12 @@ class LocalVoiceQualityAnalyzerTest {
                 startMidi = 57, noiseRms = 0.0, durationSeconds = 3.0, stopReason = "completed",
                 lowerBoundaryStatus = "endpoint_held", upperBoundaryStatus = "endpoint_held",
                 attempts = emptyList(), registerEvents = emptyList(), stages = stages)
-            val quality = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission))
+            val legacy = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission))
+            assertEquals("personal-acoustic-v1", legacy.version)
+            assertTrue(legacy.points.all { it.registerChange == null })
+            val quality = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission, continuousScore = true))
+            assertEquals("personal-acoustic-v2", quality.version)
+            assertTrue(quality.points.all { it.registerChange != null })
             val scores = quality.points.associate { it.midi to it.score }
             assertEquals(57, quality.referenceMidi)
             assertTrue(scores.getValue(55) > 75.0)
@@ -93,7 +143,7 @@ class LocalVoiceQualityAnalyzerTest {
                 startMidi = 57, noiseRms = 0.0, durationSeconds = 3.0, stopReason = "completed",
                 lowerBoundaryStatus = "endpoint_held", upperBoundaryStatus = "endpoint_held",
                 attempts = emptyList(), registerEvents = emptyList(), stages = stages)
-            val quality = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission))
+            val quality = requireNotNull(LocalVoiceQualityAnalyzer.analyze(wav, frames, submission, continuousScore = true))
             assertEquals(0.0, quality.points.first { it.midi == 55 }.score, 0.0)
             assertNull(quality.points.firstOrNull { it.midi == 56 })
         } finally { wav.delete() }
