@@ -183,10 +183,17 @@ private fun RangeMapCard(r: HoloResult, axis: PitchAxis) {
                 GrowBar(color, seg.first, seg.second, delayMs = 100 * i, guides = axis.guides)
             }
         }
-        Spacer(Modifier.height(18.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
-        Spacer(Modifier.height(18.dp))
-        StabilitySection(r, axis)
+        // Older saved results can lack this optional score. Keep their measured range visible
+        // without showing an alarming "could not calculate" message after completion.
+        if (r.voiceQuality?.points?.isNotEmpty() == true) {
+            Spacer(Modifier.height(18.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            Spacer(Modifier.height(18.dp))
+            StabilitySection(r, axis)
+        } else if (r.hasComfortRange) {
+            Spacer(Modifier.height(8.dp))
+            Text("편한 구간은 음역 측정값을 바탕으로 추정했어요.", fontSize = 12.sp, color = muted)
+        }
     }
 }
 
@@ -254,14 +261,13 @@ private fun androidx.compose.foundation.layout.RowScope.GrowBar(color: Color, fr
  */
 @Composable
 private fun StabilitySection(r: HoloResult, axis: PitchAxis) {
+    if (r.voiceQuality == null) return
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    if (r.voiceQuality != null) {
-        Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-    }
+    Text("음역별 발성 유지 점수", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(6.dp))
     AxisRow(axis)
     Spacer(Modifier.height(6.dp))
-    if (r.voiceQuality != null) Row(Modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth()) {
         // 좌측 눈금 라벨. [Gutter] 폭이라 위 막대·아래 건반과 가로가 어긋나지 않는다
         Column(Modifier.width(Gutter).height(100.dp), verticalArrangement = Arrangement.SpaceBetween) {
             listOf("100", "50", "0").forEach { Text(it, fontSize = 12.sp, color = muted) }
@@ -272,10 +278,6 @@ private fun StabilitySection(r: HoloResult, axis: PitchAxis) {
             Keyboard(r, axis)
         }
     }
-    else Text("이번 측정에서는 발성 유지 점수를 계산하지 못했어요. 다시 측정하면 확인할 수 있어요.",
-        fontSize = 12.sp, color = muted)
-    if (r.voiceQuality == null) Text("보라색 구간은 측정된 음역을 바탕으로 표시했어요. 이 음역에서 멜로디가 도는 곡부터 살펴보세요.",
-        fontSize = 12.sp, color = muted, modifier = Modifier.padding(top = 8.dp))
 }
 
 /**

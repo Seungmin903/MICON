@@ -27,28 +27,43 @@ object LocalVoiceQualityAnalyzer {
         val comfort = submission.stages.firstOrNull { it.kind == "comfort" } ?: return null
         val held = heldNotes(frames, submission)
         val referenceMidi = comfort.endpointMidi.roundToInt()
-        if (referenceMidi !in held) return null
         val rate = Pcm16MonoWav.sampleRate(wav)
         require(Pcm16MonoWav.duration(wav, rate, true) != null) { "WAV 녹음을 확인할 수 없어요." }
         val floor = max(.001, submission.noiseRms * 3.16)
         RandomAccessFile(wav, "r").use { audio ->
             val referenceFrames = frames.filter { it.t >= comfort.holdStart &&
-                it.t + it.duration <= comfort.holdEnd + .05 && usable(it, floor) }
+                it.t + it.duration <= comfort.holdEnd + .05 && usable(it, floor) }.sortedBy { it.t }
             val reference = medianEvidence(audio, rate, referenceFrames) ?: return null
+            // The range session accepts a steady comfort run within 1.5 semitones. Splitting
+            // that same run into rounded-MIDI buckets can leave no 0.3-second reference note.
+            // Credit only its verified hold window, never a neighboring or unsung pitch.
+            val referenceHold = if (referenceMidi in held) null else {
+                val observed = referenceFrames.sumOf { it.duration.coerceAtMost(.04) }
+                val span = referenceFrames.last().t + referenceFrames.last().duration.coerceAtMost(.04) -
+                    referenceFrames.first().t
+                if (observed < .3 || span <= 0.0) return null
+                (100.0 * observed / max(span, .6)).coerceIn(0.0, 100.0)
+            }
             val candidatesByMidi = frames.filter { frame -> usable(frame, floor) &&
                 submission.stages.any { frame.t >= it.start && frame.t < it.end } }
                 .groupBy { RangeProtocol.midi(it.f0).roundToInt() }
             // A short, interrupted voiced attempt is a measured 0, not an unmeasured pitch.
             // Require several tracked frames so one stray pitch estimate cannot create a score.
-            val attempted = candidatesByMidi.filterValues { noteFrames ->
+            val attempted = candidatesByMidi.filterKeys { midi ->
+                // When the comfort run straddles a rounding boundary, its neighboring bucket
+                // is still the same held voice, not a failed attempt at a different note.
+                referenceHold == null || abs(midi - comfort.endpointMidi) > FreeRangeSession.HOLD_TOLERANCE_SEMITONES
+            }.filterValues { noteFrames ->
                 val voiced = noteFrames.filter { RangeEvaluator.voiced(it, floor) }
                 voiced.size >= 3 && voiced.sumOf { it.duration.coerceAtMost(.04) } >= .1
             }
-            val points = (held.keys + attempted.keys).sorted().mapNotNull { midi ->
-                val hold = held[midi] ?: return@mapNotNull VoiceQualityPoint(midi, 0.0, 0.0, 0.0, 0.0,
+            val points = (held.keys + attempted.keys + referenceMidi).sorted().mapNotNull { midi ->
+                val hold = held[midi] ?: if (midi == referenceMidi) referenceHold else null
+                if (hold == null) return@mapNotNull VoiceQualityPoint(midi, 0.0, 0.0, 0.0, 0.0,
                     if (continuousScore) 0.0 else null)
                 val candidates = candidatesByMidi[midi].orEmpty()
-                val current = medianEvidence(audio, rate, candidates) ?: return@mapNotNull null
+                val current = if (midi == referenceMidi && referenceHold != null) reference
+                    else medianEvidence(audio, rate, candidates) ?: return@mapNotNull null
                 val upper = if (midi > referenceMidi) highChange(reference, current) else 0.0
                 val lower = if (midi < referenceMidi) lowIrregularity(reference, current,
                     pitchWobble(candidates), untrackedActiveRatio(frames, submission, midi, floor)) else 0.0

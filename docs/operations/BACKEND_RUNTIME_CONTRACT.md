@@ -38,7 +38,7 @@ Jira S15P21B110-150 / 담당 byoungwooheo / 기준 develop `5be1792` / 2026-09-0
 | AI_SERVICE_TOKEN | 빈 값 | AI 서비스 인증용 비밀값. 실제 AI 인증 계약 확인 후 별도 주입 |
 | AI_VOICE_ANALYSIS_ENABLED | false | true/false. BE와 음성 분석 AI의 요청·callback 계약을 통합 검증한 뒤에만 true |
 | AI_ARTIST_SEARCH_ENABLED | true | 운영 AI·BE 계약 검증이 완료되어 닮은 가수 작업·callback을 활성화. 호스트 준비 시 기존 false도 true로 교정 |
-| AI_ARTIST_SEARCH_SCORING_VERSION | ecapa-singer-byol-absolute-fusion-v3 | AI의 ARTIST_SEARCH callback `modelVersion`과 정확히 일치해야 함. 버전 변경은 신규 작업에만 적용됨 |
+| AI_ARTIST_SEARCH_SCORING_VERSION | ecapa80-singer-byol20-absolute-fusion-v1 | AI의 ARTIST_SEARCH callback `modelVersion`과 정확히 일치해야 함. 신규 작업은 ECAPA 80%·Singer-BYOL 20%, 이전 v3 작업 재시도는 50:50 유지. AI를 먼저 배포한 뒤 BE 런타임 값을 변경 |
 | AI_VOICE_ANALYSIS_CONTRACT_VERSION | v1 | AI 작업 접수·컴포넌트 콜백 계약 버전. AI 서버와 같은 값 사용 |
 | AI_VOICE_ANALYSIS_GUIDE_VERSION | v1 | AI 담당자와 맞춘 분석 가이드 버전 |
 | AI_VOICE_ANALYSIS_DOWNLOAD_URL_TTL | 30m | 기존 다운로드 URL 경로의 만료 Duration. WAV를 직접 전달하는 음성 분석 경로에서는 사용하지 않음 |

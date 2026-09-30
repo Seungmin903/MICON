@@ -33,7 +33,7 @@ class VocalWindowQuality {
     }
 
     companion object {
-        const val MIN_WINDOWS = 5
+        const val MIN_WINDOWS = 4
         private const val MIN_RMS = .005
 
         fun usable(samples: FloatArray, rate: Int): Boolean {

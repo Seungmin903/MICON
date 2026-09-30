@@ -173,7 +173,7 @@ public class VoiceAnalysisComponentCallbackService {
         }
         if (!validSegments(request.segmentInfo())) {
             throw new BusinessException(ErrorCode.INVALID_VOICE_ANALYSIS_CALLBACK,
-                    "segmentInfo.validChunkCount는 5 이상인 정수여야 합니다.");
+                    "segmentInfo.validChunkCount는 4 이상인 정수여야 합니다.");
         }
         String vectorJson = write(embedding);
         VoiceModelResult previous = results.findBySessionIdAndModelKey(job.getSession().getId(), request.modelKey()).orElse(null);
@@ -243,7 +243,7 @@ public class VoiceAnalysisComponentCallbackService {
         if (segmentInfo == null || !segmentInfo.isObject()) return false;
         JsonNode validChunkCount = segmentInfo.get("validChunkCount");
         return validChunkCount != null && validChunkCount.isIntegralNumber()
-                && validChunkCount.asInt() >= 5;
+                && validChunkCount.asInt() >= 4;
     }
 
     private void aggregate(VoiceAnalysisJob parent, List<VoiceAnalysisComponentJob> children, LocalDateTime at) {
