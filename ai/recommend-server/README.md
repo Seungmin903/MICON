@@ -53,6 +53,8 @@ Compose는 singleton 컨테이너 이름 `micon-recommendation`을 만들고 외
 | `POST /voice-analysis-jobs/{jobId}/cancel` | — | `{jobId, status}`. 원음 삭제 |
 | `GET /voice-analysis-jobs/{jobId}` | — | 진단용 job.json (임베딩 값 제외) |
 
+`meta.analysisId`와 `meta.sessionId`는 0이 아닌 정수다. BE 회원 ID는 양수, 비회원 임시 ID는 음수다. `attemptNo`는 양의 정수이며 `requestId`는 UUID다.
+
 **BE 음성 분석 작업** (`analysis_jobs.py`): `TIMBRE`는 `ECAPA` + `SINGER_BYOL`, `RANGE`는 이미지에 포함된 `ai/vocal-scope/model-server/be_range_worker.py`를 별도 프로세스로 실행한다.
 접수 후 백그라운드에서 임베딩을 만들고 컴포넌트마다 `MICON_BE_CALLBACK_URL` 로 콜백 1건을 보낸다.
 ECAPA와 Singer-BYOL은 서버 시작 때 한 번 로드·워밍업하고 프로세스 수명 동안 재사용한다. `/health.timbreRuntime`과 작업의 `performance`에서 준비 상태와 단계별 시간을 확인한다.

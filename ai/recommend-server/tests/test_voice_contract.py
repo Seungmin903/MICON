@@ -88,6 +88,34 @@ class VoiceContractTest(unittest.TestCase):
         self.assertTrue(created)
         self.assertEqual(list(jobs.JOBS[reply["jobId"]]["components"]), ["RANGE"])
 
+    def test_guest_negative_ids_are_accepted_for_timbre_and_range(self):
+        app = FastAPI()
+        app.include_router(jobs.router)
+        with (mock.patch.dict(os.environ, MICON_BE_CALLBACK_URL="http://127.0.0.1/callback"),
+              mock.patch.object(jobs, "_configuration_status", return_value=({}, [])),
+              mock.patch.object(jobs, "process") as process):
+            client = TestClient(app)
+            for kind, rate in (("TIMBRE", 48000), ("RANGE", 16000)):
+                with self.subTest(kind=kind):
+                    metadata = {**meta(kind), "analysisId": -12, "sessionId": -8}
+                    if kind == "RANGE":
+                        metadata.update(protocolVersion="guided-range-v8", contractVersion="v2")
+                    response = client.post("/voice-analysis-jobs", files={
+                        "file": ("recording.wav", wav(rate), "audio/wav"),
+                        "meta": ("meta.json", json.dumps(metadata), "application/json")})
+                    self.assertEqual(response.status_code, 202, response.text)
+                    stored = jobs.JOBS[response.json()["jobId"]]["meta"]
+                    self.assertEqual((stored["analysisId"], stored["sessionId"]), (-12, -8))
+            self.assertEqual(process.call_count, 2)
+
+    def test_zero_or_noninteger_ids_and_nonpositive_attempt_are_rejected(self):
+        for invalid in ({"analysisId": 0}, {"sessionId": 0}, {"analysisId": "-12"},
+                        {"sessionId": False}, {"attemptNo": 0}, {"attemptNo": -1}):
+            with self.subTest(invalid=invalid), self.assertRaises(HTTPException) as caught:
+                jobs.ingest({"file": wav()}, {**meta(), **invalid})
+            self.assertEqual(caught.exception.status_code, 422)
+        self.assertFalse(jobs.JOBS)
+
     def test_restart_restores_request_identity_and_queued_audio(self):
         metadata = meta()
         reply, _ = jobs.ingest({"file": wav()}, metadata)
