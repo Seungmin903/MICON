@@ -57,8 +57,8 @@ class OnboardingRecordingControlsScreenTest {
         assertEquals(Purple.toArgb(), pause.getPixel(pause.width / 2, pause.height / 4))
         compose.onNodeWithTag("sing-pause-resume").performClick()
         compose.runOnIdle { state.value = state.value.copy(elapsedRecSec = 30.0, recordedAudioSeconds = 30.0) }
-        compose.onNodeWithText("목소리가 충분히 담긴 구간이 필요해요 (0/5)").assertIsDisplayed().assertIsNotEnabled()
-        compose.runOnIdle { state.value = state.value.copy(vocalQuality = VocalQuality(5, 5)) }
+        compose.onNodeWithText("목소리가 충분히 담긴 구간이 필요해요 (0/4)").assertIsDisplayed().assertIsNotEnabled()
+        compose.runOnIdle { state.value = state.value.copy(vocalQuality = VocalQuality(4, 4)) }
         compose.onNodeWithText("여기까지 부르기").assertIsEnabled().performClick()
         compose.onNodeWithText("녹음을 마치고 분석 결과를 확인해 보세요").assertDoesNotExist()
         compose.onNodeWithText("일시정지하면 녹음을 마칠 수 있어요").assertDoesNotExist()
