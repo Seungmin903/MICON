@@ -90,9 +90,9 @@ ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s
 # 닮은 가수 검색은 AI·BE 계약 검증이 완료된 운영 기능이다. 기존
 # runtime 파일의 false도 교정해 blue/green 양쪽에 항상 활성 값을 전달한다.
 set_runtime_setting AI_ARTIST_SEARCH_ENABLED true
-# The deployed AI artist-search callback uses this modelVersion. A stale v2
-# value in an existing runtime file would otherwise override the BE default.
-set_runtime_setting AI_ARTIST_SEARCH_SCORING_VERSION ecapa-singer-byol-absolute-fusion-v3
+# The deployed AI artist-search callback uses this modelVersion. An old
+# runtime value would otherwise override the BE default for new jobs.
+set_runtime_setting AI_ARTIST_SEARCH_SCORING_VERSION ecapa80-singer-byol20-absolute-fusion-v1
 
 if [ ! -e "$RUNTIME_DIR/recommendation.env" ]; then
     install \

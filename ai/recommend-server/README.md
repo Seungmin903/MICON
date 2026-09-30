@@ -158,6 +158,7 @@ TIMBRE 녹음은 임베딩 전에 `mr_detection.detect_mr_suspected` 로 한 번
 상태 카탈로그의 가수 이름, 문자열 `preferred_artists`는 기존 표시 계약을 유지한다.
 닮은 가수는 `artistId`(실제 `singer.singer_id`)로 집계하고 `artistName`, `rank`,
 `similarity`, `ecapaScore`, `singerByolScore`를 함께 반환한다.
+신규 검색 버전 `ecapa80-singer-byol20-absolute-fusion-v1`은 두 축의 원점수를 ECAPA 80%·Singer-BYOL 20%로 결합한다. 기존 `ecapa-singer-byol-absolute-fusion-v3` 요청은 재시도 시 50:50을 유지하며, callback `modelVersion`은 요청의 `scoringVersion`과 일치한다. 배포 시 AI를 먼저 올린 뒤 BE의 `AI_ARTIST_SEARCH_SCORING_VERSION`을 새 버전으로 바꾼다. 곡 추천 가중치와는 독립적이다.
 추천 곡 및 상태 카탈로그의 `artist_ids: [singer_id]`는 표시용 `artist`에 추가하는 식별 정보다.
 선호 가수 이름 입력과 출력은 유지하며 `preferred_artist_ids`를 보조로 제공한다.
 기존 저장 추천/검색 job도 GET 시 표시 이름을 유지한다. 내부 요청 payload·벡터·callbackBody 비공개는 유지한다.

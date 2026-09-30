@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 INDEX_SCHEMA_VERSION = 1
 SCORING_VERSION = "ecapa-singer-byol-absolute-fusion-v3"
+ARTIST_SEARCH_SCORING_VERSION = "ecapa80-singer-byol20-absolute-fusion-v1"
 
 
 @dataclass(frozen=True)
