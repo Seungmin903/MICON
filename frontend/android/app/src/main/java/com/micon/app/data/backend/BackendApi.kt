@@ -277,6 +277,25 @@ interface BackendApi {
     suspend fun submitTimbre(@Path("sessionId") sessionId: Long, @Part file: MultipartBody.Part,
         @Part("meta") meta: RequestBody, @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
 
+    @POST("voice-analysis-sessions/{sessionId}/analysis/streams/{streamId}")
+    suspend fun beginTimbreStream(@Path("sessionId") sessionId: Long, @Path("streamId") streamId: String,
+        @Body body: com.micon.app.data.backend.dto.VoiceStreamBeginRequest,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<com.micon.app.data.backend.dto.VoiceStreamStateDto>>
+
+    @GET("voice-analysis-sessions/{sessionId}/analysis/streams/{streamId}")
+    suspend fun timbreStreamStatus(@Path("sessionId") sessionId: Long, @Path("streamId") streamId: String,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<com.micon.app.data.backend.dto.VoiceStreamStateDto>>
+
+    @PUT("voice-analysis-sessions/{sessionId}/analysis/streams/{streamId}/chunks/{index}")
+    suspend fun sendTimbreChunk(@Path("sessionId") sessionId: Long, @Path("streamId") streamId: String,
+        @Path("index") index: Int, @Body body: RequestBody,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<com.micon.app.data.backend.dto.VoiceStreamStateDto>>
+
+    @POST("voice-analysis-sessions/{sessionId}/analysis/streams/{streamId}/complete")
+    suspend fun completeTimbreStream(@Path("sessionId") sessionId: Long, @Path("streamId") streamId: String,
+        @Body body: com.micon.app.data.backend.dto.VoiceStreamCompleteRequest,
+        @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>
+
     @GET("voice-analysis-sessions/{sessionId}/analysis")
     suspend fun timbreStatus(@Path("sessionId") sessionId: Long,
         @Tag access: VoiceSessionAccess): Response<ApiResponse<VoiceJobDto>>

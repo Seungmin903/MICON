@@ -308,10 +308,13 @@ private fun MiconNavHost(
             if (result == null) { LaunchedEffect(Unit) { nav.popBackStack() }; return@composable }
             VoiceResultScreen(result, saving = holoState.saving, saveError = holoState.saveError,
                 saved = holoState.saved || result.profileSaved, saveReady = holoState.saveAllowed,
+                canRetrySubmission = holoState.submissionRetryable,
                 requiresLogin = !TokenManager.isLoggedIn(),
                 // 회원: 서버 프로필로 저장 → 추천 탭. 비회원: 로그인 뒤 다시 측정(게스트 세션은 계정으로 옮길 수 없다)
                 onSave = {
                     if (TokenManager.isLoggedIn() && result.profileSaved) leaveHolo(Routes.RECOMMEND)
+                    else if (TokenManager.isLoggedIn() && holoState.submissionRetryable && !holoState.saveAllowed)
+                        holo.retrySubmission()
                     else if (TokenManager.isLoggedIn()) holo.save { leaveHolo(Routes.RECOMMEND) }
                     else {
                         session.rememberDestinationRoute(Routes.HOLO)

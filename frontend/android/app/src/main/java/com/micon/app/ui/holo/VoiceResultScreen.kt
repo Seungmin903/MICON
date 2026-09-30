@@ -84,6 +84,7 @@ fun VoiceResultScreen(
     saveError: String? = null,
     saved: Boolean = false,
     saveReady: Boolean = true,
+    canRetrySubmission: Boolean = false,
     requiresLogin: Boolean = false,
     /** 분석 탭에서 다시 볼 때는 뒤로가기만 */
     onBack: (() -> Unit)? = null,
@@ -102,9 +103,12 @@ fun VoiceResultScreen(
                 requiresLogin -> "로그인하고 추천받기"
                 saved -> "추천곡 보기"
                 saving -> "추천 준비 중…"
+                saveError != null && !saveReady && canRetrySubmission -> "연결 다시 시도"
+                saveError != null && !saveReady -> "다시 측정해 주세요"
                 saveError != null -> "프로필 저장 다시 시도"
                 else -> "분석 결과를 준비하고 있어요…"
-            }, onSave, Modifier.fillMaxWidth(), enabled = !saving && (requiresLogin || saved || saveReady))
+            }, onSave, Modifier.fillMaxWidth(), enabled = !saving &&
+                (requiresLogin || saved || saveReady || canRetrySubmission))
             else MiconButton("노래로 분석하고 추천받기", onRetry, Modifier.fillMaxWidth())
             MiconButton("다시 측정하기", onRetry, Modifier.fillMaxWidth(), kind = MiconButtonKind.Outline, enabled = !saving)
         }) else null,

@@ -51,6 +51,17 @@ public class TimbreAnalysisLifecycleService {
     @Transactional
     public Prepared create(long userId, long sessionId, MultipartFile file,
                            VoiceAnalysisUploadRequest request, String audioSha256) {
+        return createFromMetadata(userId, sessionId, request, audioSha256, file.getContentType(), file.getSize());
+    }
+
+    @Transactional
+    public Prepared createStream(long userId, long sessionId, VoiceAnalysisUploadRequest request,
+                                 String audioSha256, long wavBytes) {
+        return createFromMetadata(userId, sessionId, request, audioSha256, "audio/wav", wavBytes);
+    }
+
+    private Prepared createFromMetadata(long userId, long sessionId, VoiceAnalysisUploadRequest request,
+                                        String audioSha256, String mediaType, long fileBytes) {
         VoiceAnalysisJob existing = parents.findByRequestIdForUpdate(request.requestId()).orElse(null);
         if (existing != null) {
             ensureOwner(existing, userId, sessionId);
@@ -72,7 +83,7 @@ public class TimbreAnalysisLifecycleService {
         int attemptNo = parents.findFirstBySessionIdOrderByAttemptNoDesc(sessionId)
                 .map(job -> job.getAttemptNo() + 1).orElse(1);
         VoiceRecording recording = recordings.saveAndFlush(VoiceRecording.metadataOnly(session.getUser(),
-                (short) attemptNo, file.getContentType(), file.getSize(), request.durationMs(), request.sampleRate()));
+                (short) attemptNo, mediaType, fileBytes, request.durationMs(), request.sampleRate()));
         contexts.save(new VoiceRecordingContext(recording, session, request.songId(), request.startPositionType(),
                 request.selectedStartMs(), request.actualStartMs(), request.durationMs(),
                 request.instrumentalVersion(), request.lyricsVersion(), request.requestId()));
