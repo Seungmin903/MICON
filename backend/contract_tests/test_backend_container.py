@@ -93,7 +93,7 @@ class BackendContainerContractTests(unittest.TestCase):
         self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INTERVAL 1m", self.host_prep)
         self.assertIn("ensure_runtime_setting AI_RECOMMENDATION_RECOVERY_INITIAL_DELAY 10s", self.host_prep)
         self.assertIn("set_runtime_setting AI_ARTIST_SEARCH_ENABLED true", self.host_prep)
-        scoring_version = re.search(r'^SCORING_VERSION = "([^"]+)"$', self.ai_artist_contract, re.MULTILINE).group(1)
+        scoring_version = re.search(r'^ARTIST_SEARCH_SCORING_VERSION = "([^"]+)"$', self.ai_artist_contract, re.MULTILINE).group(1)
         self.assertIn(f"AI_ARTIST_SEARCH_SCORING_VERSION={scoring_version}", self.runtime_env)
         self.assertIn(f"set_runtime_setting AI_ARTIST_SEARCH_SCORING_VERSION {scoring_version}", self.host_prep)
         self.assertIn(f"${{AI_ARTIST_SEARCH_SCORING_VERSION:{scoring_version}}}", self.application_properties)

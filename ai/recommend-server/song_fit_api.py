@@ -25,7 +25,7 @@ from artist_catalog import ArtistCatalog, public_response
 from pitch_profile import MIDI_MAX, MIDI_MIN, PROFILE_SCHEMA_VERSION
 from recommendation_api import MODEL_DIMENSIONS, WORKSPACE, _configuration_status, _replace_with_retry, user_embedding_matrices
 from timbre_recommender.catalog import CatalogIndex
-from timbre_recommender.contracts import SCORING_VERSION
+from timbre_recommender.contracts import ARTIST_SEARCH_SCORING_VERSION, SCORING_VERSION
 from timbre_recommender.pitch_range import (
     KEY_SHIFT_MAX,
     KEY_SHIFT_MIN,
@@ -37,6 +37,10 @@ from timbre_recommender.scoring import RankerConfig, _absolute_similarity, _mode
 
 log = logging.getLogger("song_fit_api")
 MAX_ARTISTS = 5          # DB 제약: rank_no BETWEEN 1 AND 5
+ARTIST_SEARCH_WEIGHTS = {
+    SCORING_VERSION: (0.5, 0.5),  # 기존 작업 재시도 시 원래 순위 유지
+    ARTIST_SEARCH_SCORING_VERSION: (0.8, 0.2),
+}
 JOBS: dict[str, dict[str, Any]] = {}
 _LOCK = threading.RLock()
 ARTIST_JOBS_DIR = WORKSPACE.parent / "artist-search" / "jobs"
@@ -166,13 +170,24 @@ def song_fit(payload: dict[str, Any]) -> dict[str, Any]:
 
 # ── 닮은 가수 ─────────────────────────────────────────────────────────────────
 
+def _artist_scoring_version(payload: Mapping[str, Any], *, default: str = SCORING_VERSION) -> str:
+    version = payload.get("scoringVersion") or default
+    if not isinstance(version, str) or version not in ARTIST_SEARCH_WEIGHTS:
+        raise HTTPException(422, "지원하지 않는 닮은 가수 점수 버전입니다.")
+    return version
+
+
 def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int,
                  artists: ArtistCatalog | None = None,
-                 allowed_track_ids: set[str] | None = None) -> list[dict[str, Any]]:
-    """가수별로 그 가수의 모든 곡 구간을 모아 사용자와 견준다. 두 축 점수의 평균으로 순위를 매긴다.
+                 allowed_track_ids: set[str] | None = None,
+                 scoring_version: str = ARTIST_SEARCH_SCORING_VERSION) -> list[dict[str, Any]]:
+    """가수별 모든 곡 구간을 비교하고 요청 버전의 두 축 비중으로 순위를 매긴다.
 
     추천의 음색 점수와 같은 함수를 쓴다. 곡 하나가 아니라 가수의 구간 전체가 상대라는 점만 다르다.
     """
+    if scoring_version not in ARTIST_SEARCH_WEIGHTS:
+        raise ValueError(f"Unsupported artist search scoring version: {scoring_version}")
+    ecapa_weight, singer_byol_weight = ARTIST_SEARCH_WEIGHTS[scoring_version]
     artists = artists or ArtistCatalog.load(catalog)
     by_artist: dict[int, list] = {}
     for track in catalog.tracks:
@@ -195,7 +210,9 @@ def rank_artists(query: dict[str, np.ndarray], catalog: CatalogIndex, top_k: int
                        "artistName": min(tracks, key=lambda track: track.track_id).artist,
                        "ecapaScore": round(float(axis["ecapa"]), 4),
                        "singerByolScore": round(float(axis["singer_byol"]), 4),
-                       "similarity": round(float(axis["ecapa"] + axis["singer_byol"]) / 2.0, 4)})
+                       "similarity": round(float(
+                           ecapa_weight * axis["ecapa"]
+                           + singer_byol_weight * axis["singer_byol"]), 4)})
     scores.sort(key=lambda item: (-item["similarity"], item["artistId"]))
     return [{"rank": rank, **item}
             for rank, item in enumerate(scores[: max(1, min(top_k, MAX_ARTISTS))], start=1)]
@@ -236,10 +253,11 @@ def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
         mapping = ArtistCatalog.load(catalog)
         catalog_link.ensure()
         allowed = _active_track_ids(catalog, mapping, payload.get("catalogVersion"))
+        scoring_version = _artist_scoring_version(payload)
         artists = rank_artists(query, catalog, int(payload.get("topK") or MAX_ARTISTS), mapping,
-                               allowed_track_ids=allowed)
+                               allowed_track_ids=allowed, scoring_version=scoring_version)
         body = {"requestId": job["requestId"], "jobId": job_id, "component": "ARTIST_SEARCH",
-                "status": "COMPLETED", "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
+                "status": "COMPLETED", "modelKey": "ARTIST_SEARCH", "modelVersion": scoring_version,
                 "processedAt": analysis_jobs._iso(analysis_jobs._now()), "attemptNo": job["attemptNo"],
                 "resultVersion": payload.get("resultVersion"), "catalogVersion": payload.get("catalogVersion"),
                 "artists": artists, "failureCode": None, "failureReason": None}
@@ -257,8 +275,9 @@ def _artist_process(job_id: str, payload: dict[str, Any]) -> None:
 
 
 def _artist_failure(job: dict[str, Any], code: str, reason: str) -> dict[str, Any]:
+    scoring_version = (job.get("payload") or {}).get("scoringVersion") or SCORING_VERSION
     return {"requestId": job["requestId"], "jobId": job["jobId"], "component": "ARTIST_SEARCH",
-            "status": "FAILED", "modelKey": "ARTIST_SEARCH", "modelVersion": SCORING_VERSION,
+            "status": "FAILED", "modelKey": "ARTIST_SEARCH", "modelVersion": scoring_version,
             "processedAt": analysis_jobs._iso(analysis_jobs._now()), "attemptNo": job["attemptNo"],
             "resultVersion": job.get("resultVersion"), "catalogVersion": job.get("catalogVersion"),
             "artists": None, "failureCode": code, "failureReason": reason[:1000]}
@@ -272,6 +291,9 @@ def create_artist_search(payload: dict[str, Any], background_tasks: BackgroundTa
     if not request_id:
         raise HTTPException(422, "requestId 가 필요합니다.")
     user_embedding_matrices(payload.get("modelResults"))       # 잡을 만들기 전에 입력부터 검증한다
+    payload = dict(payload)
+    payload["scoringVersion"] = _artist_scoring_version(
+        payload, default=ARTIST_SEARCH_SCORING_VERSION)
     with _LOCK:
         for job in JOBS.values():
             if job["requestId"] == request_id:

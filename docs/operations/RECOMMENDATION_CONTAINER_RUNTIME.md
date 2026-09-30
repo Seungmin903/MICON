@@ -28,7 +28,7 @@ sudo stat -c '%n %u:%g %a' /etc/micon/backend-secrets/ai_service_token \
 AI_RECOMMENDATION_BASE_URL=http://micon-recommendation:8788
 AI_VOICE_ANALYSIS_ENABLED=false
 AI_ARTIST_SEARCH_ENABLED=true
-AI_ARTIST_SEARCH_SCORING_VERSION=ecapa-singer-byol-absolute-fusion-v3
+AI_ARTIST_SEARCH_SCORING_VERSION=ecapa80-singer-byol20-absolute-fusion-v1
 AI_SONG_FIT_ENABLED=false
 AI_RECOMMENDATION_ENABLED=false
 AI_RECOMMENDATION_POLLING_ENABLED=false
