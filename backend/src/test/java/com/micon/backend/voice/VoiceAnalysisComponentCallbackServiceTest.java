@@ -80,6 +80,24 @@ class VoiceAnalysisComponentCallbackServiceTest {
     }
 
     @Test
+    void acceptsFourValidTimbreSegments() {
+        var response = service.accept(completed(Collections.nCopies(1000, 0.125), 1000, 4));
+
+        assertThat(response.analysisId()).isEqualTo(31L);
+        verify(results).save(any(VoiceModelResult.class));
+        verify(job).complete(any(), any(), any());
+    }
+
+    @Test
+    void rejectsFewerThanFourValidTimbreSegments() {
+        assertThatThrownBy(() -> service.accept(completed(Collections.nCopies(1000, 0.125), 1000, 3)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("validChunkCount는 4 이상");
+        verify(results, never()).save(any());
+        verify(job, never()).complete(any(), any(), any());
+    }
+
+    @Test
     void delegatesArtistSearchCallbackAndReturnsParentAnalysisId() {
         VoiceAnalysisComponentJob artistJob = mock(VoiceAnalysisComponentJob.class);
         when(parentJobs.findByRequestIdForUpdate("artist-request")).thenReturn(Optional.empty());
@@ -197,10 +215,15 @@ class VoiceAnalysisComponentCallbackServiceTest {
     }
 
     private VoiceAnalysisComponentCallbackRequest completed(java.util.List<Double> embedding, int dimension) {
+        return completed(embedding, dimension, 5);
+    }
+
+    private VoiceAnalysisComponentCallbackRequest completed(java.util.List<Double> embedding, int dimension,
+            int validChunkCount) {
         ObjectMapper mapper = new ObjectMapper();
         return new VoiceAnalysisComponentCallbackRequest("request-1", "ai-job-1", "SINGER_BYOL",
                 VoiceAnalysisComponentCallbackRequest.Status.COMPLETED, "SINGER_BYOL", "v2",
-                dimension, embedding, mapper.createObjectNode().put("validChunkCount", 5),
+                dimension, embedding, mapper.createObjectNode().put("validChunkCount", validChunkCount),
                 mapper.createObjectNode().put("snr", 20), null, null, LocalDateTime.now(),
                 1, null, null, null, null, null, null, null, null, null, null);
     }

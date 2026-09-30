@@ -47,6 +47,7 @@ MAX_BYTES = 64 * 1024 * 1024
 MAX_DURATION_SECONDS = 120.0
 TIMBRE_PARTS = ("timbreFile", "file")        # 음색 임베딩에 쓰는 파트. 앞의 것이 우선
 COMPONENT_MODELS = {"ECAPA": ("ecapa", 192), "SINGER_BYOL": ("singer_byol", 1000)}
+MIN_USER_TIMBRE_SEGMENTS = 4            # BE voice-analysis callback contract; catalog embedding stays at 5
 TERMINAL = {"COMPLETED", "FAILED", "INSUFFICIENT_DATA", "CANCELED"}
 
 LOCK = threading.RLock()
@@ -425,7 +426,8 @@ def build_callbacks(job: dict[str, Any], ecapa: np.ndarray, byol: np.ndarray, me
     for component in job["components"]:
         key, dimension = COMPONENT_MODELS[component]
         rows = matrices[key].astype(np.float64)
-        if rows.ndim != 2 or rows.shape != (len(segments), dimension) or not 5 <= len(rows) <= 12:
+        if (rows.ndim != 2 or rows.shape != (len(segments), dimension)
+                or not MIN_USER_TIMBRE_SEGMENTS <= len(rows) <= 12):
             raise ValueError("Invalid embedding dimensions or segment count")
         if not np.isfinite(rows).all() or np.any(np.linalg.norm(rows, axis=1) < 1e-12):
             raise ValueError("Embeddings must be finite and nonzero")
@@ -513,7 +515,8 @@ def _upgrade_callback_payload(payload: dict[str, Any]) -> bool:
     embeddings = segment_info.get("embeddings")
     segment_count = segment_info.get("segmentCount")
     if (not isinstance(embeddings, list) or not isinstance(segment_count, int)
-            or segment_count != len(embeddings) or not 5 <= segment_count <= 12):
+            or segment_count != len(embeddings)
+            or not MIN_USER_TIMBRE_SEGMENTS <= segment_count <= 12):
         return False
     segment_info["validChunkCount"] = segment_count
     return True
@@ -677,7 +680,8 @@ def _timbre_callbacks(job, audio, prefix, config):
     metadata = embed_vocal_audio(
         embedding_audio, prefix, ecapa_checkpoint=config["ecapa_checkpoint"], singer_repo=config["singer_repo"],
         singer_checkpoint_root=config["singer_checkpoint_root"], device=config.get("device", "auto"),
-        batch_size=8, max_segments=12, min_segments=5, force=True, runtime=runtime, timings=timings,
+        batch_size=8, max_segments=12, min_segments=MIN_USER_TIMBRE_SEGMENTS,
+        force=True, runtime=runtime, timings=timings,
     )
     callbacks = build_callbacks(job, np.load(f"{prefix}.ecapa.npy", allow_pickle=False),
                                 np.load(f"{prefix}.singer_byol.npy", allow_pickle=False), metadata,

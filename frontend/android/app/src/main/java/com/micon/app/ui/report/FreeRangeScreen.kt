@@ -1,6 +1,7 @@
 package com.micon.app.ui.report
 
 import android.content.Context
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -50,6 +51,9 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 
+private class NeedsNewRangeMeasurement(message: String, cause: Throwable? = null) :
+    IllegalStateException(message, cause)
+
 internal class FreeRangeViewModel(context: Context, private val repository: RangeRepository,
     private val onboarding: Boolean) : ViewModel() {
     private val appContext = context.applicationContext
@@ -58,6 +62,7 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         val recording: Boolean = false,
         val busy: Boolean = false,
         val error: String? = null,
+        val needsRerecord: Boolean = false,
         val savedId: String? = null,
         val report: RangeReport? = null,
     )
@@ -103,6 +108,12 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
 
     fun permissionDenied() { stateFlow.update { it.copy(error = "마이크 권한을 허용해 주세요.") } }
     fun resume() { if (session.view().phase == "done") save() else start() }
+
+    /** A completed recording with insufficient score evidence needs new audio, not another analysis of the same WAV. */
+    fun retryMeasurement() {
+        val nextVersion = synchronized(restartLock) { appliedRestartVersion + 1 }
+        restartMeasurement(nextVersion)
+    }
 
     fun start() {
         if (stateFlow.value.recording || stateFlow.value.busy || stateFlow.value.savedId != null) return
@@ -193,7 +204,7 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
         if (stateFlow.value.busy || stateFlow.value.savedId != null) return
         val activeSession = session
         val generation = attemptGeneration
-        stateFlow.update { it.copy(busy = true) }
+        stateFlow.update { it.copy(busy = true, error = null, needsRerecord = false) }
         saveJob = viewModelScope.launch {
             try {
                 val wav = repository.audio(activeSession.id)
@@ -202,19 +213,36 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
                 if (generation != attemptGeneration) return@launch
                 val duration = Pcm16MonoWav.duration(wav, rate, true) ?: error("녹음 파일을 확인하지 못했어요.")
                 val original = checkNotNull(activeSession.submission(duration))
-                val submission = if (onboarding) {
-                    val quality = withContext(Dispatchers.IO) {
-                        runCatching { LocalVoiceQualityAnalyzer.analyze(wav,
-                            synchronized(qualityFrames) { qualityFrames.toList() }, original,
-                            continuousScore = BuildConfig.EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY) }.getOrNull()
-                    }
-                    original.copy(voiceQuality = quality)
-                } else original
                 val ready = withContext(Dispatchers.IO) {
-                    RangeInputQuality().inspect(submission, wav, rate, true)
+                    RangeInputQuality().inspect(original, wav, rate, true)
                 }
                 if (generation != attemptGeneration) return@launch
-                check(ready.ready) { ready.message }
+                if (!ready.ready) {
+                    if (onboarding) throw NeedsNewRangeMeasurement(ready.message)
+                    else error(ready.message)
+                }
+                val submission = if (onboarding) {
+                    val frames = synchronized(qualityFrames) { qualityFrames.toList() }
+                    val quality = try {
+                        withContext(Dispatchers.IO) {
+                            LocalVoiceQualityAnalyzer.analyze(wav, frames, original,
+                                continuousScore = BuildConfig.EXPERIMENTAL_CONTINUOUS_VOICE_QUALITY)
+                        }
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) {
+                        Log.w("FreeRangeViewModel", "Voice-quality analysis failed after range validation", error)
+                        throw IllegalStateException("발성 유지 점수 분석에 실패했어요. 다시 시도해 주세요.", error)
+                    }
+                    val validQuality = quality?.takeIf { result ->
+                        result.points.any { it.midi == result.referenceMidi && it.score.isFinite() }
+                    }
+                    if (validQuality == null) {
+                        Log.w("FreeRangeViewModel", "Voice-quality evidence unavailable after range validation; frames=${frames.size}")
+                        throw NeedsNewRangeMeasurement("발성 유지 점수를 계산하지 못했어요. 음역을 다시 측정해 주세요.")
+                    }
+                    original.copy(voiceQuality = validQuality)
+                } else original
+                if (generation != attemptGeneration) return@launch
                 withContext(Dispatchers.IO) {
                     synchronized(restartLock) {
                         if (generation == attemptGeneration) repository.savePending(PendingRange(submission, sampleRate = rate))
@@ -228,7 +256,9 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) {
-                updateIfCurrent(generation) { it.copy(error = e.message ?: "음역 분석을 시작하지 못했어요. 녹음은 보존돼 있어요.") }
+                updateIfCurrent(generation) { it.copy(
+                    error = e.message ?: "음역 분석을 시작하지 못했어요. 녹음은 보존돼 있어요.",
+                    needsRerecord = e is NeedsNewRangeMeasurement) }
             } finally {
                 updateIfCurrent(generation) { it.copy(busy = false) }
             }
@@ -241,10 +271,10 @@ internal class FreeRangeViewModel(context: Context, private val repository: Rang
     }
 }
 
-/** Comfort fills as its note is held; a sweep fills as its fixed mission clock runs out. */
+/** Leave visible progress until the sweep's voice and pitch conditions actually complete. */
 private fun stageProgress(view: FreeRangeSession.View): Double = when (view.phase) {
     "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
-    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, .95)
     else -> 0.0
 }
 
@@ -287,8 +317,8 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
                     view.elapsed < FreeRangeSession.missionSeconds(view.phase) ->
                         "남은 시간 ${ceil(view.remainingSeconds).toInt().coerceIn(0, FreeRangeSession.missionSeconds(view.phase).toInt())}초"
                     view.voicedSeconds < FreeRangeSession.MIN_VOICED_SECONDS ->
-                        "${ceil(FreeRangeSession.MIN_VOICED_SECONDS - view.voicedSeconds).toInt()}초 더 불러 주세요"
-                    else -> "기록할 구간을 기다리는 중…"
+                        "인식한 목소리 ${view.voicedSeconds.toInt()} / ${FreeRangeSession.MIN_VOICED_SECONDS.toInt()}초"
+                    else -> "낮은·높은 음의 안정적인 구간을 기다리는 중…"
                 }, color = Grey, modifier = Modifier.testTag("free-range-remaining"))
                 LinearProgressIndicator(progress = { stageProgress(view).toFloat().coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
                 Text(view.extremeMidi?.let {
@@ -301,7 +331,10 @@ fun FreeRangeScreen(onBack: () -> Unit, repository: RangeRepository? = null,
             when {
                 view.phase == "transition" -> Text("다음 단계 준비 중…", color = Grey)
                 view.phase == "done" && state.report != null -> RangeResultCards(state.report!!)
-                view.phase == "done" && state.error != null -> PrimaryButton("분석 다시 시도", vm::retryStage, Modifier.fillMaxWidth())
+                view.phase == "done" && state.needsRerecord && !state.busy ->
+                    PrimaryButton("음역 다시 측정", { vm.retryMeasurement(); start() }, Modifier.fillMaxWidth())
+                view.phase == "done" && state.error != null && !state.busy ->
+                    PrimaryButton("분석 다시 시도", vm::retryStage, Modifier.fillMaxWidth())
                 !state.recording && !state.busy && state.error == null && view.phase != "failed" ->
                     PrimaryButton("측정 시작", start, Modifier.fillMaxWidth())
             }

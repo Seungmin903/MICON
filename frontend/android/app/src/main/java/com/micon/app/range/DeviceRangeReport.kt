@@ -1,9 +1,17 @@
 package com.micon.app.range
 
+import kotlin.math.roundToInt
+
 /** Navigation eligibility only. This snapshot must never replace a model-verified report. */
 fun RangeSubmission.onboardingPreview(): RangeReport? {
     if (protocolVersion == RangeProtocol.FREE_VERSION) {
-        if (RangeInputQuality.metadataProblem(this) != null || stopReason != "completed") return null
+        // New free-range onboarding must not advance to a successful result without a
+        // measured reference point. Older saved profiles are read through a separate path.
+        val quality = voiceQuality
+        if (RangeInputQuality.metadataProblem(this) != null || stopReason != "completed" ||
+            quality == null || !LocalVoiceQualityAnalyzer.supports(quality.version) ||
+            quality.referenceMidi != stages.first().endpointMidi.roundToInt() ||
+            quality.points.none { it.midi == quality.referenceMidi && it.score.isFinite() && it.score in 0.0..100.0 }) return null
         return deviceReport().takeIf { it.availability == "available" }
     }
     if (RangeInputQuality.metadataProblem(this) != null || attempts.none {

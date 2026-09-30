@@ -208,6 +208,17 @@ class RecommenderTestCase(unittest.TestCase):
         self.assertEqual(windows.shape, (5, sample_rate * 4))
         self.assertEqual([item.start_seconds for item in metadata], [0.0, 2.0, 4.0, 6.0, 8.0])
 
+    def test_ten_seconds_can_supply_four_user_windows_without_changing_catalog_default(self) -> None:
+        sample_rate = 44_100
+        time = np.arange(sample_rate * 10, dtype=np.float32) / sample_rate
+        audio = self.root / "ten-second-vocal.wav"
+        sf.write(audio, 0.2 * np.sin(2 * np.pi * 220 * time), sample_rate, subtype="FLOAT")
+        windows, metadata = load_vocal_windows(audio, max_segments=12, min_segments=4)
+        self.assertEqual(windows.shape, (4, sample_rate * 4))
+        self.assertEqual([item.start_seconds for item in metadata], [0.0, 2.0, 4.0, 6.0])
+        with self.assertRaisesRegex(ValueError, "need at least 5"):
+            load_vocal_windows(audio, max_segments=12, min_segments=5)
+
     def test_index_provenance_is_recorded(self) -> None:
         catalog = self._build(
             [

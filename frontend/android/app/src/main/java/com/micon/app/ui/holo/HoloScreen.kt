@@ -217,6 +217,7 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
 
     val done = view.phase == "done"
     val running = rs.recording
+    val transitioning = view.phase == "transition"
     val progress = ((view.completed + stageProgressOf(view)) / 3.0).toFloat().coerceIn(0f, 1f)
     val introActive = !running && !rs.busy && rs.error == null && view.phase == "noise"
     var showStartPrompt by remember { mutableStateOf(false) }
@@ -228,6 +229,9 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
         }
     }
     val message = when {
+        done && rs.error != null -> if (rs.needsRerecord) "발성 점수를 확인할 수 없어요" else "분석을 마치지 못했어요"
+        done && rs.savedId != null && preview == null -> "음역 결과를 확인할 수 없어요"
+        done && (rs.busy || rs.savedId == null) -> "발성 점수를 계산하고 있어요"
         done -> "음역을 다 쟀어요"
         introActive && showStartPrompt -> "조용해졌다면, 아래 '음역 측정 시작' 버튼을 눌러주세요"
         else -> view.message
@@ -239,7 +243,7 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
         logoVisible = !running,
         globeScale = if (running) 0.85f + progress * 1.1f else 1f,
         absorbing = running,
-        topPill = if (!running && onSkip != null) "나중에 ›" to { confirmSkip = true } else null,
+        topPill = if (!running && !transitioning && onSkip != null) "나중에 ›" to { confirmSkip = true } else null,
         error = rs.error,
         middle = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -248,10 +252,14 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
                         fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 }
                 if (running && (view.phase == "down" || view.phase == "up")) {
-                    Text(
-                        if (view.remainingSeconds > 0) "남은 시간 " + ceil(view.remainingSeconds).toInt() + "초" else "조금만 더 불러 주세요",
-                        color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp, fontFamily = MiconMonoFamily,
-                    )
+                    val status = when {
+                        view.remainingSeconds > 0 -> "남은 시간 ${ceil(view.remainingSeconds).toInt()}초"
+                        view.voicedSeconds < FreeRangeSession.MIN_VOICED_SECONDS ->
+                            "인식한 목소리 ${view.voicedSeconds.toInt()} / ${FreeRangeSession.MIN_VOICED_SECONDS.toInt()}초"
+                        else -> null
+                    }
+                    if (status != null) Text(status,
+                        color = Color.White.copy(alpha = 0.72f), fontSize = 15.sp, fontFamily = MiconMonoFamily)
                     view.extremeMidi?.let {
                         val label = if (view.phase == "down") "가장 낮은" else "가장 높은"
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -270,7 +278,8 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
         bottom = {
             Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    if (done) "이제 노래로 음색을 봐요" else "1단계 · 음역 측정  " + (view.completed.coerceAtMost(2) + 1) + "/3",
+                    if (done && rs.error == null && preview != null) "이제 노래로 음색을 봐요"
+                    else if (done) "1단계 · 음역 측정" else "1단계 · 음역 측정  " + (view.completed.coerceAtMost(2) + 1) + "/3",
                     color = Color.White.copy(alpha = 0.88f), fontSize = 12.5.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -280,11 +289,18 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
                 when {
                     rs.busy || (done && rs.savedId == null && rs.error == null) ->
                         HoloButton("정리하는 중…", enabled = false) {}
-                    done && (rs.error != null || preview == null) -> HoloButton("다시 측정하기") {
+                    done && rs.needsRerecord -> HoloButton("음역 다시 측정하기") {
+                        vm.reset()
+                        rangeVm.restartMeasurement(vm.state.value.rangeRestartVersion)
+                    }
+                    done && rs.error != null -> HoloButton("분석 다시 시도", onClick = rangeVm::retryStage)
+                    done && preview == null -> HoloButton("음역 다시 측정하기") {
                         vm.reset()
                         rangeVm.restartMeasurement(vm.state.value.rangeRestartVersion)
                     }
                     done -> HoloButton("노래로 음색 측정하기") { vm.rangeMeasured(preview) }
+                    transitioning -> Text("다음 단계 준비 중…", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     running -> Text("듣고 있어요", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     rs.error != null || view.phase == "failed" -> HoloButton("이 단계 다시 하기", onClick = rangeVm::retryStage)
@@ -302,7 +318,7 @@ private fun RangeStage(vm: HoloViewModel, onSkip: (() -> Unit)?, rangeRestartVer
 
 private fun stageProgressOf(view: FreeRangeSession.View): Double = when (view.phase) {
     "comfort" -> (view.holdSeconds / FreeRangeSession.HOLD_SECONDS).coerceIn(0.0, 1.0)
-    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, 1.0)
+    "down", "up" -> (view.elapsed / FreeRangeSession.missionSeconds(view.phase)).coerceIn(0.0, .95)
     "done" -> 1.0
     else -> 0.0
 }

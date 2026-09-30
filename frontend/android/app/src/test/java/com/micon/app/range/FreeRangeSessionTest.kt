@@ -108,6 +108,16 @@ class FreeRangeSessionTest {
         assertEquals(57.0, down.endpointMidi, .3)
     }
 
+    @Test fun overtimeSilenceShowsVoiceDetectionGuidanceInsteadOfAStaleCountdown() {
+        val session = FreeRangeSession("quiet-overtime-test")
+        toComfort(session)
+        assertTrue(session.advance(4.3))
+        feed(session, 4.3, 15.0, { null }, .0001)
+        assertEquals("down", session.view().phase)
+        assertTrue(session.view().message.contains("목소리가 충분히 인식되지"))
+        assertFalse(session.view().message.contains("초 더"))
+    }
+
     /** A single misdetected frame is not a steady run, so it can never set the boundary. */
     @Test fun anIsolatedOctaveSpikeDoesNotBecomeTheBoundary() {
         val session = FreeRangeSession("spike-test")
