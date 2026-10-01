@@ -1,5 +1,6 @@
 package com.micon.app.data.holo
 
+import android.util.Log
 import com.micon.app.data.backend.BackendApi
 import com.micon.app.data.backend.dto.ApiResponse
 import com.micon.app.data.backend.dto.DeviceRangeNoteDto
@@ -35,6 +36,7 @@ import java.util.UUID
  * 서버가 없어도 1~2 실패는 결과 화면을 막지 않는다 — 음역·안정성은 기기 계산이다.
  */
 class HoloAnalysisClient(private val api: BackendApi) {
+    private companion object { const val UPLOAD_TAG = "HoloAnalysisUpload" }
     class Session(val id: Long, val access: VoiceSessionAccess)
     data class StreamUpload(val session: Session, val requestId: String, val pcmSha256: String)
 
@@ -90,7 +92,11 @@ class HoloAnalysisClient(private val api: BackendApi) {
             try {
                 if (!started) {
                     val begin = api.beginTimbreStream(session.id, requestId, VoiceStreamBeginRequest(rate), session.access)
-                    if (begin.code() in setOf(404, 405, 501, 503)) return null
+                    if (begin.code() in setOf(404, 405, 501, 503)) {
+                        Log.w(UPLOAD_TAG, "event=holo_stream_unavailable session_id=${session.id} " +
+                            "stream_id=$requestId http=${begin.code()}")
+                        return null
+                    }
                     begin.data()
                     started = true
                 }
@@ -139,9 +145,14 @@ class HoloAnalysisClient(private val api: BackendApi) {
                 }
                 delay(250)
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
+            catch (error: Exception) {
                 needStatus = true
-                if (finished() && ++failures >= 8) return null
+                val done = finished()
+                if (done) failures++
+                Log.w(UPLOAD_TAG, "event=holo_stream_retry session_id=${session.id} stream_id=$requestId " +
+                    "next_index=$index after_recording=$done failures=$failures error=${error.javaClass.simpleName} " +
+                    "message=${error.message?.take(160)}")
+                if (done && failures >= 8) return null
                 delay((failures.coerceAtLeast(1) * 500L).coerceAtMost(3_000L))
             }
         }
