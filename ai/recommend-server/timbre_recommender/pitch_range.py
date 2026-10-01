@@ -177,7 +177,8 @@ def _score_at_shift(
     observed_high = int(query["coreHighMidi"]) + COMFORT_PADDING_SEMITONES
     midi, mass = _shifted_histogram(candidate, shift)
     inside = (midi >= observed_low) & (midi <= observed_high)
-    coverage = float(mass[inside].sum())
+    # A normalized histogram can sum to 1 + a few ulps after floating-point arithmetic.
+    coverage = float(np.clip(mass[inside].sum(), 0.0, 1.0))
     center_distance = abs(float(candidate["medianMidi"]) + shift - float(query["medianMidi"]))
     center_score = float(np.exp(-center_distance / 3.0))
     user_span = observed_high - observed_low
