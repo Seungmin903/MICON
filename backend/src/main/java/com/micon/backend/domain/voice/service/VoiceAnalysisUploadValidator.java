@@ -18,6 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class VoiceAnalysisUploadValidator {
     private static final Set<String> WAV_MEDIA_TYPES = Set.of("audio/wav", "audio/x-wav", "audio/wave");
     private static final Set<String> START_POSITIONS = Set.of("BEGINNING", "VERSE_2", "HIGHLIGHT");
+    // The app's 30-second singing timer uses the player clock, which can finish before PCM reaches 30 seconds.
+    private static final int MIN_TIMBRE_RECORDING_MS = 28_000;
     private final long maxFileBytes;
 
     public VoiceAnalysisUploadValidator(
@@ -45,6 +47,10 @@ public class VoiceAnalysisUploadValidator {
                 || Math.abs(request.durationMs() - durationMs) > 100) {
             throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
                     "청크 녹음의 길이와 샘플레이트가 메타데이터와 일치해야 합니다.");
+        }
+        if (durationMs < MIN_TIMBRE_RECORDING_MS) {
+            throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
+                    "음색 분석 녹음은 최소 28초여야 합니다.");
         }
         validateTimeline(request);
     }
@@ -184,6 +190,10 @@ public class VoiceAnalysisUploadValidator {
     }
 
     private void validateTimeline(VoiceAnalysisUploadRequest request) {
+        if (request.durationMs() < MIN_TIMBRE_RECORDING_MS) {
+            throw new BusinessException(ErrorCode.INVALID_RECORDING_FILE,
+                    "음색 분석 녹음은 최소 28초여야 합니다.");
+        }
         if (!START_POSITIONS.contains(request.startPositionType())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "지원하지 않는 녹음 시작 위치입니다.");
         }
