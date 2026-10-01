@@ -3,6 +3,7 @@ package com.micon.app.ui.holo
 import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
@@ -18,6 +19,8 @@ import com.micon.app.data.holo.HoloResult
 import com.micon.app.data.holo.HoloResultStore
 import com.micon.app.data.holo.HoloPendingUpload
 import com.micon.app.data.holo.HoloPendingUploadStore
+import com.micon.app.data.holo.StreamUploadDrain
+import com.micon.app.data.holo.drainStreamUpload
 import com.micon.app.data.onboarding.VoiceSessionAccess
 import com.micon.app.data.local.UserStore
 import com.micon.app.data.backend.dto.toLiveNotes
@@ -42,6 +45,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.UUID
@@ -277,7 +281,11 @@ class HoloViewModel(
                             client.uploadDuringRecording(s, file, capture.recordingRate,
                                 streamRequestId ?: return@async null) { !capture.isRunning }
                         } catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { null } // Keep the existing complete-WAV fallback.
+                        catch (error: Exception) {
+                            Log.w(UPLOAD_TAG, "event=holo_stream_upload_failed session_id=${precreatedSession?.id} " +
+                                "stream_id=$streamRequestId error=${error.javaClass.simpleName}")
+                            null // Keep the existing complete-WAV fallback.
+                        }
                     }
                 }
                 if (picked != null) { player.seekTo(songStartSec); player.play() }
@@ -441,6 +449,7 @@ class HoloViewModel(
 
     private suspend fun submit(owner: OwnerKey, result: HoloResult, file: File?, picked: SongSummary?,
                                recordedSec: Double, sampleRate: Int) {
+        var stage = "lookup"
         try {
             if (owner != currentOwner()) return
             val known = (session ?: precreatedSession)?.let { existing ->
@@ -449,9 +458,20 @@ class HoloViewModel(
             val alreadyAccepted = known?.requestId != null &&
                 known.requestId in listOfNotNull(streamRequestId, fallbackRequestId) &&
                 known?.status in setOf("QUEUED", "RUNNING", "COMPLETED", "FAILED", "INSUFFICIENT_DATA")
+            stage = "stream_drain"
             val stream = if (alreadyAccepted) {
-                streamUploadJob?.cancel(); null
-            } else streamUploadJob?.await()
+                streamUploadJob?.cancel()
+                null
+            } else when (val drained = drainStreamUpload(streamUploadJob, STREAM_DRAIN_TIMEOUT_MS)) {
+                is StreamUploadDrain.Ready -> drained.upload
+                is StreamUploadDrain.Fallback -> {
+                    Log.w(UPLOAD_TAG, "event=holo_stream_fallback session_id=${precreatedSession?.id} " +
+                        "stream_id=$streamRequestId reason=${drained.reason}")
+                    null
+                }
+            }
+            streamUploadJob = null
+            stage = "session"
             val s = stream?.session ?: session ?: precreatedSession ?: client.createSession(owner.userId)
             owner.userId?.let { userId ->
                 pendingStore.read(userId)?.takeIf { it.resultMeasuredAt == result.measuredAt }
@@ -459,6 +479,7 @@ class HoloViewModel(
             }
             if (owner != currentOwner() || _state.value.result?.measuredAt != result.measuredAt) return
             session = s
+            stage = "range_submit"
             if (!alreadyAccepted) client.submitRange(s, result)
             if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
             _state.update { it.copy(result = it.result?.copy(sessionId = s.id)) }
@@ -466,16 +487,44 @@ class HoloViewModel(
                 if (alreadyAccepted) {
                     // A previous complete request succeeded but its response was lost.
                 } else if (stream == null) {
-                    client.submitTimbre(s, file, picked.id, sampleRate, (recordedSec * 1000).toInt(),
-                        (songStartSec * 1000).toInt(), dataVersion, result.measuredAt,
-                        fallbackRequestId ?: UUID.randomUUID().toString())
+                    stage = "wav_submit"
+                    val requestId = fallbackRequestId ?: UUID.randomUUID().toString().also { fallbackRequestId = it }
+                    var accepted = false
+                    var last: Exception? = null
+                    for (attempt in 1..2) {
+                        try {
+                            val analysisId = withTimeoutOrNull(WAV_SUBMIT_TIMEOUT_MS) {
+                                client.submitTimbre(s, file, picked.id, sampleRate, (recordedSec * 1000).toInt(),
+                                    (songStartSec * 1000).toInt(), dataVersion, result.measuredAt, requestId)
+                            }
+                            check(analysisId != null) { "전체 WAV 분석 접수 시간 초과 또는 빈 응답" }
+                            accepted = true
+                            break
+                        } catch (e: CancellationException) { throw e }
+                        catch (e: Exception) {
+                            last = e
+                            Log.w(UPLOAD_TAG, "event=holo_wav_submit_retry session_id=${s.id} " +
+                                "request_id=$requestId attempt=$attempt error=${e.javaClass.simpleName}")
+                            val status = runCatching { client.timbreJob(s) }.getOrNull()
+                            if (status?.requestId == requestId && status.status in ACCEPTED_JOB_STATUSES) {
+                                accepted = true
+                                break
+                            }
+                            if (attempt < 2) delay(1_000)
+                        }
+                    }
+                    if (!accepted) throw last ?: IllegalStateException("음색 분석 접수에 실패했어요.")
                 } else {
+                    stage = "stream_complete"
                     var accepted = false
                     var last: Exception? = null
                     for (attempt in 1..5) {
                         try {
-                            client.completeTimbreStream(stream, picked.id, sampleRate,
-                                (recordedSec * 1000).toInt(), (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
+                            val analysisId = withTimeoutOrNull(STREAM_COMPLETE_TIMEOUT_MS) {
+                                client.completeTimbreStream(stream, picked.id, sampleRate,
+                                    (recordedSec * 1000).toInt(), (songStartSec * 1000).toInt(), dataVersion, result.measuredAt)
+                            }
+                            check(analysisId != null) { "스트림 분석 접수 시간 초과 또는 빈 응답" }
                             accepted = true
                             break
                         } catch (e: CancellationException) { throw e }
@@ -485,6 +534,7 @@ class HoloViewModel(
                 }
                 if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return
                 _state.update { it.copy(result = it.result?.copy(timbreSubmitted = true)) }
+                stage = "result_poll"
                 client.poll(s) { p ->
                     if (owner != currentOwner() || session !== s || _state.value.result?.measuredAt != result.measuredAt) return@poll
                     pollVersion = p.version; saveAllowed = p.saveAllowed
@@ -503,9 +553,14 @@ class HoloViewModel(
                     submissionRetryable = false) else it }
             } else if (owner == currentOwner()) _state.update { it.copy(analysisFinished = true) }
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) {
+        catch (error: Exception) {
+            Log.e(UPLOAD_TAG, "event=holo_submit_failed stage=$stage session_id=${session?.id ?: precreatedSession?.id} " +
+                "stream_id=$streamRequestId request_id=$fallbackRequestId error=${error.javaClass.simpleName} " +
+                "message=${error.message?.take(160)}")
             _state.update { if (owner == currentOwner() && it.result?.measuredAt == result.measuredAt) it.copy(analysisFinished = true,
-                saveError = "서버에 연결할 수 없어 저장하지 못했어요.", submissionRetryable = true) else it }
+                saveError = if (owner.userId != null) "분석 전송에 실패했어요. 녹음은 기기에 보관돼 있어요. 연결을 확인하고 다시 시도해 주세요."
+                    else "분석 전송에 실패했어요. 연결을 확인하고 다시 측정해 주세요.",
+                submissionRetryable = true) else it }
         }
     }
 
@@ -630,6 +685,11 @@ class HoloViewModel(
     }
 
     companion object {
+        private const val UPLOAD_TAG = "HoloAnalysisUpload"
+        private const val STREAM_DRAIN_TIMEOUT_MS = 15_000L
+        private const val WAV_SUBMIT_TIMEOUT_MS = 120_000L
+        private const val STREAM_COMPLETE_TIMEOUT_MS = 60_000L
+        private val ACCEPTED_JOB_STATUSES = setOf("QUEUED", "RUNNING", "COMPLETED", "FAILED", "INSUFFICIENT_DATA")
         /** 2단계에서 실제로 불러야 하는 시간. 간주를 건너뛰므로 체감 시간은 이보다 짧다 */
         const val SING_SECONDS = 30.0
         const val DURATION_SEC = 30.0
