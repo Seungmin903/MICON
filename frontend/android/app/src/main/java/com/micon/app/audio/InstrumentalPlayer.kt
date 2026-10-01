@@ -17,8 +17,8 @@ import okhttp3.OkHttpClient
  * 반주(Opus/ogg) 스트리밍 재생. Media3 ExoPlayer.
  * 메인 스레드에서 만들고 호출할 것. 화면을 떠날 때 [release].
  *
- * 키별로 미리 렌더된 반주 URL을 받아 재생한다. 키 전환은 ViewModel이 현재 위치를 저장한 뒤
- * 새 미디어를 준비하고 같은 위치로 이동하는 방식으로 처리한다.
+ * 키별로 미리 렌더된 반주 URL을 받아 재생한다. 연습 중 키 전환은 현재 플레이어의
+ * PlaybackParameters로 즉시 들려주고, 별도 플레이어가 새 미디어를 같은 위치에 준비한 뒤 교체한다.
  */
 class InstrumentalPlayer(
     context: Context,
@@ -51,11 +51,12 @@ class InstrumentalPlayer(
         })
     }
 
-    fun load(url: String, cacheKey: String? = null) {
+    fun load(url: String, cacheKey: String? = null, startPositionSec: Double = 0.0) {
         val item = MediaItem.Builder().setUri(url).apply {
             if (practiceCache != null && cacheKey != null) setCustomCacheKey(cacheKey)
         }.build()
-        player.setMediaItem(item)
+        // Set the target before prepare so a replacement source never starts at 0 and then seeks.
+        player.setMediaItem(item, (startPositionSec * 1000).toLong().coerceAtLeast(0))
         player.prepare()
     }
 

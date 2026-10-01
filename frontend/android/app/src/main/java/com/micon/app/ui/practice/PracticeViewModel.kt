@@ -5,6 +5,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.ToneGenerator
+import android.util.Log
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -142,15 +143,18 @@ class PracticeViewModel(
     val state = _state.asStateFlow()
 
     private val instrumentalBytesCache = runCatching { PracticeInstrumentalCache.get(appContext) }.getOrNull()
-    val player = InstrumentalPlayer(appContext, mediaHttp, instrumentalBytesCache)
+    private val playerContext = appContext.applicationContext
+    var player = InstrumentalPlayer(playerContext, mediaHttp, instrumentalBytesCache)
+        private set
     private var audioReleased = false
     /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). */
     private var instrumentalUrl: String? = null
     private var currentInstrumental: InstrumentalMedia? = null
+    /** 현재 플레이어에 실제로 들어 있는 사전 렌더링 반주의 키. 표시 키와 다를 때는 로컬 피치 변환 중이다. */
+    private var renderedKey = initialKey
     private val instrumentalCache = KeyedInstrumentalCache()
     private var prefetchJob: Job? = null
     private var keySwitchJob: Job? = null
-    private var pendingKey: Int? = null
     private var keyChangeCount = 0
     private var sessionInitialKey: Int? = null
     private val audioManager: AudioManager? = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -258,8 +262,9 @@ class PracticeViewModel(
                 }
                 // 길이는 스트림 메타데이터가 오면 갱신
                 launch {
-                    if (player.awaitReady(10_000)) {
-                        _state.update { it.copy(durationSec = player.durationSec ?: fallbackDuration()) }
+                    val initialPlayer = player
+                    if (initialPlayer.awaitReady(10_000) && player === initialPlayer) {
+                        _state.update { it.copy(durationSec = initialPlayer.durationSec ?: fallbackDuration()) }
                         prefetchNeighbors(initialKey)
                     }
                 }
@@ -325,67 +330,70 @@ class PracticeViewModel(
         scorer?.autoCalibrate = value
     }
 
-    /** 재생 위치를 유지한 채 키별 S3 반주를 교체한다. 연속 요청은 마지막 키만 한 번 더 적용한다. */
+    /** 키는 즉시 바꾸고, 사전 렌더링 반주는 별도 플레이어가 준비된 뒤 같은 위치에서 교체한다. */
     fun changeKey(next: Int) {
         val target = next.coerceIn(ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX)
         val s = _state.value
         if (target == s.keyShift || s.phase !in setOf(Phase.READY, Phase.RUNNING, Phase.PAUSED)) return
-        pendingKey = target
-        if (keySwitchJob?.isActive == true) return
-        keySwitchJob = viewModelScope.launch {
-            while (true) {
-                val requested = pendingKey ?: break
-                pendingKey = null
-                switchInstrumental(requested)
-            }
-        }
+        // Changing PlaybackParameters does not replace the media item or reset its timeline.
+        player.keyShift = target - renderedKey
+        scorer?.keyShift = target
+        if (sessionInitialKey != null) keyChangeCount += 1
+        Log.i("PracticeKeySwitch", "instant_key_applied from=${s.keyShift} to=$target rendered=$renderedKey position_ms=${(player.positionSec * 1000).toLong()}")
+        _state.update { it.copy(keyShift = target, keySwitching = false, buffering = false, error = null) }
+        keySwitchJob?.cancel()
+        if (target != renderedKey) keySwitchJob = viewModelScope.launch { upgradeInstrumental(target) }
+        else prefetchNeighbors(target)
     }
 
-    private suspend fun switchInstrumental(target: Int) {
-        val before = _state.value
-        if (target == before.keyShift) return
-        // 선택한 스트림이 선로딩과 네트워크/캐시 잠금을 다투지 않도록 먼저 중지한다.
+    private suspend fun upgradeInstrumental(target: Int) {
+        // The active player keeps playing while this one prepares, even on an uncached key.
         prefetchJob?.cancel()
         instrumentalBytesCache?.cancelPrefetch()
-        val previousUrl = instrumentalUrl ?: return
-        val previousMedia = currentInstrumental
-        val previousPosition = player.positionSec
-        val resumeRunning = before.phase == Phase.RUNNING
-        tickJob?.cancel(); tickJob = null
-        player.pause()
-        sync = null
-        _state.update { it.copy(keySwitching = true, buffering = true, error = null) }
+        var candidate: InstrumentalPlayer? = null
         try {
             val media = instrumentalCache.valid(target) ?: repo.instrumental(songId, target).also { instrumentalCache.put(target, it) }
             val nextUrl = media.playbackUrl ?: error("선택한 키의 반주 재생 주소가 없습니다.")
-            player.load(nextUrl, PracticeInstrumentalCache.cacheKey(media))
-            check(player.awaitReady(8_000)) { "선택한 키의 반주를 8초 안에 불러오지 못했습니다." }
-            player.seekTo(previousPosition)
+            val prepared = InstrumentalPlayer(playerContext, mediaHttp, instrumentalBytesCache)
+            candidate = prepared
+            prepared.load(nextUrl, PracticeInstrumentalCache.cacheKey(media), player.positionSec)
+            check(prepared.awaitReady(8_000)) { "선택한 키의 반주를 8초 안에 불러오지 못했습니다." }
+            if (_state.value.keyShift != target || _state.value.phase !in setOf(Phase.READY, Phase.RUNNING, Phase.PAUSED) || audioReleased) return
+            // A running song advanced during prepare. Seek the standby while the original stays audible.
+            prepared.seekTo(player.positionSec)
+            check(prepared.awaitReady(2_000)) { "선택한 키의 현재 위치를 준비하지 못했습니다." }
+            if (_state.value.keyShift != target || _state.value.phase !in setOf(Phase.READY, Phase.RUNNING, Phase.PAUSED) || audioReleased) return
+            val previous = player
+            val handoffPosition = previous.positionSec
+            prepared.seekTo(handoffPosition)
+            if (!prepared.isReady) {
+                check(prepared.awaitReady(1_000)) { "선택한 키의 현재 위치에서 재생할 수 없습니다." }
+            }
+            check(abs(prepared.positionSec - handoffPosition) <= 0.5) { "키 변경 후 재생 위치가 일치하지 않습니다." }
+            if (_state.value.keyShift != target || audioReleased) return
+            val resumeRunning = _state.value.phase == Phase.RUNNING
+            previous.pause()
+            player = prepared
+            candidate = null
+            player.onError = { message -> _state.update { it.copy(error = "반주 재생 오류: $message", buffering = false) } }
             instrumentalUrl = nextUrl
             currentInstrumental = media
-            scorer?.keyShift = target
+            renderedKey = target
             sync = null
             if (resumeRunning) player.play()
-            if (sessionInitialKey != null) keyChangeCount += 1
             _state.update {
-                it.copy(keyShift = target, nowSec = previousPosition, durationSec = player.durationSec ?: it.durationSec,
-                    keySwitching = false, buffering = false, error = null)
+                it.copy(nowSec = handoffPosition, durationSec = player.durationSec ?: it.durationSec)
             }
+            Log.i("PracticeKeySwitch", "quality_handoff key=$target position_ms=${(player.positionSec * 1000).toLong()} running=$resumeRunning")
+            previous.release()
             prefetchNeighbors(target)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
-            player.load(previousUrl, previousMedia?.let(PracticeInstrumentalCache::cacheKey))
-            if (player.awaitReady(8_000)) {
-                player.seekTo(previousPosition)
-                if (resumeRunning) player.play()
-            }
-            scorer?.keyShift = before.keyShift
-            sync = null
-            _state.update {
-                it.copy(keyShift = before.keyShift, nowSec = previousPosition, keySwitching = false, buffering = false,
-                    error = "키를 바꾸지 못했습니다. 이전 키로 계속 재생합니다: ${error.message ?: "네트워크 오류"}")
-            }
+            // Local pitch is already active; a failed quality upgrade must not interrupt playback.
+            Log.w("PracticeKeySwitch", "quality_upgrade_failed key=$target error=${error.javaClass.simpleName}")
         } finally {
-            if (resumeRunning) scorer?.let { active -> tickJob = viewModelScope.launch { tickLoop(active) } }
+            candidate?.release()
         }
     }
 
@@ -456,6 +464,10 @@ class PracticeViewModel(
             _state.update { it.copy(countdown = 0) }
             player.play()
             _state.update { it.copy(phase = Phase.RUNNING) }
+            // A key chosen during count-in may have skipped the standby handoff.
+            if (renderedKey != _state.value.keyShift && keySwitchJob?.isActive != true) {
+                keySwitchJob = launch { upgradeInstrumental(_state.value.keyShift) }
+            }
             val scorer = scorer ?: return@launch
             tickJob?.cancel()
             tickJob = launch { tickLoop(scorer) }
@@ -480,6 +492,7 @@ class PracticeViewModel(
     }
 
     private fun finish() {
+        keySwitchJob?.cancel()
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
         player.pause()
@@ -499,6 +512,7 @@ class PracticeViewModel(
 
     /** 처음부터: 판정·녹음을 버리고 READY 로. 열린 백엔드 세션은 취소한다. */
     fun restart() {
+        keySwitchJob?.cancel()
         takeSerial++
         countdownJob?.cancel(); countdownJob = null
         tickJob?.cancel(); tickJob = null
@@ -685,6 +699,7 @@ class PracticeViewModel(
     /** Covers backgrounding, system back and report navigation, including buffered audio/count-in. */
     fun stopAudioForExit() {
         if (audioReleased) return
+        keySwitchJob?.cancel()
         pause()
         player.pause()
         clicks?.stopTone()
