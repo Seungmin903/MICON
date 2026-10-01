@@ -20,10 +20,16 @@ import okhttp3.OkHttpClient
  * 키별로 미리 렌더된 반주 URL을 받아 재생한다. 키 전환은 ViewModel이 현재 위치를 저장한 뒤
  * 새 미디어를 준비하고 같은 위치로 이동하는 방식으로 처리한다.
  */
-class InstrumentalPlayer(context: Context, okHttp: OkHttpClient) {
+class InstrumentalPlayer(
+    context: Context,
+    okHttp: OkHttpClient,
+    private val practiceCache: PracticeInstrumentalCache? = null,
+) {
     @OptIn(UnstableApi::class)
     val player: ExoPlayer = ExoPlayer.Builder(context)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(okHttp)))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(
+            practiceCache?.dataSourceFactory(okHttp) ?: OkHttpDataSource.Factory(okHttp),
+        ))
         .setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
             /* handleAudioFocus = */ true,
@@ -45,8 +51,11 @@ class InstrumentalPlayer(context: Context, okHttp: OkHttpClient) {
         })
     }
 
-    fun load(url: String) {
-        player.setMediaItem(MediaItem.fromUri(url))
+    fun load(url: String, cacheKey: String? = null) {
+        val item = MediaItem.Builder().setUri(url).apply {
+            if (practiceCache != null && cacheKey != null) setCustomCacheKey(cacheKey)
+        }.build()
+        player.setMediaItem(item)
         player.prepare()
     }
 
