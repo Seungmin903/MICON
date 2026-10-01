@@ -12,7 +12,9 @@ import android.os.VibratorManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micon.app.audio.InstrumentalPlayer
+import com.micon.app.audio.PracticeInstrumentalCache
 import com.micon.app.audio.PitchCapture
+import com.micon.app.data.InstrumentalMedia
 import com.micon.app.data.SongRepository
 import com.micon.app.data.PracticeSection
 import com.micon.app.data.backend.AuthSessionExpiredException
@@ -81,7 +83,7 @@ class PracticeViewModel(
     appContext: Context,
     val songId: String,
     private val repo: SongRepository,
-    mediaHttp: OkHttpClient,
+    private val mediaHttp: OkHttpClient,
     private val practices: PracticeRepository,
     private val recordings: PracticeRecordingStore,
     private val sessionSnapshot: () -> SessionSnapshot,
@@ -139,11 +141,14 @@ class PracticeViewModel(
     private val _state = MutableStateFlow(UiState(keyShift = initialKey))
     val state = _state.asStateFlow()
 
-    val player = InstrumentalPlayer(appContext, mediaHttp)
+    private val instrumentalBytesCache = runCatching { PracticeInstrumentalCache.get(appContext) }.getOrNull()
+    val player = InstrumentalPlayer(appContext, mediaHttp, instrumentalBytesCache)
     private var audioReleased = false
     /** 현재 키의 반주 스트리밍 URL (백엔드 발급, 만료 있음). */
     private var instrumentalUrl: String? = null
+    private var currentInstrumental: InstrumentalMedia? = null
     private val instrumentalCache = KeyedInstrumentalCache()
+    private var prefetchJob: Job? = null
     private var keySwitchJob: Job? = null
     private var pendingKey: Int? = null
     private var keyChangeCount = 0
@@ -243,7 +248,8 @@ class PracticeViewModel(
                     ?: error("반주 재생 주소가 없습니다. 백엔드 practice-assets 응답에 반주 URL(playbackUrl)이 추가되어야 합니다.")
                 instrumentalCache.put(initialKey, assets.instrumental)
                 instrumentalUrl = url
-                player.load(url)
+                currentInstrumental = assets.instrumental
+                player.load(url, PracticeInstrumentalCache.cacheKey(assets.instrumental))
                 _state.update {
                     it.copy(
                         phase = Phase.READY, title = detail.summary.title, artist = detail.summary.artist, keyName = assets.keyName ?: detail.analysis?.keyName,
@@ -252,11 +258,10 @@ class PracticeViewModel(
                 }
                 // 길이는 스트림 메타데이터가 오면 갱신
                 launch {
-                    if (player.awaitReady(10_000)) _state.update { it.copy(durationSec = player.durationSec ?: fallbackDuration()) }
-                }
-                // 화면 표시를 막지 않고 나머지 키의 짧은 MR 응답만 미리 받아 둔다. 실패한 키는 선택할 때 다시 조회한다.
-                for (key in ScoringConstants.KEY_SHIFT_MIN..ScoringConstants.KEY_SHIFT_MAX) {
-                    if (key != initialKey) launch { runCatching { repo.instrumental(songId, key) }.onSuccess { instrumentalCache.put(key, it) } }
+                    if (player.awaitReady(10_000)) {
+                        _state.update { it.copy(durationSec = player.durationSec ?: fallbackDuration()) }
+                        prefetchNeighbors(initialKey)
+                    }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(phase = Phase.ERROR, error = e.message ?: e.toString()) }
@@ -265,6 +270,34 @@ class PracticeViewModel(
     }
 
     private fun fallbackDuration(): Double = (notes.lastOrNull()?.end ?: 0.0) + 6.0
+
+    /** 현재 반주가 준비된 뒤 인접 두 키만 채운다. 재생·화면 진입은 기다리지 않는다. */
+    private fun prefetchNeighbors(key: Int) {
+        prefetchJob?.cancel()
+        instrumentalBytesCache?.cancelPrefetch()
+        if (instrumentalBytesCache == null) return // 캐시 초기화 실패 시 기존 스트리밍 경로를 유지한다.
+        prefetchJob = viewModelScope.launch {
+            for (neighbor in PracticeInstrumentalCache.adjacentKeys(
+                key, ScoringConstants.KEY_SHIFT_MIN, ScoringConstants.KEY_SHIFT_MAX,
+            )) {
+                val media = try {
+                    instrumentalCache.valid(neighbor)
+                        ?: repo.instrumental(songId, neighbor).also { instrumentalCache.put(neighbor, it) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    continue // 없는 키나 일시적인 API 실패는 실제 선택 시 다시 조회한다.
+                }
+                try {
+                    withContext(Dispatchers.IO) { instrumentalBytesCache.prefetch(media, mediaHttp) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // 선로딩 실패는 현재 키 재생에 영향을 주지 않는다.
+                }
+            }
+        }
+    }
 
     /** 비트 그리드에서 마디 시작 시각만 골라낸다 (offsetBeats 기준으로 meter 마다). */
     private fun barStarts(): List<Double> {
@@ -311,7 +344,11 @@ class PracticeViewModel(
     private suspend fun switchInstrumental(target: Int) {
         val before = _state.value
         if (target == before.keyShift) return
+        // 선택한 스트림이 선로딩과 네트워크/캐시 잠금을 다투지 않도록 먼저 중지한다.
+        prefetchJob?.cancel()
+        instrumentalBytesCache?.cancelPrefetch()
         val previousUrl = instrumentalUrl ?: return
+        val previousMedia = currentInstrumental
         val previousPosition = player.positionSec
         val resumeRunning = before.phase == Phase.RUNNING
         tickJob?.cancel(); tickJob = null
@@ -321,10 +358,11 @@ class PracticeViewModel(
         try {
             val media = instrumentalCache.valid(target) ?: repo.instrumental(songId, target).also { instrumentalCache.put(target, it) }
             val nextUrl = media.playbackUrl ?: error("선택한 키의 반주 재생 주소가 없습니다.")
-            player.load(nextUrl)
+            player.load(nextUrl, PracticeInstrumentalCache.cacheKey(media))
             check(player.awaitReady(8_000)) { "선택한 키의 반주를 8초 안에 불러오지 못했습니다." }
             player.seekTo(previousPosition)
             instrumentalUrl = nextUrl
+            currentInstrumental = media
             scorer?.keyShift = target
             sync = null
             if (resumeRunning) player.play()
@@ -333,8 +371,9 @@ class PracticeViewModel(
                 it.copy(keyShift = target, nowSec = previousPosition, durationSec = player.durationSec ?: it.durationSec,
                     keySwitching = false, buffering = false, error = null)
             }
+            prefetchNeighbors(target)
         } catch (error: Exception) {
-            player.load(previousUrl)
+            player.load(previousUrl, previousMedia?.let(PracticeInstrumentalCache::cacheKey))
             if (player.awaitReady(8_000)) {
                 player.seekTo(previousPosition)
                 if (resumeRunning) player.play()
@@ -398,7 +437,7 @@ class PracticeViewModel(
         countdownJob = viewModelScope.launch {
             _state.update { it.copy(phase = Phase.COUNTDOWN, countdown = 0, buffering = true) }
             if (!player.isReady) {
-                if (player.isIdle) instrumentalUrl?.let { player.load(it) }
+                if (player.isIdle) instrumentalUrl?.let { player.load(it, currentInstrumental?.let(PracticeInstrumentalCache::cacheKey)) }
                 if (!player.awaitReady(8000)) {
                     val judged = scorer?.totals()?.judged ?: 0
                     _state.update { it.copy(phase = if (judged > 0) Phase.PAUSED else Phase.READY, buffering = false, error = "반주를 불러오지 못했습니다. 네트워크를 확인하고 다시 시도하세요.") }
@@ -807,6 +846,8 @@ class PracticeViewModel(
     }
 
     override fun onCleared() {
+        prefetchJob?.cancel()
+        instrumentalBytesCache?.cancelPrefetch()
         stopAudioForExit()
         audioReleased = true
         countdownJob?.cancel()
